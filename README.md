@@ -16,14 +16,14 @@
 
 - 這次 Solidity 殘酷共學#1 主要是推廣更多人學習 Solidity, 以及搭配WTF Academy 系統性的學習.
 - 發起人: [DeFiHackLabs](https://x.com/DeFiHackLabs) & [WTF Academy](https://x.com/WTFAcademy_)
-- 助教: [0xRory](https://x.com/0x_Rory)、[]()
+- 助教: [0xRory](https://x.com/0x_Rory)、[guowei](https://github.com/buttonwild)
 - 投票: DeFiHackLabs & WTF Academy
 
 ## 共学时间
 
-- 報名起始時間：9/16-9/22
+- 報名起始時間：9/13 ~ 9/22
 - 本期共學開始時間：9/23~10/16（週日放假，放假日也可以簽到和學習)
-- 本期共學持續時間：21天
+- 本期共學持續時間：21 天
 - 共學討論: [TG 頻道](https://t.me/+eogaKxQs-1BlZmJl)
 
 ## 共學內容
