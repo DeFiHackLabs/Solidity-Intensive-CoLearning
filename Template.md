@@ -7,19 +7,19 @@ timezone: Asia/Shanghai
 
 timezone: Pacific/Honolulu # 夏威夷-阿留申标准时间 (UTC-10)
 
-timezone: America/Anchorage # 阿拉斯加标准时间 (UTC-9)
+timezone: America/Anchorage # 阿拉斯加夏令时间 (UTC-8)
 
-timezone: America/Los_Angeles # 太平洋标准时间 (UTC-8)
+timezone: America/Los_Angeles # 太平洋夏令时间 (UTC-7)
 
-timezone: America/Denver # 山地标准时间 (UTC-7)
+timezone: America/Denver # 山地夏令时间 (UTC-6)
 
-timezone: America/Chicago # 中部标准时间 (UTC-6)
+timezone: America/Chicago # 中部夏令时间 (UTC-5)
 
-timezone: America/New_York # 东部标准时间 (UTC-5)
+timezone: America/New_York # 东部夏令时间 (UTC-4)
 
-timezone: America/Halifax # 大西洋标准时间 (UTC-4)
+timezone: America/Halifax # 大西洋夏令时间 (UTC-3)
 
-timezone: America/St_Johns # 纽芬兰标准时间 (UTC-3:30)
+timezone: America/St_Johns # 纽芬兰夏令时间 (UTC-2:30)
 
 timezone: Asia/Dubai # 海湾标准时间 (UTC+4)
 
