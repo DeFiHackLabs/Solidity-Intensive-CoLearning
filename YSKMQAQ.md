@@ -40,8 +40,10 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 # YSKMQAQ
 
 1. 自我介绍
+Hello,我是 YSKMQAQ，Solidity 初学者，希望和大家共同进步。
 
-2. 你认为你会完成本次残酷学习吗？
+3. 你认为你会完成本次残酷学习吗？
+必须的
    
 ## Notes
 
