@@ -37,11 +37,11 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 
 ---
 
-# YourName
+# awaqawaqawaq
 
-1. 自我介绍
-
-2. 你认为你会完成本次残酷学习吗？
+1. 区块链新人,没有经验，啥也不会，不过总有开始的一步(
+ 
+2. 你认为你会完成本次残酷学习吗？ maybe(70%)
    
 ## Notes
 
@@ -64,7 +64,7 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 
   function changeOwner(address addr) public {
     require(whitelistedMinters[addr], "You are not whitelisted");
-    require(msg.sender == addr, "address must be msg.sender");
+    require(msg.sender == addr, "address must be msg.sender");`
     require(addr != address(0), "Zero address");
     owner = addr;
   }

@@ -7,19 +7,19 @@ timezone: Asia/Shanghai
 
 timezone: Pacific/Honolulu # 夏威夷-阿留申标准时间 (UTC-10)
 
-timezone: America/Anchorage # 阿拉斯加夏令时间 (UTC-8)
+timezone: America/Anchorage # 阿拉斯加标准时间 (UTC-9)
 
-timezone: America/Los_Angeles # 太平洋夏令时间 (UTC-7)
+timezone: America/Los_Angeles # 太平洋标准时间 (UTC-8)
 
-timezone: America/Denver # 山地夏令时间 (UTC-6)
+timezone: America/Denver # 山地标准时间 (UTC-7)
 
-timezone: America/Chicago # 中部夏令时间 (UTC-5)
+timezone: America/Chicago # 中部标准时间 (UTC-6)
 
-timezone: America/New_York # 东部夏令时间 (UTC-4)
+timezone: America/New_York # 东部标准时间 (UTC-5)
 
-timezone: America/Halifax # 大西洋夏令时间 (UTC-3)
+timezone: America/Halifax # 大西洋标准时间 (UTC-4)
 
-timezone: America/St_Johns # 纽芬兰夏令时间 (UTC-2:30)
+timezone: America/St_Johns # 纽芬兰标准时间 (UTC-3:30)
 
 timezone: Asia/Dubai # 海湾标准时间 (UTC+4)
 
@@ -40,8 +40,10 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 # YourName
 
 1. 自我介绍
+我是Ariel,在參與本次共學前從未接觸過Solidity 與智能合約相關知識，發現自己太多不了解的知識，想要扎實從頭學起～
 
 2. 你认为你会完成本次残酷学习吗？
+我覺得我可以完成本次殘酷共學。為了完成此次學習，我有空出每天一段時間，希望可以幫助我成功完成學習。
    
 ## Notes
 

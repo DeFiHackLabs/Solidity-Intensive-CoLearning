@@ -40,9 +40,10 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 # YourName
 
 1. 自我介绍
+我是Vic，一名从业7年的前端开发
 
-2. 你认为你会完成本次残酷学习吗？
-   
+3. 你认为你会完成本次残酷学习吗？
+   是的，必须完成！
 ## Notes
 
 <!-- Content_START -->

@@ -7,19 +7,19 @@ timezone: Asia/Shanghai
 
 timezone: Pacific/Honolulu # 夏威夷-阿留申标准时间 (UTC-10)
 
-timezone: America/Anchorage # 阿拉斯加夏令时间 (UTC-8)
+timezone: America/Anchorage # 阿拉斯加标准时间 (UTC-9)
 
-timezone: America/Los_Angeles # 太平洋夏令时间 (UTC-7)
+timezone: America/Los_Angeles # 太平洋标准时间 (UTC-8)
 
-timezone: America/Denver # 山地夏令时间 (UTC-6)
+timezone: America/Denver # 山地标准时间 (UTC-7)
 
-timezone: America/Chicago # 中部夏令时间 (UTC-5)
+timezone: America/Chicago # 中部标准时间 (UTC-6)
 
-timezone: America/New_York # 东部夏令时间 (UTC-4)
+timezone: America/New_York # 东部标准时间 (UTC-5)
 
-timezone: America/Halifax # 大西洋夏令时间 (UTC-3)
+timezone: America/Halifax # 大西洋标准时间 (UTC-4)
 
-timezone: America/St_Johns # 纽芬兰夏令时间 (UTC-2:30)
+timezone: America/St_Johns # 纽芬兰标准时间 (UTC-3:30)
 
 timezone: Asia/Dubai # 海湾标准时间 (UTC+4)
 
@@ -37,11 +37,13 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 
 ---
 
-# YourName
+# leo.shi
 
-1. 自我介绍
-
-2. 你认为你会完成本次残酷学习吗？
+1. 自我介绍 :
+    8年开发，精通前端，会合约 和后端，学习公链知识中
+    技术栈 react/nodejs/go/solidity/python
+    做过钱包开发， 做过eigenLayer二次开发（合约开发，前端，后端扫链都做过），目前正在做 avs 合约中
+3. 你认为你会完成本次残酷学习吗？：会
    
 ## Notes
 
