@@ -82,7 +82,7 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
     hacked = true;
   }
 ```
-- 解決這個題目需要成為合約的 owner 和 hacked = true.
+- 解決這個題目需要成為合約的 owner 和 hacked = true.   
 - On-chain: 可以透過 ``cast send`` 或是 forge script 來解.
 - Local: 透過 forge test 通常是在local解題, 方便 debug.
 - RoadClosed 為例子我寫了2個解題方式. testRoadClosedExploit 和 testRoadClosedContractExploit (因為題目有檢查msg.sender是不是合約, 所以可以透過constructor來繞過 isContract)
