@@ -2,24 +2,52 @@
 timezone: Asia/Shanghai
 ---
 
+> 请在上边的 timezone 添加你的当地时区，这会有助于你的打卡状态的自动化更新，如果没有添加，默认为北京时间 UTC+8 时区
+> 时区请参考以下列表，请移除 # 以后的内容
+
+timezone: Pacific/Honolulu # 夏威夷-阿留申标准时间 (UTC-10)
+
+timezone: America/Anchorage # 阿拉斯加夏令时间 (UTC-8)
+
+timezone: America/Los_Angeles # 太平洋夏令时间 (UTC-7)
+
+timezone: America/Denver # 山地夏令时间 (UTC-6)
+
+timezone: America/Chicago # 中部夏令时间 (UTC-5)
+
+timezone: America/New_York # 东部夏令时间 (UTC-4)
+
+timezone: America/Halifax # 大西洋夏令时间 (UTC-3)
+
+timezone: America/St_Johns # 纽芬兰夏令时间 (UTC-2:30)
+
+timezone: Asia/Dubai # 海湾标准时间 (UTC+4)
+
+timezone: Asia/Kolkata # 印度标准时间 (UTC+5:30)
+
+timezone: Asia/Dhaka # 孟加拉国标准时间 (UTC+6)
+
+timezone: Asia/Bangkok # 中南半岛时间 (UTC+7)
+
+timezone: Asia/Shanghai # 中国标准时间 (UTC+8)
+
+timezone: Asia/Tokyo # 日本标准时间 (UTC+9)
+
+timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 
 ---
 
-# danger
+# YourName
 
-1. 自我介绍：
-   
- >-  大家好，各位助学老师好，我是一名编程小白，曾在跑节点与撸毛项目中使用ubuntu系统时接触过一些代码，但大部分都是使用一键脚本或直接按照教程复制粘贴代码，对代码内容基本一知半解，希望通过共学教程学习更多的知识。
+1. 自我介绍
+我是Vic，一名从业7年的前端开发
 
-2. 你认为你会完成本次残酷学习吗？
-
- >-  我相信我可以！
-   
+3. 你认为你会完成本次残酷学习吗？
+   是的，必须完成！
 ## Notes
 
 <!-- Content_START -->
-### 2024.09.13
->- 通过学习残酷共学GitHub提交教程,进行报名；通过浏览各位学友的自我介绍及代码，优化个人笔记相关内容。
+
 ### 2024.09.23
 
 學習內容: 
