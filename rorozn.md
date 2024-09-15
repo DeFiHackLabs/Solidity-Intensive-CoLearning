@@ -7,7 +7,7 @@ timezone: Asia/Shanghai
 1. 自我介绍:
    web2转全职web3萌新, 希望找个remote工作
 
-3. 你认为你会完成本次残酷学习吗？
+2. 你认为你会完成本次残酷学习吗？
    会！学完试着参加黑客松
    
 ## Notes
