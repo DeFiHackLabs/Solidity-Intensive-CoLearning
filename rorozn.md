@@ -182,6 +182,43 @@ contract InsertSort {
 
 ### 2024.09.17
 
+3. **函数**
+
+- 函数可见性  
+  private/internal/external/public 必须有  
+  payable 只有在包含了账户相关的功能时才需要
+  view 只读没写，pure 没读没写
+
+4. **函数输出**
+
+- returns: 函数返回声明， 如果声明时定义了变量名就自动返回，函数里不用再写 return
+
+```solidity
+  function returnNamed() public pure returns(uint256 _number, bool _bool, uint256[3] memory _array){
+    _number = 2;
+    _bool = false;
+    _array = [uint256(3),2,1];
+
+  // 直接命名式返回，returns时声明变量名，return直接返回值
+function returnNamed2() public pure returns(uint256 _number, bool _bool, uint256[3] memory _array){
+    return(1, true, [uint256(1),2,5]);
+}
+}
+```
+
+- return：函数里返回指定变量
+- 多个变量返回： return(a,b)
+- 解构式赋值
+
+```solidity
+function returnNamed2() public pure returns(uint256 _number, bool _bool, uint256[3] memory _array){
+    return(1, true, [uint256(1),2,5]);
+}
+
+(_number, _bool, _array) = returnNamed();
+(, _bool2, ) = returnNamed(); //只要其中的_bool2
+```
+
 ### 2024.09.18
 
 ### 2024.09.19
