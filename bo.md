@@ -1,5 +1,5 @@
 ---
-timezone: Asia/Shanghai
+timezone: America/New_York
 ---
 
 > 请在上边的 timezone 添加你的当地时区，这会有助于你的打卡状态的自动化更新，如果没有添加，默认为北京时间 UTC+8 时区
@@ -39,9 +39,9 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 
 # YourName
 
-1. 自我介绍
+1. 自我介绍: 大家好，我是bo。对区块链和智能合约很感兴趣，希望可以学到很多。
 
-2. 你认为你会完成本次残酷学习吗？
+2. 你认为你会完成本次残酷学习吗？ 尽力
    
 ## Notes
 
