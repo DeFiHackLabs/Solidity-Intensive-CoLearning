@@ -71,7 +71,7 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
   }
 
   function pwn(address addr) external payable {
-    require(!isContract(msg.sender), "Contracts are not allowed");
+    require(!isContract(msg.sender), " Contracts are not allowed");
     require(msg.sender == addr, "address must be msg.sender");
     require(msg.sender == owner, "Must be owner");
     hacked = true;
