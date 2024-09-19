@@ -9,7 +9,7 @@ timezone: Asia/Shanghai
 
 ## Notes
 
-<!— Content_START -->
+<!-- Content_START -->
 ### 2024.09.19
 因為從未接觸過Solidity，這週提前開始課程，大概了解自學難度、個人目標、及殘酷共學的願景。
 
