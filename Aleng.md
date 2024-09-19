@@ -4,7 +4,7 @@ timezone: Asia/Shanghai
 
 ---
 
-# {Aleng}
+# Aleng
 
 1. 自我介绍
    大家好，我叫做Aleng，目前擔任前端工程師，想在這與大家共同學習有關web3的知識，謝謝。
