@@ -219,9 +219,36 @@ function returnNamed2() public pure returns(uint256 _number, bool _bool, uint256
 (, _bool2, ) = returnNamed(); //只要其中的_bool2
 ```
 
-### 2024.09.18
-
 ### 2024.09.19
+
+5. **变量存储和作用域**
+
+- storage：链上， 合约里的状态变量
+- memory： 内存， 函数参数，临时变量
+- calldata：内存，不能修改
+
+```solidity
+function Calldata(uint[] calldata _x) public pure returns(uint[] calldata){
+  return(_x);
+}
+```
+
+- 引用：相当于指针,s 引用 s/m 引用 m：映像本体；s 引用 m：不影响
+- 作用域：  
+  状态变量：合约内，函数外，链上存储  
+  局部变量：函数里，内存里  
+  全局变量：solidity 预留关键字，注意 solidity 里没有小数点，所以要用预留单位表示数据，[全局变量](https://learnblockchain.cn/docs/solidity/units-and-global-variables.html#special-variables-and-functions)
+
+```solidity
+1wei =1;
+1gwei = 1e9;
+1 ether = 1e18;
+1 seconds =1;
+1 minutes = 60;
+1 hours = 3600;
+1 days = 86400;
+1 weeks = 604800;
+```
 
 ### 2024.09.20
 
