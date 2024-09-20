@@ -233,15 +233,15 @@ function Calldata(uint[] calldata _x) public pure returns(uint[] calldata){
 }
 ```
 
-- 引用：相当于指针,s 引用 s/m 引用 m：映像本体；s 引用 m：不影响
+- 引用：相当于指针,s 引用 s / m 引用 m：影响本体；s 引用 m：不影响
 - 作用域：  
   状态变量：合约内，函数外，链上存储  
   局部变量：函数里，内存里  
   全局变量：solidity 预留关键字，注意 solidity 里没有小数点，所以要用预留单位表示数据，[全局变量](https://learnblockchain.cn/docs/solidity/units-and-global-variables.html#special-variables-and-functions)
 
 ```solidity
-1wei =1;
-1gwei = 1e9;
+1 wei =1;
+1 gwei = 1e9;
 1 ether = 1e18;
 1 seconds =1;
 1 minutes = 60;
@@ -251,6 +251,48 @@ function Calldata(uint[] calldata _x) public pure returns(uint[] calldata){
 ```
 
 ### 2024.09.20
+
+6. **引用类型**
+
+- 数组
+- bytes 特殊：是数组，不用加[]，单字节 bytes/bytes1[]
+- memory 修饰的动态数组，可以用 new 操作符来创建，但是必须声明长度，并且声明后**长度不能改变**（内存数组 new 需要声明长度且不可改）
+- 数组成员：length,push,pop
+- 结构体
+
+  - 4 种赋值方法：创建引用，直接引用状态变量，函数方式，v-k 形式
+
+  ```solidity
+   // 结构体
+     struct Student{
+     uint256 id;
+     uint256 score;
+     }
+     Student student; // 初始一个 student 结构体
+
+   // 方法1:在函数中创建一个storage的struct引用
+     function initStudent1() external{
+         Student storage _student = student; // assign a copy of student
+         _student.id = 11;
+         _student.score = 100;
+     }
+
+   // 方法2:直接引用状态变量的struct
+     function initStudent2() external{
+         student.id = 1;
+         student.score = 80;
+     }
+
+   // 方法3:构造函数式
+     function initStudent3() external {
+         student = Student(3, 90);
+     }
+
+   // 方法4:key value
+     function initStudent4() external {
+         student = Student({id: 4, score: 60});
+     }
+  ```
 
 ### 2024.09.21
 
