@@ -255,10 +255,11 @@ function Calldata(uint[] calldata _x) public pure returns(uint[] calldata){
 6. **引用类型**
 
 - 数组
-- bytes 特殊：是数组，不用加[]，单字节 bytes/bytes1[]
-- memory 修饰的动态数组，可以用 new 操作符来创建，但是必须声明长度，并且声明后**长度不能改变**（内存数组 new 需要声明长度且不可改）
-- 数组成员：length,push,pop
-- 结构体
+
+  - bytes 特殊：是数组，不用加[]，单字节 bytes/bytes1[]
+  - memory 修饰的动态数组，可以用 new 操作符来创建，但是必须声明长度，并且声明后**长度不能改变**（内存数组 new 需要声明长度且不可改）
+  - 数组成员：length,push,pop
+  - 结构体
 
   - 4 种赋值方法：创建引用，直接引用状态变量，函数方式，v-k 形式
 
