@@ -56,7 +56,7 @@ major version 大于0就意味着发布了稳定版本，稳定版本的意思�
 
 (属于吹毛求疵类型，如果能改掉就更好了)
 
-示例中的变量命名比 ~_string~ 更有含义
+示例中的变量不要使用 ~_string~ 这样没有含义的命名
 
 #### 02 Type
 
@@ -98,5 +98,56 @@ address myAddress = address(this);
 Contract 目前在我的理解里就是类比Java 中的Class, 就是用户定义的，包含数据与函数的，运行在虚拟机(JVM/EVM)上的最小代码单元. contract 与 address 之间可以通过 ~address(x)~ 函数进行显式转换.
 
 如果想要把 contract 转换成 address payable, 要么 contract 定义了 ~receive~ 或 ~payable~ 回调函数，要么使用 ~payable(address(x))~ 来作转换
+
+##### User-defined Value type 
+
+> A user-defined value type allows creating a zero cost abstraction over an elementary value type.
+
+zero cost abstraction 这个是我在C++和Rust 之外, 第一次听到有语言标榜 zero cost abstraction ，只是看下来，这个 User-defined value type 就是一个 alias, 其实就是 C++ 的 [~typedef~ 或者 ~using~](https://stackoverflow.com/questions/10747810/what-is-the-difference-between-typedef-and-using) 
+
+和 zero cost abstraction 并没有什么关系.
+
+#### 03 Function
+
+Solidity 这个函数签名方式着实是有点不习惯，可见性修饰符放在参数括号之后。
+
+~pure~ 和 ~view~ 是其他语言所没有的关键的，严格来说是 ~pure~ 没有, ~view~ 类似 C++ 的 ~const~ 关键字，是只读的意思。
+
+虽然作者在教程解释得很有趣，但是 [~pure function~](https://en.wikipedia.org/wiki/Pure_function) 其实是来自函数式编程中的概念，有两个含义：
+1. 给定相同的输入，就一定会返回相同的输出，和数学中的函数一样
+2. 没有副作用 (side effect), 类如文件读写，或者修改变量的操作.
+
+根据官方文档，另外一个函数有趣的点在于，两个函数类型是可以隐式转换的，只要他们的函数签名，返回类型，可见性，以及状态可变性之间存在包含关系：
+
+> A function type A is implicitly convertible to a function type B if and only if their parameter types are identical, their return types are identical, their internal/external property is identical and the state mutability of A is more restrictive than the state mutability of B. In particular:
+> - pure functions can be converted to view and non-payable functions
+> - view functions can be converted to non-payable functions
+> - payable functions can be converted to non-payable functions
+
+~payable~ 函数可以转换为 ~non-payable~ 函数，因为官方的说法是， ~payable~ 可以收，也可以不收（只收0个ETH），那么也可以看成 ~non-payable~. 但是 ~non-payble~ 不能收就是不能收，没法转成 ~payable~, 所以只能单向转换.
+
+#### 04 Return
+
+Solidity的函数声明实在是太多关键字，这次我第一个见过需要使用 ~returns~ 来标识函数返回值的语言。
+
+既有 C++/Java 这样把函数返回值声明在参数前的，也有 Rust/Golang这样把函数返回值声明在参数之后的，Solidity 还需要个专门的关键字来声明返回值，可能是因为区块链的严谨性，需要显式声明一切。
+
+命名式返回(named return values) 是 [Golang 上](https://go.dev/tour/basics/7)也有的特性，只是我更习惯直接使用 return value 进行返回，既可以实现 early return, 也不用担心重构变量名之后，需要同步修改返回值中的变量名。
+
+解构式赋值(Destructuring assignment), 一个很有用的特性，特别是一个函数会返回多个值的时候，可以直接对多个变量赋值。
+
+#### 05 Data Storage
+
+这个是 Solidity 特有的特性，需要指定数据存储的位置。因为 Solidity 运行在EVM上，存储上链的数据 ~storage~ 需要比较多的 gas, 而存储在内存上 ~memory/calldata~ 则相对便宜，那么 Solidity 的开发人员是否和60-70年代的开发者一样，需要为节省存储空间而绞尽脑汁优化程序呢？
+
+这肯定是个有趣的体验。
+
+从Java的角度来理解， ~storage~ 类似存储在堆上(heap), ~memory/calldata~ 存储在栈上(stack), 所以类(合约)实例的成员变量存储在 heap 上，函数变量存储在栈上
+
+赋值操作在C++和Rust有比较多的规则，因为他们都是给开发者足够的自由度来管理内存，决定是否 copy，或者是 move. Solidity的赋值也给我类似的感觉，因为 gas fee的原因，所以 Solidity的赋值操作要兼具性能和成本考量.
+
+- memory 与 memory 之间的赋值是创建新的引用
+- storage 与 local storage 之间的赋值也是创建引用
+- 其他情况都是复制值
 
 <!-- Content_END -->
