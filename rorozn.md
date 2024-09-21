@@ -296,6 +296,16 @@ function Calldata(uint[] calldata _x) public pure returns(uint[] calldata){
   ```
 
 ### 2024.09.21
+   7.  映射
+   - key只能是内置类型，不能自定义
+   - 映射的**存储位置必须是storage**，因此可以用于合约的状态变量。原因：？
+   - 不能用于public函数的参数/返回，因为记录的是k-v结构
+   - mapping(k=>v) public 会自动创建getter函数，通过k查询v
+   - 新增语法： name[key]=value，删除：？
+   - 没有length信息。如果要查询长度，使用？
+   - 映射使用keccak256(abi.encodePacked(key, slot))当成offset存取value，其中slot是映射变量定义所在的插槽位置。
+   - 以太坊所有未使用的空间默认为0。未赋值（Value）的键（Key）初始值都是各个type的默认值，如uint的默认值是0
+
 
 ### 2024.09.22
 
