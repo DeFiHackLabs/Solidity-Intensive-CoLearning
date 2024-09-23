@@ -19,7 +19,8 @@ timezone: Asia/Shanghai
 
 <!-- Content_START -->
 ### 2024.09.13
->- 通过学习残酷共学GitHub提交教程,进行报名；通过浏览各位学友的自我介绍及代码，优化个人笔记相关内容。
+- 通过学习残酷共学GitHub提交教程,进行报名；通过浏览各位学友的自我介绍及代码，优化个人笔记相关内容。
+  
 ### 2024.09.23
 
 作为一个代码小白，看了Solidity第一课的视频（https://www.youtube.com/watch?v=KWW9Y09erDM&list=PL-edkZcvwC5a7qIaHG4Rsj6DkOM3YH3eT）和网站（https://www.wtf.academy/docs/solidity-101/HelloWeb3/）上的相关内容，看了之后的大概印象是：Solidity是运行在以太坊虚拟机上（Evm）的智能合约的编程语言，它的开发工具是Remix。
@@ -40,6 +41,8 @@ timezone: Asia/Shanghai
   
 Solidity是运用在EVM上智能合约的编程语言。
 
+Solidity是一直面相对象和静态类型的语言。它支撑继承、库和复杂的用户定义类型，使开发人员能用轻松地构建复杂的智能合约。此外Solidity 非常适合开发各种功能，如投票、众筹、拍卖和多重签名钱包。它提供了丰富的内置函数和库，帮助开发人员快速实现这些功能。
+它的优势在于安全又灵活。静态类型有助于捕捉常见错误，提高代码的安全性，同时，支持各种库和用户自定义类型使开发人员能够灵活得构建复杂的智能合约。
 
 ### 
 
