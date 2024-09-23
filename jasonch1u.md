@@ -69,6 +69,7 @@ uint256 _banana = 20; //不會自動產getter函數，部屬後沒有_banana可�
 * 枚举 enum：冷門，方便辨識程式碼的寫法。類似自定義X, Y, X = 0, 1, 2的概念
 
 </br>
+
 03_Function
 函數的基本結構
 ```solidity
@@ -84,5 +85,5 @@ function <function name>(<parameter types>) {internal|external|public|private} [
 * pure：不讀取或修改狀態，完全依賴傳入的參數。
 * view：僅讀取狀態，不修改。
 * payable：允許函數接收以太幣，常用於資金接收。
-* 不寫：可以讀取和修改狀態，會消耗 Gas。
+* 不寫：可以讀取和修改狀態，改變鍊上數據會消耗 Gas。
 <!-- Content_END -->
