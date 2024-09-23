@@ -63,6 +63,6 @@ What's even sadder is that, despite it took me a long time to learn today. I hav
 
 It’s exactly a challenge for me cause I’m not only unfamiliar with Solidity, but also have few experience in writing English articles. However, I appreciate one sentence recently: If there are two ways to growth you can choose, always choose the one that’s harder, that's the direct way to get over it. 
 
-This training camp can force myself to take Solidity and English writing tasks and face them directly, and it’s also a good opportunity to observe my own solutions and mindset in the face of difficulties and fears. I enjoy it very much. It's a good begining.
+This training camp can force myself to take Solidity and English writing tasks and face them directly, and it’s also a good opportunity to observe my own solutions and mindset in the face of difficulties and fears. Though I want to quit many times today, I'm sticking with it. It's a good begining.
 
 <!-- Content_END -->
