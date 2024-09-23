@@ -54,42 +54,31 @@ affe，目前在 GCC 做和公共物品相关的事儿。主要负责技术相�
 ### 2024.09.23
 
 學習內容: 
-- A 系列的 Ethernaut CTF, 之前做了差不多了. POC: [ethernaut-foundry-solutions](https://github.com/SunWeb3Sec/ethernaut-foundry-solutions)
-- A 系列的 QuillAudit CTF 題目的網站關掉了, 幫大家收集了[題目](./Writeup/SunSec/src/QuillCTF/), 不過還是有幾題沒找到. 有找到題目的人可以在發出來.
-- A 系列的 DamnVulnerableDeFi 有持續更新, 題目也不錯. [Damn Vulnerable DeFi](https://github.com/theredguild/damn-vulnerable-defi/tree/v4.0.0).
-- 使用 [Foundry](https://book.getfoundry.sh/) 在本地解題目, 可以參考下面 RoadClosed 為例子
-- ``forge test --match-teat testRoadClosedExploit -vvvv``
-#### [QuillAudit CTF - RoadClosed](./Writeup/SunSec/src/QuillCTF/RoadClosed.sol)
+- storage 的变量赋值给函数参数时，是引用类型的传递
+- memory 赋值给 memory 参数也是引用传递
+- 其他情况下都是值传递
+- 状态变量（storage）在合约内，函数外声明；局部变量是在函数内声明的局部变量，memory 类型，不上链。全局变量都是 Solidty 预留的关键字，可以在函数内不声明直接使用。
+- bytes比较特殊，是数组，但是不用加[]。另外，不能用byte[]声明单字节数组，可以使用bytes或bytes1[]。bytes 比 bytes1[] 省gas。
+- 对于memory修饰的动态数组，可以用new操作符来创建，但是必须声明长度，并且声明后长度不能改变。例子：
+- Q： 为什么memory 定长数组赋值给可变长数组的时候会拷贝值？好神奇。
+- 映射的_KeyType只能选择Solidity内置的值类型，比如uint，address等，不能用自定义的结构体。而_ValueType可以使用自定义的类型。下面这个例子会报错，因为_KeyType使用了我们自定义的结构体
+- mapping 必须是在 storage 中
+- 因为Ethereum会定义所有未使用的空间为0，所以未赋值（Value）的键（Key）初始值都是各个type的默认值，如uint的默认值是0。这个行为感觉非常奇怪。
+- Nansen Dune
+- 继承时要按辈分最高到最低的顺序排。
+- 如果某一个函数在多个继承的合约里都存在，比如例子中的hip()和pop()，在子合约里必须重写，不然会报错。
+- 为什么给 sendETH 合约调用 transfer 的时候，需要给定一个 Value值，而不用先给SendETH 合约转账 ？
+
 ```
-  function addToWhitelist(address addr) public {
-    require(!isContract(addr), "Contracts are not allowed");
-    whitelistedMinters[addr] = true;
-  }
-
-  function changeOwner(address addr) public {
-    require(whitelistedMinters[addr], "You are not whitelisted");
-    require(msg.sender == addr, "address must be msg.sender");
-    require(addr != address(0), "Zero address");
-    owner = addr;
-  }
-
-  function pwn(address addr) external payable {
-    require(!isContract(msg.sender), "Contracts are not allowed");
-    require(msg.sender == addr, "address must be msg.sender");
-    require(msg.sender == owner, "Must be owner");
-    hacked = true;
-  }
-
-  function pwn() external payable {
-    require(msg.sender == pwner);
-    hacked = true;
-  }
+ 1. Transaction Execution Order:
+The EVM (Ethereum Virtual Machine) processes transactions in a specific order. The transfer of Ether (ETH) from the sender to the contract (the msg.value) happens before the function code is executed.
+2. Steps in Transaction Processing:
+a) Verify the transaction (signature, nonce, etc.)
+b) Deduct the transaction cost (gas gas price) from the sender's account
+c) Transfer the msg.value from the sender to the contract
+d) Execute the contract code
 ```
-- 解決這個題目需要成為合約的 owner 和 hacked = true.
-- On-chain: 可以透過 ``cast send`` 或是 forge script 來解.
-- Local: 透過 forge test 通常是在local解題, 方便 debug.
-- RoadClosed 為例子我寫了2個解題方式. testRoadClosedExploit 和 testRoadClosedContractExploit (因為題目有檢查msg.sender是不是合約, 所以可以透過constructor來繞過 isContract)
-- [POC](./Writeup/SunSec/test/QuillCTF/RoadClosed.t.sol) 
+
 
 ### 
 
