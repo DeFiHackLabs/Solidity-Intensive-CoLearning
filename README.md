@@ -31,7 +31,7 @@
 ## 共學內容
 - [WTF Academy Solidity 101 1-15](https://github.com/AmazingAng/WTF-Solidity)
 - [WTF Academy Solidity 102 16-30](https://github.com/AmazingAng/WTF-Solidity)
-- [WTF Academy Solidity 103 31-50](https://github.com/AmazingAng/WTF-Solidity)
+- [WTF Academy Solidity 103 31-57](https://github.com/AmazingAng/WTF-Solidity)
 - 完成取得 Solidity 101、102 链上证书
 
 ## 共学规则
