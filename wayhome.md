@@ -22,6 +22,7 @@ timezone: Asia/Shanghai
 
 - 学习视频 [Solidity 入門走到飛🚀-【Day1】Remix IDE & Solidity 結構
 ](https://www.youtube.com/watch?v=KWW9Y09erDM&list=PL-edkZcvwC5a7qIaHG4Rsj6DkOM3YH3eT)
+- 完成 Solidity 101 前 2 节
   
 ### 
 
