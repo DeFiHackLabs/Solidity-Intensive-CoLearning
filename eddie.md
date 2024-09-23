@@ -17,45 +17,31 @@ timezone: Asia/Shanghai
 <!-- Content_START -->
 
 ### 2024.09.23
+- WTF101章节：HelloWeb3（三行代码）、数值类型、函数类型、函数输出、变量数据存储、引用类型
+#### 笔记内容
+uint256和uint实际上是一样的，都是0到2^256-1这个范围区间内；
+一个字符2个字节；
 
-學習內容: 
-- A 系列的 Ethernaut CTF, 之前做了差不多了. POC: [ethernaut-foundry-solutions](https://github.com/SunWeb3Sec/ethernaut-foundry-solutions)
-- A 系列的 QuillAudit CTF 題目的網站關掉了, 幫大家收集了[題目](./Writeup/SunSec/src/QuillCTF/), 不過還是有幾題沒找到. 有找到題目的人可以在發出來.
-- A 系列的 DamnVulnerableDeFi 有持續更新, 題目也不錯. [Damn Vulnerable DeFi](https://github.com/theredguild/damn-vulnerable-defi/tree/v4.0.0).
-- 使用 [Foundry](https://book.getfoundry.sh/) 在本地解題目, 可以參考下面 RoadClosed 為例子
-- ``forge test --match-teat testRoadClosedExploit -vvvv``
-#### [QuillAudit CTF - RoadClosed](./Writeup/SunSec/src/QuillCTF/RoadClosed.sol)
-```
-  function addToWhitelist(address addr) public {
-    require(!isContract(addr), "Contracts are not allowed");
-    whitelistedMinters[addr] = true;
-  }
+> 四种函数可见性说明符，共有4种。
+> 
+> - **`public`**：内部和外部均可见。
+> - **`private`**：只能从本合约内部访问，继承的合约也不能使用。
+> - **`external`**：只能从合约外部访问（但内部可以通过 **`this.f()`** 来调用，**`f`**是函数名）。
+> - **`internal`**: 只能从合约内部访问，继承的合约可以用。（默认状态变量的可见性）
 
-  function changeOwner(address addr) public {
-    require(whitelistedMinters[addr], "You are not whitelisted");
-    require(msg.sender == addr, "address must be msg.sender");
-    require(addr != address(0), "Zero address");
-    owner = addr;
-  }
+> Pure和View、Default
+> 针对的是修改链上state的权限
+> - `Pure` 不能读、不能写
+> - `View` 只能读、不能写
+> - `Default` 能读、能写
 
-  function pwn(address addr) external payable {
-    require(!isContract(msg.sender), "Contracts are not allowed");
-    require(msg.sender == addr, "address must be msg.sender");
-    require(msg.sender == owner, "Must be owner");
-    hacked = true;
-  }
+> 数据位置：
+> 
+> - **`storage`**:合约里的状态变量默认都是`storage`，存储在链上。
+> - **`memory`**：函数里的参数和临时变量一般用**`memory`**，存储在内存中，不上链。尤其是如果返回数据类型是变长的情况下，必须加memory修饰，例如：string, bytes, array和自定义结构。|
+> - **`calldata`**：和`memory`类似，存储在内存中，不上链。与`memory`的不同点在于`calldata`变量不能修改（`immutable`），一般用于函数的参数。例子：
 
-  function pwn() external payable {
-    require(msg.sender == pwner);
-    hacked = true;
-  }
-```
-- 解決這個題目需要成為合約的 owner 和 hacked = true.
-- On-chain: 可以透過 ``cast send`` 或是 forge script 來解.
-- Local: 透過 forge test 通常是在local解題, 方便 debug.
-- RoadClosed 為例子我寫了2個解題方式. testRoadClosedExploit 和 testRoadClosedContractExploit (因為題目有檢查msg.sender是不是合約, 所以可以透過constructor來繞過 isContract)
-- [POC](./Writeup/SunSec/test/QuillCTF/RoadClosed.t.sol) 
+memory修饰的数组的大小为定长类型
 
-### 
 
 <!-- Content_END -->
