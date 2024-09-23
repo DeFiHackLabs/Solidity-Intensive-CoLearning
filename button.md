@@ -13,3 +13,15 @@ timezone: Asia/Shanghai
 2. 你认为你会完成本次残酷学习吗？
    
    可以完成
+
+## Notes
+
+<!-- Content_START -->
+
+### 2024.09.23
+
+辅导大家使用git
+
+### 
+
+<!-- Content_END -->
