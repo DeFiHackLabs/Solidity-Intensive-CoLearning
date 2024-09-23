@@ -84,6 +84,12 @@ major version 一般代表是大版本, 大于0 就代表出了一个稳定版�
 
 对于还没有发布稳定版本，例如 ^0.8.26, 他的意思就是, 可以升级，但是不要变动到版本号中最左边的非零数字, 即 ^0.8.26 is 大于等于 0.8.26, 但小于0.9,  因为升级到0.9 就意味着 最左边的非零数字(left-most non-zero)变了
 
+Solidity语句以分号;结尾
+
+    contract helloworld{ 
+    string public _string = "hello web3";
+    }
+- 4.2.3 第3、4行是合约部分。第三行创建合约并声明合约名字为helloword。第4行是合约内容，声明了一个string(字符串）变量 _string，并赋值为“hello web3”。
 
 
  
