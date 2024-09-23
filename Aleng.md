@@ -22,7 +22,7 @@ timezone: Asia/Shanghai
 #### 學習筆記
 筆記 : [2024.09.24學習筆記](https://hackmd.io/@82tWd8u0TI6fMRC9VG6JXw/Byqhk3ppA)
 
-內容 : 這次學習了101 的 5 單元。
+內容 : 這次學習了101 的 5 ~ 6 單元。
 
 補充上了Bytes轉換等內容
 <!-- Content_END -->
