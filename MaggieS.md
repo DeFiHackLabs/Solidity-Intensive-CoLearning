@@ -47,7 +47,8 @@ Step3:  Summary    2 days
 
 ### 2024.09.23
 
-
+1. Finish looking through 15 chapters of Solidity 101 and complete the text.
+2. Drawing the mindmap of Solidity 101.
 
 
   
