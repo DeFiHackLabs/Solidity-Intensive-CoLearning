@@ -17,7 +17,8 @@ timezone: Asia/Shanghai
 ### 2024.09.23
 
 #### 1. pragma solidity ^0.8.21;
-   <strong>0</strong>: 主版本号 
+
+<strong>0</strong>: 主版本号 
 
 <strong>8</strong>: 次版本号 
 
