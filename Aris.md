@@ -49,7 +49,7 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 
 <!-- Content_START -->
 
-### 2024.09.13
+### 2024.09.23
 
 #### 学习内容
  - 01HelloWeb3.sol 创建 helloWeb3 程序,并在 remix 上进行编译和部署
@@ -86,7 +86,7 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
    - 点击左侧 `deploy & run transactions` 按钮,点击 `高亮`的 Depoly 按钮
    - 左侧会出现部署结果,点击 `_string` 出现 `'Hi Web3'`,表示成功.
 
-- 也可以在 https://remix.ethereum.org直接编写代码,然后编译和部署,但是我习惯在本地编写代码^_^
+- 也可以在 https://remix.ethereum.org 直接编写代码,然后编译和部署,但是我习惯在本地编写代码^_^
 
 ### 
 
