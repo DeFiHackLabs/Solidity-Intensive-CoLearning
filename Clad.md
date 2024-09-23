@@ -40,6 +40,10 @@ timezone: Asia/Taipei
 - function fi() internal{}
 - function fe() external{}
 - delete 變數, 會讓變數的值變為初始值
+
+#### 常數 constant, immutable
+- 變數聲明這兩個關鍵字後, 初始化後不能再變更數值
+- 數字變數可以使用 constant, immutable; string, bytes 則只能用 constant
   
 
 <!-- Content_END -->
