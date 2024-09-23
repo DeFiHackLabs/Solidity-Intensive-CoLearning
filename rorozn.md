@@ -296,18 +296,217 @@ function Calldata(uint[] calldata _x) public pure returns(uint[] calldata){
   ```
 
 ### 2024.09.21
-   7.  映射
-   - key只能是内置类型，不能自定义
-   - 映射的**存储位置必须是storage**，因此可以用于合约的状态变量。原因：？
-   - 不能用于public函数的参数/返回，因为记录的是k-v结构
-   - mapping(k=>v) public 会自动创建getter函数，通过k查询v
-   - 新增语法： name[key]=value，删除：？
-   - 没有length信息。如果要查询长度，使用？
-   - 映射使用keccak256(abi.encodePacked(key, slot))当成offset存取value，其中slot是映射变量定义所在的插槽位置。
-   - 以太坊所有未使用的空间默认为0。未赋值（Value）的键（Key）初始值都是各个type的默认值，如uint的默认值是0
 
+7.  映射
+
+- key 只能是内置类型，不能自定义
+- 映射的**存储位置必须是 storage**，因此可以用于合约的状态变量。原因：_mapping 是动态的，在编译的时候并不知道大小；mapping 元素的存储位置是根据 key 和位置哈希计算出来的，是动态的；EVM 的操作码支持存储的读写，不支持内存复杂数据的操作_
+- 不能用于 public 函数的参数/返回，因为记录的是 k-v 结构
+- mapping(k=>v) public 会自动创建 getter 函数，通过 k 查询 v
+- 新增语法： name[key]=value，删除：delete Map[key];
+- 没有 length 信息。如果要查询长度，在更新的时候增加一个计数器变量
+
+```solidity
+  contract MappingWithCounter {// 定义一个mapping，用于存储键值对
+    mapping(address => uint256) private myMap;// 定义一个计数器，用于跟踪mapping中的元素数量
+    uint256 private count;
+
+    // 添加或更新mapping中的元素
+    function set(address _addr, uint256 _value) public {
+        myMap[_addr] = _value;// 如果之前不存在这个键，则增加计数器
+        if (myMap[_addr] == _value && myMap[_addr] != 0) {
+            count++;
+        }
+    }
+```
+
+- 映射使用 keccak256(abi.encodePacked(key, slot))当成 offset 存取 value，其中 slot 是映射变量定义所在的插槽位置。
+- 以太坊所有未使用的空间默认为 0。未赋值（Value）的键（Key）初始值都是各个 type 的默认值，如 uint 的默认值是 0
+
+8.  变量初始值
+
+- 数值类型
+
+```text
+ boolean: false
+ string: ""
+ int: 0
+ uint: 0
+ enum: 枚举中的第一个元素
+  enum ActionSet { Buy, Hold, Sell}
+  ActionSet public _enum; // 第1个内容Buy的索引0
+ address: 0x0000000000000000000000000000000000000000 (或 address(0))
+ function
+     internal: 空白函数
+     external: 空白函数
+```
+
+- 引用类型:各自类型的初始默认值
+
+```solidity
+bool public _bool; // false
+string public _string; // ""
+int public _int; // 0
+uint public _uint; // 0
+address public _address; // 0x0000000000000000000000000000000000000000
+
+enum ActionSet { Buy, Hold, Sell}
+ActionSet public _enum; // 第1个内容Buy的索引0
+
+function fi() internal{} // internal空白函数
+function fe() external{} // external空白函数
+```
+
+- delete 操作会让变量值变为初始值
+
+```solidity
+// delete操作符
+bool public _bool2 = true;
+function d() external {
+    delete _bool2; // delete 会让_bool2变为默认值，false
+}
+```
+
+9. 常量
+
+- constant,immutable 初始化后不可改变
+- 数值变量（uint, int, address）可以 constant 和 immutable
+- string/bytes 为 constant，**不能 immutable**，因为：_字符串在 Solidity 中是动态，并且它们的存储方式与值类型不同，字符串实际上是存储在合约存储中的一系列字节，而不是像值类型那样可以直接内联到代码中通过存储加载。_
+- constant 必须在声明的时候初始化
+- immutable 可以在声明时/构造函数中 初始化，如果声明时初始化&constructor 里又初始化：按 constructor，v8.0.21 之后，不需要显式初始化
+
+```solidity
+// 利用constructor初始化immutable变量，因此可以利用
+constructor(){
+    IMMUTABLE_ADDRESS = address(this);
+    IMMUTABLE_NUM = 1118;
+    IMMUTABLE_TEST = test();
+}
+
+function test() public pure returns(uint256){
+    uint256 what = 9;
+    return(what);
+}
+```
 
 ### 2024.09.22
+
+10. 控制流  
+    插入算法：注意 uint 防止下越界
+
+11. 构造函数&修饰器
+
+- 修饰器：场景：运行函数前的检查； \_;代表被修饰函数的内容
+
+```solidity
+modifier onlyOwner{
+ require(msg.sender == owner);// 检查调用是否为owner地址
+ _; // 如果是的话，运行函数内容
+}
+function changeOwner(address _newOwner) external onlyOwner{
+ owner = _newOwner;
+}
+```
+
+12. 事件
+
+- 事件是 evm 上日志的抽象；  
+  响应：应用程序 ether.js 可以通过 RPC 接口订阅和监听；  
+  相比链上存储更省 gas；  
+  释放事件：触发事件 emit EventName(k1,k2,...)
+- EVM 日志  
+  topic 部分：数组结构，最长 4，第一个元素是事件的签名 EventName(type1,type2,...),剩下的是 indexed 参数或者参数哈希（比如 string）  
+  data 部分：不带 indexed 的参数
+
+13. 继承
+
+- contract A3 is A1,A2// A3 继承 A1,A2,并且辈分 A1 更高  
+  function FuncA3( ) public virtual override(A1, A2)
+- virtual 虚函数关键字
+- override 子合约重写了父合约的函数 关键字
+- 用 override 修饰 public 变量，会重写与变量同名的 getter 函数
+- 父合约的修饰器可以被继承（子合约里用父合约的 modifier，子合约的修饰器重写父合约的修饰器）
+- 构造函数的继承
+
+```solidity
+// 构造函数的继承
+abstract contract A {
+    uint public a;
+    constructor(uint _a) {
+        a = _a;
+    }
+}
+//子合约的构造函数
+contract C is A {
+    constructor(uint _c) A(_c * _c) {}//注意A在函数名的部分
+}
+```
+
+- 调用父合约的函数
+  - 直接调用：父合约名.函数名()
+  - super.函数名()  
+    调用**最近**的父合约函数
+- 菱形继承  
+  在多重+菱形继承链条上使用 super 关键字时，需要注意的是使用 super 会调用继承链条上的**每一个**合约的相关函数，而不是只调用最近的父合约。
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.13;
+
+/* 继承树：
+  God
+ /  \
+Adam Eve
+ \  /
+people
+*/
+
+contract God {
+    event Log(string message);
+
+    function foo() public virtual {
+        emit Log("God.foo called");
+    }
+
+    function bar() public virtual {
+        emit Log("God.bar called");
+    }
+}
+
+contract Adam is God {
+    function foo() public virtual override {
+        emit Log("Adam.foo called");
+        super.foo();
+    }
+
+    function bar() public virtual override {
+        emit Log("Adam.bar called");
+        super.bar();
+    }
+}
+
+contract Eve is God {
+    function foo() public virtual override {
+        emit Log("Eve.foo called");
+        super.foo();
+    }
+
+    function bar() public virtual override {
+        emit Log("Eve.bar called");
+        super.bar();
+    }
+}
+
+contract people is Adam, Eve {
+    function foo() public override(Adam, Eve) {
+        super.foo();
+    }
+
+    function bar() public override(Adam, Eve) {
+        super.bar();
+    }
+}
+```
 
 ### 2024.09.23
 
