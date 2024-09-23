@@ -206,7 +206,7 @@ uint256[3] memory _array;
 (_number, _bool, _array) = returnNamed();
 ```
 
-- 还可以这样来赋值：
+- 还可以这样来赋值。如此赋值的话，就可以只取其中的某一个变量。
 
 ```solidity
 (, _bool2, ) = returnNamed();
