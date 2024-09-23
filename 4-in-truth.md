@@ -13,8 +13,9 @@ timezone: Asia/Shanghai
 <!-- Content_START -->
 
 ### 2024.09.23
+![image](https://github.com/user-attachments/assets/b01f1638-52ed-4a95-bb60-32668c4c37ce)
 
-
+过了第一课了，岂不美哉
 ### 
 
 <!-- Content_END -->
