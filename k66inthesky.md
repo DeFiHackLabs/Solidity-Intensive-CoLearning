@@ -21,7 +21,7 @@ timezone: Asia/Shanghai (UTC+8)
 
 以下是實際寫碼+編譯過程:
 
-1.遇到錯誤->請AI提示->原本要照AI提供的程式碼做(黃線)->但發現錯誤其實來自少依字母r於是選擇修正typo
+1.遇到錯誤->請AI提示->原本要照AI(左下角有RemixAI)提供的程式碼做(螢光綠處)->但發現錯誤其實來自少一字母r於是選擇不照AI的建議而是修正typo
 <img src="https://github.com/user-attachments/assets/7df89f23-f290-4827-b716-ac45c8605c1e" >
 2.編譯成功後，出現這些檔案(紅括號處)
 <img src="https://github.com/user-attachments/assets/1d8a949f-f49e-456a-9d9b-18f9da1ac6c1" >
