@@ -49,6 +49,11 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 
 ### 2024.09.23
 
+今天學了function, event, static variables, 還有好像是qualifier一樣的東西，constant, internal, private, public。 
+function還有modifier，可以設置啟動某function的條件。
+還學到了boollean和一些運算式，很多都是比以前學過的東西。
+現在就算小小複習一下，明天會更認真學！
+
 學習內容: 
 - A 系列的 Ethernaut CTF, 之前做了差不多了. POC: [ethernaut-foundry-solutions](https://github.com/SunWeb3Sec/ethernaut-foundry-solutions)
 - A 系列的 QuillAudit CTF 題目的網站關掉了, 幫大家收集了[題目](./Writeup/SunSec/src/QuillCTF/), 不過還是有幾題沒找到. 有找到題目的人可以在發出來.
