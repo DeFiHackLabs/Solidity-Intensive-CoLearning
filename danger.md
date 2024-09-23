@@ -53,7 +53,7 @@ Solidity是一直面相  对象  和  静态类型  的语言。
 
   ![image](https://github.com/user-attachments/assets/9eefd823-47a7-43ee-9141-346936913130)
 ### 
-写了名为hellword的合约，合约内容如下
+   - 4.2 写了名为hellword的合约，合约内容如下
 
     // SPDX-License-Identifier: MIT
     pragma solidity ^0.8.26;
