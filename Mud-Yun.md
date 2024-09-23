@@ -11,10 +11,12 @@ timezone: Asia/Taipei
 ## Notes
 
 <!-- Content_START -->
-###2024.09.23
+### 2024.09.23
 ![1](https://github.com/user-attachments/assets/1019707a-2710-4d1d-a1e2-0b07c68db484)
+
 要註解版權聲明，不然會有警告。
 "pragma solidity ^0.8.21;"代表只可以使用0.8.21以上，0.9.0之下的編譯器做編譯。
-我在HelloWeb3合約中定義了一個字串變量"_String"，data為"Hello Web3"，並將其定義為public。由於將其定義為public，在編譯該合約後會自動生成一個與該變量同名的get()，可以看到我在部屬合約後，左下角有一個藍色框框(唯讀)，點下去就可以看見該變量中的data：Hello Web3。
+我在HelloWeb3合約中定義了一個字串變量"_String"，data為"Hello Web3"，並將其定義為public。
+由於將其定義為public，在編譯該合約後會自動生成一個與該變量同名的get()，可以看到我在部屬合約後，左下角有一個藍色框框(唯讀)，點下去就可以看見該變量中的data：Hello Web3。
 
 <!-- Content_END -->
