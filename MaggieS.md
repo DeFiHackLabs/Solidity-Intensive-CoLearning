@@ -43,7 +43,7 @@ Step3:  Summary    2 days
 
 * Checking and filling the gaps in Step2.
 
-* Figuring out all the test questions in Beta of WTF Academy .
+* Figuring out all the test questions of WTF Academy .
 
 * Mapping my own questions into a mind map.
   
