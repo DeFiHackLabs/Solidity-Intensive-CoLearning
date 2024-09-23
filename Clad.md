@@ -15,6 +15,31 @@ timezone: Asia/Taipei
 <!-- Content_START -->
 ### 2024.09.23
 學習內容  
-目標:  
-筆記:    
+筆記:  
+#### Mapping
+###### 使用 mapping 的時機？
+- mapping 映射, 可以透過 key 查詢對應的 value, ex: 通過一個人的 id 查詢他的錢包地址
+- mapping 的 _keyType 只能選擇 solidity 內建的直類型, _valueType 則可以自定義類型
+  
+```solidity
+   mapping(uint => address) public idToAddress;
+   mapping(address => address) public swapPair;
+
+   function writeMap(uint _key, address _value) public{
+      idToAddress[_key] = _value;
+   }
+ ```
+
+#### 變數初始值
+- boolean: false
+- string: ""
+- int: 0
+- uint: 0
+- enum: 列舉中的第一個元素
+- address: 0x0000000000000000000000000000000000000000 (或 address(0))
+- function fi() internal{}
+- function fe() external{}
+- delete 變數, 會讓變數的值變為初始值
+  
+
 <!-- Content_END -->
