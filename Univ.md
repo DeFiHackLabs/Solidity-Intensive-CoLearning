@@ -39,6 +39,6 @@ contract HelloWeb3 { // 這裡是合約的定義
 
 3. Mapping Type
 一種特殊的資料型別，用來建立鍵值對映的數據結構
-
+---
 
 <!-- Content_END -->
