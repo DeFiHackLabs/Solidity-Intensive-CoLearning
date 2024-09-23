@@ -17,4 +17,12 @@ timezone: Asia/Taipei
 
 ### 
 
+### 2024.09.23
+
+學習內容: 
+使用Remix, 跑Hellow,word。
+ps.每按一次deploy 按鈕,會部署一次合約
+
+### 
+
 <!-- Content_END -->
