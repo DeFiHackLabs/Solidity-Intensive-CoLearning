@@ -26,8 +26,6 @@ pragma solidity ~0.8.21;
 
 contract valueType{
 
-contract valueType{
-
    //布尔类型
    bool public bol = true;
    bool public bol2 = !bol;  //false
@@ -67,7 +65,12 @@ contract valueType{
     }
 
 }
-} 第二小节学习了solidity基本的数据类型，如果不声明为public，外界防问不到 bool 布尔类型，判断true，false用来做逻辑运算 uint 正整数，不申明长度就默认为uint256,可以用来做基本的运算 address 地址类型，钱包地址唯一，payable修饰后可以接收转账，比普通用户多了transfer和send方法 余额属于地址的一个变量，可以直接获取 bytes 定长数组，声明时需要定义长度 枚举类型enum 目前不常用
+第二小节学习了solidity基本的数据类型，如果不声明为public，外界防问不到 bool 
+布尔类型，判断true，false用来做逻辑运算 
+uint 正整数，不申明长度就默认为uint256,可以用来做基本的运算 
+address 地址类型，地址唯一，payable修饰后可以接收转账，比普通用户多了transfer和send方法 余额属于地址的一个变量，可以直接获取 
+bytes 定长数组，声明时需要定义长度 
+枚举类型enum 目前不常用
 
 
 <!-- Content_END -->
