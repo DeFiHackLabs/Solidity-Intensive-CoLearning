@@ -50,5 +50,6 @@ Solidity是一直面相  对象  和  静态类型  的语言。
   Remix是以太坊推荐的智能合约集成开发环境（IDE),合适像我这样的小白新手，可以在浏览器里快手开发和部署合约，无需在本地安装任何程序。网站是https://remix.ethereum.org
   
 ### 
+![image](https://github.com/user-attachments/assets/9eefd823-47a7-43ee-9141-346936913130)
 
 <!-- Content_END -->
