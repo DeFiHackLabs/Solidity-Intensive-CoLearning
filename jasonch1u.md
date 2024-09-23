@@ -39,6 +39,7 @@ contract HelloWorld { }
 02_ValueTypes
 
 值的寫法：value類型 (不寫? | internal | public | private，還不知道為什麼不能寫external?) <_value name> = 數值、字串或判斷式
+
 如果寫public，會自動產生getter函數(這邊應該可以理解成直接產生一個查找對應數值的函數功能)，寫其他或不寫，就不會有字自動生成getter函數，就沒辦法直接看對應數值。
 
 ex.
