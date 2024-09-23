@@ -20,6 +20,15 @@ timezone: Asia/Shanghai
 <!-- Content_START -->
 
 ### 2024.09.23
+1. 完成了"hello web3!"
+   (1)第一行：license
+   (2)第二行：版本，會使用“^”表示
+   (3)第三行後是合約內容
+2. Solidity的變量類型包括三種：
+   (1)value type:布爾、整型
+   (2)reference type:數組
+   (3)mapping type:
+   (4)enum 
 ### 
 
 <!-- Content_END -->
