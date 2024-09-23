@@ -71,6 +71,7 @@ uint256 _banana = 20; //不會自動產getter函數，部屬後沒有_banana可�
 </br>
 
 03_Function
+
 函數的基本結構
 ```solidity
 function <function name>(<parameter types>) {internal|external|public|private} [pure|view|payable] [returns (<return types>)]
