@@ -21,8 +21,11 @@ WTF Academy #1-5
 ![1000005316](https://github.com/user-attachments/assets/8a67b9f8-ff71-43a5-bf23-3eefc2545d19)
 
 #2 enum枚举:uint 分配名稱與維護
+
 #3 函數類型：prue/view
+
 #4 函數輸出：命名式返回/結構式賦值（读取函数的全部或部分返回值）
+
 #5 儲存位置
 1.
 store:狀態變量、上鏈
