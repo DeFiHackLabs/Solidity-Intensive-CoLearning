@@ -62,7 +62,14 @@ Solidity是一直面相  对象  和  静态类型  的语言。
     string public _string = "hello web3";
     }
  这个程序有一行注释和三行代码，拆解程序，学习Solidity的代码源文件的结构
- - 4.2.1 第一行是注释，说明代码使用的软件许可（license），这里使用的是MIT许可，代码使用的软件许可，可以在https://spdx.org/licenses/ 里搜索mit查找
+
+        // SPDX-License-Identifier: MIT
+        
+ - 4.2.1 第一行是注释，说明代码使用的软件许可（license），这里使用的是MIT许可，代码使用的软件许可，可以在https://spdx.org/licenses/ 里搜索mit查找，如果不写许可，编译时会出现warning,但程序仍然能运行。注释以“//"开头，后边跟注释内容，注释不会被程序执行。
+   
+       pragma solidity ^0.8.26;
+    
+ - 4.2.2 第2行声明源文件所使用的Solidity版本，因为不同版本的语法有所差异，一般都是最新版本的上一个版本。
 
 
  
