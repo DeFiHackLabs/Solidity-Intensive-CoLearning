@@ -35,14 +35,14 @@ contract HelloWorld { }
 ```
 * 第一個合約示例：HelloWeb3 合約，定義一個字符串變量，值為 "Hello Web3!"。每行代碼用分號 ；結尾
 
-
+</br>
 02_ValueTypes
 
 值的寫法：value類型 (不寫? | internal | public | private，還不知道為什麼不能寫external?) <_value name> = 數值、字串或判斷式
-如果寫public，會自動產生getter函數(這邊應該可以理解成直接產生一個查找對應數值的函數功能)，寫其他或不寫，就不會有字自動生成getter函數，就沒辦法直接看對應數值
+如果寫public，會自動產生getter函數(這邊應該可以理解成直接產生一個查找對應數值的函數功能)，寫其他或不寫，就不會有字自動生成getter函數，就沒辦法直接看對應數值。ex.
 ```solidity
-ex. uint8 public _apple = 255; //會自動產getter函數，部屬後直接點_apple會知道uint8: 255
-ex. uint256 _banana = 20; //不會自動產getter函數，部屬後沒有_banana可以點，要另外自己寫function找_banana
+uint8 public _apple = 255; //會自動產getter函數，部屬後直接點_apple會知道uint8: 255
+uint256 _banana = 20; //不會自動產getter函數，部屬後沒有_banana可以點，要另外自己寫function找_banana
 ```
 
 數值類型概述
