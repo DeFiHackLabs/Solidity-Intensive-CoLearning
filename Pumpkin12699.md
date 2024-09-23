@@ -61,6 +61,4 @@ timezone: Asia/Shanghai
 4. **重要概念**：
    - Solidity 中的 `public` 和 `private` 也可以應用於狀態變量，`public` 狀態變量會自動生成同名的 getter 函數來查詢變量值。
    - 沒有明確標註可見性的狀態變量，默認為 `internal`。
-
-這些概念和特性是使用 Solidity 開發智能合約時的核心基礎。
 <!-- Content_END -->
