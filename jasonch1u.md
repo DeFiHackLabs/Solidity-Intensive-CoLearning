@@ -21,22 +21,27 @@ timezone: Asia/Shanghai
 * Solidity 程序結構包含：
 
 License 註釋
+```solidity
 // SPDX-License-Identifier: MIT
-
+```
 版本聲明：跟編譯器要一致，在remix輸入"pragma..." 會跳出"License註識"一起寫完，最後記得填入version
+```solidity
 pragma solidity 0.8.26;
-
+```
 合約內容
+```solidity
 contract HelloWorld { }
-
+```
 * 第一個合約示例：HelloWeb3 合約，定義一個字符串變量，值為 "Hello Web3!"。每行代碼用分號 ；結尾
 
 02_ValueTypes
 
-值的寫法：value類型 (不寫?|internal|public|private，還不知道為什麼不能寫external?) <_value name> = 數值、字串或判斷式
+值的寫法：value類型 (不寫? | internal | public | private，還不知道為什麼不能寫external?) <_value name> = 數值、字串或判斷式
 如果寫public，會自動產生getter函數(這邊應該可以理解成直接產生一個查找對應數值的函數功能)，寫其他或不寫，就不會有字自動生成getter函數，就沒辦法直接看對應數值
-ex. uint8 public _apple = 255，會自動產getter函數，部屬後直接點_apple會知道uint8: 255
-ex. uint256 _banana = 20，不會自動產getter函數，部屬後沒有_banana可以點，要另外自己寫function找_banana
+```solidity
+ex. uint8 public _apple = 255 //會自動產getter函數，部屬後直接點_apple會知道uint8: 255
+ex. uint256 _banana = 20 //不會自動產getter函數，部屬後沒有_banana可以點，要另外自己寫function找_banana
+```
 
 數值類型概述
 * 布爾型 (bool)：只有兩個值，true 和 false。
