@@ -53,6 +53,12 @@ Remix左侧菜单有五个按钮，分别对应文件（编写代码）、搜索
 
   ![image](https://github.com/user-attachments/assets/9eefd823-47a7-43ee-9141-346936913130)
 ### 
+写了名为hellword的合约，合约内容如下
 
+    // SPDX-License-Identifier: MIT
+    pragma solidity ^0.8.26;
+    contract helloworld{ 
+    string public _string = "hello web3";
+    }
 
 <!-- Content_END -->
