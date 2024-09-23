@@ -62,7 +62,7 @@ Solidity是一直面相  对象  和  静态类型  的语言。
     string public _string = "hello web3";
     }
  这个程序有一行注释和三行代码，拆解程序，学习Solidity的代码源文件的结构
- - 4.2.1 第一行是注释，说明代码使用的软件许可（license），这里使用的是MIT许可，代码使用的软件许可，可以在https://spdx.org/licenses/里搜索mit查找
+ - 4.2.1 第一行是注释，说明代码使用的软件许可（license），这里使用的是MIT许可，代码使用的软件许可，可以在https://spdx.org/licenses/ 里搜索mit查找
 
 
  
