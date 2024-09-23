@@ -2,91 +2,69 @@
 timezone: Asia/Shanghai
 ---
 
-> 请在上边的 timezone 添加你的当地时区，这会有助于你的打卡状态的自动化更新，如果没有添加，默认为北京时间 UTC+8 时区
-> 时区请参考以下列表，请移除 # 以后的内容
+# jasonch1u
 
-timezone: Pacific/Honolulu # 夏威夷-阿留申标准时间 (UTC-10)
+1. 自我介绍：無開發經驗，參加XREX區塊鍊課程後，不想再當web2的佃農。最近很幸運的錄取了資安BOOTCAMP，希望這段時間學習後，有機會投身web3的行列。
+2. 你认为你会完成本次残酷学习吗？ 一開始覺得不好說，不過這段時間提前自學，期許自己還是可以完成。
 
-timezone: America/Anchorage # 阿拉斯加夏令时间 (UTC-8)
-
-timezone: America/Los_Angeles # 太平洋夏令时间 (UTC-7)
-
-timezone: America/Denver # 山地夏令时间 (UTC-6)
-
-timezone: America/Chicago # 中部夏令时间 (UTC-5)
-
-timezone: America/New_York # 东部夏令时间 (UTC-4)
-
-timezone: America/Halifax # 大西洋夏令时间 (UTC-3)
-
-timezone: America/St_Johns # 纽芬兰夏令时间 (UTC-2:30)
-
-timezone: Asia/Dubai # 海湾标准时间 (UTC+4)
-
-timezone: Asia/Kolkata # 印度标准时间 (UTC+5:30)
-
-timezone: Asia/Dhaka # 孟加拉国标准时间 (UTC+6)
-
-timezone: Asia/Bangkok # 中南半岛时间 (UTC+7)
-
-timezone: Asia/Shanghai # 中国标准时间 (UTC+8)
-
-timezone: Asia/Tokyo # 日本标准时间 (UTC+9)
-
-timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
-
----
-
-# Jasonch1u
-
-1. 自我介绍：一個參加完XREX Acamedy後，覺得區塊鍊技術很有趣的菜雞
-
-2. 你认为你会完成本次残酷学习吗？ 不好說
-   
 ## Notes
 
 <!-- Content_START -->
+### 2024.09.19
+因為從未接觸過Solidity，這週提前開始課程，大概了解自學難度、個人目標、及殘酷共學的願景。
 
 ### 2024.09.23
 
-學習內容: 
-- A 系列的 Ethernaut CTF, 之前做了差不多了. POC: [ethernaut-foundry-solutions](https://github.com/SunWeb3Sec/ethernaut-foundry-solutions)
-- A 系列的 QuillAudit CTF 題目的網站關掉了, 幫大家收集了[題目](./Writeup/SunSec/src/QuillCTF/), 不過還是有幾題沒找到. 有找到題目的人可以在發出來.
-- A 系列的 DamnVulnerableDeFi 有持續更新, 題目也不錯. [Damn Vulnerable DeFi](https://github.com/theredguild/damn-vulnerable-defi/tree/v4.0.0).
-- 使用 [Foundry](https://book.getfoundry.sh/) 在本地解題目, 可以參考下面 RoadClosed 為例子
-- ``forge test --match-teat testRoadClosedExploit -vvvv``
-#### [QuillAudit CTF - RoadClosed](./Writeup/SunSec/src/QuillCTF/RoadClosed.sol)
+01_HelloWeb3
+
+* Solidity 是智能合約語言，主要用於以太坊，能幫助讀懂區塊鏈項目代碼。
+* Remix 是官方推薦的開發工具(https://remix.ethereum.org)，可在瀏覽器中開發和部署 Solidity 合約。建議可以開啟自動編譯，省步驟。
+* Solidity 程序結構包含：
+
+License 註釋
+```solidity
+// SPDX-License-Identifier: MIT
 ```
-  function addToWhitelist(address addr) public {
-    require(!isContract(addr), "Contracts are not allowed");
-    whitelistedMinters[addr] = true;
-  }
-
-  function changeOwner(address addr) public {
-    require(whitelistedMinters[addr], "You are not whitelisted");
-    require(msg.sender == addr, "address must be msg.sender");
-    require(addr != address(0), "Zero address");
-    owner = addr;
-  }
-
-  function pwn(address addr) external payable {
-    require(!isContract(msg.sender), "Contracts are not allowed");
-    require(msg.sender == addr, "address must be msg.sender");
-    require(msg.sender == owner, "Must be owner");
-    hacked = true;
-  }
-
-  function pwn() external payable {
-    require(msg.sender == pwner);
-    hacked = true;
-  }
+版本聲明：跟編譯器要一致，在remix輸入"pragma..." 會跳出"License註識"一起寫完，最後記得填入version
+```solidity
+pragma solidity 0.8.26;
 ```
-- 解決這個題目需要成為合約的 owner 和 hacked = true.
-- On-chain: 可以透過 ``cast send`` 或是 forge script 來解.
-- Local: 透過 forge test 通常是在local解題, 方便 debug.
-- RoadClosed 為例子我寫了2個解題方式. testRoadClosedExploit 和 testRoadClosedContractExploit (因為題目有檢查msg.sender是不是合約, 所以可以透過constructor來繞過 isContract)
-- [POC](./Writeup/SunSec/test/QuillCTF/RoadClosed.t.sol) 
+合約內容
+```solidity
+contract HelloWorld { }
+```
+* 第一個合約示例：HelloWeb3 合約，定義一個字符串變量，值為 "Hello Web3!"。每行代碼用分號 ；結尾
 
-### 
+</br>
+02_ValueTypes
 
+值的寫法：value類型 (不寫? | internal | public | private，還不知道為什麼不能寫external?) <_value name> = 數值、字串或判斷式
+如果寫public，會自動產生getter函數(這邊應該可以理解成直接產生一個查找對應數值的函數功能)，寫其他或不寫，就不會有字自動生成getter函數，就沒辦法直接看對應數值。ex.
+```solidity
+uint8 public _apple = 255; //會自動產getter函數，部屬後直接點_apple會知道uint8: 255
+uint256 _banana = 20; //不會自動產getter函數，部屬後沒有_banana可以點，要另外自己寫function找_banana
+```
+
+數值類型概述
+* 布爾型 (bool)：只有兩個值，true 和 false。
+* 整數型 (uint)：
+    * uint（無符號整數）常用於區塊鏈，因為不需要負數，默認為 uint256。也沒有小數點。位數表達是二進制的位數，即256bits。
+    * 支援基本數學運算（加、減、乘、除、平方、取商、取餘數），以及比較運算（如>, >=, <, <= 等...）。
+    * 操作符：==、!=、&&、|| 用於邏輯比較。
+    * 短路規則（Short-circuiting）：
+        * &&：如果前者為 false，後者不再執行。
+        * ||：如果前者為 true，後者不再執行。
+* 地址型 (address)：
+    * 特殊的 20 byte 類型，用於儲存 Ethereum 地址。
+    * address：佔用 20 bytes，即 40 個 16 進位字符。
+    * payable address 可用於接收轉帳。
+    * 支援轉帳操作方法：transfer、send 和 call。以後會學
+* 字節型 (bytes)：
+    * 分為定長（如 bytes32）和不定長版本。
+    * 定長字節型聲明長度後不可變；不定長字節數組有機會儲存更多數據。
+    * 1 byte = 8 bits，可以由 2 個 16 進位字符表示。
+        * 每個 16 進位字符代表 4 bits。例如：1111 1111（二進位） = FF（16 進位）。
+        * bytes32：能存 32 bytes，即 64 個 16 進位字符。
+        * 0x只是用來表示16進制，不佔字符數。
+* 枚举 enum：冷門，方便辨識程式碼的寫法。類似自定義X, Y, X = 0, 1, 2的概念
 <!-- Content_END -->
