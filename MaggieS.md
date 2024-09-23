@@ -17,8 +17,6 @@ timezone: Asia/Shanghai
 ## Notes
 
 <!-- Content_START -->
-### 2024.09.23
-
 I will enjoy this Solidity learning journey going through one step by one step as a fresher.  It’s a chance to dive deeper into block-chain world, which lights me up so much. Wish I could learn and understand not only just the syntax, but also a big picture and the actual underlying concepts of how to program. 
 
 This Solidity learning undertaking is divided into three steps in accordance with my goal in this 21-day journey:
@@ -46,5 +44,11 @@ Step3:  Summary    2 days
 * Figuring out all the test questions of WTF Academy .
 
 * Mapping my own questions into a mind map.
+
+### 2024.09.23
+
+
+
+
   
 <!-- Content_END -->
