@@ -67,4 +67,22 @@ uint256 _banana = 20; //不會自動產getter函數，部屬後沒有_banana可�
         * bytes32：能存 32 bytes，即 64 個 16 進位字符。
         * 0x只是用來表示16進制，不佔字符數。
 * 枚举 enum：冷門，方便辨識程式碼的寫法。類似自定義X, Y, X = 0, 1, 2的概念
+
+</br>
+03_Function
+函數的基本結構
+```solidity
+function <function name>(<parameter types>) {internal|external|public|private} [pure|view|payable] [returns (<return types>)]
+```
+參數類型：輸入參數的資料類型，如 uint、string 等。
+* 可見性：函數的可見性決定誰可以調用該函數：
+   * public：內外部都可訪問，會自動生成 getter 函數。
+   * private：僅限合約內部調用。
+   * internal：內部和子合約可調用。
+   * external：僅外部調用，內部需透過 this.f() 調用。
+修飾詞
+* pure：不讀取或修改狀態，完全依賴傳入的參數。
+* view：僅讀取狀態，不修改。
+* payable：允許函數接收以太幣，常用於資金接收。
+* 不寫：可以讀取和修改狀態，會消耗 Gas。
 <!-- Content_END -->
