@@ -126,8 +126,8 @@ contract HelloWeb3{
         * 合約之外宣告，此 `struct` 可被多合約共享。
         * 在合約內部宣告，此 `struct` 只能被本合約與繼承合約共享。
 4. **映射類型(Mapping Type)**：只能存在 `stroage` 數據位置。  
-    * 映射類型使用語法：`mapping((<KeyType>) KeyName? => (<ValueType>) ValueName?)`  
-    * 映射類型變量使用語法：`mapping((<KeyType>) KeyName? => (<ValueType>) ValueName?) VariableName`  
+    * 映射類型使用語法：`mapping(KeyType KeyName? => ValueType ValueName?)`  
+    * 映射類型變量使用語法：`mapping(KeyType KeyName? => ValueType ValueName?) VariableName`  
     `KeyType` 可為內置的值類型(ex.string, enum...)，用戶定義、複雜的類型不可(ex.映射, struct, array...)，`ValueType` 可為任何類型(ex.string, 映射, struct...)  
     [mapping 詳細介紹](<https://docs.soliditylang.org/zh/latest/types.html#mapping-types>)
 
