@@ -51,7 +51,45 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 
 ### 2024.09.23
 
-笔记内容
+默认情况下，Remix 会使用 Remix 虚拟机（以前称为 JavaScript 虚拟机）来模拟以太坊链，运行智能合约，类似在浏览器里运行一条测试链。Remix 还会为你分配一些测试账户，每个账户里有 100 ETH（测试代币），随意使用。点击 Deploy（黄色按钮），即可部署我们编写的合约。
+
+Solidity中的变量类型
+值类型(Value Type)：包括布尔型，整数型等等，这类变量赋值时候直接传递数值。
+
+引用类型(Reference Type)：包括数组和结构体，这类变量占空间大，赋值时候直接传递地址（类似指针）。
+
+映射类型(Mapping Type): Solidity中存储键值对的数据结构，可以理解为哈希表
+
+地址类型(address)有两类：
+
+普通地址（address）: 存储一个 20 字节的值（以太坊地址的大小）。
+payable address: 比普通地址多了 transfer 和 send 两个成员方法，用于接收转账。
+
+{internal|external|public|private}：函数可见性说明符，共有4种。
+
+public：内部和外部均可见。
+private：只能从本合约内部访问，继承的合约也不能使用。
+external：只能从合约外部访问（但内部可以通过 this.f() 来调用，f是函数名）。
+internal: 只能从合约内部访问，继承的合约可以用。
+
+注意 1：合约中定义的函数需要明确指定可见性，它们没有默认值。
+
+注意 2：public|private|internal 也可用于修饰状态变量。public变量会自动生成同名的getter函数，用于查询数值。未标明可见性类型的状态变量，默认为internal。
+
+包含 pure 和 view 关键字的函数是不改写链上状态的，因此用户直接调用它们是不需要付 gas 的（注意，合约中非 pure/view 函数调用 pure/view 函数时需要付gas）。
+
+在以太坊中，以下语句被视为修改链上状态：
+
+写入状态变量。
+释放事件。
+创建其他合约。
+使用 selfdestruct.
+通过调用发送以太币。
+调用任何未标记 view 或 pure 的函数。
+使用低级调用（low-level calls）。
+使用包含某些操作码的内联汇编。
+
+view 函数可以读取状态变量，但不能改写；pure 函数既不能读取也不能改写状态变量。
 
 ### 2024.09.24
 
