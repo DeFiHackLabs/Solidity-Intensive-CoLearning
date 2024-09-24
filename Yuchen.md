@@ -131,5 +131,87 @@ contract HelloWeb3{
     `KeyType` 可為內置的值類型(ex.string, enum...)，用戶定義、複雜的類型不可(ex.映射, struct, array...)，`ValueType` 可為任何類型(ex.string, 映射, struct...)  
     [mapping 詳細介紹](<https://docs.soliditylang.org/zh/latest/types.html#mapping-types>)
 
+### 2024.09.24
+
+#### 函數
+Solidity 函數形式：
+```Solidity
+function <function name>(<parameter types>) {internal|external|public|private} [pure|view|payable] [returns (<return types>)]
+```
+1. `function`：宣告 function 的固定用法。
+2. `<function name>`：函數名。
+3. `(<parameter types>)`：寫入函數的參數，包含變量類型與名稱。
+4. `{internal|external|public|private}`：函數可見性說明符。  
+函數需要明確定義可見性，沒有默認值。
+    * `public`：內部與外部均可見。
+    * `private`：只能從本合約內部訪問，繼承的合約不可使用。
+    * `external`：只能從合約外部訪問(內部可通過 `this.f()` 調用)。
+    * `internal`：只能從本合約內部訪問，繼承的合約可使用。
+
+※在修飾變量時可使用 `public|private|internal` 默認為 `internal`，`public` 時會自動生成同名的 `getter` 函數，以查詢數值。
+
+5. `[pure|view|payable]`：決定函數權限/功能的關鍵字。
+    * `payable`：可支付的。
+    * `pure‵`：不能讀或寫入鏈上的狀態變量。
+    * `view`：能讀不能寫入鏈上的狀態變量。
+
+6. `[returns ()]`：函数返回的变量类型和名称。
+
+#### `Pure` 和 `View` 是什麼?
+在乙太坊上交易如果改變了鏈上狀態則需要支付氣費(gas free)，但 gas free 很貴，因此創建了 `pure` 和 `view`，包含這兩個關鍵字的函數不改寫鏈上狀態，因此用戶呼叫後不需要付 gas。  
+※非 `pure/view` 的函數呼叫 `pure/view` 時需要付gas。
+
+**以下行為視為修改鏈上狀態**  
+1. 寫入狀態變量
+2. 釋放事件
+3. 創建其他合約
+4. 使用 `selfdestruct`
+5. 通過調用發送乙太幣
+6. 呼叫任何未標記 `pure/view` 的函數
+7. 使用低級呼叫(low-level calls)
+8. 使用包含某些操作碼的內聯匯編
+
+<img src="https://github.com/user-attachments/assets/7cc09e0c-6f4e-4d84-94cb-f0af5913b54a" height="300px" width="640px" />  
+
+`minusPayable()` 間接呼叫 `minus()`，並返回 ETH 餘額，透過 `this` 關鍵字可以引用合約地址，在呼叫 `minusPayable()` 時往合約中轉入 12 個 ETH。  
+<img src="https://github.com/user-attachments/assets/a98c4fb5-3482-47c7-b4b7-ea0d1bfa8ffe" height="300px" width="640px" />
+
+#### 函數輸出
+**返回值：return/returns**  
+* returns：跟在函式名之後，聲明返回的變量類型與變量名。
+* return：在函式主體中，返回指定的變量。  
+```Solidity
+// 返回多變量
+function returnMultiple() public pure returns(uint256, bool, uint256[3] memory){
+    return(1, true, [uint256(1), 2, 5])
+}
+```
+※`uint256[3]` 聲明長度 3 且類型為 `uint256` 的數組為返回值，但若直接寫`[1, 2, 5]`會默認為 `uint8[3]`，因此第一個值須強制轉成 `uint256`，聲明該數組中的元素皆為 `uint256`。
+
+**命令式返回**  
+在 `returns` 中標明返回變量的名稱。Solidity 會初始化這些變量，並自動返回，無須使用 `return`。  
+```Solidity
+function returnNamed() public pure returns(uint256 _number, bool _bool, uint256[3] memory _array){
+    _number = 2;
+    _bool = false;
+    _array = [uint256(3),2,1];
+}
+```
+
+**解構式返回**  
+
+* 讀取所有返回值：聲明變量，後將要賦值的變量用 `,` 隔開，依序排列。
+```Solidity
+uint256 _number;
+bool _bool;
+uint256[3] memory _array;
+(_number, _bool, _array) = returnNamed();
+```
+
+* 讀取部分返回值：聲明要讀取的返回值對應的變量，不讀取的留空。
+```Solidity
+(, _bool2, ) = returnNamed();
+```
+<img src="https://github.com/user-attachments/assets/384f7fe6-2d2e-482f-a122-d438b4ebea19" height="300px" width="640px" />  
 
 <!-- Content_END -->
