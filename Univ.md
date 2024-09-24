@@ -2,8 +2,7 @@
 timezone: Asia/Shanghai
 ---
 
-# YourName
-
+# Univ
 1. 自我介绍
 我是Univ，想藉由這次共學機會深入學習Solidity與智能合約相關知識，跟大家一起的感覺比較有學習的動力。
 
@@ -11,12 +10,12 @@ timezone: Asia/Shanghai
 我可以完成這次共學，每天排出時間更新學習進度。
    
 ## Notes
+<!-- Content_START -->
+
 
 ### 2024.09.23
 
 #### 01_HelloWeb3
-
-solidity
 // SPDX-License-Identifier: MIT 
 // 這一行是註釋，表示了MIT license，不寫的話會有warning，但程式還是可以跑
 pragma solidity ^0.8.21; // 這一行表示版本
