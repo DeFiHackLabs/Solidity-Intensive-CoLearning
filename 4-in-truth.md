@@ -18,4 +18,11 @@ timezone: Asia/Shanghai
 过了第一课了，岂不美哉
 ### 
 
+### 2024.09.24
+![image](https://github.com/user-attachments/assets/e1fc3ec9-a4f3-4ebc-b0a4-ab6a76e4a5e9)
+
+
+过了第二课了，岂不美哉
+### 
+
 <!-- Content_END -->

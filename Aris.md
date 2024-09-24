@@ -51,20 +51,11 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 
 ### 2024.09.23
 
-#### 学习内容
+#### 学习内容 第01节
  - 01HelloWeb3.sol 创建 helloWeb3 程序,并在 remix 上进行编译和部署
-
  - 代码部分
 
- - ```
-    // SPDX-License-Identifier: MIT
-    pragma solidity ^0.8.22;
-    contract HelloWeb3 {
-        string public _string = "Hi Web3";
-    }
-    ```
-
-![image-20240923203935410](./content/Aris/image-20240923203935410.png)
+- ![image-20240923203935410](./content/Aris/image-20240923203935410.png)
 
  - 在根目录创建 contracts 目录,创建 .sol 文件,放入上面代码
 
@@ -101,6 +92,47 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 
 - 也可以在 https://remix.ethereum.org 直接编写代码,然后编译和部署,但是我习惯在本地编写代码^_^
 
-### 
+### 2024.09.24
+
+#### 学习内容 第02 节: 值类型 第03节:函数类型
+
+- 第02 节: 值类型
+  - 值类型: Value Type 
+  - 引用类型: Reference Type
+  - 映射类型: Mapping Type
+- 值类型:
+  - 布尔型
+    - 与`&&`,或`||`,非`!` 等于`=`,不等于`!=`
+    - `&&` 和` ||` 遵循短路规则
+  - 整形
+    - `int`整数, `uint` 正整数, `uint256` 256位正整数
+    - 比较运算符: <=, <, >=, >, ==, !=
+    - 算数运算符: `+`,` -` , `*` ,`/`, `%`, `**`
+  - 地址类型
+    - 普通地址: address, 存储一个 20 字节的值(以太坊)
+    - payable address: 用于接收转账,有 transfer 和 send 方法
+  - 定长字节数组
+    - 定长字节数组时值类型,数组长度在声明以后不能改变,分为 bytes1,bytes8,bytes32等,最大bytes 32
+  - 枚举 enum
+    - 为uint 分配名称,从 0 开始.
+- 合约部署截图
+- ![image-20240924200304434](./content/Aris/image-20240924200304434.png)
+
+- 第节: 函数类型
+- `function <function name>(<parameter types>) {internal|external|public|private} [pure|view|payable] [returns (<return types>)]`
+  - function: 函数声明的固定写法
+  - name: 函数名
+  - 函数可见性修饰符 (必须指定)
+    - public: 内部: 可以, 外部: 可以, 继承: 可以
+    - private: 内部: 可以, 外部: 不可以, 继承: 不可以
+    - external: 内部: 不可以(通过 `this.f()`调用), 外部: 可以, 继承: 可以
+    - internal: 内部: 可以, 外部: 不可以, 继承: 可以
+  - 权限关键字
+    - pure: 外部变量,不能读,不能写 | 无 gas 消耗 | 注意: 调用任何非标记 pure/view 函数需要支付 gas 费
+    - view: 外部变量,能读,不能写 | 无 gas 消耗 | 注意: 调用任何非标记 pure/view 函数需要支付 gas 费
+    - payable: 调用函数可以转入 ETH (下面截图中,调用`minusPayable()` 传入了1 个 ETH,合约余额就受到了 1ETH)
+  - retuns: 函数返回的变量类型和名称
+- 合约部署截图
+- ![image-20240924204906756](./content/Aris/image-20240924204906756.png)
 
 <!-- Content_END -->
