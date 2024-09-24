@@ -171,12 +171,10 @@ function <function name>(<parameter types>) {internal|external|public|private} [
 7. 使用低級呼叫(low-level calls)
 8. 使用包含某些操作碼的內聯匯編
 
-<img src=![Function](https://github.com/user-attachments/assets/7cc09e0c-6f4e-4d84-94cb-f0af5913b54a)
- height="300px" width="640px" />  
+<img src="https://github.com/user-attachments/assets/7cc09e0c-6f4e-4d84-94cb-f0af5913b54a" height="300px" width="640px" />  
 
 `minusPayable()` 間接呼叫 `minus()`，並返回 ETH 餘額，透過 `this` 關鍵字可以引用合約地址，在呼叫 `minusPayable()` 時往合約中轉入 12 個 ETH。  
-<img src=![Function-2](https://github.com/user-attachments/assets/a98c4fb5-3482-47c7-b4b7-ea0d1bfa8ffe)
- height="300px" width="640px" />
+<img src="https://github.com/user-attachments/assets/a98c4fb5-3482-47c7-b4b7-ea0d1bfa8ffe" height="300px" width="640px" />
 
 #### 函數輸出
 **返回值：return/returns**  
@@ -214,8 +212,6 @@ uint256[3] memory _array;
 ```Solidity
 (, _bool2, ) = returnNamed();
 ```
-<img src=![Return](https://github.com/user-attachments/assets/384f7fe6-2d2e-482f-a122-d438b4ebea19)
- height="300px" width="640px" />  
-
+<img src="https://github.com/user-attachments/assets/384f7fe6-2d2e-482f-a122-d438b4ebea19" height="300px" width="640px" />  
 
 <!-- Content_END -->
