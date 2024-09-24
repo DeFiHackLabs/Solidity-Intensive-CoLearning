@@ -40,5 +40,32 @@ contract HelloWeb3{
     string public _string = "Hello Web3!";
 }
 ### 
-
+### 2024.09.24
+一、关于solidity的变量类型
+1.值类型(Value Type)
+    bool 
+    uint（num） -->正整数 num是bit位 e.g： uint256 public _a = 20220330; // 256位正整数
+    int 
+    **address：**
+    一、定义:
+        address 是solidity特有的 
+        address类型的变量可以存储一个 20 字节的值，代表一个以太坊账户地址。这个地址可以是外部账户（由用户控制的账户，拥有私钥）或合约账户的地址。
+        通常以十六进制形式表示，例如0x1234567890abcdef1234567890abcdef12345678。
+        二、主要属性和方法
+        balance属性：可以使用address.balance来查询一个地址的以太币余额。例如，address payable someAddress; uint256 balance = someAddress.balance;可以获取地址someAddress的以太币余额并存储在变量balance中。    
+        transfer方法：用于向一个地址发送以太币。例如，someAddress.transfer(100);将向地址someAddress发送 100 wei（以太坊的最小货币单位）的以太币。这个方法会抛出异常如果发送失败。
+        send方法：也用于发送以太币，但它返回一个布尔值表示发送是否成功。例如，bool success = someAddress.send(100);如果发送成功，success将为true，否则为false。
+        call方法：可以用于与其他合约进行交互或执行低级别的调用。它接受一个字节数组作为参数，可以指定要调用的函数和传递的参数。例如，(bool success, bytes memory data) = someAddress.call(abi.encodeWithSignature("someFunction()"));执行对地址someAddress上的 “someFunction” 函数的调用。
+    **Q1:**
+    address payable addr;
+    addr.transfer(1);
+    **合约向addr 转账 1wei**
+    定长字节数组(数值类型):数组长度在声明之后不能改变. e.g.:bytes1 bytes32 其最多存储32bytes数据  
+        一字节等于8bit
+    enum (太冷门了,无人问津...)
+2.引用类型(Reference Type)
+    不定长字节数组
+3.映射类型(Mapping Type)
+4.函数类型(Function Type)
+### 
 <!-- Content_END -->
