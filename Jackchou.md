@@ -86,5 +86,27 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
             }
     ```
 ### 
+### 2024.09.24
+   - storage: The state variables are storage by default, which are stored on-chain.
 
+  - memory: The parameters and temporary variables in the function generally use memory label, which is stored in memory and not on-chain.
+
+  - calldata: Similar to memory, stored in memory, not on-chain. The difference from memory is that calldata variables cannot be modified, and is generally used for function parameters. Example
+  - Variable scope
+  There are three types of variables in Solidity according to their scope: state variables, local variables, and global variables.
+
+   - Below are some commonly used global variables:
+
+blockhash(uint blockNumber): (bytes32) The hash of the given block - only applies to the 256 most recent block.
+block.coinbase : (address payable) The address of the current block miner
+block.gaslimit : (uint) The gaslimit of the current block
+block.number : (uint) Current block number
+block.timestamp : (uint) The timestamp of the current block, in seconds since the unix epoch
+gasleft() : (uint256) Remaining gas
+msg.data : (bytes calldata) Complete calldata
+msg.sender : (address payable) Message sender (current caller)
+msg.sig : (bytes4) first four bytes of the calldata (i.e. function identifier)
+msg.value : (bytes4) number of wei sent with the message
+
+###
 <!-- Content_END -->

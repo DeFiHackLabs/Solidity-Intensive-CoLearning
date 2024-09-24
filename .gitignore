@@ -9,3 +9,5 @@ artifacts
 **node_modules**
 **cache**
 **artifacts**
+
+*.txt

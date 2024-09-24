@@ -510,4 +510,71 @@ contract people is Adam, Eve {
 
 ### 2024.09.23
 
+14. 抽象合约&接口
+
+- 抽象合约：至少有一个 virtual 函数的，用于代码设计阶段。**抽象合约不能被直接部署**
+
+```solidity
+abstract contract InsertionSort{
+    function insertionSort(uint[] memory a) public pure virtual returns(uint[] memory);
+}
+```
+
+- 接口：不实现任何功能，合约框架，编译接口可以得到合约 abi，比如 IERC721。只需要知道接口就可以交互而不需要知道具体代码实现
+
+```solidity
+interface IERC721 is IERC165 {
+    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+    event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
+    event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
+    function balanceOf(address owner) external view returns (uint256 balance);
+    function ownerOf(uint256 tokenId) external view returns (address owner);
+    function safeTransferFrom(address from, address to, uint256 tokenId) external;
+    function transferFrom(address from, address to, uint256 tokenId) external;
+    function approve(address to, uint256 tokenId) external;
+    function getApproved(uint256 tokenId) external view returns (address operator);
+    function setApprovalForAll(address operator, bool _approved) external;
+    function isApprovedForAll(address owner, address operator) external view returns (bool);
+    function safeTransferFrom( address from, address to, uint256 tokenId, bytes calldata data) external;
+}
+```
+
+使用接口：
+
+```solidity
+contract interactBAYC {
+    // 利用BAYC地址创建接口合约变量（ETH主网）
+    IERC721 BAYC = IERC721(0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D);
+
+    // 通过接口调用BAYC的balanceOf()查询持仓量
+    function balanceOfBAYC(address owner) external view returns (uint256 balance){
+        return BAYC.balanceOf(owner);
+    }
+
+    // 通过接口调用BAYC的safeTransferFrom()安全转账
+    function safeTransferFromBAYC(address from, address to, uint256 tokenId) external{
+        BAYC.safeTransferFrom(from, to, tokenId);
+    }
+}
+```
+
+15. 异常
+
+- error 必须搭配 revert（回退）命令使用。推荐使用
+
+```solidity
+function transferOwner1(uint256 tokenId, address newOwner) public {
+    if(_owners[tokenId] != msg.sender){
+        revert TransferNotOwner();
+        // revert TransferNotOwner(msg.sender);
+    }
+    _owners[tokenId] = newOwner;
+}
+```
+
+- Require 是 solidity 0.8 版本之前抛出异常的常用方法，缺点就是 gas 随着描述异常的字符串长度增加，比 error 命令要高。使用方法：require(检查条件，"异常的描述")，
+- assert 断言。一般用于 debug。用法：assrt(检查条件)，不能解释异常原因。Solidity **0.8.0 之前的版本**，assert 抛出的是一个 panic exception，会把剩余的 gas 全部消耗，**不会返还**。
+
+### 2024.09.24
+
 <!-- Content_END -->

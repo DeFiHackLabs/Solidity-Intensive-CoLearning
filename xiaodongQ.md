@@ -20,6 +20,7 @@ timezone: Asia/Shanghai
 
 ### 2024.09.23
 
+之前把solidity-101、solidity-102基本的都过完了：[solidity_note.md](https://github.com/xiaodongQ/devNoteBackup/blob/master/%E5%90%84%E5%88%86%E7%B1%BB%E8%AE%B0%E5%BD%95/blockchain/solidity_note.md)，这几天再快速回顾一下，继续后面的学习练习。
 
 
 <!-- Content_END -->
