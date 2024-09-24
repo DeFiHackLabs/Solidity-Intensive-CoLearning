@@ -49,4 +49,10 @@ TransactionPayload 编码方式为 `rlp([chain_id, nonce, max_priority_fee_per_g
 
 签名的输入为 `keccak256(0x02 || rlp([chain_id, nonce, max_priority_fee_per_gas, max_fee_per_gas, gas_limit, destination, amount, data, access_list]))`
 
+### 2024.09.24
+
+简单过了一遍 WTF Academy 102，以及学了一下 ETH 网络的交易签名方式
+
+ETH 交易的签名使用 ECDSA 签名算法，但与标准的 ECDSA 有一点点区别，签名使用 `(v, r, s)` 三元组，其中 `r, s` 的意义与 ECDSA 中相同，而 `v` 用于指示椭圆曲线上相同 x 坐标的两个对称点的确定一个。交易签名中并不显式含有发送者信息，发送者的公钥通过签名反推出来，再进一步得到发送者的地址。因此通过 `v` 可以确定唯一的公钥。
+
 <!-- Content_END -->
