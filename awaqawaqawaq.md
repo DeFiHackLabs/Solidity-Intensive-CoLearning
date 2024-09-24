@@ -38,6 +38,20 @@ function <function name>(<parameter types>) {internal|external|public|private} [
   
 storage（合约的状态变量）赋值给本地storage（函数里的）,memory赋值给memory，会创建引用 
 - tansfer的默认单位是wei
-### 
 
+### 2024.09.24
+时间：90min  學習內容: solidity101 5~10
+- array：
+  - bytes比较特殊，是数组，但是不用加[]
+  - memory动态数组，可以用new操作符来创建，但是必须声明长度
+  - 如果创建的是动态数组，你需要一个一个元素的赋值
+
+- struct
+- Mapping，struct和array不可以作为mapping的key
+- 变量初始值
+- 0x00 = 1 byte
+- constant和immutable
+  -string可以是constant，但是不能是immutable，**constant的值在编译时确定，immutable的值在部署时确定**。
+- 定义时赋值为显示赋值，构造函数为隐式赋值
+- 
 <!-- Content_END -->
