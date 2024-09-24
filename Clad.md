@@ -78,6 +78,44 @@ event Transfer(address indexed from, address indexed to, uint256 value);
 // 在函數裡釋放事件
 emit Transfer(from, to, amount);
 ```
+#### 繼承
 
+```solidity
+contract Father{
+   event Log(string msg);
+
+   function hip() public virtual{
+      emit Log("Father");
+   }
+
+   function pop() public virtual{
+      emit Log("Father");
+   }
+
+   function father() public virtual{
+      emit Log("Father");
+   }
+}
+```
+
+```solidity
+// 簡單繼承
+contract Sun is Father{
+
+   function hip() public virtual override{
+      emit Log("Sun");
+   }
+
+   function pop() public virtual override{
+      emit Log("Sun");
+   }
+
+   function sun() public virtual{
+      emit Log("Sun");
+   }
+}
+
+// 部屬合約後, 可以看到 Sun 合約有 4 個 function, 且 hip(), pop() 的輸出被改寫成 "Sun", 繼承來的 father() 輸出扔然保持 "Father"
+```
 
 <!-- Content_END -->
