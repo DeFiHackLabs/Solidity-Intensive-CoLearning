@@ -18,5 +18,12 @@ timezone: Asia/Shanghai
 
 ### 2024.09.23
 
+#### Chapter 1: HelloWeb3
+
+3 basic element of a solidity file:
+
+1. Software license `// SPDX-License-Identifier: MIT`
+2. Compiler version `pragma solidity ^0.8.4;`
+3. Contract content `contract HelloWeb3{ ... }`
 
 <!-- Content_END -->

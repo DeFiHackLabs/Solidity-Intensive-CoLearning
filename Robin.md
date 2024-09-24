@@ -194,4 +194,23 @@ contract Return{
     }
 }
 ```
+
+### 2024.09.24
+
+學習內容:
+
+- [x] 了解变量的存储和作用域
+
+1. 存储位置
+   - storage: 存储在区块链上，永久保存
+   - memory: 存储在内存中，函数调用结束后，数据消失
+   - calldata: 与memory类似，但是被calldata修饰的参数是只读的，不可修改
+2. 作用域
+   - state variable: 合约中声明的变量，存储在storage中
+   - local variable: 函数中声明的变量，存储在memory中
+   - function parameter: 函数的参数，存储在memory中
+   - global variable: 全局变量，存储在storage中
+   其中全局变量参考：[全局变量](https://docs.soliditylang.org/zh/v0.8.21/units-and-global-variables.html)
+
+
 <!-- Content_END -->
