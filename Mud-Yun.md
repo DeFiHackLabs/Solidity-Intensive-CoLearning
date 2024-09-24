@@ -141,9 +141,7 @@ Order public currentOrder = Order.Buy;
 枚舉也可以轉換成整數：
 
 function getOrderValue() public view returns(uint) {
-
     return uint(currentOrder);
-    
 }
 
 <!-- Content_END -->
