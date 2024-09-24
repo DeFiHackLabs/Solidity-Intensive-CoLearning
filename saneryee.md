@@ -53,44 +53,63 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 
 ### 2024.09.23
 
-學習內容: 
-- A 系列的 Ethernaut CTF, 之前做了差不多了. POC: [ethernaut-foundry-solutions](https://github.com/SunWeb3Sec/ethernaut-foundry-solutions)
-- A 系列的 QuillAudit CTF 題目的網站關掉了, 幫大家收集了[題目](./Writeup/SunSec/src/QuillCTF/), 不過還是有幾題沒找到. 有找到題目的人可以在發出來.
-- A 系列的 DamnVulnerableDeFi 有持續更新, 題目也不錯. [Damn Vulnerable DeFi](https://github.com/theredguild/damn-vulnerable-defi/tree/v4.0.0).
-- 使用 [Foundry](https://book.getfoundry.sh/) 在本地解題目, 可以參考下面 RoadClosed 為例子
-- ``forge test --match-teat testRoadClosedExploit -vvvv``
-#### [QuillAudit CTF - RoadClosed](./Writeup/SunSec/src/QuillCTF/RoadClosed.sol)
-```
-  function addToWhitelist(address addr) public {
-    require(!isContract(addr), "Contracts are not allowed");
-    whitelistedMinters[addr] = true;
-  }
+Class: WTF Academy Solidity 101 1-4
 
-  function changeOwner(address addr) public {
-    require(whitelistedMinters[addr], "You are not whitelisted");
-    require(msg.sender == addr, "address must be msg.sender");
-    require(addr != address(0), "Zero address");
-    owner = addr;
-  }
+Key points：
+- `address` size = 20 byte
+- `address payable` with memebers `transfer` and `send`
+- from `address` type to `payable address` type:  `payable(_address)`
+- Fixed-length byte arrays: **value type**
+- Variable-length byte arrays **reference type**
+- Use cases of byte arrays
+  1. Information encoding and decoding: Multiple pieces of information, suce as flags and status,can be encoded into a single byte arrays to save gas.
+- Function
+  ```solidity
+      function <function name> (<parameter types>) [internal|external|public|private] [virtual|override|pure|view|payable] [returns (<return types>)]
+  ```
 
-  function pwn(address addr) external payable {
-    require(!isContract(msg.sender), "Contracts are not allowed");
-    require(msg.sender == addr, "address must be msg.sender");
-    require(msg.sender == owner, "Must be owner");
-    hacked = true;
-  }
+  ```mermaid
+   graph TD
+      A[Start] --> B{Choose visibility modifier}
+      B -->|Externally callable| C[external]
+      B -->|Internally callable| D[internal]
+      B -->|Callable both externally and internally| E[public]
+      B -->|Only callable within current contract| F[private]
+      
+      C & D & E & F --> G{Requires Ether payment?}
+      G -->|Yes| H[payable]
+      G -->|No| I{Modifies state?}
+      
+      I -->|Yes| J[No additional modifier needed]
+      I -->|No| K{Reads state?}
+      
+      K -->|Yes| L[view]
+      K -->|No| M[pure]
+      
+      H & J & L & M --> N{Is it a base class function?}
+      N -->|Yes| O[virtual]
+      N -->|No| P{Overrides a base class function?}
+      
+      P -->|Yes| Q[override]
+      P -->|No| R[End]
+      
+      O --> R
+      Q --> R
+  ```  
+- return: Destructuring assignments
+  
+  ```
+   // Named return, still support return
+    function returnNamed2() public pure returns(uint256 _number, bool _bool, uint256[3] memory _array){
+        return(1, true, [uint256(1),2,5]);
+    }
+   ...
+   uint256 _number;
+   bool _bool;
+   uint256[3] memory _array;
+   (_number, _bool, _array) = returnNamed();
+   ...
+   (, _bool2, ) = returnNamed();
 
-  function pwn() external payable {
-    require(msg.sender == pwner);
-    hacked = true;
-  }
-```
-- 解決這個題目需要成為合約的 owner 和 hacked = true.
-- On-chain: 可以透過 ``cast send`` 或是 forge script 來解.
-- Local: 透過 forge test 通常是在local解題, 方便 debug.
-- RoadClosed 為例子我寫了2個解題方式. testRoadClosedExploit 和 testRoadClosedContractExploit (因為題目有檢查msg.sender是不是合約, 所以可以透過constructor來繞過 isContract)
-- [POC](./Writeup/SunSec/test/QuillCTF/RoadClosed.t.sol) 
-
-### 
-
+  ```
 <!-- Content_END -->

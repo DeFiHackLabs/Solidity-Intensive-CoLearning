@@ -18,6 +18,14 @@ timezone: Asia/Shanghai
 ### 2024.09.23
 
 
-### 
+day01:
+
+[WTF Academy Solidity 101 1-2 Note](/content/Eric/101.md)
+
+### 2024.09.24
+
+day02:
+
+[WTF Academy Solidity 101 3-4 Note](/content/Eric/102.md)
 
 <!-- Content_END -->
