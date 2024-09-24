@@ -93,7 +93,9 @@ function <function name>(<parameter types>) {internal|external|public|private} [
 
 returns：跟在函数名后面，用于声明返回的变量类型及变量名。
 
+```solidity
 function returnMultiple() public pure returns(uint256, bool, uint256[3] memory){
+```
 
 return：用于函数主体中，返回指定的变量
 
@@ -125,22 +127,23 @@ function returnNamed2() public pure returns(uint256 _number, bool _bool, uint256
 原講義看不懂，參考小礦工Wade介紹才理解一點，大概是：要先取得變數A跟對應值，然後設定新變數，可以透過解構式賦值的寫法，決定要不要把所有變數A賦值給新變數
 
 ```solidity
-    // 读取返回值，解构式赋值
-    function readReturn() public pure{
-        // 读取全部返回值
-        uint256 _number;
-        bool _bool;
-        bool _bool2;
-        uint256[3] memory _array;
-        (_number, _bool, _array) = returnNamed();
+// 读取返回值，解构式赋值
+function readReturn() public pure{
+
+// 读取全部返回值
+uint256 _number;
+bool _bool;
+bool _bool2;
+uint256[3] memory _array;
+(_number, _bool, _array) = returnNamed();
 ```
 
 如果不想要全部變數都賦值，可以直接把那個變數幹掉；不過被幹掉的新變數，原本聲明的地方應該也要幹掉?
 
 ```solidity
-     // 读取部分返回值，解构式赋值
-        (, _bool2, ) = returnNamed();
-    }
+// 读取部分返回值，解构式赋值
+(, _bool2, ) = returnNamed();
+}
 ```
 
 #### 05_DataStorage
@@ -194,13 +197,13 @@ new 操作符的使用： 您是對的，new 操作符的使用不僅限於動�
 如果创建的是动态数组，需要一个一个元素的赋值。
 
 ```solidity
-    function getArray() public pure returns (uint[] memory) {
-    uint[] memory result = new uint[](3);
-    result[0] = 1;
-    result[1] = 2;
-    result[2] = 3;
-    return result;
-   }
+function getArray() public pure returns (uint[] memory) {
+uint[] memory result = new uint[](3);
+result[0] = 1;
+result[1] = 2;
+result[2] = 3;
+return result;
+}
 ```
 
 数组成员
