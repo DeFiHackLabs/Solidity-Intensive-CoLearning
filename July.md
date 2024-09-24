@@ -62,4 +62,36 @@ timezone: Asia/Shanghai
 
 ###  
 
+### 2024.09.24
+
+* 函数必须明确指定可见性，状态变量可不写默认可见性是internal
+* pure代表不需要读或者写链上的数据 既不能读取也不能改写状态变量
+* view代表需要读取链上的数据 但不能改写
+* pure和view都不会消耗gas费，但是非pure/view的函数调用申明了pure/view的函数需要付gas
+* internal: 内部函数 external: 外部函数 public: 公共函数 private: 私有函数
+* payable: 用于接收以太币的函数
+
+```
+    // internal: 内部函数
+    function minus() internal {
+    number = number - 1;
+    }
+    
+    // 合约内的函数可以调用内部函数
+    function minusCall() external {
+    minus();
+    }
+    
+    function minusPayable() external payable returns(uint256 balance) {
+    minus();    
+    balance = address(this).balance;
+}
+```
+* returns跟在函数名后面，用于声明返回的变量类型及变量名。
+* return用于函数主体中，返回指定的变量。
+
+
+###
+
+
 <!-- Content_END -->
