@@ -16,7 +16,7 @@ timezone: Asia/Shanghai
 
 #### 01_HelloWeb3
 
-```solidity
+solidity
 // SPDX-License-Identifier: MIT 
 // 這一行是註釋，表示了MIT license，不寫的話會有warning，但程式還是可以跑
 pragma solidity ^0.8.21; // 這一行表示版本
