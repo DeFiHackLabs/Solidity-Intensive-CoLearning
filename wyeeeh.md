@@ -17,44 +17,30 @@ timezone: America/Los_Angeles
 
 ### 2024.09.23
 
-學習內容: 
-- A 系列的 Ethernaut CTF, 之前做了差不多了. POC: [ethernaut-foundry-solutions](https://github.com/SunWeb3Sec/ethernaut-foundry-solutions)
-- A 系列的 QuillAudit CTF 題目的網站關掉了, 幫大家收集了[題目](./Writeup/SunSec/src/QuillCTF/), 不過還是有幾題沒找到. 有找到題目的人可以在發出來.
-- A 系列的 DamnVulnerableDeFi 有持續更新, 題目也不錯. [Damn Vulnerable DeFi](https://github.com/theredguild/damn-vulnerable-defi/tree/v4.0.0).
-- 使用 [Foundry](https://book.getfoundry.sh/) 在本地解題目, 可以參考下面 RoadClosed 為例子
-- ``forge test --match-teat testRoadClosedExploit -vvvv``
-#### [QuillAudit CTF - RoadClosed](./Writeup/SunSec/src/QuillCTF/RoadClosed.sol)
+#### WTF Academy Solidity 101.1 Hello Web3 (三行代码)
+- IDE：[Remix IDE](https://remix.ethereum.org)
+- 合约：合约是 Solidity 中的一种结构，用于定义智能合约的代码和数据。
+  - 许可：如果不写许可，编译时会出现警告（warning），但程序仍可运行。
+  - 注释：单行注释 `//` ，多行注释 `/* */`
+  - 状态变量：状态变量是合约中声明的变量，用于存储合约的状态。
+  - 函数：函数是合约中用于执行特定任务的代码块。
+  - 函数修饰器：函数修饰器用于修改函数的行为。
+  - 事件：事件是合约中用于记录某些特定事件的代码块。
+  - 错误：错误是合约中用于记录某些特定错误信息的代码块。
+- 部署：`Ctrl + S` 
+  - 默认情况下，Remix 会使用 Remix 虚拟机（以前称为 JavaScript 虚拟机）来模拟以太坊链，运行智能合约，类似在浏览器里运行一条测试链。Remix 还会为你分配一些测试账户，每个账户里有 100 ETH（测试代币）
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0; // 指定编译器版本
+
+contract HelloWeb3 {
+    string public _string = "Hello Web3!"; // 创建合约（contract），并声明合约名为 HelloWeb3，状态变量为 _string
+}
 ```
-  function addToWhitelist(address addr) public {
-    require(!isContract(addr), "Contracts are not allowed");
-    whitelistedMinters[addr] = true;
-  }
+- 测验结果
+  - 75/100
+  - 100/100
 
-  function changeOwner(address addr) public {
-    require(whitelistedMinters[addr], "You are not whitelisted");
-    require(msg.sender == addr, "address must be msg.sender");
-    require(addr != address(0), "Zero address");
-    owner = addr;
-  }
-
-  function pwn(address addr) external payable {
-    require(!isContract(msg.sender), "Contracts are not allowed");
-    require(msg.sender == addr, "address must be msg.sender");
-    require(msg.sender == owner, "Must be owner");
-    hacked = true;
-  }
-
-  function pwn() external payable {
-    require(msg.sender == pwner);
-    hacked = true;
-  }
-```
-- 解決這個題目需要成為合約的 owner 和 hacked = true.
-- On-chain: 可以透過 ``cast send`` 或是 forge script 來解.
-- Local: 透過 forge test 通常是在local解題, 方便 debug.
-- RoadClosed 為例子我寫了2個解題方式. testRoadClosedExploit 和 testRoadClosedContractExploit (因為題目有檢查msg.sender是不是合約, 所以可以透過constructor來繞過 isContract)
-- [POC](./Writeup/SunSec/test/QuillCTF/RoadClosed.t.sol) 
-
-### 
+### 2024.09.24
 
 <!-- Content_END -->

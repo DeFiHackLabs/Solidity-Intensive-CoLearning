@@ -14,7 +14,9 @@ java程序员转web3,啥都想学
 
 <!-- Content_START -->
 ### 2024.09.23
-开始
+今天复习solidity-101，重温一下solidity基础部分，把solidity-101测试题全部做到100%。记录一下
+![image](https://github.com/user-attachments/assets/b532428b-953a-4a66-9171-f5b78dd70f5c)
+
 ### 2024.09.24
 
 ### 2024.09.25

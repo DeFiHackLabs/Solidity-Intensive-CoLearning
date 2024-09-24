@@ -4,7 +4,7 @@ timezone: Asia/Shanghai
 
 ---
 
-# DX3906
+# spn
 
 1. 自我介绍
 
@@ -19,5 +19,7 @@ timezone: Asia/Shanghai
 <!-- Content_START -->
 
 ### 2024.09.23
+重新学了1-3课，复现并顺便编写点测试，[笔记](https://github.com/spn21/web3-learning/tree/main/solidity_review/src)
+[测试](https://github.com/spn21/web3-learning/tree/main/solidity_review/test)
 
 <!-- Content_END -->
