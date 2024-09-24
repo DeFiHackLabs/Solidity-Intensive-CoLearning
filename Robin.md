@@ -194,4 +194,70 @@ contract Return{
     }
 }
 ```
+
+### 2024.09.24
+
+學習內容:
+
+- [x] 了解变量的存储和作用域
+
+1. 存储位置
+   - storage: 存储在区块链上，永久保存
+   - memory: 存储在内存中，函数调用结束后，数据消失
+   - calldata: 与memory类似，但是被calldata修饰的参数是只读的，不可修改
+2. 作用域
+   - state variable: 合约中声明的变量，存储在storage中
+   - local variable: 函数中声明的变量，存储在memory中
+   - function parameter: 函数的参数，存储在memory中
+   - global variable: 全局变量，存储在storage中
+   其中全局变量参考：[全局变量](https://docs.soliditylang.org/zh/v0.8.21/units-and-global-variables.html)
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract DataStorage{
+    /**
+     *  数据的存储位置：
+     *   1、storage: 合约里的状态变量都是存储在链上的，默认是storage。消耗gas多，类似存硬盘
+     *   2、memory: 函数里的参数和变量一般都是memory。消耗gas少，不上链，临时存储，类似内存。如果返回数据类型都是变长的情况，如：string/bytes/array/自定义结构体，都应该使用memory修饰
+     *   3、calldata: 与memory类似，但不可修改，一般修饰参数
+     */
+      mapping(uint256 => uint256) public storageValue;  // storage
+
+     function storageTest(uint256[] calldata _param) external pure  returns(uint256[1] memory){
+        // _param不可修改
+        uint256[1] memory x = [_param[0]]; //memory
+        return x;
+     }
+    /**
+     *  数据的引用 或 创建副本
+     *   1、storage类型变量赋值给storage类型变量的时候，是引用类型
+     *   2、memory类型变量赋值给memory类型变量的时候，也是引用类型
+     *   3、其他情况赋值后的变量是新的副本，修改变量不会相互影响
+     */
+
+      function referenceTest() external returns(uint8){
+         mapping(uint256 => uint256) storage a = storageValue;
+         a[1] = 1; // a的改变会影响storageValue的改变
+         uint8[1] memory mV = [5];
+         uint8[1] memory mV2 = mV;
+         mV2[0] = 1; //mV2的改变会影响mV的改变
+         return mV[0];
+      }
+
+    /**
+     *  变量的作用域
+     *   1、状态变量：合约内，函数外声明，存储在链上，消耗gas高
+     *   2、局部变量：声明在函数内，函数退出后变量无效，不上链，消耗gas低
+     *   3、全局变量：比如msg.sender,msg.data,block.timestamp....等等，参照：https://learnblockchain.cn/docs/solidity/units-and-global-variables.html#special-variables-and-functions
+     */
+
+     uint256 i = 0; // 状态变量，似乎并未要求放在最前面（但实际一般不会这么写...）
+     function test() external view returns(address _address){
+       _address = msg.sender; // msg.sender 为全局变量 _address为局部变量
+    }
+}
+```
+
 <!-- Content_END -->

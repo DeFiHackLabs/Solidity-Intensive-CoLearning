@@ -51,10 +51,17 @@ contract HelloWeb3{                 // 合約部分
    * note: ```&&``` (and) 和 ```||``` (or) 遵守短路規則
 1. Integer: 整數
    * ```int``` 整數
-2. 
+2. (待補)
 
-
-
+### 2024.09.24
+#### 學習內容：Solidity 入門 06 - 10
+* 引用類型：array & struct
+* 映射類型：mapping
+* 變量初始值
+* 常數：constant & immutable
+* 控制流：if-else、for loop、while loop、do-while、三元運算子
+#### 筆記
+(先簽到，有空再補)
 
 
 ### 

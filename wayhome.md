@@ -18,6 +18,9 @@ timezone: Asia/Shanghai
 
 <!-- Content_START -->
 
+### 2024.09.24
+- 完成 Solidity 101 的第 3-5 节
+
 ### 2024.09.23
 
 - 学习视频 [Solidity 入門走到飛🚀-【Day1】Remix IDE & Solidity 結構
