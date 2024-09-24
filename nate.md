@@ -35,6 +35,12 @@ timezone: Asia/Shanghai
      - storage：合约里的状态变量默认都是storage，存储在链上
      - memory和calldata：存在于evm内存中，calldata不可更改 
 
-### 
+### 2024.09.24
+  WTF solidity06-10
+  1. 学习solidity中数组，结构体和mapping类型
+     - bytes作为特殊的数组无需添加[]且不能申明byte[],单字节数组可由bytes和byte1[]表示
+     - 数组有点像java里的对象，mapping类似于哈希表
+  2. 熟悉常用变量初始值
+  3. constant和immutable。状态变量声明这两个关键字之后，不能在初始化后更改数值，immutable修饰的状态变量可在构造器中赋值  
 
 <!-- Content_END -->
