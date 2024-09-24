@@ -66,5 +66,18 @@ function changeOwner(address _newOwner) external onlyOwner{
    owner = _newOwner;
 }
 ```
+#### 事件
+- 響應: 應用程式 ethers.js 可以通過 RPC 接口訂閱和監聽這些事件, 並在前端做響應
+- 經濟: event 是 EVM 上比較有經濟效益的儲存數據方式, 每個大概消耗 2,000 gas; 鏈上儲存一個新變數需要 20,000 gas
+- 
+```solidity
+// 事件聲明
+// indexed 關鍵字, 表示會保存在 EVM 日誌的 topics 中
+event Transfer(address indexed from, address indexed to, uint256 value);
+
+// 在函數裡釋放事件
+emit Transfer(from, to, amount);
+```
+
 
 <!-- Content_END -->
