@@ -103,18 +103,18 @@ LFG～～～～～ 會完成的
    ```
 
    **A:** 合約向 addr 轉帳 1 wei
-   > [!TIP]
-   > **參考後面章節**: [20. SendETH](https://www.wtf.academy/docs/solidity-102/SendETH/)
+> [!TIP]
+> **參考後面章節**: [20. SendETH](https://www.wtf.academy/docs/solidity-102/SendETH/)
 
-4. **Q: bytes4類型具有幾個 16 進制位？**  
+5. **Q: bytes4類型具有幾個 16 進制位？**  
    **A:** 8
-   > [!TIP]
-   > bytes4 是固定長度的字節數組，表示 4 個字節（4 bytes）。每個字節由 2 個 16 進制位組成，所以總共有 4（字節） x 2（16 進制位/字節） = 8 個 16 進制位。
+> [!TIP]
+> bytes4 是固定長度的字節數組，表示 4 個字節（4 bytes）。每個字節由 2 個 16 進制位組成，所以總共有 4（字節） x 2（16 進制位/字節） = 8 個 16 進制位。
 
-5. **Q: 以下运算能使a返回true的是？**  
+6. **Q: 以下运算能使a返回true的是？**  
    **A:** bool a = 1 - 1 == 0 && 1 % 2 == 1
-   > [!TIP]
-   > ![img1](content/Haoder/img/102/img1.png)
+> [!TIP]
+> ![img1](content/Haoder/img/102/img1.png)
 
 ### 3. 函數
 
