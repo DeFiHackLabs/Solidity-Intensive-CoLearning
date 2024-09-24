@@ -45,5 +45,26 @@ timezone: Asia/Taipei
 - 變數聲明這兩個關鍵字後, 初始化後不能再變更數值
 - 數字變數可以使用 constant, immutable; string, bytes 則只能用 constant
   
+#### 控制流
+- if, else
+- for
+- while
+- do, while
+- 三元運算
+
+#### 構造函數, 修式器
+- constructor, 每個合約可以定義一個, 部屬合約時會自動執行一次, 通常用於初始化合約的參數  
+- modifier, 聲明函數擁有的特性, 通常用於函數前的檢查 ex:地址, 變數, 餘額
+
+```solidity
+modifier onlyOwner{
+   require(msg.sender == owner);
+   _;
+}
+
+function changeOwner(address _newOwner) external onlyOwner{
+   owner = _newOwner;
+}
+```
 
 <!-- Content_END -->
