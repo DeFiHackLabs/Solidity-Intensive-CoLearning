@@ -131,8 +131,7 @@ uint result = returnValue();
 4. 返回值可以用於函數內部計算,也可以供外部調用者使用[6]。
 
 總之,合理使用函數返回值可以使合約邏輯更清晰,提高代碼的可讀性和可維護性。在設計函數時,應根據實際需求選擇合適的返回方式。
-
-Citations:
+References:
 [1] https://blog.csdn.net/wo541075754/article/details/104354721
 [2] https://www.cnblogs.com/zhanchenjin/p/18218201
 [3] https://hackmd.io/%40rogerwutw/BJ3CoxkTK
@@ -169,19 +168,9 @@ Citations:
 6. 靈活性:帳號操作簡單,合約可實現複雜邏輯
 總之,帳號主要用於管理資產,而智能合約則用於在區塊鏈上執行自動化的業務邏輯。兩者在以太坊生態系統中扮演不同但互補的角色。
 
-Citations:
-[1] https://chainee.io/what-is-blockchain/
-[2] https://blockcast.it/2018/03/11/what-is-a-smart-contract/
-[3] https://fintalk180.com/%E4%B8%89%E5%88%86%E9%90%98%E8%A7%A3%E8%AE%80%EF%B8%B1%E6%99%BA%E8%83%BD%E5%90%88%E7%B4%84%E6%98%AF%E4%BB%80%E9%BA%BC%EF%BC%9F%E3%80%80%E5%84%AA%E9%BB%9E%E7%BC%BA%E9%BB%9E%E9%80%90%E5%80%8B%E6%95%B8/
-[4] https://rich01.com/what-is-smart-contract/
-[5] https://vocus.cc/article/65968517fd89780001b44d19
-[6] https://www.markreadfintech.com/p/scw
-[7] https://eth.tokenview.io/cn/learn/eth-address
-[8] https://www.kcmtrade.com/tw/hc/content/what-is-a-ecn-account
-
 ### 
-
 <!-- Content_END -->
+
 
 <!-- Content_START -->
 ### 2024.09.25
