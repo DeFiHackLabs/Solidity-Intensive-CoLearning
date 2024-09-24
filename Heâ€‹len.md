@@ -16,6 +16,16 @@ timezone: Asia/Shanghai
 
 <!-- Content_START -->
 
+### 2024.09.24
+
+# 今日筆記-除錯
+1.確認 Solidity 版本的相容性
+檢視發現 Compiler 版本與合約版本不一致（0.8.27 V.S 0.8.21)，統一改為Solidity 合約中自訂版本
+
+2.檢視[影片](https://www.youtube.com/watch?v=rKKRGRHUiiQ)確認操作沒問題
+
+3.合約已發佈
+
 ### 2024.09.23
 # Real Note
 進度：01_HelloWeb3
