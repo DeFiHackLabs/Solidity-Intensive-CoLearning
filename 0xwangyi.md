@@ -4,7 +4,7 @@ timezone: America/Los_Angeles
 
 # 0xwangyi
 
-1. Hi，我是0xwangyi，目前在美国从事体力劳动。谢谢你们举办了这个活动，让web3的玩家和从业者学习这个语言。我是2020年入的币圈，一直在玩二级市场，但我一直想学习以太坊这个语言，所以看到你们的推特的消息我就来报名参加，很感谢，真的，谢谢你们给大家这样一个优质的平台。
+1. Hi，我是0xwangyi，谢谢你们举办了这个活动，我一直想学习以太坊这个语言，所以看到你们的推特的消息我就来报名参加，很感谢，真的，谢谢你们给大家这样一个优质的平台。
 
 2. 你认为你会完成本次残酷学习吗？
    回答：我会完成这次活动。
@@ -46,3 +46,49 @@ Solidity 101-4函数输出
 3 命名式返回
 4 解构式赋值读取函数全部/部分返回值
 <!-- Content_END -->
+
+<!-- Content_START -->
+### 2024.09.24
+Day2
+Solidity 101-5 变量数据储存和作用域
+1 引用类型reference type包括：数组array，结构体struct
+2 要声明数据储存的位置
+3 solidity数据储存位置有三类：storage，memory，calldata（storage类型数据存在链上，消耗gas最多；合约里的状态变量默认都是storage；
+4 函数里的参数和临时变量一般用memory，存贮在内存中，不上链
+5 calldata储存在内存中，不上链，calldata变量不能修改（immutable）
+6 storage（合约的状态变量）赋值给本
+storage（函数里的）时候，会创建引用，改变新变量会影响原变量
+7 memory赋值给memory，会创建引用，改变新变量会影响原变量
+8 solidity变量按作用域划分有三种：状态变量state variable，局部变量local variable，全局变量global variable
+9 状态变量state variable是数据储存在链上的变量，所有合约内函数都可以访问，gas消耗高
+10 局部变量local variable仅在函数执行过程中有效的变量，函数退出后，变量无效，储存数据不上链，gas低
+11 全局变量global variable是全局范围工作的变量，可以在函数内不声明，直接使用
+12 全局变量global variable有：
+blockhash（unit blockNumber）给定区块的哈希值
+block.coinbase当前区块矿工的地址
+block.gaslimit当前区块的gaslimit
+block.number当前区块的number
+block.timestamp当前区块的时间戳（为unix纪元以来的秒
+block.blobbasefee当前区块blob基础费用（这是Cancun升级新增的全局变量）
+blobhash（unit index）返回跟当前交易关联的第index个blob的版本化哈希
+gasleft剩余gas
+msg.data:(bytes calldata)完整calldata
+msg.sender:(address payable)消息发送者（当前caller）
+msg.sig:(bytes4)calldata的前四个字节（function identifier）
+msg.value:(unit)当前交易发送的wei值
+13 全局变量-以太单位
+wei ：1 （wei是以太坊最小单位）
+gwei ：1e9 = 1后面有9个零的wei
+ether ：1e18 = 1后面有18个零的wei
+14 gwei是常用gas价格单位
+15 msg是消息message缩写
+16 EOA外部账户（用户通过私钥控制管理的账户）
+17 以太坊两种账户类型：EOA私人账户，contract account合约账户
+18 uint是unsigned integer无符号整数的缩写
+19 u代表unsigned 无符号的
+20 int是integer整数的缩写
+21 int有符号整数（正数，负数，零）
+22 uint无符号整数（正数，零）
+23 注意：正整数是大于零的整数（不包括零）
+<!-- Content_END -->
+

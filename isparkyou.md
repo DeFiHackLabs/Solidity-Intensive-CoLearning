@@ -48,45 +48,94 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 <!-- Content_START -->
 
 ### 2024.09.23
+### Solidity
+### Remix
+[Remix](https://remix.ethereum.org)
+### 注释：
+// SPDX-License-Identifier: MIT
+### 版本：
+pragma solidity ^0.8.21;
+### 合约：
+contract HelloWeb3 {
+    string public _string = "Hello Web3!";
+}
+### 编译：
+Ctrl + S
+### 部署：
+Deploy
 
-學習內容: 
-- A 系列的 Ethernaut CTF, 之前做了差不多了. POC: [ethernaut-foundry-solutions](https://github.com/SunWeb3Sec/ethernaut-foundry-solutions)
-- A 系列的 QuillAudit CTF 題目的網站關掉了, 幫大家收集了[題目](./Writeup/SunSec/src/QuillCTF/), 不過還是有幾題沒找到. 有找到題目的人可以在發出來.
-- A 系列的 DamnVulnerableDeFi 有持續更新, 題目也不錯. [Damn Vulnerable DeFi](https://github.com/theredguild/damn-vulnerable-defi/tree/v4.0.0).
-- 使用 [Foundry](https://book.getfoundry.sh/) 在本地解題目, 可以參考下面 RoadClosed 為例子
-- ``forge test --match-teat testRoadClosedExploit -vvvv``
-#### [QuillAudit CTF - RoadClosed](./Writeup/SunSec/src/QuillCTF/RoadClosed.sol)
+<!-- Content_END -->
+<!-- Content_START -->
+### 2024.09.24
+### value type
+1. bool
 ```
-  function addToWhitelist(address addr) public {
-    require(!isContract(addr), "Contracts are not allowed");
-    whitelistedMinters[addr] = true;
-  }
-
-  function changeOwner(address addr) public {
-    require(whitelistedMinters[addr], "You are not whitelisted");
-    require(msg.sender == addr, "address must be msg.sender");
-    require(addr != address(0), "Zero address");
-    owner = addr;
-  }
-
-  function pwn(address addr) external payable {
-    require(!isContract(msg.sender), "Contracts are not allowed");
-    require(msg.sender == addr, "address must be msg.sender");
-    require(msg.sender == owner, "Must be owner");
-    hacked = true;
-  }
-
-  function pwn() external payable {
-    require(msg.sender == pwner);
-    hacked = true;
-  }
+bool public _bool = true;
 ```
-- 解決這個題目需要成為合約的 owner 和 hacked = true.
-- On-chain: 可以透過 ``cast send`` 或是 forge script 來解.
-- Local: 透過 forge test 通常是在local解題, 方便 debug.
-- RoadClosed 為例子我寫了2個解題方式. testRoadClosedExploit 和 testRoadClosedContractExploit (因為題目有檢查msg.sender是不是合約, 所以可以透過constructor來繞過 isContract)
-- [POC](./Writeup/SunSec/test/QuillCTF/RoadClosed.t.sol) 
+```
+// 布尔运算
+bool public _bool1 = !_bool; false// 取非
+bool public _bool2 = _bool && _bool1; false// 与
+bool public _bool3 = _bool || _bool1; true// 或
+bool public _bool4 = _bool == _bool1; false// 相等
+bool public _bool5 = _bool != _bool1; true// 不相等
+```
+### “短路规则”
+一般出现在逻辑与（&&）和逻辑或（||）中。 当逻辑与（&&）的第一个条件为false时，就不会再去判断第二个条件； 当逻辑或（||）的第一个条件为true时，就不会再去判断第二个条件，这就是短路规则。
 
-### 
+2. int
+   ```
+   // 整型
+int public _int = -1; // 整数，包括负数
+uint public _uint = 1; // 正整数
+uint256 public _number = 20220330; // 256位正整数
+```
+```
+// 整数运算
+uint256 public _number1 = _number + 1; 20220331// +，-，*，/
+uint256 public _number2 = 2**2; 4// 指数
+uint256 public _number3 = 7 % 2; 1// 取余数
+bool public _numberbool = _number2 > _number3; true// 比大小
+```
+3. address
+address:存储一个20字节的值
+payable address：多transfer和send两个成员方法
+```
+// 地址
+address public _address = 0x7A58c0Be72BE218B41C608b7Fe7C5bB630736C71;
+address payable public _address1 = payable(_address); // payable address，可以转账、查余额
+// 地址类型的成员
+uint256 public balance = _address1.balance; // balance of address
+```
+4. byte
+定长字节数组：属于值类型，数组长度在声明之后不能改变。
+不定长字节数组：属于引用类型，数组长度在声明之后可以改变。
+```
+// 固定长度的字节数组
+bytes32 public _byte32 = "MiniSolidity"; 
+bytes1 public _byte = _byte32[0]; 
+```
+5. enum
+用户定义的数据类型，主要用于uint分配名称，使程序易于阅读和维护。
+```
+// 用enum将uint 0， 1， 2表示为Buy, Hold, Sell
+enum ActionSet { Buy, Hold, Sell }
+// 创建enum变量 action
+ActionSet action = ActionSet.Buy;
+// enum可以和uint显式的转换
+function enumToUint() external view returns(uint){
+    return uint(action);
+}
+```
+
+### reference type
+
+### mapping type
+
+
+<!-- Content_END -->
+<!-- Content_START -->
+### 2024.09.25
+
 
 <!-- Content_END -->

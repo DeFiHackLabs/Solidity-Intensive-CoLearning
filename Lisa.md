@@ -37,4 +37,22 @@ function <function name>(<parameter types>) {internal|external|public|private} [
    - 定義的  function 一定要有
 
 
+### 2024.09.24
+#### Return
+returns 定義回傳值
+
+#### Data Storage
+- Category
+   - storage: 鍊上
+   - memory, calldata: 暫存
+
+a = b a 改動會改到 b (reference)
+- Scope
+   - state variable: contract (out of func), gas high
+   - local variable: in func
+   - global variable: 保留字
+
+$單位 0 代替小數點
+
+
 <!-- Content_END -->
