@@ -51,20 +51,11 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 
 ### 2024.09.23
 
-#### 学习内容
+#### 学习内容 第01节
  - 01HelloWeb3.sol 创建 helloWeb3 程序,并在 remix 上进行编译和部署
-
  - 代码部分
 
- - ```
-    // SPDX-License-Identifier: MIT
-    pragma solidity ^0.8.22;
-    contract HelloWeb3 {
-        string public _string = "Hi Web3";
-    }
-    ```
-
-![image-20240923203935410](./content/Aris/image-20240923203935410.png)
+- ![image-20240923203935410](./content/Aris/image-20240923203935410.png)
 
  - 在根目录创建 contracts 目录,创建 .sol 文件,放入上面代码
 
@@ -101,6 +92,30 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 
 - 也可以在 https://remix.ethereum.org 直接编写代码,然后编译和部署,但是我习惯在本地编写代码^_^
 
-### 
+### 2024.09.24
+
+#### 学习内容 第02 节: 值类型
+
+- 第02 节: 值类型
+  - 值类型: Value Type 
+  - 引用类型: Reference Type
+  - 映射类型: Mapping Type
+- 值类型:
+  - 布尔型
+    - 与`&&`,或`||`,非`!` 等于`=`,不等于`!=`
+    - `&&` 和` ||` 遵循短路规则
+  - 整形
+    - `int`整数, `uint` 正整数, `uint256` 256位正整数
+    - 比较运算符: <=, <, >=, >, ==, !=
+    - 算数运算符: `+`,` -` , `*` ,`/`, `%`, `**`
+  - 地址类型
+    - 普通地址: address, 存储一个 20 字节的值(以太坊)
+    - payable address: 用于接收转账,有 transfer 和 send 方法
+  - 定长字节数组
+    - 定长字节数组时值类型,数组长度在声明以后不能改变,分为 bytes1,bytes8,bytes32等,最大bytes 32
+  - 枚举 enum
+    - 为uint 分配名称,从 0 开始.
+- 合约部署截图
+- ![image-20240924200304434](./content/Aris/image-20240924200304434.png)
 
 <!-- Content_END -->

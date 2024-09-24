@@ -6,7 +6,7 @@ timezone: Asia/Shanghai
 > 时区请参考以下列表，请移除 # 以后的内容
 
 
-timezone: Asia/Shanghai 
+timezone: Asia/Shanghai
 
 
 
@@ -16,52 +16,50 @@ timezone: Asia/Shanghai
 
 1. Hi 大家好，我是java开发 目前想要学习web3 寻找新的方向
 
-2. 你认为你会完成本次残酷学习吗？  一定会 加油！
-   
+2. 你认为你会完成本次残酷学习吗？ 一定会 加油！
+
 ## Notes
 
 <!-- Content_START -->
 
 ### 2024.09.23
 
-學習內容: 
-- A 系列的 Ethernaut CTF, 之前做了差不多了. POC: [ethernaut-foundry-solutions](https://github.com/SunWeb3Sec/ethernaut-foundry-solutions)
-- A 系列的 QuillAudit CTF 題目的網站關掉了, 幫大家收集了[題目](./Writeup/SunSec/src/QuillCTF/), 不過還是有幾題沒找到. 有找到題目的人可以在發出來.
-- A 系列的 DamnVulnerableDeFi 有持續更新, 題目也不錯. [Damn Vulnerable DeFi](https://github.com/theredguild/damn-vulnerable-defi/tree/v4.0.0).
-- 使用 [Foundry](https://book.getfoundry.sh/) 在本地解題目, 可以參考下面 RoadClosed 為例子
-- ``forge test --match-teat testRoadClosedExploit -vvvv``
+學習內容:
+- 了解Solidity基础类型 
+- 值类型(Value Type) 布尔型/整型/地址类型/字节定长数组/枚举类型
+- 引用类型(Reference Type)
+- 映射类型(Mapping Type)
+
 #### [QuillAudit CTF - RoadClosed](./Writeup/SunSec/src/QuillCTF/RoadClosed.sol)
+
 ```
-  function addToWhitelist(address addr) public {
-    require(!isContract(addr), "Contracts are not allowed");
-    whitelistedMinters[addr] = true;
-  }
+    bool public _bool = true;
 
-  function changeOwner(address addr) public {
-    require(whitelistedMinters[addr], "You are not whitelisted");
-    require(msg.sender == addr, "address must be msg.sender");
-    require(addr != address(0), "Zero address");
-    owner = addr;
-  }
+    bool public _bool1 = !_bool; // 取非
+    bool public _bool2 = _bool && _bool1; // 与
+    bool public _bool3 = _bool || _bool1; // 或
+    bool public _bool4 = _bool == _bool1; // 相等
+    bool public _bool5 = _bool != _bool1; // 不相等
+    
 
-  function pwn(address addr) external payable {
-    require(!isContract(msg.sender), "Contracts are not allowed");
-    require(msg.sender == addr, "address must be msg.sender");
-    require(msg.sender == owner, "Must be owner");
-    hacked = true;
-  }
-
-  function pwn() external payable {
-    require(msg.sender == pwner);
-    hacked = true;
-  }
+    int public _int = -1; // 整数，包括负数
+    uint public _uint = 1; // 正整数
+    uint256 public _number = 20220330; // 256位正整数
+    
+    // 比较运算符（返回布尔值）： <=， <，==， !=， >=， >
+    
+    // 数组定长
+    bytes32 public _byte32 = "HelloSolidity"; 
+    bytes1 public _byte = _byte32[0]; 
+    
+    // 普通地址 0x 20字节长度 存储以太坊地址
+    // payable address 可以用于接收转账
+    
+    // 枚举类型与java枚举类似
+    enum PaySet { Buy, Hold, Sell }
+    PaySet action = PaySet.Buy;
 ```
-- 解決這個題目需要成為合約的 owner 和 hacked = true.
-- On-chain: 可以透過 ``cast send`` 或是 forge script 來解.
-- Local: 透過 forge test 通常是在local解題, 方便 debug.
-- RoadClosed 為例子我寫了2個解題方式. testRoadClosedExploit 和 testRoadClosedContractExploit (因為題目有檢查msg.sender是不是合約, 所以可以透過constructor來繞過 isContract)
-- [POC](./Writeup/SunSec/test/QuillCTF/RoadClosed.t.sol) 
 
-### 
+###  
 
 <!-- Content_END -->
