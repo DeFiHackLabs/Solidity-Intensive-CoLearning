@@ -67,6 +67,7 @@ Copy
 function getString2(uint256 _number) public pure returns(string memory){
     return Strings.toHexString(_number);
 }
+
 18. Import
 
 在Solidity中，import语句可以帮助我们在一个文件中引用另一个文件的内容，提高代码的可重用性和组织性。本教程将向你介绍如何在Solidity中使用import语句。
