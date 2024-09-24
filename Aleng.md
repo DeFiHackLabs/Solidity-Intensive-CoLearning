@@ -15,7 +15,14 @@ timezone: Asia/Shanghai
 <!-- Content_START -->
 ### 2024.09.23
 #### 學習筆記
-筆記 : [2024.09.03學習筆記](https://hackmd.io/@82tWd8u0TI6fMRC9VG6JXw/SkZ-UWnpA)
+筆記 : [2024.09.23學習筆記](https://hackmd.io/@82tWd8u0TI6fMRC9VG6JXw/SkZ-UWnpA)
 
 內容 : 這次學習了101 的 1 ~ 4 單元。
+### 2024.09.24
+#### 學習筆記
+筆記 : [2024.09.24學習筆記](https://hackmd.io/@82tWd8u0TI6fMRC9VG6JXw/Byqhk3ppA)
+
+內容 : 這次學習了101 的 5 ~ 6 單元。
+
+補充上了Bytes轉換等內容
 <!-- Content_END -->

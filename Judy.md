@@ -261,6 +261,205 @@ timezone: Asia/Shanghai
         
         // enumToUint() output: 1
         ```
+### 2024.09.24
+#### 變量類型：函數
+![image](https://github.com/user-attachments/assets/0ee88f54-f82d-4ae4-b6c8-b527fd761d42)
 
+## Solidity 中函數的形式
+
+```solidity
+function <function name>(<parameter types>) {internal|external|public|private} [pure|view|payable] [returns (<return types>)]
+```
+
+- function 函數名稱(參數們) 可見性修飾詞 狀態修飾詞 回傳值 {
+    // 函數的內容
+}
+
+- **可見性修飾詞(Visibility Specifiers)**
+    - `public`: 函數可以從外部或合約內部調用。自動生成 getter 方法。
+    - `private`: 函數只能從合約內部調用，外部無法訪問。
+    - `internal`: 函數只能從合約內部或繼承的合約調用，外部無法訪問。
+    - `external`: 函數只能從合約外部調用，不能從內部直接調用（但可以用 `this.functionName()` 調用）。
+    
+    |  | Within Contract | Outside Contracts | Child Contract | External Account |
+    | --- | --- | --- | --- | --- |
+    | public | O | O | O | O |
+    | private | O | X | X | X |
+    | internal | O | X | O | X |
+    | external | X | O | X | O |
+
+    ```solidity
+    contract ExampleContract {
+    	uint public count;  // 合約中的狀態變量
+    	
+    	// 宣告一個 public 函數，可以修改狀態變量
+    	function increment() public {
+    	    count += 1;
+    	}
+    	
+    	// 宣告一個 pure 函數，不修改也不讀取合約內部的狀態
+    	function add(uint a, uint b) public pure returns (uint) {
+    	    return a + b;
+    	}
+    	
+    	// 宣告一個 view 函數，可以讀取合約內部的狀態但不能修改
+    	function getCount() public view returns (uint) {
+    	    return count;
+    	}
+    	
+    	// 宣告一個 payable 函數，允許接收以太幣
+    	function receiveEther() public payable {
+    	    // 這個函數可以接收以太幣
+    	}
+    }
+    ```
+    
+    - 注意！鏈上數據是公開的。所以即使是`private`，也能透過 Ether.js / web3.js 等方法，去讀取slot中的數據。
+        - 使用 `private` 宣告變量後，該變量不會自動生成對外的 getter 函數
+        - 即便限制在合約內部的訪問，該變量依然會存儲在區塊鏈的儲存槽（storage slot）中，而這些儲存槽對任何有區塊鏈訪問權限的人來說是可讀的。
+        - 如何讀取鏈上的 `private` 變量？
+            
+            要讀取變量的值，主要的挑戰是如何計算該變量所在的儲存位置（slot）。
+            
+            ### 步驟概述：
+            
+            1. **儲存槽的概念**：
+            每個合約的狀態變量都會按照它們宣告的順序被存儲在特定的儲存槽中。每個儲存槽的大小是 32 字節（256 位元）。例如，第一個變量存儲在 slot 0，第二個在 slot 1 依此類推。
+            2. **計算變量的 slot**：
+            通過查找變量在智能合約中的位置，可以計算出該變量存儲在哪個儲存槽。如果變量是結構體或陣列，則會使用更複雜的哈希算法來確定它的儲存槽。
+            3. **讀取儲存槽的值**：
+            使用像 Ether.js 這樣的庫，可以直接訪問區塊鏈的狀態並讀取特定 slot 的值。
+            
+            例如，使用 Ether.js 的 `provider.getStorageAt` 方法可以讀取一個特定儲存槽中的數據：
+            
+            ```solidity
+            // 使用 Ether.js 讀取特定合約地址中的儲存槽數據
+            let slotIndex = 0;  // 變量的儲存槽索引
+            let contractAddress = "0x合約地址";
+            let data = await provider.getStorageAt(contractAddress, slotIndex);
+            console.log(data);  // 這會輸出儲存槽中的值
+            ```
+            
+            ### 儲存槽範例
+            
+            假設一個合約中有以下變量：
+            
+            ```solidity
+            contract MyContract {
+            	uint private secretValue = 123;
+            }
+            ```
+            
+            - 這個 `secretValue` 儲存於儲存槽 0 中（因為它是第一個宣告的變量），即使變量標記為 `private`，依然可以透過鏈上的工具來讀取。
+    - 如何在智能合約中存儲私密數據？
+        - 不能僅依賴 `private` 關鍵字來保護該數據。要想真正確保隱私，可能需要將敏感數據進行加密，並在智能合約內部只存儲加密後的數據。
+        - 然而，即使如此，也應該注意到智能合約在鏈上執行的邏輯也是公開的，因此，如果加密和解密的過程包含在合約中，可能仍然存在被分析的風險。   
+
+- **狀態修飾詞 (State Modifiers)**:
+    - `pure`: 函數不讀取或修改區塊鏈上的狀態，也不讀取合約內部的變量，純粹執行運算。
+    - `view`: 函數可以讀取區塊鏈上的狀態，但不能修改。
+    - `payable`: 函數可以接收以太幣。沒有此關鍵字的函數無法接收以太幣。
+    
+    ![image](https://github.com/user-attachments/assets/f4a71c37-3ab3-4607-ace7-94d31c54983f)
+    
+    - `payable` 的意義
+        - **明確性**：`payable` 關鍵字強制開發者明確標示哪些函數可以接收以太幣，這有助於防止錯誤的資金傳輸，並保護合約的安全性。這是因為不想接收以太幣的函數不應該無意間被允許接收資金。
+        - **資金處理**：`payable` 函數允許在執行時附帶以太幣，這在某些場景下非常重要，例如：
+            - 當用戶需要支付合約某項服務時。
+            - 合約接收捐款或募集資金時。
+            - 資金傳遞和處理的相關功能。
+    - 注意！智能合約中的函數若要接收以太幣（ETH），必須使用關鍵字 **`payable`** 來聲明。沒有這個關鍵字的函數，即便在執行過程中試圖發送以太幣給合約，也會導致交易失敗
+        
+        ```solidity
+        contract Example {
+        	// 沒有 payable 的函數
+        	function notPayableFunction() public {
+        	// 該函數無法接收以太幣，若嘗試傳送 ETH，交易會失敗
+        	}
+        	
+        	// 有 payable 的函數
+        	function payableFunction() public payable {
+        	    // 該函數可以接收以太幣，傳送的以太幣會被記錄到合約的餘額中
+        	}
+        	
+        	// 返回合約內的以太幣餘額
+        	function getBalance() public view returns (uint) {
+        	    return address(this).balance;
+        	}
+        }
+        ```
+        
+        - **`notPayableFunction()`**：這是一個普通的函數，沒有 `payable` 關鍵字。它不能接收任何以太幣。如果有人在呼叫該函數時傳送以太幣，交易會失敗並回退（revert）。
+        - **`payableFunction()`**：這個函數使用了 `payable` 關鍵字，因此它可以接收以太幣。傳送的以太幣將被記錄到合約的餘額中，即 `address(this).balance`。
+    - Gas Fee
+        - 在以太坊等基於區塊鏈的智能合約平台上，**每個操作**幾乎都需要支付一定的 **gas fee**
+        - 這是因為區塊鏈上的每個操作都需要計算資源，這些資源由網絡上的礦工或驗證者提供，並通過 gas 來補償他們的計算成本
+        - **哪些操作不消耗 gas**？
+            1. **純計算操作 (Pure Functions)**：
+            如果函數標記為 `pure`，且只進行純計算操作（如數學運算，不涉及區塊鏈上的狀態），這樣的函數不會消耗 gas，前提是它是在本地執行（即使用 `call` 呼叫，沒有觸發交易）。
+            2. **只讀操作 (View Functions)**：
+            標記為 `view` 的函數僅僅讀取區塊鏈上的狀態，並且不修改任何狀態變量。在本地呼叫這些函數時（如通過 `call` 方法），不會消耗 gas。這些函數不會改變區塊鏈上的狀態，因此無需支付 gas。
+        - 以下是一些會消耗 **gas** 的常見操作：
+            - 1. **交易（Transaction）**
+                
+                任何涉及到在區塊鏈上進行狀態變更的交易都會消耗 gas，包括：
+                
+                - **發送以太幣**：當用戶從一個帳戶發送以太幣到另一個帳戶，這個交易會消耗 gas。
+                - **發送帶有數據的交易**：如果交易包括調用智能合約函數或傳送數據，這會需要更多的 gas。
+            - 2. **部署智能合約**
+                
+                部署一個新的智能合約到區塊鏈上會消耗大量的 gas。這是因為合約的代碼和狀態需要寫入區塊鏈的永久存儲，這是一個相對昂貴的操作。
+                
+            - 3. **調用智能合約函數**
+                
+                當用戶或合約調用某個智能合約函數時，根據函數的操作不同，消耗的 gas 也會有所不同：
+                
+                - **修改區塊鏈狀態**：函數如果會改變區塊鏈上的狀態（例如寫入存儲變量），就會消耗較多的 gas。例如，修改合約中的變量、轉移代幣等操作。
+                - **創建新合約**：在合約中創建其他合約（例如工廠模式）會消耗大量的 gas，因為它涉及部署新合約的成本。
+            - 4. **寫入儲存 (Storage)**
+                
+                寫入區塊鏈的 **持久性存儲** 是智能合約中最昂貴的操作之一。當智能合約更新狀態變量或向區塊鏈寫入數據時，這些數據會被永久存儲在區塊鏈中，而這種操作非常昂貴。例如：
+                
+                - 更新一個 `mapping` 或數組的值。
+                - 寫入新的變量或結構到合約的狀態存儲中。
+            - 5. **合約中的內部計算與邏輯操作**
+                
+                即使不改變合約的狀態，合約中的邏輯操作和計算也會消耗 gas，儘管相比存儲操作來說，這些計算的 gas 消耗較低。常見的邏輯操作包括：
+                
+                - 數學運算 (加法、減法、乘法等)。
+                - 邏輯判斷 (`if` 條件、`for` 迴圈)。
+                - 哈希運算，例如 `keccak256`。
+                - 呼叫其他合約或自身的函數。
+            - 6. **讀取存儲 (Storage Reads)**
+                
+                讀取合約的永久存儲也會消耗 gas，但成本比寫入低得多。儘管讀取是比較便宜的操作，讀取越多數據仍然會增加 gas 的消耗。例如：
+                
+                - 讀取 `mapping` 或數組的值。
+                - 獲取合約的狀態變量。
+            - 7. **轉移以太幣或代幣**
+                
+                當合約內部或外部轉移以太幣或 ERC20 代幣時，這些操作通常會消耗 gas。包括：
+                
+                - 使用 `transfer()` 或 `send()` 函數轉移以太幣。
+                - 調用 ERC20 的 `transfer()` 函數來轉移代幣。
+            - 8. **事件 (Events)**
+                
+                智能合約中的 **事件 (events)** 用於記錄交易日誌，這些日誌不儲存在區塊鏈的永久存儲中，但仍然需要消耗少量的 gas。當合約發出一個事件（例如 `emit` 關鍵字），雖然不會直接影響狀態，但會在交易日誌中保留記錄，這同樣需要 gas。
+                
+            - 9. **呼叫其他合約**
+                
+                當一個合約呼叫另一個合約時，這個操作需要額外的 gas。尤其是涉及跨合約的呼叫（例如合約 A 呼叫合約 B 的函數），每次呼叫的過程都會消耗 gas。
+                
+            - 10. **Self-destruct（自毀合約）**
+                
+                當合約被自毀（使用 `selfdestruct` 函數）時，合約從區塊鏈中刪除，並將其餘額發送到指定地址。這個操作也會消耗 gas，不過它有時會退還部分 gas，因為自毀後會釋放合約的存儲空間。
+                
+
+### 函數小結
+
+- **函數宣告關鍵字**：`function`
+- **可見性修飾詞**：`public`, `private`, `internal`, `external`
+- **狀態修飾詞**：`pure`, `view`, `payable`
+- **其他常用關鍵字**：`returns`, `modifier`, `override`
 
 <!-- Content_END -->

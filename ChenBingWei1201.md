@@ -56,6 +56,45 @@ versions: 0.4.22 -> constructor, 0.8.0 -> safeMath
 #### Summary
 In the first day, I learned what is `Solidity`, `Remix IDE`, and completed our first Solidity program - `HelloWeb3`.
 
+### 2024.09.24
+
+#### Variable Types
+Solidity is statically-type language, which means **the type of each variable needs to be specified in code at compile time**.
+
+1. **Value Type**： This include boolean, integer, etc. These variables directly pass values when assigned.
+2. **Reference Type**：including arrays and structures. These variables take up more space, directly pass addresses (similar to pointers) when assigned, and can be modified with multiple variable names.
+3. **Mapping Type**: hash tables in Solidity.
+
+#### 1. Value Type
+
+| Type  | Example | Byte  | Default Value |
+| ------------- | ------------- | ------------- | ------------- |
+| Boolean | `true` / `false` | 1 Byte | False |
+| Usigned Integer | `uint128`, `uint256` | uint256 - 32 bytes | 0 |
+| Integer | `int128`, `int256` | int256 - 32 bytes | 0 |
+| address* / adress payable* | `address public _address = 0x5C69...5aA6` | 20 bytes | address(0) |
+| Fixed-Sized bytes array | `bytes32 public _byte32 = "MiniSolidity";` `bytes1 public _byte = _byte32[0];` | bytes32 - 32 bytes | bytes32(0) |
+| Enumeration | `enum ActionSet { Buy, Hold, Sell }` | uint 0,  1,  2 | - |
+
+*address payable: Same as address, but with the additional members transfer and send to allow ETH transfers.
+
+*There are two types of accounts: EOA & CA
+- EOA(Externally Owned Account): For example, Wallet Address
+- CA(Contract Account): For example, Simple Bank Contract
+
+#### 2. Reference Type
+
+| Type  | Example |
+| ------------- | ------------- |
+| Array | `uint256[], string, bytes (Dynamic Size Bytes Array)` |
+| Struct | `struct Demo {uint256 x, uint256 y}` |
+
+#### 3. Mapping Type
+
+| Type  | Example |
+| ------------- | ------------- |
+| Mapping | `mapping(address=>uint256)`, `mapping(address addr=>uint)`, `mapping(address addr=>uint balance)` |
+
 ### 
 
 <!-- Content_END -->
