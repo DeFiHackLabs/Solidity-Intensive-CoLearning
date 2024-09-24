@@ -24,4 +24,10 @@ timezone: Asia/Taipei
 
   [WTF Academy Solidity 101 1-2 Note](/content/0xRory/101.md)
 
+### 2024.09.24
+
+  day02:
+
+  [WTF Academy Solidity 101 3-4 Note](/content/0xRory/102.md)
+
 <!-- Content_END -->

@@ -150,4 +150,62 @@ Solidity的函数声明实在是太多关键字，这次我第一个见过需要
 - storage 与 local storage 之间的赋值也是创建引用
 - 其他情况都是复制值
 
+### 2024.09.24
+
+#### 06 Array and Struct
+
+对 Solidity 上的动态数组的概念有些疑惑，按照官方文档:
+
+> Dynamically-sized arrays can only be resized in storage. In memory, such arrays can be of arbitrary size but the size cannot be changed once an array is allocated.
+
+也就是只有存储在链上动态数组可以变更 size，在 memory 的数组的 size 在初始化后就无法变更，那么这是否还能叫动态数组呢？也就是意味着，对于 memory 类型的数组， ~push~ 函数无法使用。
+
+而 ~bytes~ 和 ~string~ 都是特殊类型的数组，bytes 包含任意长度的字节数据，而 string 包含任意长度的UTF-8数据。除此之外，还 bytes1 和 bytes:
+- bytes: 是动态数组，可以包含任意数量的字节
+- bytes1: 是固定长度数组，只包含一个字节
+
+不知道为什么要这么设计, 将 ~bytes1~ 从只包含一个字节的固定数组，设计成 ~byte~ 类型, 表示一个字节，不是更合理嘛, 还不需要这个奇怪的命名.
+
+##### Dangling reference
+
+Solidity 也可能会出现野指针的问题，Solidity 只允许对引用类型声明引用（指针），所以野指针也只会出现在嵌套的引用类型上，如下：
+
+```solidity
+contract C {
+    uint[][] s;
+
+    function f() public {
+        // Stores a pointer to the last array element of s.
+        uint[] storage ptr = s[s.length - 1];
+        // Removes the last array element of s.
+        s.pop();
+        // Writes to the array element that is no longer within the array.
+        ptr.push(0x42);
+        // Adding a new element to ``s`` now will not add an empty array, but
+        // will result in an array of length 1 with ``0x42`` as element.
+        s.push();
+        assert(s[s.length - 1][0] == 0x42);
+    }
+}
+```
+
+##### Array slice
+
+Solidity 也支持数组切片的特性，如 ~x[start:end]~, 不过目前只支持 calldata 类型的数组。 ~start~ 和 ~end~ 都不是必填的, start 默认是0，end默认是数组长度
+
+##### Struct
+
+Solidity 的 Struct 不是类似 C++/Java 的 struct, 作为数据与函数的集合，而更像是C中的struct，只作为数据的载体，不包含函数实现。
+
+需要注意的是，Solitidy 的结构体成员不能包含结构体本身, 如:
+
+```solidity
+struct Campaign {
+  uint fundingGoal;
+  Campaign self; // 不支持这样的语法
+}
+```
+
+因为Solidity 需要在编译期知道结构体的大小，如果包含自己，那么就会变成无限递归，编译器就无法推断出结构体的大小了, 进而分配内存
+
 <!-- Content_END -->

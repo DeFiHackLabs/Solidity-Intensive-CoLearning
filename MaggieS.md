@@ -51,8 +51,24 @@ Step3:  Summary    2 days
 ### 2024.09.23
 
 1. Finish looking through 15 chapters of Solidity 101 and complete the text.
-2. Drawing the mindmap of Solidity 101.
+   
+2. Drawn the mindmap of Solidity 101.
+<img width="1106" alt="image" src="https://github.com/user-attachments/assets/01bf8167-c629-4ac4-ae1c-e0138075f5a0">
 
+3.Difficulties
 
-  
+Solidity is my first programming language, so the biggest challenge for me is the lack of programming mind. Without exaggeration, three steps one bug... Some sentences I couldn’t understand clearly even if I have read more than 10 times.
+
+What's even sadder is that, despite it took me a long time to learn today. I have forgotten most of details in tutorials now. Thankfully, it doesn’t matter, I was ready for this situation. What really matters is what I could learn in this process.
+
+It’s exactly a challenge for me cause I’m not only unfamiliar with Solidity, but also have few experience in writing English articles. However, I appreciate one sentence recently: If there are two ways to growth you can choose, always choose the one that’s harder, that's the direct way to get over it. 
+
+This training camp can force myself to take Solidity and English writing tasks and face them directly, and it’s also a good opportunity to observe my own solutions and mindset in the face of difficulties and fears. Though I want to quit many times today, I'm sticking with it. It's a good begining.
+
+### 2024.09.24
+
+1. Looking through 15 chapters of Solidity 102 and complete the text.
+2.
+3.
+
 <!-- Content_END -->
