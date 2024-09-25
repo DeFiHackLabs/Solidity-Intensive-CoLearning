@@ -25,7 +25,7 @@ timezone: Asia/Shanghai
 过了第二课了，岂不美哉
 ### 
 
-### 2024.09.24
+### 2024.09.25
 ![image](https://github.com/user-attachments/assets/802fc33a-b7e6-444e-b434-d50f24599880)
 
 
