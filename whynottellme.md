@@ -32,6 +32,35 @@ contract HelloWeb3{
  - 编译完成后，点击左侧菜单的“部署”按钮，进入部署页面。点击 `Deploy`（黄色按钮），即可部署我们编写的合约。
 
 
+### 2024.09.24
 ####  2. 值类型
-
+##### 值类型(Value Type)
+这类变量赋值时候直接传递数值
+1. 布尔型
+2. 整型
+   ```
+   int public _int = -1; // 整数，包括负数
+   uint public _uint = 1; // 正整数，uint默认为uint256
+   uint256 public _number = 20220330; // 256位正整数
+   ```
+3. 地址类型
+   存储一个 20 字节的值（以太坊地址的大小）
+4. 字节数组
+   分为定长和不定长2种
+5. 枚举 enum
+   主要用于为 uint 分配名称，使程序易于阅读和维护。它与 C 语言 中的 enum 类似，使用名称来代替从 0 开始的 uint。是一个比较冷门的变量，几乎没什么人用。
+   ```
+   // 用enum将uint 0， 1， 2表示为Buy, Hold, Sell
+   enum ActionSet { Buy, Hold, Sell }
+   // 创建enum变量 action
+   ActionSet action = ActionSet.Buy;
+   // enum可以和uint显式的转换,并会检查转换的正整数是否在枚举的长度内，否则会报错
+   function enumToUint() external view returns(uint){
+       return uint(action);
+   }
+   ```
+##### 引用类型(Reference Type)
+这类变量占空间大，赋值时候直接传递地址（类似指针）
+##### 映射类型(Mapping Type)
+存储键值对，可以理解为哈希表
 <!-- Content_END -->

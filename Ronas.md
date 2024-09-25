@@ -76,9 +76,96 @@ timezone: Asia/Shanghai
         - 解構式取得回傳值
             - 可取得全部 `(_number, _bool, _array) = returnNamed();`
             - 或對位取得部分 `(, _bool2, ) = returnNamed();`
-- 引用 (Reference Types)
-- 映射 (Mapping Types)
 
 ### 2024.09.24
+
+> 進度: Solidity 101 5~6
+
+- 資料位置 (Data Location)
+    > https://docs.soliditylang.org/en/v0.8.27/types.html#data-location
+    - 分三種
+        - `storage` 儲存在鏈上
+        - `memory` 儲存在記憶體中 不上鏈
+        - `calldata` 儲存在記憶體中 不上鏈 不能修改 (一般用於函數的參數)
+    - 不同資料類型相互賦值時，會產生獨立的副本，修改新變數不會改到原數值
+    - 相同資料類型相互賦值時，會建立引用，修改新變數會改到原變數值
+- 變數作用範圍
+    - 狀態變數: 儲存在鏈上的變數
+    - 全域變數: 作用範圍在整個合約中
+    - 區域變數: 作用範圍僅在函數中
+- 乙太單位
+    - `wei`: 1
+    - `gwei`: 1e9
+    - `ether`: 1e18
+- 時間單位
+    - `seconds`
+    - `minutes`
+    - `hours`
+    - `days`
+    - `weeks`
+- 引用 (Reference Types)
+    - `array`
+        - 宣告
+            - 固定長度 `uint[5] arr1;`
+            - 可變長度 `uint[] arr2;`
+        - 初始化
+            - 可用 new
+                ```
+                uint[] memory arr1 = new uint[](5);
+                bytes memory arr2 = new bytes(9);
+                ```
+        - 成員函數 
+            - `length`
+            - `push()` 在 array 最後添加 0
+            - `push(3)` 在 array 最後添加 3 
+            - `pop()` 移除最後一個元素
+    - `struct`
+        ```
+        struct Student{
+            uint256 id;
+            uint256 score; 
+        }
+
+        Student student;
+        
+        function initStudent1() external{
+            Student storage _student = student; // _student = reference of student
+            _student.id = 11;
+            _student.score = 100;
+        }
+        ```
+
+### 2024.09.25
+
+> 進度: Solidity 101 7~8
+
+- 映射 (Mapping Types)
+    > https://docs.soliditylang.org/en/latest/types.html#mapping-types
+    - `mapping(_KeyType => _ValueType)`
+        - `_KeyType` 只能使用內建的值類型, 不能使用結構
+        - `_ValueType` 可以使用結構
+    - 儲存位置必須為 `storage`
+    - 不能用於 `public` 函數的參數或回傳值
+
+- 變數初始值
+    - 值類型
+        - `boolean`: `false`
+        - `string`: `""`
+        - `int`: `0`
+        - `uint`: `0`
+        - `enum`: 第一個元素
+        - `address`: `0x0000000000000000000000000000000000000000` (`address(0)`)
+        - `function`
+    - 引用類型
+        - `mapping` key/value的初始值的映射
+        - `struct` 成員類型的初始值
+        - `array`
+            - 動態 `[]`
+            - 靜態
+    - `delete a` 會使變數 `a` 的值變為初始值
+
+### 2024.09.26
+
+> 進度: Solidity 101 
 
 <!-- Content_END -->

@@ -41,6 +41,19 @@ timezone: Asia/Taipei
     
 
 ### 2024.09.24        
-    
+1. 在WTF完成前兩章的測驗
+2. 學習第三張，function 功能，可視性的功能上{internal|external|public|private}，感覺重點在於，如果function要給外部call，就選擇public或者external，內部訪問就寫private或者是internal，測試的話一開始寫public比較方便。
+3. about function permission的部分，分成[pure|view|payable]，而pure和view主要主要跟gas有關，而pure和view的function是不修改鏈上的狀態，也就不會被收gas，而教學上用瑪利歐的比喻也非常能理解
+4. pure和view的部分比較不容易分得清楚
+5. 完成了第三章的測驗
+6. 學習第四章returns/return，並完成了第四章測驗
 
+
+### 2024.09.25
+1. 了解變數儲存的三種不同類型，storage、memory和calldata，memory和calldata是儲存在RAM裡面，，消耗的gas少，storage是儲存在硬碟上的，消耗gas大
+2. 了解變數作用區，分別為狀態狀態、局部、全域三種類型，一般來說在合約內宣告的變數為狀態變數，而再pure function內的變數，因為跳出後，內部的變數就無效了，因此是儲存於RAM內，而全域變數則為預留關鍵字
+3. 完成了第五章測驗
+4. 完成了第六章測驗
+
+### 2024.09.26
 <!-- Content_END -->

@@ -39,4 +39,12 @@ timezone: Asia/Shanghai (UTC+8)
 > + 常見Value type: bool, int, uint, uint256, address, address payable, bytes(可變), bytes1, bytes8, bytes32, enum
 
 
+### 2024.09.25
+學習內容: `3.function`
+> 這集對我來說單看有點難理解(碧琪公主那我看不懂)，
+> 看[這篇](https://medium.com/taipei-ethereum-meetup/solidity-weekly-11-70c5208a3bf1)才懂`pure`、`view`是為取代`constant`(到v0.4.17才取代)。
+> 此外`internal`、`external`蠻好懂。
+
+
+
 <!-- Content_END -->

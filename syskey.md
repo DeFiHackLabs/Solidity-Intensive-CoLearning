@@ -149,7 +149,7 @@ timezone: Asia/Shanghai
         ```
 ### 
 
-### 2024.9.24
+### 2024.09.24
 
 学习内容: 
 1. 第六讲
@@ -259,6 +259,7 @@ timezone: Asia/Shanghai
             }
         }
         ```
+
 3. 第八讲
     - 变量的初始值(也就是只声明变量，未赋值)，其中又分为**值类型初始值**和**引用类型初始值**
     - **值类型初始值**
@@ -339,5 +340,294 @@ timezone: Asia/Shanghai
     - 循环注意事项
         - **避免无限循环**：由于 Solidity 中的 gas 限制，如果循环条件没有正确处理，可能会导致函数耗尽所有 gas，从而导致交易失败。
     - 拓展：`Solidity`中最常用的变量类型是`uint`，也就是正整数。在循环中如果遇到变量可能取到**负值**的情况下，会造成`下溢(underflow)`错误。正确的做法可以通过主动限制变量的值为正数或者在有风险的地方进行防护处理。
+###
+
+### 2024.09.25
+
+学习内容: 
+1. 第十一讲
+    - 构造函数(`constructor`)是一种特殊的函数，每个合约只可以定义一个，用来在部署合约时初始化一些参数，并且只会运行一次。
+        ```Solidity
+        address owner;
+
+        constructor (address initialOwner) {
+            owner = initialOwner; // 部署合约时，将owner设置为传入的initialOwner地址
+        }
+        ```
+    - 修饰器(`modifier`)是`Solidity`特有的语法，类似于面向对象编程中的装饰器(`decorator`)。`modifier`的主要使用场景是运行函数前的检查，例如地址，变量，余额等。
+        ```Solidity
+        // 定义modifier
+        modifier onlyOwner {
+            require(msg.sender == owner); // 检查调用者是否为owner地址
+            _; // 如果是的话，继续运行函数主体；否则报错并revert交易
+        }
+
+        // 带有onlyOwner修饰符的函数只能被owner地址调用
+        function changeOwner(address _newOwner) external onlyOwner{
+            owner = _newOwner; // 只有owner地址运行这个函数，并改变owner
+        }
+        ```
+
+2. 第十二讲
+    - 事件(`event`)是EVM上日志的抽象。
+    - 声明事件`event Transfer(address indexed from, address indexed to, uint256 value);`
+    - 释放事件
+        ```Solidity
+        // 声明事件
+        event Transfer(address indexed from, address indexed to, uint256 value);
+
+        // 定义_transfer函数，执行转账逻辑
+        function _transfer(
+            address from,
+            address to,
+            uint256 amount
+        ) external {
+
+            _balances[from] = 10000000; // 给转账地址一些初始代币
+
+            _balances[from] -=  amount; // from地址减去转账数量
+            _balances[to] += amount; // to地址加上转账数量
+
+            // 释放事件
+            emit Transfer(from, to, amount);
+        }
+        ```
+    - 事件特点
+        - **响应**：应用程序（ethers.js）可以通过RPC接口订阅和监听这些事件，并在前端做响应。
+        - **经济**：事件是`EVM`上比较经济的存储数据的方式，每个大概消耗2,000 `gas`；相比之下，链上存储一个新变量至少需要20,000 `gas`。
+
+3. 第十三讲
+    - 继承(`inheritance`)是面向对象编程很重要的组成部分，可以显著减少重复代码。如果把合约看作是对象的话，`Solidity`也是面向对象的编程，也支持继承。
+    - 规则
+        - `virtual`: 父合约中的函数，如果希望子合约重写，需要加上`virtual`关键字。
+        - `override`: 子合约重写了父合约中的函数，需要加上`override`关键字。
+
+        **注意**：用`override`修饰`public`变量，会重写与变量同名的`getter`函数。
+    - 简单继承
+        ```Solidity
+        contract Yeye {
+            event Log(string msg);
+
+            // 定义3个function: hip(), pop(), man()，Log值为Yeye。
+            function hip() public virtual{
+                emit Log("Yeye");
+            }
+
+            function pop() public virtual{
+                emit Log("Yeye");
+            }
+
+            function yeye() public virtual {
+                emit Log("Yeye");
+            }
+        }
+        // Baba合约继承了Yeye合约, 并重写了hip()和pop()函数
+        contract Baba is Yeye{
+            // 继承两个function: hip()和pop()，输出改为Baba。
+            function hip() public virtual override{
+                emit Log("Baba");
+            }
+
+            function pop() public virtual override{
+                emit Log("Baba");
+            }
+
+            function baba() public virtual{
+                emit Log("Baba");
+            }
+        }
+        ```
+    - 多重继承 - `Solidity`的合约可以继承多个合约
+        - 继承时要按辈分最高到最低的顺序排。比如我们写一个`Erzi`合约，继承`Yeye`合约和`Baba`合约，那么就要写成`contract Erzi is Yeye, Baba`，而不能写成`contract Erzi is Baba, Yeye`。
+        - 如果某一个函数在多个继承的合约里都存在，比如例子中的`hip()`和`pop()`，那在子合约里必须重写。
+        - 重写在多个父合约中都重名的函数时，`override`关键字后面要加上所有父合约名字，例如`override(Yeye, Baba)`。
+        ```Solidity
+        contract Erzi is Yeye, Baba{
+            // 继承两个function: hip()和pop()，输出值为Erzi。
+            function hip() public virtual override(Yeye, Baba){
+                emit Log("Erzi");
+            }
+
+            function pop() public virtual override(Yeye, Baba) {
+                emit Log("Erzi");
+            }
+        }
+        ```
+    - 修饰器继承 - 用法与函数继承类似，在相应的地方加virtual和override关键字即可。
+        ```Solidity
+        contract Base1 {
+            modifier exactDividedBy2And3(uint _a) virtual {
+                require(_a % 2 == 0 && _a % 3 == 0);
+                _;
+            }
+        }
+
+        contract Identifier is Base1 {
+
+            //计算一个数分别被2除和被3除的值，但是传入的参数必须是2和3的倍数
+            function getExactDividedBy2And3(uint _dividend) public exactDividedBy2And3(_dividend) pure returns(uint, uint) {
+                return getExactDividedBy2And3WithoutModifier(_dividend);
+            }
+
+            //计算一个数分别被2除和被3除的值
+            function getExactDividedBy2And3WithoutModifier(uint _dividend) public pure returns(uint, uint){
+                uint div2 = _dividend / 2;
+                uint div3 = _dividend / 3;
+                return (div2, div3);
+            }
+        }
+
+        // Identifier合约可以直接在代码中使用父合约中的exactDividedBy2And3修饰器，也可以利用override关键字重写修饰器
+        modifier exactDividedBy2And3(uint _a) override {
+            _;
+            require(_a % 2 == 0 && _a % 3 == 0);
+        }
+        ```
+
+
+
+
+
+    - 构造函数的继承 - 子合约有两种方法继承父合约的构造函数
+        - 在继承时声明父构造函数的参数 `contract B is A(1)`
+        - 在子合约的构造函数中声明构造函数的参数
+        ```Solidity
+        contract C is A {
+            constructor(uint _c) A(_c * _c) {}
+        }
+        ```
+    - 调用父合约的函数 - 子合约有两种方式调用父合约的函数，直接调用和利用super关键字。
+        - 直接调用：子合约可以直接用`父合约名.函数名()`的方式来调用父合约函数，例如`Yeye.pop()`。
+        - `super`关键字：子合约可以利用`super.函数名()`来调用最近的父合约函数。`Solidity`继承关系按声明时从右到左的顺序是：`contract Erzi is Yeye, Baba`，那么`Baba`是最近的父合约，`super.pop()`将调用`Baba.pop()`而不是`Yeye.pop()`。
+    - 钻石继承(菱形继承) - 指一个派生类同时有两个或两个以上的基类。
+        - 在多重+菱形继承链条上使用`super`关键字时，需要注意的是`super`会调用继承链条上的每一个合约的相关函数，而不是只调用最近的父合约。
+
+4. 第十四讲
+    - 抽象合约（Abstract Contract） - 是指一个合约中至少有一个函数没有被实现（即函数体为空），它不能被直接部署，但可以被其他合约继承并实现其中未定义的函数。
+        - 抽象合约的特性：
+            - 不能直接实例化（部署）。
+            - 包含至少一个没有实现的函数，即声明函数但不给出具体实现。
+            - 可以包含已实现的函数和状态变量。
+            - 通常用来作为其他合约的基础合约（基合约），为子合约提供基础结构和逻辑。
+            - **关键字：`abstract` 用来标识一个合约为抽象合约。**
+                ```Solidity
+                // 抽象合约
+                abstract contract Animal {
+                    // 抽象函数（没有实现的函数）
+                    function makeSound() public virtual returns (string memory);
+
+                    // 已实现的函数
+                    function description() public pure returns (string memory) {
+                        return "This is an animal.";
+                    }
+                }
+
+                // 继承抽象合约并实现抽象函数
+                contract Dog is Animal {
+                    function makeSound() public override returns (string memory) {
+                        return "Woof!";
+                    }
+                }
+                ```
+    - 接口（Interface）- 是一个更严格的合约类型，它只允许定义函数的声明，不允许任何状态变量、构造函数或实现。它定义了一组必须实现的函数。
+        - 接口的特性：
+            - 只能包含函数声明，不能包含函数实现。
+            - 不能有状态变量。
+            - 不能有构造函数。
+            - 接口中的所有函数都是 external，所以必须在实现合约中重写。
+            - 主要用于标准化不同合约之间的交互方式，定义一个公共的 API。
+            - **关键字：`interface` 用来标识一个接口。**
+                ```Solidity
+                // 定义接口
+                interface IAnimal {
+                    function makeSound() external returns (string memory);
+                }
+
+                // 实现接口
+                contract Cat is IAnimal {
+                    function makeSound() external override returns (string memory) {
+                        return "Meow!";
+                    }
+                }
+                ```
+        - 拓展 - 接口与合约`ABI`（Application Binary Interface）等价，可以相互转换：编译接口可以得到合约的`ABI`，利用[abi-to-sol](https://gnidan.github.io/abi-to-sol/)工具，也可以将`ABI json`文件转换为`接口sol`文件。
+    - 接口的主要使用场景
+        - 标准化合约的设计：
+            - ERC 标准（如 ERC-20、ERC-721、ERC-1155）：接口是 Solidity 中标准协议的基础。例如，ERC-20 代币标准就定义了代币合约需要实现的函数。开发者通过使用接口实现标准化，使得钱包、交易所等工具能够和不同的代币合约进行无缝交互。
+            - 多方合作的系统：当多个开发者、团队或组织共同开发一个项目时，使用接口来定义标准是非常有效的方式。这样，各方可以独立实现接口，而不需要了解彼此的内部细节。
+        - 合约之间的解耦：
+            - 模块化设计：接口可以帮助不同的合约模块解耦合。例如，多个合约可能依赖某个外部合约，但为了降低依赖风险和耦合性，合约可以仅依赖该外部合约的接口，而不是它的具体实现。
+            - 动态选择实现：可以通过接口来引用不同的合约实现。比如，通过接口可以与不同版本或不同功能的合约进行交互，而不需要事先了解其具体实现。
+        - 合约升级与灵活性：
+            - 代理合约模式：在代理合约（Proxy Contracts）和升级合约系统中，接口用于定义公共的 API，而具体的实现可能会随时间而改变。这样，合约的调用方不需要关心实际实现的变化，只要实现保持与接口一致，功能就能正常运行。
+            - 抽象和实现分离：通过接口可以将抽象和实现分离。在这种设计模式下，接口定义了合约应该支持的功能，而实际合约实现可以随时间变化，从而支持不同的功能扩展或逻辑修改。
+        - **与外部合约进行交互**：
+	        - 调用其他合约：当一个合约需要与另一个已经部署的合约进行交互时，通常只需要了解该合约的接口而不需要其具体实现。通过接口定义对外合约的调用方式，可以简化合约间的交互。
+        - 权限管理与访问控制：
+	        - 在复杂的合约系统中，接口可以用于设计多角色、多合约的权限管理系统。通过接口，各种权限控制模块可以与权限验证模块进行标准化的交互，而不需要硬编码特定合约的实现。
+        - 降低依赖和复用代码：
+	        - 插件化系统：接口允许开发者实现合约系统的插件化设计，不同合约可以根据接口提供的 API 进行交互。这样，开发者可以创建可复用的逻辑，避免重复实现类似功能的合约。
+
+5. 第十五讲
+    - 在 Solidity 中，revert、Error、require 和 assert 是处理异常和错误条件的四种主要方法，它们的用途有所不同，并且在发生错误时的处理方式也不一样。
+    - `Error（自定义错误）`- 自 Solidity 0.8.4 开始，支持使用自定义错误，这是一个更高效的方式来处理错误，并且可以为错误提供更好的上下文信息。
+        - 用法: 自定义错误是一种定义在合约中的类型，可以通过 revert 关键字触发。与 require 和 assert 不同，自定义错误可以减少存储和传输错误信息的开销。
+        - 示例
+            ```Solidity
+            error InsufficientBalance(uint256 available, uint256 required);
+
+            contract Example {
+                uint256 public balance;
+
+                function withdraw(uint256 amount) public {
+                    if (balance < amount) {
+                        revert InsufficientBalance(balance, amount);
+                    }
+                    balance -= amount;
+                }
+            }
+            ```
+        - 特点: 在于节省 gas，特别是在提供复杂的错误信息时。
+    - `require` - 是用于验证函数输入、参数和执行前的前置条件。它用于检查某些条件，并且如果条件不满足，则回退交易。
+        - 用法：当条件不满足时，触发 require 会返回一个错误消息，并回滚状态。剩余的 gas 会被退还。
+        - 示例
+            ```Solidity
+            contract Example {
+                function transfer(address recipient, uint256 amount) public {
+                    require(recipient != address(0), "Invalid recipient address");
+                    require(amount > 0, "Transfer amount must be greater than zero");
+                    // 继续执行...
+                }
+            }
+            ```
+        - 特点：主要用于验证输入的条件。
+    - `assert` - 用于检查代码的内部错误，通常用于不应该发生的情况。如果 assert 失败，说明代码有严重的错误（例如，计算溢出或违反不变量）。不同于 require，assert 会消耗掉所有的剩余 gas。
+        - 用法：一般用于检查合约状态的内在一致性或一些不应该被破坏的条件。
+        - 示例
+            ```Solidity
+            contract Example {
+                uint256 public totalSupply;
+
+                function burn(uint256 amount) public {
+                    totalSupply -= amount;
+                    assert(totalSupply >= 0);  // 验证 totalSupply 不应该为负数
+                }
+            }
+            ```
+        - 特点：用于检测不变量和非常规的错误。如果 assert 失败，意味着合约的某些核心逻辑被破坏了。
+    - `revert` - 也是一种用于回退交易的方式，常与自定义错误结合使用。当你需要手动控制交易失败时可以使用 revert。
+        - 用法：可以通过 revert 主动回滚交易，同时传递一个自定义错误或字符串消息。
+        - 示例
+            ```Solidity
+            contract Example {
+                function safeWithdraw(uint256 amount) public {
+                    if (balance < amount) {
+                        revert("Insufficient balance");
+                    }
+                    balance -= amount;
+                }
+            }
+            ```
+        - 特点：revert 会退还剩余 gas，但如果传递错误消息字符串，gas 消耗会增加。
 ###
 <!-- Content_END -->

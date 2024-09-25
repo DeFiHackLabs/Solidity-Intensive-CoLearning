@@ -212,4 +212,90 @@ uint256[3] memory _array;
 (, _bool2, ) = returnNamed();
 ```
 
+### 2024.09.25
+
+(Day 3)
+
+学习笔记
+
+#### 变量数据存储和作用域 storage/memory/calldata
+
+solidity 中的引用类型（Reference Type）
+- array 数组、struct 结构体
+- 由于这种数据类型比较复杂，占用的存储空间比较大。我们在使用的时候要声明数据的存储的位置。
+
+- 数据的存储位置有三类
+  - storage：永久存储在区块链上，直到合约被销毁。
+  - memory：临时存储在内存中，函数调用结束后销毁。
+  - calldata：只读，用于函数参数，不能修改。
+
+- 数据存储位置的声明
+
+```solidity
+function fCalldata(uint[] calldata _x) public pure returns(uint[] calldata){
+    //参数为calldata数组，不能被修改
+    // _x[0] = 0 //这样修改会报错
+    return(_x);
+}
+```
+
+- 数据的位置和赋值规则
+- 赋值本质上是创建引用指向本体，因此修改本体或者是引用，变化可以被同步：
+  - storage（合约的状态变量）赋值给本地storage（函数里的）时候，会创建引用，改变新变量会影响原变量。例子：
+  - memory赋值给memory，会创建引用，改变新变量会影响原变量。
+
+```solidity
+uint[] x = [1,2,3]; // 状态变量：数组 x
+
+function fStorage() public{
+    //声明一个storage的变量 xStorage，指向x。修改xStorage也会影响x
+    uint[] storage xStorage = x;
+    xStorage[0] = 100;
+}
+```
+
+变量的作用域
+solidity之中作用域分成三种。分别是状态变量（state variable）、局部变量（local variable）、全局变量（global variable）。
+
+- 状态变量（state variable）：合约的状态变量，永久存储在区块链上，直到合约被销毁。消耗gas比较高。
+- 局部变量（local variable）：函数内部的变量，临时存储在内存中，函数调用结束后销毁。消耗gas比较低。
+- 全局变量（global variable）：全局变量，这是solidity预留的关键字，他们在函数内不许要声明就可以直接食用。
+```solidity
+function global() external view returns(address, uint, bytes memory){
+    address sender = msg.sender;
+    uint blockNum = block.number;
+    bytes memory data = msg.data;
+    return(sender, blockNum, data);
+}
+```
+
+在上面例子里，我们使用了3个常用的全局变量：msg.sender，block.number和msg.data，他们分别代表请求发起地址，当前区块高度，和请求数据。
+
+全局变量 - 以太的单位和时间
+
+- 以太单位
+Solidity中不存在小数点，以0代替为小数点，来确保交易的精确度，并且防止精度的损失，利用以太单位可以避免误算的问题，方便程序员在合约中处理货币交易。
+
+- wei: 1
+- gwei: 1e9 = 1000000000
+- ether: 1e18 = 1000000000000000000
+
+- 时间单位
+可以在合约中规定一个操作必须在一周内完成，或者某个事件在一个月后发生。这样就能让合约的执行可以更加精确，不会因为技术上的误差而影响合约的结果。因此，时间单位在Solidity中是一个重要的概念，有助于提高合约的可读性和可维护性。
+
+- seconds: 1
+- minutes: 60 seconds = 60
+- hours: 60 minutes = 3600
+- days: 24 hours = 86400
+- weeks: 7 days = 604800
+
+### 2024.09.26
+
+(Day 4)
+
+学习笔记
+
+
+
+
 <!-- Content_END -->
