@@ -74,7 +74,7 @@ Solidity 引入 `pure` 和 `view` 關鍵字來控制函數是否改變區塊鏈�
 #### 04_Return
 returns 這個關鍵字用在函數名稱後面，用來告訴大家這個函數會返回什麼樣的數據，比如返回什麼類型的數字、陣列或布林值（true 或 false）。就像是你在函數開始前，先跟大家說：「這個函數會給你什麼東西。」
 return 這個關鍵字用在函數的主體裡面，用來實際把數據返回出去。就像是函數結束時，你用 return 把事先說好的東西交給大家。
-------------------------------------------------
+
 命名式返回
 在 Solidity 中，你可以在 returns 這裡直接給返回的值取名字，這樣你在函數裡面只要把這些變數賦值，系統會自動把這些值返回，不用再手動用 return。
 在這裡，我們給每個返回的值取了名字 _number、_bool 和 _array，然後直接賦值，它們就會自動返回。
@@ -87,7 +87,7 @@ function returnNamed() public pure returns(uint256 _number, bool _bool, uint256[
 function returnNamed2() public pure returns(uint256 _number, bool _bool, uint256[3] memory _array) {
     return (1, true, [uint256(1),2,5]);
 }
-------------------------------------------------
+
 解構式賦值
 解構式賦值是一種方便的方式，可以讓你一次把函數返回的多個值分配給不同的變數。如果你不需要所有的返回值，也可以只取部分，其他的就留空。
 uint256 _number;
