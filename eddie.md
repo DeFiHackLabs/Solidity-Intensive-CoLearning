@@ -13,6 +13,9 @@ timezone: Asia/Shanghai
 必须的，恰好有一段时间可以用于本次学习活动中；
    
 ## Notes
+<!-- Content_START -->
+
+### 2024.09.25
 - WTF101章节内容：抽象合约和接口、异常
 - WTF102章节内容：重载、库合约、Import
 
@@ -47,9 +50,6 @@ timezone: Asia/Shanghai
     assert(_owners[tokenId] == msg.sender);
     //只能抛出异常
     ```
-
-<!-- Content_START -->
-### 2024.09.25
 
 ### 2024.09.24
 - WTF101章节内容：映射类型、变量初始值、常数、控制流、构造函数和修饰器、事件、继承
