@@ -31,6 +31,12 @@ timezone: Asia/Shanghai (UTC+8)
 <img src="https://github.com/user-attachments/assets/c505fef6-2316-41ee-848c-44a24531b38c" >
 
 
-### 
+### 2024.09.24
+
+學習內容: `2.ValueTypes`
+> + 三種類型:Value Type, Reference Type, Mapping Type
+> + 與C語言寫法不同的是int寫在public前，如`int public _int = -1;`
+> + 常見Value type: bool, int, uint, uint256, address, address payable, bytes(可變), bytes1, bytes8, bytes32, enum
+
 
 <!-- Content_END -->

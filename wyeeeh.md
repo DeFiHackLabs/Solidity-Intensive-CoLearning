@@ -42,5 +42,87 @@ contract HelloWeb3 {
   - 100/100
 
 ### 2024.09.24
+#### WTF Academy Solidity 101.2 值类型
+
+值类型：Value Type，用于存储具体的值。
+- 布尔类型：`true` 和 `false`。
+- 整数类型：整数类型包括有符号整数（int）和无符号整数（uint）。
+
+- 地址类型：地址类型用于存储以太坊地址。
+  - 普通地址（address）: 存储一个 20 字节的值（以太坊地址的大小）。
+  - payable address: 比普通地址多了 transfer 和 send 两个成员方法，用于接收转账。
+- 字节数组
+  - 定长字节数组: 属于值类型，数组长度在声明之后不能改变。根据字节数组的长度分为 bytes1, bytes8, bytes32 等类型。定长字节数组最多存储 32 bytes 数据，即bytes32。
+  - 不定长字节数组: 属于引用类型（之后的章节介绍），数组长度在声明之后可以改变，包括 bytes 等。
+- 枚举 enum
+  - 枚举（enum）是 Solidity 中用户定义的数据类型。它主要用于为 uint 分配名称，使程序易于阅读和维护。
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.4;
+
+contract ValueTypes {
+    // 布尔值
+    bool public _bool = true; 
+
+    // 布尔运算
+    bool public _bool1 = !_bool; // 取非
+    bool public _bool2 = _bool && _bool1; // 与
+    bool public _bool3 = _bool || _bool1; // 或
+    bool public _bool4 = _bool == _bool1; // 相等
+    bool public _bool5 = _bool != _bool1; // 不相等
+
+    // 整型
+    int public _int = -1; // 整数，包括负数
+    uint public _uint = 1; // 正整数
+    uint256 public _number = 20220330; // 256位正整数
+
+    // 整数运算
+    uint256 public _number1 = _number + 1; 
+    uint256 public _number2 = 2**2; // 指数
+    uint256 public _number3 = 7 % 2; // 取余数
+    bool public _numberbool = _number2 > _number3; // 比大小
+
+    // 地址
+    address public _address = 0x7A58c0Be72BE218B41C608b7Fe7C5bB630736C71;
+    address payable public _address1 = payable(_address); // payable address，可以转账、查余额
+    // 地址类型的成员
+    uint256 public balance = _address1.balance; // balance of address
+
+    // 固定长度的字节数组
+    bytes32 public _byte32 = "MiniSolidity"; 
+    bytes1 public _byte = _byte32[0]; 
+
+    // 枚举 enum
+    // 用enum将uint 0， 1， 2表示为Buy, Hold, Sell
+    enum ActionSet { Buy, Hold, Sell }
+    // 创建enum变量 action
+    ActionSet action = ActionSet.Buy;
+
+    // enum可以和uint显式的转换
+    function enumToUint() external view returns(uint){
+        return uint(action);
+    }
+
+}
+
+//deploy后可以在VALUETYPES找到声明的变量。
+```
+- 测验错题
+  1. solidity中数值类型(Value Type)不包括float
+  2. 下列代码的意思是
+   
+      ```solidity
+      address payable addr;
+      addr.transfer(1);
+      ```
+
+    - `address payable addr;`：声明了一个可支付的以太坊地址变量 `addr`。`payable` 关键字表示这个地址可以接收以太币（Ether）。
+    -  `addr.transfer(1);`：将 1 wei（以太坊的最小单位）转账到 `addr` 地址。`transfer` 方法用于从合约中转移以太币到指定的 `payable` 地址。
+    -  这段代码定义了一个可以接收以太币的地址，并向该地址转账 1 wei。
+  3. bytes4类型具有8个16进制位
+
+### 2024.09.25
+#### WTF Academy Solidity 101.3 函数
 
 <!-- Content_END -->
