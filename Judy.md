@@ -462,4 +462,142 @@ function <function name>(<parameter types>) {internal|external|public|private} [
 - **狀態修飾詞**：`pure`, `view`, `payable`
 - **其他常用關鍵字**：`returns`, `modifier`, `override`
 
+### 2024.09.25
+#### 函數輸出
+- 在 Solidity 中，函式可以通過 **`returns`** 關鍵字來指定輸出的值
+    
+    ```solidity
+    function returnMultiple() public pure returns(uint256, bool, uint256[3] memory){
+    	return(1, true, [uint256(1),2,5]);
+    }
+    ```
+    
+    - 注意：`returns`跟在函数名後面，`return`在函數裡
+
+- Solidity 如何返回函式輸出
+    - 1. 返回單個值
+        
+        當一個函式返回單個值時，`returns` 關鍵字用來指定輸出類型。函數結束時，會使用 `return` 關鍵字來返回結果。
+        
+        ```solidity
+        contract Example {
+        	// 返回一個整數
+        	function getNumber() public pure returns (uint) {
+        			return 42;
+        	}
+        	
+        	// 返回一個字串
+        	function getMessage() public pure returns (string memory) {
+        	    return "Hello, Solidity!";
+        	}
+        }
+        ```
+        
+    - 2. 命名式返回：返回多個值
+        
+        命名式返回 ＝ `returns` 時有命名。
+        
+        在 Solidity 中，函式也可以返回多個值。當函式返回多個值時，需要使用小括號 `()` 包裹多個返回型別。相應的，`return` 語句需要返回對應數量的數據。
+        
+        ```solidity
+        contract Example {
+        	// 返回多個值：一個整數和兩個字串
+        	function returnName() pure external returns (uint _totalSupply, string memory, string memory symbol){
+                return (500, "sooo", "easy");
+            }
+        }
+        ```
+        
+        ![image](https://github.com/user-attachments/assets/2f7857f2-a010-4d01-829f-a0ef732dff3e)
+
+        
+    - 3. 命名式返回：返回命名的輸出變量
+        
+             在 Solidity 中，我們可以為返回值指定名稱，這樣就不需要在 `return` 語句中明確地返回它們。
+             這樣做的好處是代碼更加簡潔，而且可以在函式內部隱式地使用這些變量。
+        
+        ```solidity
+        contract ExampleContract {
+        	function returnName() pure external returns (uint _totalSupply, string memory message, string memory symbol){
+                _totalSupply = 500;
+                message = "sooo";
+                symbol = "easy";
+            }
+        }
+        
+        // 結果同上2.
+        ```
+        
+        ![image](https://github.com/user-attachments/assets/4fa81a7f-4d17-47a4-b266-6e82f7e1f4ee)
+
+        
+    - 4. 解構式返回
+        
+        當函數返回多個值時，可以在函數調用時使用解構式賦值，將返回的值分配給多個變數。
+        
+        ```solidity
+        contract ExampleContract {
+            uint public myTotalSupply;
+            string public myMessage;
+            string public mySymbol;
+        
+        	function returnName() pure internal returns (uint _totalSupply, string memory message, string memory symbol){
+                _totalSupply = 500;
+                message = "sooo";
+                symbol = "easy";
+            }
+        
+            // 注意：這裡不能用 pure
+            function getReturnName() external {
+                (uint _totalSupply, string memory message, string memory symbol) = returnName();
+                myTotalSupply = _totalSupply;
+                myMessage = message;
+                mySymbol = symbol;
+            }
+        }
+        ```
+        
+        - 剛deploy完的起始值
+            
+            ![image](https://github.com/user-attachments/assets/0d8d65e6-093f-47fa-ac55-206f7c43665f)
+
+            
+        - `getReturnName()`被呼叫後，鏈上數據被異動
+            
+            ![image](https://github.com/user-attachments/assets/93716615-1fe3-4c24-aae2-bcab7e52fa99)
+
+            
+        - 何時使用解構式返回？
+            
+            解構式返回在以下情況中特別有用：
+            
+            1. **返回多個相關聯的值**：當函數返回多個值，這些值通常是相關聯的（例如一個實體的屬性或運算結果），解構式返回能夠讓你同時處理多個返回值，而不必每次都單獨調用函數。
+            2. **提高可讀性**：當處理多個返回值時，解構式賦值能夠提高代碼的可讀性，因為變數名稱可以直接反映它們的含義。這比將返回值放入一個元組然後再逐個提取變數更直觀。
+            3. **避免過多的臨時變數**：解構式返回可以在一行代碼中完成多個變數的賦值，減少了臨時變數的使用和賦值操作。
+        - 如果只想要部分的返回值
+            
+            ```solidity
+            contract ExampleContract {
+                uint public myTotalSupply;
+                string public myMessage;
+                string public mySymbol;
+            
+            	function returnName() pure internal returns (uint _totalSupply, string memory message, string memory symbol){
+                    _totalSupply = 500;
+                    message = "sooo";
+                    symbol = "easy";
+                }
+            
+                function getReturnName() external {
+                    (, string memory message,) = returnName();
+                    myMessage = message;
+                }
+            }
+            ```
+            
+            - `getReturnName()`被呼叫後，只取其中的 `mySymbol`
+                
+                ![image](https://github.com/user-attachments/assets/44a164f4-d427-443e-9da5-92165f8beb80)
+
+
 <!-- Content_END -->

@@ -82,4 +82,53 @@ payable: 附带payable修饰的函数，能够在执行时向合约中转入eth
 
 ### 
 
+
+### 2024.09.24
+
+#### 1. 插入排序实现
+
+逻辑：
+
+分为内外两个循环，外循环从index=1开始逐个获取元素，内循环将arr[index] 和 arr[<index]的数据进行比较。将大于arr[index]的数据往后排，一直找到小于它的数，将arr[index]放在它后面
+
+```
+// SPDX-License-Identifier: GPL-3.0
+
+pragma solidity >=0.8.2 <0.9.0;
+
+contract Test{
+
+    function insertSort(uint[] memory arr) pure public returns(uint[] memory) {
+        for (uint i=1; i<arr.length; i++) 
+        {
+            uint key = arr[i];
+            uint j = i;
+            while( j >=1 && key < arr[j-1]){
+                arr[j] = arr[j-1];
+                j--;
+                //需要注意j的类型为无符号整数uint，所以当j--的行为导致j<0时会报错，因此将j的下限设为1
+            }
+            arr[j] = key;
+        }
+        return arr;
+    }
+}
+```
+
+#### 2. 修饰器
+
+可以将其理解为函数的前置的判断条件
+
+```
+    //状态变量
+    address owner;
+    //修饰器
+    modifier onlyOwner {
+        require(msg.sender == owner);//需要满足这个条件
+        _;//条件满足后继续执行，有点像委托
+    }
+```
+
+###
+
 <!-- Content_END -->

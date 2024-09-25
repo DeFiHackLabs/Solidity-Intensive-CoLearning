@@ -212,5 +212,121 @@ contract Return{
    - global variable: 全局变量，存储在storage中
    其中全局变量参考：[全局变量](https://docs.soliditylang.org/zh/v0.8.21/units-and-global-variables.html)
 
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
 
+contract DataStorage{
+    /**
+     *  数据的存储位置：
+     *   1、storage: 合约里的状态变量都是存储在链上的，默认是storage。消耗gas多，类似存硬盘
+     *   2、memory: 函数里的参数和变量一般都是memory。消耗gas少，不上链，临时存储，类似内存。如果返回数据类型都是变长的情况，如：string/bytes/array/自定义结构体，都应该使用memory修饰
+     *   3、calldata: 与memory类似，但不可修改，一般修饰参数
+     */
+      mapping(uint256 => uint256) public storageValue;  // storage
+
+     function storageTest(uint256[] calldata _param) external pure  returns(uint256[1] memory){
+        // _param不可修改
+        uint256[1] memory x = [_param[0]]; //memory
+        return x;
+     }
+    /**
+     *  数据的引用 或 创建副本
+     *   1、storage类型变量赋值给storage类型变量的时候，是引用类型
+     *   2、memory类型变量赋值给memory类型变量的时候，也是引用类型
+     *   3、其他情况赋值后的变量是新的副本，修改变量不会相互影响
+     */
+
+      function referenceTest() external returns(uint8){
+         mapping(uint256 => uint256) storage a = storageValue;
+         a[1] = 1; // a的改变会影响storageValue的改变
+         uint8[1] memory mV = [5];
+         uint8[1] memory mV2 = mV;
+         mV2[0] = 1; //mV2的改变会影响mV的改变
+         return mV[0];
+      }
+
+    /**
+     *  变量的作用域
+     *   1、状态变量：合约内，函数外声明，存储在链上，消耗gas高
+     *   2、局部变量：声明在函数内，函数退出后变量无效，不上链，消耗gas低
+     *   3、全局变量：比如msg.sender,msg.data,block.timestamp....等等，参照：https://learnblockchain.cn/docs/solidity/units-and-global-variables.html#special-variables-and-functions
+     */
+
+     uint256 i = 0; // 状态变量，似乎并未要求放在最前面（但实际一般不会这么写...）
+     function test() external view returns(address _address){
+       _address = msg.sender; // msg.sender 为全局变量 _address为局部变量
+    }
+}
+```
+
+### 2024.09.25
+
+學習內容:
+
+- [x] 了解array、struct、mapping的使用
+   - array: 数组，可以是固定长度或者动态长度，bytes是特殊的数组。动态数组拥有push和pop两个成员函数
+   - struct: 结构体，可以定义多个不同类型的变量，类似于C语言的结构体
+   - mapping: 映射，类似于键值对，可以存储不同类型的数据，键是唯一的
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+// 录入学生成绩，保存通过测验的学生编号，并记录分数top10
+contract ReferenceType{
+
+    // 定义结构体: 学生
+    struct Student{
+        string name;
+        uint8 age;
+        uint256 score;
+    }
+
+    // 定义动态数组：通过测验的学生编号
+    uint256[] passedStudents;
+    
+    // 定义静态数组：top10的分数
+    uint256[10] topScore10;
+
+    // 定义mapping
+    mapping(uint256 => Student) public studentNumberMapping;
+
+    // 定义uint256
+    uint256 maxStudentNumber = 0;
+
+    // 保存学生信息
+    function save(string calldata _name, uint8 _age, uint256 _score) external returns(uint256 _studentNumber){
+        _studentNumber = maxStudentNumber++;
+        studentNumberMapping[_studentNumber] = Student({name:_name, age:_age, score:_score});
+        if(_score > 60){
+            passedStudents.push(_studentNumber);
+        }
+    }
+
+    // 分数前十
+    function sortTopScore10() external {
+        uint256 len = passedStudents.length;
+        for (uint256 s = 0; s < len; s++){
+            uint256 studentNumber = passedStudents[s];
+                Student memory student = studentNumberMapping[studentNumber];
+                uint256 score = student.score;
+
+                uint256 tmp = score;
+                for(uint256 t = 0; t < 10; t++){
+                    if(tmp > topScore10[t]){
+                        uint256 origin = topScore10[t];
+                        topScore10[t] = tmp;
+                        tmp = origin;
+                    }
+                }
+
+        }
+    }
+
+    function viewTopScore10() external  view returns(uint256[10] memory top){
+       top = topScore10;
+    }
+}
+```
 <!-- Content_END -->

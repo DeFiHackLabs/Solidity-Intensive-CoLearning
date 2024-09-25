@@ -170,7 +170,41 @@ function initStudent4() external {
 
 ### 2024.09.25
 
-笔记内容
+映射（Mapping）类型，Solidity中存储键值对的数据结构，可以理解为哈希表。
+声明映射的格式为mapping(_KeyType =>_ValueType)，其中_KeyType和_ValueType分别是Key和Value的变量类型。
+规则1：映射的_KeyType只能选择Solidity内置的值类型，比如uint，address等，不能用自定义的结构体。而_ValueType可以使用自定义的类型，比如结构体。
+规则2：映射的存储位置必须是storage，因此可以用于合约的状态变量，函数中的storage变量和library函数的参数。不能用于public函数的参数或返回结果中，因为mapping记录的是一种关系 (key - value pair)。
+
+规则3：如果映射声明为public，那么Solidity会自动给你创建一个getter函数，可以通过Key来查询对应的Value。
+
+规则4：给映射新增的键值对的语法为_Var[_Key] =_Value，其中_Var是映射变量名，_Key和_Value对应新增的键值对。
+在Solidity中，声明但没赋值的变量都有它的初始值或默认值。
+值类型初始值
+boolean: false
+string: ""
+int: 0
+uint: 0
+enum: 枚举中的第一个元素
+address: 0x0000000000000000000000000000000000000000 (或 address(0))
+function
+internal: 空白函数
+external: 空白函数
+引用类型初始值
+映射mapping: 所有元素都为其默认值的mapping
+结构体struct: 所有成员设为其默认值的结构体
+数组array
+动态数组: []
+静态数组（定长）: 所有成员设为其默认值的静态数组
+delete操作符
+delete a会让变量a的值变为初始值。
+
+在 Solidity 中，`bytes1` 类型的初始值是 `0x00`，也就是 1 个字节的值全为 0。可以理解为二进制的 `00000000`，也就是 `0x00`。
+constant（常量）和immutable（不变量）。状态变量声明这两个关键字之后，不能在初始化后更改数值。这样做的好处是提升合约的安全性并节省gas。
+只有数值变量可以声明constant和immutable；string和bytes可以声明为constant，但不能为immutable。
+constant变量必须在声明的时候初始化，之后再也不能改变。尝试改变的话，编译不通过。
+immutable变量可以在声明时或构造函数中初始化，因此更加灵活。
+若immutable变量既在声明时初始化，又在constructor中初始化，会使用constructor初始化的值。
+你可以使用全局变量例如address(this)，block.number 或者自定义的函数给immutable变量初始化。
 
 ### 2024.09.26
 

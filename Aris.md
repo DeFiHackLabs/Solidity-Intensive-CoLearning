@@ -94,7 +94,7 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 
 ### 2024.09.24
 
-#### 学习内容 第02 节: 值类型
+#### 学习内容 第02 节: 值类型 第03节:函数类型
 
 - 第02 节: 值类型
   - 值类型: Value Type 
@@ -117,5 +117,22 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
     - 为uint 分配名称,从 0 开始.
 - 合约部署截图
 - ![image-20240924200304434](./content/Aris/image-20240924200304434.png)
+
+- 第节: 函数类型
+- `function <function name>(<parameter types>) {internal|external|public|private} [pure|view|payable] [returns (<return types>)]`
+  - function: 函数声明的固定写法
+  - name: 函数名
+  - 函数可见性修饰符 (必须指定)
+    - public: 内部: 可以, 外部: 可以, 继承: 可以
+    - private: 内部: 可以, 外部: 不可以, 继承: 不可以
+    - external: 内部: 不可以(通过 `this.f()`调用), 外部: 可以, 继承: 可以
+    - internal: 内部: 可以, 外部: 不可以, 继承: 可以
+  - 权限关键字
+    - pure: 外部变量,不能读,不能写 | 无 gas 消耗 | 注意: 调用任何非标记 pure/view 函数需要支付 gas 费
+    - view: 外部变量,能读,不能写 | 无 gas 消耗 | 注意: 调用任何非标记 pure/view 函数需要支付 gas 费
+    - payable: 调用函数可以转入 ETH (下面截图中,调用`minusPayable()` 传入了1 个 ETH,合约余额就受到了 1ETH)
+  - retuns: 函数返回的变量类型和名称
+- 合约部署截图
+- ![image-20240924204906756](./content/Aris/image-20240924204906756.png)
 
 <!-- Content_END -->
