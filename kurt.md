@@ -111,7 +111,7 @@ fallback()函数会在调用合约不存在的函数时被触发。可用于接�
 
 3.receive和fallback的区别
 receive和fallback都能够用于接收ETH，他们触发的规则如下：
-
+```
 触发fallback() 还是 receive()?
            接收ETH
               |
@@ -124,7 +124,7 @@ receive()存在?   fallback()
        是  否
       /     \
 receive()   fallback()
-
+```
 20. 发送ETH
 Solidity有三种方法向其他合约发送ETH，他们是：transfer()，send()和call()，其中call()是被鼓励的用法。
 
@@ -133,20 +133,19 @@ Solidity有三种方法向其他合约发送ETH，他们是：transfer()，send(
 transfer()的gas限制是2300，足够用于转账，但对方合约的fallback()或receive()函数不能实现太复杂的逻辑。
 transfer()如果转账失败，会自动revert（回滚交易）。
 
-,,,
+```
 // 用transfer()发送ETH
 function transferETH(address payable _to, uint256 amount) external payable{
     _to.transfer(amount);
 }
-,,,
-
+```
 
 2.send
 用法是接收方地址.send(发送ETH数额)。
 send()的gas限制是2300，足够用于转账，但对方合约的fallback()或receive()函数不能实现太复杂的逻辑。
 send()如果转账失败，不会revert。
 send()的返回值是bool，代表着转账成功或失败，需要额外代码处理一下。
-,,,
+```
 error SendFailed(); // 用send发送ETH失败error
 
 // send()发送ETH
@@ -157,14 +156,13 @@ function sendETH(address payable _to, uint256 amount) external payable{
         revert SendFailed();
     }
 }
-,,,
-
+```
 3.call
 用法是接收方地址.call{value: 发送ETH数额}("")。
 call()没有gas限制，可以支持对方合约fallback()或receive()函数实现复杂逻辑。
 call()如果转账失败，不会revert。
 call()的返回值是(bool, bytes)，其中bool代表着转账成功或失败，需要额外代码处理一下。
-,,,
+```
 error CallFailed(); // 用call发送ETH失败error
 
 // call()发送ETH
@@ -175,7 +173,7 @@ function callETH(address payable _to, uint256 amount) external payable{
         revert CallFailed();
     }
 }
-,,,
+```
 ### 2024.09.26
 
 ### 2024.09.27
