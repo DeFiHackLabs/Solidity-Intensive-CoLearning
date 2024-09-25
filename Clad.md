@@ -122,6 +122,10 @@ contract Son is Father{
 
 // 部屬合約後, 可以看到 Son 合約有 4 個 function, 且 hip(), pop() 的輸出被改寫成 "Son", 繼承來的 father() 輸出扔然保持 "Father"
 ```
+### 2024.09.23
+學習內容  
+筆記:  
+
 多重繼承
 - 繼承時要按照輩分高低排序
 - 如果某一個函數在多個繼承合約裡都存在, 在子合約裡必須重寫
@@ -143,5 +147,29 @@ contract Erzi is Father, Son{
 
 // Eriz 合約重寫 hip(),pop() 並將輸出改為 Erzi, 並且從 Father, Son 合約繼承 father(), son()
 ```
+
+修飾器的繼承
+- modifier 同樣可以繼承, 用法與函數繼承類似, 在對應的地方加上 virtual, override 
+```solidity
+contract Base1{
+   modifier modifier1(uint _a) virtual{
+      require(_a % 2 ==0 && _a % 3 == 0);
+      _;
+   }
+}
+
+contract Base2 is Base1{
+   function fun1(uint _b) public modifier1(_b) pure returns(uint, uint){
+      return fun2(_b);
+   }
+
+   function fun2(uint _c) public pure returns(uint, uint){
+      uint div2 = _c / 2;
+      uint div3 = _c / 3;
+      return (div2, div3);
+   }
+}
+```
+
 
 <!-- Content_END -->
