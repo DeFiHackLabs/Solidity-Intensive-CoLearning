@@ -105,22 +105,43 @@ contract Father{
 
 ```solidity
 // 簡單繼承
-contract Sun is Father{
+contract Son is Father{
 
    function hip() public virtual override{
-      emit Log("Sun");
+      emit Log("Son");
    }
 
    function pop() public virtual override{
-      emit Log("Sun");
+      emit Log("Son");
    }
 
    function sun() public virtual{
-      emit Log("Sun");
+      emit Log("Son");
    }
 }
 
-// 部屬合約後, 可以看到 Sun 合約有 4 個 function, 且 hip(), pop() 的輸出被改寫成 "Sun", 繼承來的 father() 輸出扔然保持 "Father"
+// 部屬合約後, 可以看到 Son 合約有 4 個 function, 且 hip(), pop() 的輸出被改寫成 "Son", 繼承來的 father() 輸出扔然保持 "Father"
+```
+多重繼承
+- 繼承時要按照輩分高低排序
+- 如果某一個函數在多個繼承合約裡都存在, 在子合約裡必須重寫
+- 重寫在多個父合約中都重名的函數時, override 後面要加上父合約的名字
+
+```solidity
+// 多重繼承
+contract Erzi is Father, Son{
+
+   function hip() public virtual override(Father, Son){
+      emit Log("Erzi");
+   }
+
+   function pop() public virtual override(Father, Son){
+      emit Log("Erzi");
+   }
+
+}
+
+// Eriz 合約重寫 hip(),pop() 並將輸出改為 Erzi, 並且從 Father, Son 合約繼承 father(), son()
 ```
 
 <!-- Content_END -->
