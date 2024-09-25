@@ -370,6 +370,7 @@ function a(uint256 _number) public pure returns(bool){
 }
 ```
 * for
+* 另外还有continue（立即进入下一个循环）和break（跳出当前循环）关键字可以使用。
 ```solidity
 function forLoopTest() public pure returns(uint256){
    uint sum = 0; /// 一開始 sum = 0
