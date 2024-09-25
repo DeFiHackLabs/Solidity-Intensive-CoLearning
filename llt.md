@@ -22,8 +22,9 @@ day01:
 
 day02:
 
-[solidity-101 2-4 Note](/content/llt/102.md)
+[solidity-101 3-4 Note](/content/llt/102.md)
 
 
 
 <!-- Content_END -->
+

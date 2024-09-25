@@ -71,10 +71,22 @@ This training camp can force myself to take Solidity and English writing tasks a
    
 2.<img width="923" alt="image" src="https://github.com/user-attachments/assets/d570e47f-e1f8-444a-8d04-2dda4ab2dcbb">
 
+
 3.Difficlties
 
-I have a lot to say today. But it's time to sleep, have a good dream.
+Yesterday's difficulty is disappeared,cause I meet a bigger difficult today.Life is so fantastic.hhh
 
-Tomorrow I will share my feelings about difficulties.
+But I love and enjoy this feeling now,I have to concentrate on it and challenge myself in a short time.
+
+In the long term, current temporary difficulty maybe not a bad thing, it's beneficial for the future.
+
+
+
+And after learning in two days, I have a more clear goal about this 21-day Solidity Learning Journey:
+
+Maybe I can be a translator in open source program first(If there is) after I master English terms in Coding,
+
+Entering the blockchain world needs sustained effort，“Go the extra mile” it really really just a beginning.
+
 
 <!-- Content_END -->

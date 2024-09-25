@@ -117,7 +117,6 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
     - 为uint 分配名称,从 0 开始.
 - 合约部署截图
 - ![image-20240924200304434](./content/Aris/image-20240924200304434.png)
-
 - 第节: 函数类型
 - `function <function name>(<parameter types>) {internal|external|public|private} [pure|view|payable] [returns (<return types>)]`
   - function: 函数声明的固定写法
@@ -134,5 +133,27 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
   - retuns: 函数返回的变量类型和名称
 - 合约部署截图
 - ![image-20240924204906756](./content/Aris/image-20240924204906756.png)
+
+### 2024.09.25
+
+#### 学习内容 第 04 节:4. 函数输出
+
+1. 返回值: return 和 returns
+    - return:函数主体,返回指定变量
+    - returns:函数名后面,声明返回的变量类型及变量名
+2. 命名式返回
+    - 在 returns 中标明返回变量的名称
+    - solidity 会初始化这些变量,并且自动返回这些函数的值,无需 return.
+    - 也可以在命名式返回中用 retrun 来返回变量
+3. 解构赋值
+    - 读取所有返回值:声明变量,在`()`中按顺序逗号隔开
+    - 读取部分返回值:声明要读取的变量,按顺序,不读的空着.
+4. 合约部署
+    - ![image-20240925192211320](./content/Aris/image-20240925192211320.png)
+
+
+### 2024.09.26
+
+#### 学习内容 
 
 <!-- Content_END -->

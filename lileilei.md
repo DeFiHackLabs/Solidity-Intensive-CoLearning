@@ -206,4 +206,104 @@ contract testStruct{
 因为pop,push的数组必须存在链上
 还学习了结构体的声明，主要写了常用的初始化方式，如果部署后想知道初始化的结果，需要将stu声明成public
 
+
+### 2024.09.25
+// SPDX-License-Identifier: MIT
+pragma solidity ~0.8.21;
+
+contract Mapping{
+
+    mapping(uint=>address) public iptoaddress;
+
+    function getData(uint ip) public view returns(address){//根据key获取value
+       address addr = iptoaddress[ip];
+       return addr;
+    }
+
+    function writeMap() public {//map赋值
+        iptoaddress[123] = 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4;
+    }
+}
+第七小节mapping的赋值和根据key获取value，相当于java的map，key不能使用自定义的类型
+存储位置必须是storage
+
+第八小节学习了不同类型变量的默认值
+bool: false,string:"",int uint :0,enum:枚举的第一个值，address:address(0),struct是各个元素的默认值
+
+第九个小节 常量的申明
+constant  声明后必须初始化，初始化后不可变
+immutable 可在声明货构造器中初始化，更加灵活
+
+第10个小节学习了循环，因为跟java相差不大，只写示例
+
+// SPDX-License-Identifier: MIT
+pragma solidity ~0.8.21;
+
+contract looptest{
+    function ifelsetest(uint num) public pure returns(bool){
+        if (num>0){
+            return true;
+        }else{
+            return false;
+        }
+    }
+    function fortest() public pure returns(uint sum){
+        for (uint i=0;i<10;i++){
+            sum+=i;
+        }
+    }
+    function forwhile() public pure returns(uint){
+        uint sum =0 ;
+        uint i=0;
+        while(i<10){
+            sum+=i;
+            i++;
+        }
+        return sum;
+    }
+    function tenarytest(uint x,uint y) public pure returns(uint a){
+        return x>y?x:y;
+    }
+//插入排序
+    function insertSort(uint[] memory a) public pure returns(uint[] memory){
+        for(uint i=1;i<a.length;i++){
+            uint temp = a[i];
+            uint j=i;
+            while((j>=1)&&temp<a[j-1]){
+                a[j] = a[j-1];
+                j--;
+            }
+            a[j] = temp;
+        }
+        return a;
+    }
+}
+
+
+contract modifiertest{
+
+    address public ownAddress;
+
+    constructor (address addr){
+        ownAddress = addr;
+    }
+
+    modifier onlyOwner{
+        require (msg.sender == ownAddress); //如果校验通过会进行后边的业务操作
+        _;
+    }
+
+    function changeOwner(address newAddr) external onlyOwner{
+        ownAddress = newAddr;
+    }
+}
+学习了修饰器和构造器的创建方式，构造器在初始化的时候会并且只会运行一次
+修饰器一旦定义可以多次使用，简化了代码，常用来校验权限
+
+
+
+
+
+
+
 <!-- Content_END -->

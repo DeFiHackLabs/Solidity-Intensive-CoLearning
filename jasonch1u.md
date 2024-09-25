@@ -37,8 +37,11 @@ contract HelloWorld { }
 
 #### 02_ValueTypes
 
-值的寫法：value類型 (不寫? | internal | public | private，還不知道為什麼不能寫external?) <_value name> = 數值、字串或判斷式
-
+狀態變數：預設可見性是 internal。函數：預設可見性是 internal。
+值的寫法：
+```solidity
+<value types> {internal|public|private|不寫?|還不知道為什麼不能寫external?} <_value name> = 數值、字串或判斷式
+```
 如果寫public，會自動產生getter函數(這邊應該可以理解成直接產生一個查找對應數值的函數功能)，寫其他或不寫，就不會有字自動生成getter函數，就沒辦法直接看對應數值。
 
 ex.
@@ -357,6 +360,150 @@ constructor(){
 ```
 
 #### 10_InsertionSort
+* if else：條件如果符合，就這樣，不然就那樣
+```solidity
+function a(uint256 _number) public pure returns(bool){
+   if(_number == 0){
+      return(true);
+   }else{
+      return(false);
+   }
+}
+```
+* for
+* 另外还有continue（立即进入下一个循环）和break（跳出当前循环）关键字可以使用。
+```solidity
+function forLoopTest() public pure returns(uint256){
+   uint sum = 0; /// 一開始 sum = 0
+      for(uint i = 0; i < 10; i++){ // 一開始 i = 0，如果 i < 10 的話，i = i + 1
+         sum += i; //sum = sum + i
+      }
+   return(sum);
+}
 
+//拆解步驟：i = 0 時，sum =  0 + 0 得到  0，i = 0 + 1 得到 1
+//         i = 1 時，sum =  0 + 1 得到  1，i = 1 + 1 得到 2
+//         i = 2 時，sum =  1 + 2 得到  3，i = 2 + 1 得到 3
+//         i = 3 時，sum =  3 + 3 得到  6，i = 0 + 1 得到 4
+//         i = 4 時，sum =  6 + 4 得到 10，i = 1 + 1 得到 5
+//         i = 5 時，sum = 10 + 5 得到 15，i = 2 + 1 得到 6
+//         i = 6 時，sum = 15 + 6 得到 21，i = 2 + 1 得到 7
+//         i = 7 時，sum = 21 + 7 得到 28，i = 0 + 1 得到 8
+//         i = 8 時，sum = 28 + 8 得到 36，i = 1 + 1 得到 9
+//         i = 9 時，sum = 36 + 9 得到 45，i = 2 + 1 得到 10
+//         i = 10 時，跳出 for 迴圈
+//
+//簡單來說就是，0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 = 45
+```
+* while
+```solidity
+    function whileTest() public pure returns(uint256){
+        uint sum = 0;
+        uint i = 0;
+        while(i < 10){
+            sum += i;
+            i++;
+        }
+        return(sum);
+    }
+```
+* do while
+```solidity
+// do-while
+function doWhileTest() public pure returns(uint256){
+   uint sum = 0;
+   uint i = 0;
+   do{
+      sum += i;
+      i++;
+   }while(i < 10);
+   return(sum);
+}
+```
+* 三元運算符
+```solidity
+function ternaryTest(uint256 x, uint256 y) public pure returns(uint256){
+   // return the max of x and y
+   return x >= y ? x: y; 
+}
+```
+
+* 插入排序：前後兩位比大小，後面小於前面就對調位置
+```solidity
+// 插入排序 正确版
+function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
+    // note that uint can not take negative value
+    for (uint i = 1;i < a.length;i++){ 
+        uint temp = a[i];
+        uint j=i;
+        while( (j >= 1) && (temp < a[j-1])){
+            a[j] = a[j-1];
+            j--;
+        }
+        a[j] = temp;
+    }
+    return(a);
+}
+
+//拆解步驟：舉例 [5,4,1,3,2]，a.length = 5
+//            第 0 1 2 3 4 位
+//         i = 1 < a.length = 5，做第1次for迴圈
+//         i = 1，a[1] 即第1位是 4，所以 temp = a[1] = 4，temp表達做該次for迴圈時的對應數值
+//         j = i = 1，接著進入while迴圈條件判斷，j = 1 >= 1 而且 temp = 4 < a[j-1] = 第0位的 5，while迴圈條件判斷通過
+//         所以 a[j] = a[j-1]，即 a[1] = a[0]，所以第1位數變成 5，數組變成 [5,5,1,3,2]
+//         j = j - 1 = 0，再次進入while迴圈條件判斷 (j >= 1 && (temp < a[j-1])，j = 0 不是>= 1，不符合while迴圈條件，退出while迴圈
+//         回到第1次for迴圈的剩餘步驟，a[j] = temp，即 a[0] = temp = 4，數組變成 [4,5,1,3,2]
+//         i = i + 1 = 2，結束第1次for迴圈
+//
+//         可以看出while這段是確定第一位可以跟第0位比較，而且第0位小於第1位的情況下，用很難直接看懂的方式做前後數值對調
+//
+//         現在數組是 [4,5,1,3,2]
+//                 第 0 1 2 3 4 位
+//         i = 2 < a.length = 5，做第2次for迴圈
+//         i = 2，a[2] 即第2位是 1，所以 temp = a[2] = 1
+//         j = i = 2，接著進入while迴圈條件判斷，j = 2 >= 1 而且 temp = 1 < a[j-1] = 第1位的 5，while迴圈條件判斷通過
+//         所以 a[j] = a[j-1]，即 a[2] = a[1]，所以第2位數變成 5，數組變成 [4,5,5,3,2]
+//         j = j - 1 = 1，再次進入while迴圈條件判斷 (j >= 1 && (temp < a[j-1])，j = 1 >= 1, temp = 1 < a[0] = 4，符合while迴圈條件，繼續while迴圈 
+//         a[1] = a[0] = 4，數組變成 [4,4,5,3,2]
+//         j = j - 1 = 0，再次進入while迴圈條件判斷 (j >= 1 && (temp < a[j-1])，j = 0 不是>= 1，不符合while迴圈條件，退出while迴圈
+//         a[0] = temp = 1，數組變成 [1,4,5,3,2]
+//         i = i + 1 = 3，結束第2次for迴圈
+//
+//         可以看出第2次for迴圈，while做2次，用一個很麻煩的方式，讓數組變成 [1,4,5,3,2]，不過目前順序還是對的
+//
+//         現在數組是 [1,4,5,3,2]
+//                 第 0 1 2 3 4 位
+//         i = 3 < a.length = 5，做第3次for迴圈
+//         i = 3，a[3] 即第3位是 3，所以 temp = a[3] = 3
+//         j = i = 3，接著進入while迴圈條件判斷，j = 3 >= 1 而且 temp = 3 < a[j-1] = 第2位的 5，while迴圈條件判斷通過
+//         所以 a[j] = a[j-1]，即 a[3] = a[2]，所以第3位數變成 5，數組變成 [1,4,5,5,2]
+//         j = j - 1 = 2，再次進入while迴圈條件判斷 (j >= 1 && (temp < a[j-1])，j = 2 >= 1, temp = 3 < a[1] = 4，符合while迴圈條件，繼續while迴圈 
+//         a[2] = a[1] = 4，數組變成 [1,4,4,5,2]
+//         j = j - 1 = 1，再次進入while迴圈條件判斷 (j >= 1 && (temp < a[j-1])，j = 1 >= 1, temp = 3 不是< a[0] = 1，不符合while迴圈條件，退出while迴圈
+//         a[1] = temp = 3，數組變成 [1,3,4,5,2]         
+//         i = i + 1 = 4，結束第3次for迴圈
+//
+//         第3次for迴圈，while做2次，讓數組變成 [1,3,4,5,2]
+//
+//         現在數組是 [1,3,4,5,2]
+//                 第 0 1 2 3 4 位
+//         i = 4 < a.length = 5，做第4次for迴圈
+//         i = 4，a[4] 即第4位是 2，所以 temp = a[4] = 2
+//         j = i = 4，接著進入while迴圈條件判斷，j = 4 >= 1 而且 temp = 2 < a[j-1] = 第3位的 5，while迴圈條件判斷通過
+//         所以 a[j] = a[j-1]，即 a[4] = a[3]，所以第3位數變成 5，數組變成 [1,3,4,5,5]
+//         j = j - 1 = 3，再次進入while迴圈條件判斷 (j >= 1 && (temp < a[j-1])，j = 3 >= 1, temp = 2 < a[2] = 4，符合while迴圈條件，繼續while迴圈 
+//         a[3] = a[2] = 4，數組變成 [1,3,4,4,5]
+//         j = j - 1 = 2，再次進入while迴圈條件判斷 (j >= 1 && (temp < a[j-1])，j = 2 >= 1, temp = 2 < a[1] = 3，符合while迴圈條件，繼續while迴圈 
+//         a[2] = a[1] = 3，數組變成 [1,3,3,4,5]       
+//         j = j - 1 = 1，再次進入while迴圈條件判斷 (j >= 1 && (temp < a[j-1])，j = 1 >= 1, temp = 2 不是< a[0] = 1，不符合while迴圈條件，退出while迴圈
+//         a[1] = temp = 2，數組變成 [1,2,3,4,5]         
+//         i = i + 1 = 5，結束第4次for迴圈
+//
+//         第4次for迴圈，while做3次，讓數組變成 [1,2,3,4,5] 
+//
+//         1 = 5 < a.lenght = 5，不符合for迴圈條件，結束for迴圈
+//
+//         return(a);
+```
 
 <!-- Content_END -->
