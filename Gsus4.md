@@ -53,6 +53,8 @@ contract HelloWeb3{                 // 合約部分
    * ```int``` 整數
 2. (待補)
 
+---
+
 ### 2024.09.24
 #### 學習內容：Solidity 入門 06 - 10
 * 引用類型：array & struct
@@ -63,6 +65,15 @@ contract HelloWeb3{                 // 合約部分
 #### 筆記
 (先簽到，有空再補)
 
+---
+
+### 2024.09.25
+#### 學習內容：Solidity 入門 11 - 15
+* 構造函數 (constructor) & 修飾器 (Modifier)
+* 事件 (event)
+* 繼承
+* 抽象合約 (abstract) & 接口 (Interface)
+* 異常 (error/require/assert)
 
 ### 
 

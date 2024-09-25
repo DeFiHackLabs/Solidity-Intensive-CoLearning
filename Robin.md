@@ -260,4 +260,73 @@ contract DataStorage{
 }
 ```
 
+### 2024.09.25
+
+學習內容:
+
+- [x] 了解array、struct、mapping的使用
+   - array: 数组，可以是固定长度或者动态长度，bytes是特殊的数组。动态数组拥有push和pop两个成员函数
+   - struct: 结构体，可以定义多个不同类型的变量，类似于C语言的结构体
+   - mapping: 映射，类似于键值对，可以存储不同类型的数据，键是唯一的
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+// 录入学生成绩，保存通过测验的学生编号，并记录分数top10
+contract ReferenceType{
+
+    // 定义结构体: 学生
+    struct Student{
+        string name;
+        uint8 age;
+        uint256 score;
+    }
+
+    // 定义动态数组：通过测验的学生编号
+    uint256[] passedStudents;
+    
+    // 定义静态数组：top10的分数
+    uint256[10] topScore10;
+
+    // 定义mapping
+    mapping(uint256 => Student) public studentNumberMapping;
+
+    // 定义uint256
+    uint256 maxStudentNumber = 0;
+
+    // 保存学生信息
+    function save(string calldata _name, uint8 _age, uint256 _score) external returns(uint256 _studentNumber){
+        _studentNumber = maxStudentNumber++;
+        studentNumberMapping[_studentNumber] = Student({name:_name, age:_age, score:_score});
+        if(_score > 60){
+            passedStudents.push(_studentNumber);
+        }
+    }
+
+    // 分数前十
+    function sortTopScore10() external {
+        uint256 len = passedStudents.length;
+        for (uint256 s = 0; s < len; s++){
+            uint256 studentNumber = passedStudents[s];
+                Student memory student = studentNumberMapping[studentNumber];
+                uint256 score = student.score;
+
+                uint256 tmp = score;
+                for(uint256 t = 0; t < 10; t++){
+                    if(tmp > topScore10[t]){
+                        uint256 origin = topScore10[t];
+                        topScore10[t] = tmp;
+                        tmp = origin;
+                    }
+                }
+
+        }
+    }
+
+    function viewTopScore10() external  view returns(uint256[10] memory top){
+       top = topScore10;
+    }
+}
+```
 <!-- Content_END -->

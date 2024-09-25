@@ -234,7 +234,7 @@ function testReturn() public pure returns (uint256) {
   - Rules of creating `mapping`
     - Rule 1: `_keyType` cannot be a custom `struct`, `_ValueType` can
     - Rule 2: Must be stored in `storage`, but it can't be used as variable in function or as return result
-    - Rule 3: `mapping` declared as `public` will have a `getter` to query the value with key
+    - Rule 3: `mappi ng` declared as `public` will have a `getter` to query the value with key
     - Rule 4: Adding a key-value pair to a mapping is `var[newKey] = value`
   - Principle of `mapping`
     - Doesn't store `Key` or length information
@@ -242,6 +242,105 @@ function testReturn() public pure returns (uint256) {
     - EVM define all unused space as `0`, the key of unassigned value will be `0`
 
 ### 2024.09.25
+
+#### Chapter 8: Default Value
+
+- Variables declared but not assigned have their default value:
+  - `boolean`: `false`
+  - `string`: `""`
+  - `int`: `0`
+  - `uint`: `0`
+  - `enum`: first element in enumeration
+  - `address`: `0x0000000000000000000000000000000000000000` Zero address
+  - Dynamic array: `[]`
+  - Fixed-sized array `uint256[3]`: `[0,0,0]`
+- `delete` operator
+  - Reset the variable to default value
+
+#### Chapter 9: Constant and Immutable
+
+- `constant` variable
+  - Value must be initialized during declaration and cannot be changed afterwards
+  ```
+  uint256 constant QUANTITY = 10000;
+  ```
+- `immutable` variable
+
+  - Value can be initialized during declaration or in the constructor
+
+  ```
+  uint256 public immutable QUANTITY = 10000;
+  ```
+
+  - It can be initialized with global variable or function too
+
+  ```
+  constructor() {
+   QUANTITY = block.number;
+   QUANTITY = initQty();
+  }
+
+  function initQty() public pure returns (uint256 qty) {
+   qty = 1000;
+  }
+  ```
+
+#### Chapter 10: Control Flow
+
+- `if else`
+
+```
+function test() public pure returns (bool) {
+  if (block.timestamp > block.number) {
+    return true;
+  } else {
+    return false;
+  }
+}
+```
+
+- `for` loop
+
+```
+function test() public pure returns (uint256) {
+  uint256 num = 0;
+  for(uint256 i; i < 10; i++) {
+    num += i;
+  }
+  return num;
+}
+```
+
+- `while` loop
+  function test() public pure returns (uint256) {
+  uint256 num = 0;
+  while(num < 10) {
+  num += 1;
+  }
+  return num;
+  }
+- `do while` loop
+
+```
+function test() public pure returns (uint256) {
+  uint256 num = 0;
+  do {
+    num += 1;
+  } while(i < 10);
+  return num;
+}
+```
+
+- Conditional operator
+
+```
+function test() public pure returns (uint256) {
+  return block.timestamp >= block.number ? 1 : 0;
+}
+```
+
+- `continue`: enter next loop
+- `break`: break out from current loop
 
 ### 2024.09.26
 
