@@ -283,4 +283,10 @@ function initStudent4() external {
 
 ### 2024.09.25
 
+#### 07_Mapping
+```solidity
+function writeMap (uint _Key, address _Value) public{
+    idToAddress[_Key] = _Value;
+}
+```
 <!-- Content_END -->
