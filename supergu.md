@@ -64,4 +64,57 @@ timezone: Asia/Shanghai
     ActionSet action = ActionSet.Buy;
    ```
 
+### 2024.09.25
+
+#### Chapter 3: Function
+
+- Basic syntax of function: `function <function name>(<parameter types>) [internal|external|public|private] [pure|view|payable] [returns (<return types>)]`
+
+- `[internal|external|public|private]`
+
+   - `public`: Visible to all.
+
+   - `private`: Can only be accessed within this contract, derived contracts cannot use it.
+
+   - `external`: Can only be called from other contracts. But can also be called by `this.f()` inside the contract, where `f` is the function name.
+
+   - `internal`: Can only be accessed internal and by contracts deriving from it.
+
+- `[pure|view|payable]`
+
+   - `pure`: can't read or write, gas free
+
+   - `view`: can read, can't write, gas free
+
+   - default is can read and can write
+
+   - `payable`: can send ETH to the contract via this function
+
+#### Chapter 4: Function
+
+- Unnamed return
+
+   ```solidity
+   function returnMultiple() public pure returns(uint256, bool, uint256[3] memory){
+      return(1, true, [uint256(1),2,5]);
+   }
+   ```
+
+- Named return
+
+   ```solidity
+   function returnNamed() public pure returns(uint256 _number, bool _bool, uint256[3] memory _array){
+        _number = 2;
+        _bool = false; 
+        _array = [uint256(3),2,1]; // Casting required otherwise default is int. Other values no need because interpreter infer from the data type of the first value
+    }
+   ```
+
+- Destructuring assignments
+
+   ```solidity
+   (_number, _bool, _array) = returnNamed();
+   (, _bool2, ) = returnNamed(); // dropping 2 returned values
+   ```
+
 <!-- Content_END -->
