@@ -85,6 +85,9 @@ emit Transfer(from, to, amount);
 ```
 
 #### 繼承
+規則
+- virtual 父合約中的函數, 如果希望子合約重寫, 加上 virtual 
+- override 子合約重寫父合約的函數, 加上 override
 ```solidity
 contract Father{
    event Log(string msg);
@@ -170,6 +173,14 @@ contract Base2 is Base1{
    }
 }
 ```
+構造函數的繼承
+- 繼承時聲明父構造函數的參數, ex: contract B is A(1)
+- 在子合約的構造函數中聲明構造函數的參數
+
+調用父合約的函數
+
+
+
 
 
 <!-- Content_END -->
