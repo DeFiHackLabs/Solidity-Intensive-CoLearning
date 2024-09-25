@@ -453,7 +453,7 @@ function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
 //         回到第1次for迴圈的剩餘步驟，a[j] = temp，即 a[0] = temp = 4，數組變成 [4,5,1,3,2]
 //         i = i + 1 = 2，結束第1次for迴圈
 //
-//         可以看出 while 這段是確定第一位可以跟第零位比較，而且第零位小於第一位的情況下，用很難直接看懂的方式做前後數值對調
+//         可以看出while這段是確定第一位可以跟第0位比較，而且第0位小於第1位的情況下，用很難直接看懂的方式做前後數值對調
 //
 //         現在數組是 [4,5,1,3,2]
 //                 第 0 1 2 3 4 位
@@ -467,7 +467,7 @@ function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
 //         a[0] = temp = 1，數組變成 [1,4,5,3,2]
 //         i = i + 1 = 3，結束第2次for迴圈
 //
-//         可以看出第2次for迴圈，while也做了2次，用一個很麻煩的方式，讓數組變成 [1,4,5,3,2]，不過目前順序還是對的
+//         可以看出第2次for迴圈，while做2次，用一個很麻煩的方式，讓數組變成 [1,4,5,3,2]，不過目前順序還是對的
 //
 //         現在數組是 [1,4,5,3,2]
 //                 第 0 1 2 3 4 位
@@ -481,7 +481,7 @@ function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
 //         a[1] = temp = 3，數組變成 [1,3,4,5,2]         
 //         i = i + 1 = 4，結束第3次for迴圈
 //
-//         第3次for迴圈，while做了2次，讓數組變成 [1,3,4,5,2]
+//         第3次for迴圈，while做2次，讓數組變成 [1,3,4,5,2]
 //
 //         現在數組是 [1,3,4,5,2]
 //                 第 0 1 2 3 4 位
@@ -497,7 +497,7 @@ function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
 //         a[1] = temp = 2，數組變成 [1,2,3,4,5]         
 //         i = i + 1 = 5，結束第4次for迴圈
 //
-//         第4次for迴圈，while做了3次，讓數組變成 [1,2,3,4,5] 
+//         第4次for迴圈，while做3次，讓數組變成 [1,2,3,4,5] 
 //
 //         1 = 5 < a.lenght = 5，不符合for迴圈條件，結束for迴圈
 //
