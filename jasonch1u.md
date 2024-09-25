@@ -280,11 +280,10 @@ function initStudent4() external {
     student = Student({id: 4, score: 60});
 }
 ```
-
-* 結構體：當返回結構體時，你需要創建一個 memory 的副本，因為編譯器要求這樣來確保數據的安全性和完整性。
+getter函數寫法
 * 數組：數組在返回時，Solidity 編譯器會自動處理存儲位置，允許你直接返回 storage 中的數組，並自動將其轉換為 memory。
+* 結構體：當返回結構體時，你需要創建一個 memory 的副本，因為編譯器要求這樣來確保數據的安全性和完整性。
 ```solidity
-//getter函數寫法
 
 //array：gettter函數 可以不用寫出memory副本，由系統自動編譯
 function getmyArray3() external view returns(uint[] memory){
@@ -293,7 +292,7 @@ function getmyArray3() external view returns(uint[] memory){
 
 //array：getter函數 也可以這樣寫，手動寫出memory副本
 function getmyArray3() external view returns(uint[] memory){
-    uint[] memory xmyArray3 =myArray3;
+    uint[] memory xmyArray3 = myArray3;
     return xmyArray3;
 }
 
@@ -340,5 +339,24 @@ contract _7mapping{
 
 delete操作符
 delete a会让变量a的值变为初始值。不是刪除該數值！
+
+#### 09_Constant
+只有数值变量可以声明constant和immutable；string和bytes可以声明为constant，但不能为immutable。
+constant, immutable 变量声明后再也不能改变。尝试改变的话，编译不通过。
+constant：初始化即聲明
+immutable：初始化即聲明 或 在建構子裡面聲明
+
+```solidity
+uint public constant money = 1; //初始化即聲明數值
+uint public immutable point = 2; //初始化即聲明數值
+uint public immutable point2; //先不聲明數值，在建構子裡面聲明
+
+constructor(){
+    point2 = 3;
+}
+```
+
+#### 10_InsertionSort
+
 
 <!-- Content_END -->
