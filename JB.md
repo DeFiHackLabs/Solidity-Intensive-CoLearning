@@ -183,12 +183,39 @@ contract solidity_start5{
         return 1 ether;
     }
 
-    //时间单位
+     //时间单位
+    function secondUint() external pure returns(uint){
+        assert(1 seconds == 1);
+        return 1 seconds;
+    }
+
+    function minutesUint() external pure returns(uint){
+        assert(1 minutes == 60);
+        return 1 minutes;
+    }
+
+    function hoursUint() external pure returns(uint) {
+        assert(1 hours == 3600);
+        return 1 hours;
+    }
     
-    
+    function daysUnit() external pure returns(uint) {
+    assert(1 days == 86400);
+    assert(1 days == 24 hours);
+    return 1 days;
+    }
+
+    function weeksUnit() external pure returns(uint) {
+    assert(1 weeks == 604800);
+    assert(1 weeks == 7 days);
+    return 1 weeks;
+    }
 
 }
     
-   
+   ![image](https://github.com/user-attachments/assets/21b0875e-a9a1-4aed-9bb8-432f39e46b70)
+   ![image](https://github.com/user-attachments/assets/09ea5ed9-caf9-4ae5-bb91-021e782ee68f)
+
+
 
 <!-- Content_END -->
