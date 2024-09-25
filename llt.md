@@ -16,14 +16,21 @@
 
 day01:
 
-[solidity-101 1-2 Note](/content/llt/101.md)
+[solidity-101 1-2 Note](./content/llt/101.md)
 
 ### 2024.09.24
 
 day02:
 
-[solidity-101 2-4 Note](/content/llt/102.md)
+[solidity-101 3-4 Note](./content/llt/102.md)
+
+### 2024.09.25
+
+day03:
+
+[solidity-101 5-6 Note](./content/llt/103.md)
 
 
 
 <!-- Content_END -->
+

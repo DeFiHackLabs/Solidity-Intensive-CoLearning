@@ -13,9 +13,11 @@ timezone: Asia/Shanghai
    我必须完成。
    
 ## Notes
-2024.09.23
 <!-- Content_START -->
+
+### 2024.09.23
 学习了函数类型，并在remix上做了一些练习，以下是我的学习内容。
+```
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.21;
 contract HelloWeb3{
@@ -65,13 +67,18 @@ contract HelloWeb3{
         deposit();
         balance = address(this).balance;
    }
-
 }
+```
+
+### 2024.09.24
+
 2. 学习payable方法, 手动充值ETH。
+   
 ![image](https://github.com/user-attachments/assets/1754e61f-5dc7-44e9-82cc-e0b2a4537a07)
 
 2024.09.24
 #今天学习了函数的输出，可以同时输出多种不同类型。下面是在remix中练习。
+```
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.21;
 contract function_practice{
@@ -105,10 +112,7 @@ contract function_practice{
         (_number,_bool, _array ) = returnMutiple();
         return (_number, _bool, _array);
     }
-
-    ![image](https://github.com/user-attachments/assets/c31a3b3c-569d-42ec-9cf1-9c0fe3a5c4fc)
-
-
-
 }
+```
+![image](https://github.com/user-attachments/assets/c31a3b3c-569d-42ec-9cf1-9c0fe3a5c4fc)
 <!-- Content_END -->
