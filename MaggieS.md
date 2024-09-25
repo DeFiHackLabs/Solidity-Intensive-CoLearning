@@ -98,5 +98,14 @@ Entering the blockchain world needs sustained effort，“Go the extra mile” i
 
 3.Difficulties
 
+Why I never marked specific question in tutorial details?
+
+Excatly “questions mountain questions sea”hhh
+
+This is my first time to learn coding deeply, it’s reasonable to meet various questions.
+
+I need to keep calm down and find the interest where attracts me when I look through the tutorial. 
+
+I find that many names of function is so casual and direct. it’s my fun today. Yahoo~ ~
 
 <!-- Content_END -->
