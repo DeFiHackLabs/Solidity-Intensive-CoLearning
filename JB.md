@@ -68,6 +68,8 @@ contract HelloWeb3{
    }
 
 }
+
+### 2024.09.23
 2. 学习payable方法, 手动充值ETH。
 ![image](https://github.com/user-attachments/assets/1754e61f-5dc7-44e9-82cc-e0b2a4537a07)
 
