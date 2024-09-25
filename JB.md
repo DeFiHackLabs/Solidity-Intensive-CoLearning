@@ -13,8 +13,9 @@ timezone: Asia/Shanghai
    我必须完成。
    
 ## Notes
-2024.09.23
 <!-- Content_START -->
+
+### 2024.09.23
 学习了函数类型，并在remix上做了一些练习，以下是我的学习内容。
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.21;
