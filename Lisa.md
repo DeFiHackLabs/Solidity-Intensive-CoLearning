@@ -54,5 +54,9 @@ a = b a 改動會改到 b (reference)
 
 $單位 0 代替小數點
 
+### 2024.09.25
+#### Array
+memory -> new
+array 中第一個元素 type 決定
 
 <!-- Content_END -->
