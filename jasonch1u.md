@@ -281,13 +281,36 @@ function initStudent4() external {
 }
 ```
 
+* 結構體：當返回結構體時，你需要創建一個 memory 的副本，因為編譯器要求這樣來確保數據的安全性和完整性。
+* 數組：數組在返回時，Solidity 編譯器會自動處理存儲位置，允許你直接返回 storage 中的數組，並自動將其轉換為 memory。
+```solidity
+//getter函數寫法
+
+//array：gettter函數 可以不用寫出memory副本，由系統自動編譯
+function getmyArray3() external view returns(uint[] memory){
+    return myArray3;
+}
+
+//array：getter函數 也可以這樣寫，手動寫出memory副本
+function getmyArray3() external view returns(uint[] memory){
+    uint[] memory xmyArray3 =myArray3;
+    return xmyArray3;
+}
+
+//struct，生成一個People getter函數，一定要手動寫出memory副本
+function getPeople() external view returns(People memory){ 
+    People memory xPeople = people;
+    return xPeople;
+}
+```
+
 ### 2024.09.25
 
 #### 07_Mapping
-* 规则1：映射的_KeyType只能选择Solidity内置的值类型，比如uint，address等，不能用自定义的结构体。而_ValueType可以使用自定义的类型。下面这个例子会报错，因为_KeyType使用了我们自定义的结构体：
+* 规则1：映射的_KeyType只能选择Solidity内置的值类型，比如uint，address等，不能用自定义的结构体。而_ValueType可以使用自定义的类型。
 * 规则2：映射的存储位置必须是storage，因此可以用于合约的状态变量，函数中的storage变量和library函数的参数（见例子）。不能用于public函数的参数或返回结果中，因为mapping记录的是一种关系 (key - value pair)。
 * 规则3：如果映射声明为public，那么Solidity会自动给你创建一个getter函数，可以通过Key来查询对应的Value。
-* 规则4：给映射新增的键值对的语法为_Var[_Key] = _Value，其中_Var是映射变量名，_Key和_Value对应新增的键值对。例子：
+* 规则4：给映射新增的键值对的语法为_Var[_Key] = _Value，其中_Var是映射变量名，_Key和_Value对应新增的键值对。
   
 ```solidity
 // SPDX-License-Identifier: MIT
@@ -311,5 +334,11 @@ contract _7mapping{
 * 原理2: 映射使用keccak256(abi.encodePacked(key, slot))当成offset存取value，其中slot是映射变量定义所在的插槽位置。
 * 原理3: 因为Ethereum会定义所有未使用的空间为0，所以未赋值（Value）的键（Key）初始值都是各个type的默认值，如uint的默认值是0。
 
+#### 08_InitialValue
+
+值类型初始值
+
+delete操作符
+delete a会让变量a的值变为初始值。不是刪除該數值！
 
 <!-- Content_END -->
