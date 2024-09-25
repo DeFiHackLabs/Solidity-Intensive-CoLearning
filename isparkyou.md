@@ -63,9 +63,6 @@ contract HelloWeb3 {
 Ctrl + S
 ### 部署：
 Deploy
-
-<!-- Content_END -->
-<!-- Content_START -->
 ### 2024.09.24
 ### value type
 1. bool
@@ -132,10 +129,116 @@ function enumToUint() external view returns(uint){
 
 ### mapping type
 
-
-<!-- Content_END -->
-<!-- Content_START -->
 ### 2024.09.25
+### 函数
+```
+function <function name>(<parameter types>) {internal|external|public|private} [pure|view|payable] [returns (<return types>)]
+```
+合约中定义的函数需要明确指定可见性，它们没有默认值。
+public|private|internal 也可用于修饰状态变量。
+public变量会自动生成同名的getter函数，用于查询数值。未标明可见性类型的状态变量，默认为internal。
+包含 pure 和 view 关键字的函数是不改写链上状态的，因此用户直接调用它们是不需要付 gas 的（注意，合约中非 pure/view 函数调用 pure/view 函数时需要付gas）。
+
+public：内部和外部均可见。
+private：只能从本合约内部访问，继承的合约也不能使用。
+external：只能从合约外部访问（但内部可以通过 this.f() 来调用，f是函数名）。
+internal: 只能从合约内部访问，继承的合约可以用。
+
+#### 在以太坊中，以下语句被视为修改链上状态：
+1. 写入状态变量。
+2. 释放事件。
+3. 创建其他合约。
+4. 使用 selfdestruct.
+5. 通过调用发送以太币。
+6. 调用任何未标记 view 或 pure 的函数。
+7. 使用低级调用（low-level calls）。
+8. 使用包含某些操作码的内联汇编。
+
+pure，pure 函数既不能读取也不能写入链上的状态变量。
+view，view函数能读取但也不能写入状态变量。
+非 pure 或 view 的函数既可以读取也可以写入状态变量。
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+contract FunctionTypes{
+    uint256 public number = 5;
+// 默认function
+function add() external{
+    number = number + 1;
+}
+// pure: 纯纯牛马
+function addPure(uint256 _number) external pure returns(uint256 new_number){
+    new_number = _number + 1;
+}
+// pure: 纯纯牛马
+function addPure(uint256 _number) external pure returns(uint256 new_number){
+    new_number = _number + 1;
+}
+// view: 看客
+function addView() external view returns(uint256 new_number) {
+    new_number = number + 1;
+}
+// internal: 内部函数
+function minus() internal {
+    number = number - 1;
+}
+
+// 合约内的函数可以调用内部函数
+function minusCall() external {
+    minus();
+}
+// payable: 递钱，能给合约支付eth的函数
+function minusPayable() external payable returns(uint256 balance) {
+    minus();    
+    balance = address(this).balance;
+}
+}
+```
+
+### 返回值：return和returns
+returns：跟在函数名后面，用于声明返回的变量类型及变量名。
+return：用于函数主体中，返回指定的变量。
+```
+// 返回多个变量
+function returnMultiple() public pure returns(uint256, bool, uint256[3] memory){
+    return(1, true, [uint256(1),2,5]);
+}
+```
+这里uint256[3]声明了一个长度为3且类型为uint256的数组作为返回值。因为[1,2,3]会默认为uint8(3)，因此[uint256(1),2,5]中首个元素必须强转uint256来声明该数组内的元素皆为此类型。数组类型返回值默认必须用memory修饰
+
+### 命名式返回
+我们可以在 returns 中标明返回变量的名称。Solidity 会初始化这些变量，并且自动返回这些函数的值，无需使用 return。
+```
+// 命名式返回
+function returnNamed() public pure returns(uint256 _number, bool _bool, uint256[3] memory _array){
+    _number = 2;
+    _bool = false;
+    _array = [uint256(3),2,1];
+}
+```
+也可以在命名式返回中用 return 来返回变量：
+```
+// 命名式返回，依然支持return
+function returnNamed2() public pure returns(uint256 _number, bool _bool, uint256[3] memory _array){
+    return(1, true, [uint256(1),2,5]);
+}
+```
+
+### 解构式赋值
+读取所有返回值：声明变量，然后将要赋值的变量用,隔开，按顺序排列。
+```
+uint256 _number;
+bool _bool;
+uint256[3] memory _array;
+(_number, _bool, _array) = returnNamed();
+```
+读取部分返回值：声明要读取的返回值对应的变量，不读取的留空。在下面的代码中，我们只读取_bool，而不读取返回的_number和_array：
+```
+(, _bool2, ) = returnNamed();
+```
+
+### 2024.09.26
 
 
 <!-- Content_END -->
