@@ -51,6 +51,88 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 
 <!-- Content_START -->
 
+### 2024.09.25
+Day 3
+WTF Academy Solidity 101 9-12
+
+**Key Points**
+
+9. Constant and Immutable
+   
+    - `immutable` variable can be initialized in the **constructor**;
+
+10. Control Flow
+11. Constructor & Modifier
+    
+    Constructor in inheritance
+    
+      ```solidity
+         // father contract
+
+         contract ImmutableState {
+            
+            IPoolManager public immutable poolManager;
+
+            constructor(IPoolManager _poolManager) {
+               poolManager = _poolManager;
+            }
+         }
+         
+         // 
+         contract SafeCallback is ImmutableState {
+            ...
+            //using father contract's constructor
+            constructor(IPoolManager _poolManager) ImmutableState(_poolManager) {} 
+            ...
+         }
+         
+
+      ```
+
+    Modifier
+
+      ``` solidity
+         modifier onlyOwner {
+            require(msg.sender == owner);
+            _;
+         }
+
+         function changeOwner(address _newOwner) external onlyOwner {
+            owner = _newOwner;
+         }
+      ```
+12. Event
+    ```solidity
+      // define event
+      event Transfer(address indexed from, address indexed to, uint256 value);
+    
+      // define _transfer function， execute transfer logic
+      function _transfer(
+         address from,
+         address to,
+         uint256 amount
+      ) external {
+
+         _balances[from] = 10000000; // give some initial tokens to transfer address
+
+         _balances[from] -=  amount; // "from" address minus the number of transfer
+         _balances[to] += amount; // "to" address adds the number of transfer
+
+         // emit event
+         emit Transfer(from, to, amount);
+      }
+    
+    ```
+    
+    - Events can be seen as a cheap way to store data on-chain, like a database.
+    - EVM Log
+      - Topics 0: event signature(hash)
+      - Topics 1: event indexed parameter0
+      - Topics 2: event indexed parameter1
+      ...
+      - Data: value parameter in event
+  
+  
 ### 2024.09.24
 
 Class WTF Academy Solidity 101 5-8

@@ -27,10 +27,10 @@ timezone: Asia/Shanghai
 
 [WTF Academy Solidity 101 Note 4-5](/content/JakeDu/02.md)
 
-### 2024.09.24
+### 2024.09.25
 
-学习101的第六课
+学习101的第六课到第九课
 
-[WTF Academy Solidity 101 Note 4-5](/content/JakeDu/03.md)
+[WTF Academy Solidity 101 Note 6-9](/content/JakeDu/03.md)
 
 <!-- Content_END -->

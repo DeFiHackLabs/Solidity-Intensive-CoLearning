@@ -4,7 +4,7 @@ timezone: Asia/Shanghai
 
 ---
 
-# YourName
+# ChenBingWei1201
 
 1. 自我介绍
   大家好我叫Chen Bing Wei，我以前只有學習過往佔前後都開發，從未接觸solidity與smart contract這類的東西，但今年因緣際會下修了一門叫分散式金融導論的課，助教教的非常好，讓我對這個領域充滿極大的興趣，或許未來可以做跨領域的結合，結合網路服務，金融科技，與機器學習等現在所學的知識，創造出能對人類有所貢獻的東西，因此想藉由這次機會挑戰自己，參加此次活動逼迫自己學習。
@@ -95,6 +95,104 @@ Solidity is statically-type language, which means **the type of each variable ne
 | ------------- | ------------- |
 | Mapping | `mapping(address=>uint256)`, `mapping(address addr=>uint)`, `mapping(address addr=>uint balance)` |
 
-### 
+### 2024.09.25
+
+#### Function
+
+Here's the format of a function in Solidity:
+```solidity
+function <function name>(<parameter types>) <visibility> <mutibility> [returns (<return types>)];
+```
+1. `function`: To write a function, you need to start with the keyword `function`.
+2. `<function name>`: The name of the function.
+3. `(<parameter types>)`: The input parameter types and names.
+4. `<visibility>`: Function visibility specifiers. There are 4 kinds of them and `public` is the default visibility if left empty:
+  - `public`: Any account can call -> Be careful with access control issue
+  - `external`: Only other contracts and account can call -> It can be bypassed with `this.f()`, where `f` is the function name.
+  - `internal`: Can only be called inside contract and child contracts.
+  - `private`: Can only be accessed within this contract, derived contracts cannot use it. Only inside the contract that defines the function.
+  
+  **Note 1**: `public` is the default visibility for functions.
+  **Note 2**: **public**|**private**|**internal** can be also used on state variables. Public variables will automatically generate `getter` functions for querying values.
+  **Note 3**: The default visibility for state variables is internal.
+
+5. `<mutibility>`: Keywords that dictate a Solidity functions behavior. There are 3 kinds of them:
+  - `view`:  Functions containing `view` keyword can read but cannot write on-chain state variables. 
+  - `pure`: Functions containing `pure` keyword cannot read nor write state variables on-chain.
+  - `payable`: enable this function to receive ethers
+  - Without `pure` and `view`: Functions can both read and write state variables.
+6. `[returns (<return types>)]`: Return variable types and names.
+
+#### WTF is `pure` and `view` ?
+
+Solidity added these two keywords, because of gas fee. The contract state variables are stored on block chain, and gas fee is very expensive. If you don't rewrite these variables, you don't need to pay gas. You don't need to pay gas for calling `pure` and `view` functions.
+
+The following statements are considered modifying the state:
+1. Writing to state variables.
+2. Emitting events.
+3. Creating other contracts.
+4. Using selfdestruct.
+5. Sending Ether via calls.
+6. Calling any function not marked view or pure.
+7. Using low-level calls.
+8. Using inline assembly that contains certain opcodes.
+
+#### Code
+1. `pure` vs `view`
+
+We define a state variable `number = 5`
+```solidity
+// SPDX-License-Identifier: MIT
+  pragma solidity ^0.8.4;
+  contract FunctionTypes{
+  uint256 public number = 5;
+```
+Define an `add()` function, add 1 to `number` on every call.
+```solidity
+  // default
+    function add() external{
+      number = number + 1;
+    }
+```
+If `add()` contains `pure` keyword, i.e. `function add() pure external`, it will result in an error. Because `pure` cannot read state variable in contract nor write. So what can `pure` do ? That is, you can **pass a parameter `_number` to function, let function `returns _number + 1`**.
+```solidity
+  // pure
+    function addPure(uint256 _number) external pure returns(uint256 new_number){
+      new_number = _number+1;
+    }
+```
+If `add()` contains `view`, i.e. `function add() view external`, it will also result in error. Because `view` can read, but cannot write state variable. We can modify the function as follows:
+```solidity
+  // view
+  function addView() external view returns(uint256 new_number) {
+      new_number = number + 1; // can read the state variable outside the function block
+  }
+```
+
+2. `internal` vs `external`
+```solidity
+  // internal
+  function minus() internal {
+    number = number - 1;
+  }
+
+  // external
+  function minusCall() external {
+    minus();
+  }
+```
+Here we defined an `internal minus()` function, `number` will decrease 1 each time function is called. Since `internal` function can only be called within the contract itself. Therefore, we need to define an `external minusCall()` function to call `minus()` internally.
+
+3. `payable`
+```solidity
+// payable: money (ETH) can be sent to the contract via this function
+  function minusPayable() external payable returns(uint256 balance) {
+    minus();
+    balance = address(this).balance;
+  }
+``` 
+We defined an `external payable minusPayable()` function, which calls `minus()` and return `ETH` balance of the current contract (`this` keyword can let us query current contract address). Since the function is `payable`, we can send 1 `ETH` to the contract when calling `minusPayable()`.
+
+###
 
 <!-- Content_END -->
