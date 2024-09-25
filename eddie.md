@@ -13,8 +13,44 @@ timezone: Asia/Shanghai
 必须的，恰好有一段时间可以用于本次学习活动中；
    
 ## Notes
+- WTF101章节内容：抽象合约和接口、异常
+- WTF102章节内容：重载、库合约、Import
+
+#### 笔记
+
+- 接口规则
+    1. 不能包含状态变量
+    2. 不能包含构造函数
+    3. 不能继承除接口外的其他合约
+    4. 所有函数都必须是external且不能有函数体
+    5. 继承接口的非抽象合约必须实现接口定义的所有功能
+- 异常
+
+  1.error
+    
+    ```solidity
+    error TransferNotOwner();
+    revert TransferNotOwner();
+    //省gas
+    ```
+    
+    2.Require
+    
+    ```solidity
+    require(_owners[tokenId] == msg.sender, "Transfer Not Owner");
+    //随着字符串增加gas增加
+    ```
+    
+    3.Assert
+    
+    ```solidity
+    assert(_owners[tokenId] == msg.sender);
+    //只能抛出异常
+    ```
 
 <!-- Content_START -->
+### 2024.09.25
+
 ### 2024.09.24
 - WTF101章节内容：映射类型、变量初始值、常数、控制流、构造函数和修饰器、事件、继承
 #### 笔记
