@@ -73,7 +73,53 @@ function addPure(uint256 _number) external pure returns(uint256 new_number){
 - `gwei`: 1e9 = 1000000000
 - `ether`: 1e18 = 1000000000000000000
 
+### 2024.09.25
+1、`bytes`是一个不需要加 `[]` 的数组，不能用 `byte[]` 声明单字节数组，可以使用`bytes`或`bytes1[]`，`bytes` 比 `bytes1[]` 省gas
 
+2、`uint[]`数组元素 type 通常以第一个为准，如果不指定，会根据上下文推断元素 type, 默认为最小单位类型 `uint8`
+
+3、对于 `memory` 修饰的动态数组，可以用 `new` 操作符来创建，但是必须声明长度，并且声明后长度不能改变
+
+   ```solidity
+       uint[] memory array8 = new uint[](5);
+       bytes memory array9 = new bytes(9);
+   ```
+4、数组成员
+
+- `length`: `memory`数组的长度在创建后是固定的
+- `push()`: `动态数组`拥有`push()`成员，可以在数组最后添加一个`0`元素，并返回该元素的引用
+- `push(x)`: `动态数组`拥有`push(x)`成员，可以在数组最后添加一个`x`元素
+- `pop()`: `动态数组`拥有`pop()`成员，可以移除数组最后一个元素
+
+5、两种结构体构造函数赋值方法
+
+```solidity
+   // 结构体 Struct
+    struct Student{
+        uint256 id;
+        uint256 score; 
+    }
+    Student student; // 初始一个student结构体
+
+    function initStudent3() external {
+        student = Student(3, 90);
+    }
+
+    function initStudent4() external {
+        student = Student({id: 4, score: 60});
+    }
+```
+
+6、映射的 `_KeyType` 只能选择 Solidity 内置的值类型，比如 `uint`，`address`等; 映射的存储位置必须是 `storage`
+
+```solidity
+   mapping(uint => address) public idToAddress; // id映射到地址
+   mapping(address => address) public swapPair; // 币对的映射，地址到地址
+
+   function writeMap (uint _Key, address _Value) public{
+      idToAddress[_Key] = _Value;
+   }
+```
 ### 
 
 <!-- Content_END -->

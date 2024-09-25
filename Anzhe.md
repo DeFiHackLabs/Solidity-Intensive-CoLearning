@@ -155,4 +155,137 @@ function enumToUint() external view returns(uint){
 * `returns(uint)` 指定函數的返回類型為 `uint`。
 * `return unit(action)` 將 action 的值轉換為 uint，並返回這個值。由於 action 被設為 ActionSet.Buy，其對應的整數值是 0。
 * enum 可以和 uint 進行顯式轉換，轉換的正整數需在枚舉長度內，否則會 Error。
+
+### 2024.09.25
+今天的內容主要是關於 Solidity 的函數，要注意的是函數概念有分成「函數類型的變數」和「函數」，不是所有函數都有函數類型的變數，但函數可以被賦值給函數類型的變數。
+函數分成內部函數和外部函數，內部函數只能在當前合約中呼叫，包括內部函式庫和繼承函數，因為呼叫內部函數透過跳到入口標籤來內部呼叫當前合約的函數。
+外部函數由位址和函數簽名組成，可以作為參數傳遞給其他函數，並且也可以從其他函數中返回。
+# 函數的語法
+```
+function <function name>(<parameter types>) {internal|external|public|private} [pure|view|payable] [returns (<return types>)]
+```
+### 說明
+* `function` 基本的函數宣告關鍵字。
+* `<function name>` 函數名稱。
+* `<parameter types>` 傳入到函數內部的參數，要替換成變數類型和變數名稱。
+* `{internal|external|public|private}` 是可見性類型，必須指定一個。只有函數變數才預設是 `internal`。
+    * `internal` 只能從合約內部訪問，繼承的合約可以用。
+    * `external` 只能從合約外部存取（但內部可以透過 this.f() 來調用，f是函數名稱）。
+    * `public` 合約內部和外部皆可見。
+    * `private` 只能從本合約內部訪問，繼承的合約也不能使用。
+    * 註：`public|private|internal` 也可用於修飾**狀態變數**。 `public` 變數會自動產生同名的`getter` 函數，用來查詢數值。未標示可見性類型的狀態變數，預設為`internal`。
+* `[pure|view|payable]` 是返回值類型，非必要，決定函數權限、功能的關鍵字。合約的狀態變數儲存在鏈上，改寫鍊上狀態需支付氣費（gas fee），`pure` 和 `view` 不改寫鍊上狀態，所以調用此類函數不用支付氣費。
+    * `pure` 函數既不能讀取也不能寫入鏈上的狀態變數。
+    * `view` 函數能讀取但也不能寫入狀態變數。
+    * `payable` 函數運行時可以給合約轉入乙太幣。
+* `[returns ()]` 返回值類型和名稱，非必要。
+
+乙太坊的修改鍊上狀態包括：
+1. 寫入狀態變數。
+2. 釋放事件。
+3. 創建其他合約。
+4. 使用 `selfdestruct`
+5. 透過調用發送以太幣。
+5. 呼叫任何未標記 view 或 pure 的函數。
+6. 使用低階呼叫（low-level calls）。
+7. 使用包含某些操作碼（Opcodes）的內聯彙編（Inline Assemply）。
+
+---
+# 程式碼
+## 1. Pure 和 View
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+contract FunctionTypes{
+    uint public number = 0;  // 在合約中定義一個狀態變數 number，public 表示變數合約內部和外部皆可見，初始化為 0
+    function add() external{
+        number = number + 1;
+    }
+    function addPure(uint256 _number) external pure returns(uint256 new_number){
+        new_number = _number + 1;
+    }
+    function addView() external view returns(uint256 new_number) {
+        new_number = number + 1;
+    }
+}
+```
+### 說明
+* 如果 `add()` 被標記為 `pure` 就會報錯，因為 `pure` 不配合讀取或改寫合約裡的狀態變數；如果 `add()` 函數被標記為 `view` 也會報錯，因為 view 能讀取，但無法改寫狀態變數。
+* `addPure()` 傳遞參數 `_number` 並回傳 `_number + 1`，不會有讀取或寫入狀態變數的操作。
+![](https://i.imgur.com/mIlAEyI.png)
+可以看到當我按 23 次橘色（執行 23 次 add() 函數），number 的值就會增加到 23；而當我執行 `addPure()` 時，我必須輸入一個數字(34)才能執行，執行結果 new_number 是 35，和合約的狀態變量無關，如果不給輸入參數就無法調用 `addPure()`；而當我執行 `addView()` 時，我可以讀取合約的狀態變數 23，所以結果是合約的狀態變數 +1 變成 24。
+## 2. internal 和 external
+```
+    // 接續前面繼續寫
+    function minus() internal {
+        number = number - 1;
+    }
+    function minusCall() external{
+        minus();
+    }
+```
+重新部署合約後，狀態值會重設，可以發現內部函數 `minus()` 無法調用所以沒有出現，只有新增 `minusCall()` 也是 `external` 可被外部調用，然後間接調用內部函數 `minus()`。
+![](https://i.imgur.com/7Q07uxx.png)
+## 3. payable
+```
+    // 接續前面繼續寫
+    function minusPayable() external payable returns(uint balance){
+        minus();
+        balance = address(this).balance;
+    }
+```
+`this` 關鍵字可以引用當前合約地址，然後用 `地址.balance` 返回合約的乙太幣餘額。
+在 Deploy 上方可以輸入要轉入多少、選擇幣的單位，然後按 minusPayable() 就可以往合約裡轉入多少幣。
+![](https://i.imgur.com/fupwihn.png) ![](https://i.imgur.com/2eQqNzM.png)
+註：要注意 minus() 不能把 `number` 扣光，不然會交易失敗然後被 revert。
+# 函數輸出
+函數輸出的關鍵字 `returns` 在函數名稱後面宣告回傳的變數類型與變數名稱，`return`則是在函數定義中返回指定的變數：
+```
+function returnMultiple() public pure returns(uint256, bool, uint256[3] memory){
+    return (1, true, [uint256(1), 2, 5]);
+}
+```
+`returns` 宣告了 `returnMultiple()` 有多個返回值，對應 `return(1, true, [uint256(1),2,5])` 實際的返回值內容。第三個返回值宣告了長度為 3 且類型為 `uint256` 的數列，數列類型的返回值需用 `memory` 修飾。因為 `[1,2,5]` 的型別會默認為 `uint8(3)`，所以強轉第一個元素來宣告陣列元素皆為 `uint256`。
+## 命名式回傳
+若在 `returns` 中標示回傳變數的名稱，Solidity 會自動初始化這些變數，並自動回傳函數的值，不須使用 `return`。
+```
+function returnNamed() public pure returns(uint256 _number, bool _bool, uint256[3] memory _array){
+    _number = 2;
+    _bool = false;
+    _array = [uint256(3),2,1];
+}
+```
+命名式也可以用 `reutrn` 回傳變數：
+```
+function returnNamed2() public pure returns(uint256 _number, bool _bool, uint256[3] memory _array){
+    return (1, true, [uint256(1), 2, 5]);
+}
+```
+## 解構式賦值
+Solidity 可以用解構式賦值規則來讀取函數的全部或部分回傳值。
+1. 讀取所有返回值：宣告變數，然後依序將要賦值的變數以,隔開。
+```
+uint256 _number;
+bool _bool;
+uint256[3] memory _array;
+(_number, _bool, _array) = returnNamed();
+```
+2. 讀取部分傳回值：宣告要讀取的回傳值對應的變數，不讀取的留空。
+```
+bool _bool2;
+(, _bool2, ) = returnNamed(); // 只讀取_bool，而不讀取傳回的_number和_array
+```
+寫進 function 內再執行：
+```
+function ReadReturn() public pure{
+    uint256 _number;
+    bool _bool;
+    uint256[3] memory _array;
+    (_number, _bool, _array) = returnNamed();
+    bool _bool2;
+    (, _bool2, ) = returnNamed();
+}
+```
+## 執行結果
+![](https://i.imgur.com/Bhud5Up.png)
 <!-- Content_END -->
