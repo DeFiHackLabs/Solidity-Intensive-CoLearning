@@ -357,6 +357,88 @@ constructor(){
 ```
 
 #### 10_InsertionSort
+* if else：條件如果符合，就這樣，不然就那樣
+```solidity
+function a(uint256 _number) public pure returns(bool){
+   if(_number == 0){
+      return(true);
+   }else{
+      return(false);
+   }
+}
+```
+* for
+```solidity
+function forLoopTest() public pure returns(uint256){
+   uint sum = 0; /// 一開始 sum = 0
+      for(uint i = 0; i < 10; i++){ // 一開始 i = 0，如果 i < 10 的話，i = i + 1
+         sum += i; //sum = sum + i
+      }
+   return(sum);
+}
 
+拆解步驟：i = 0 時，sum =  0 + 0 得到  0，i = 0 + 1 得到 1
+         i = 1 時，sum =  0 + 1 得到  1，i = 1 + 1 得到 2
+         i = 2 時，sum =  1 + 2 得到  3，i = 2 + 1 得到 3
+         i = 3 時，sum =  3 + 3 得到  6，i = 0 + 1 得到 4
+         i = 4 時，sum =  6 + 4 得到 10，i = 1 + 1 得到 5
+         i = 5 時，sum = 10 + 5 得到 15，i = 2 + 1 得到 6
+         i = 6 時，sum = 15 + 6 得到 21，i = 2 + 1 得到 7
+         i = 7 時，sum = 21 + 7 得到 28，i = 0 + 1 得到 8
+         i = 8 時，sum = 28 + 8 得到 36，i = 1 + 1 得到 9
+         i = 9 時，sum = 36 + 9 得到 45，i = 2 + 1 得到 10
+         i = 10 時，跳出 for 迴圈
+   簡單來說就是，0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9=45
+```
+* while
+```solidity
+    function whileTest() public pure returns(uint256){
+        uint sum = 0;
+        uint i = 0;
+        while(i < 10){
+            sum += i;
+            i++;
+        }
+        return(sum);
+    }
+```
+* do while
+```solidity
+// do-while
+function doWhileTest() public pure returns(uint256){
+   uint sum = 0;
+   uint i = 0;
+   do{
+      sum += i;
+      i++;
+   }while(i < 10);
+   return(sum);
+}
+```
+* 三元運算符
+```solidity
+function ternaryTest(uint256 x, uint256 y) public pure returns(uint256){
+   // return the max of x and y
+   return x >= y ? x: y; 
+}
+```
+
+* 插入排序
+```solitidy
+// 插入排序 正确版
+function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
+    // note that uint can not take negative value
+    for (uint i = 1;i < a.length;i++){
+        uint temp = a[i];
+        uint j=i;
+        while( (j >= 1) && (temp < a[j-1])){
+            a[j] = a[j-1];
+            j--;
+        }
+        a[j] = temp;
+    }
+    return(a);
+}
+```
 
 <!-- Content_END -->
