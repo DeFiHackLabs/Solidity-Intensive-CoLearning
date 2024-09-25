@@ -81,11 +81,12 @@ But I love and enjoy this feeling now,I have to concentrate on it and challenge 
 In the long term, current temporary difficulty maybe not a bad thing, it's beneficial for the future.
 
 
+
 And after learning in two days, I have a more clear goal about this 21-day Solidity Learning Journey:
 
-I can be a translator in open source program first(If there is) after I master English terms in Coding,
+Maybe I can be a translator in open source program first(If there is) after I master English terms in Coding,
 
-Entering the blockchain world needs sustained effort，“Go the extra mile” it really just a beginning.
+Entering the blockchain world needs sustained effort，“Go the extra mile” it really really just a beginning.
 
 
 <!-- Content_END -->
