@@ -267,7 +267,7 @@ contract DataStorage{
 - [x] 了解array、struct、mapping的使用
    - array: 数组，可以是固定长度或者动态长度，bytes是特殊的数组。动态数组拥有push和pop两个成员函数
    - struct: 结构体，可以定义多个不同类型的变量，类似于C语言的结构体
-   - mapping: 映射，类似于键值对，可以存储不同类型的数据，键是唯一的
+   - mapping: 映射，类似于键值对，可以存储不同类型的数据，键是唯一的，映射的存储位置必须是storage
 
 ```solidity
 // SPDX-License-Identifier: MIT
