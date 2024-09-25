@@ -71,6 +71,7 @@ This training camp can force myself to take Solidity and English writing tasks a
    
 2.<img width="923" alt="image" src="https://github.com/user-attachments/assets/d570e47f-e1f8-444a-8d04-2dda4ab2dcbb">
 
+
 3.Difficlties
 
 Yesterday's difficulty is disappeared,cause I meet a bigger difficult today.Life is so fantastic.hhh
@@ -78,6 +79,7 @@ Yesterday's difficulty is disappeared,cause I meet a bigger difficult today.Life
 But I love and enjoy this feeling now,I have to concentrate on it and challenge myself in a short time.
 
 In the long term, current temporary difficulty maybe not a bad thing, it's beneficial for the future.
+
 
 And after learning in two days, I have a more clear goal about this 21-day Solidity Learning Journey:
 
