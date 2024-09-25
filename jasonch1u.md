@@ -425,7 +425,7 @@ function ternaryTest(uint256 x, uint256 y) public pure returns(uint256){
 ```
 
 * 插入排序：前後兩位比大小，後面小於前面就對調位置
-```solitidy
+```solidity
 // 插入排序 正确版
 function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
     // note that uint can not take negative value
@@ -497,8 +497,7 @@ function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
 //
 //         第4次for迴圈，while做了3次，讓數組變成 [1,2,3,4,5] 
 //
-//         1 = 5 < a.lenght = 5，不符合for迴圈條件，結束for迴圈     
-
+//         1 = 5 < a.lenght = 5，不符合for迴圈條件，結束for迴圈 
 ```
 
 <!-- Content_END -->
