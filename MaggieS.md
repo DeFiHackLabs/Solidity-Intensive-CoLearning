@@ -65,6 +65,7 @@ It’s exactly a challenge for me cause I’m not only unfamiliar with Solidity,
 
 This training camp can force myself to take Solidity and English writing tasks and face them directly, and it’s also a good opportunity to observe my own solutions and mindset in the face of difficulties and fears. Though I want to quit many times today, I'm sticking with it. It's a good begining.
 
+
 ### 2024.09.24
 
 1. Looking through 15 chapters of Solidity 102 and complete the text.
@@ -87,6 +88,15 @@ And after learning in two days, I have a more clear goal about this 21-day Solid
 Maybe I can be a translator in open source program first(If there is) after I master English terms in Coding,
 
 Entering the blockchain world needs sustained effort，“Go the extra mile” it really really just a beginning.
+
+
+### 2024.09.25
+
+1.Looking through 7 chapters of Solidity 103 and complete the text.
+
+2.<img width="883" alt="image" src="https://github.com/user-attachments/assets/a0ea7885-eabd-4116-a7e6-532983dde339">
+
+3.Difficulties
 
 
 <!-- Content_END -->
