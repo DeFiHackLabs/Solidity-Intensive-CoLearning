@@ -91,4 +91,57 @@ ether ：1e18 = 1后面有18个零的wei
 22 uint无符号整数（正数，零）
 23 注意：正整数是大于零的整数（不包括零）
 <!-- Content_END -->
+<!-- Content_START -->
+### 2024.09.25
+Day3
+Solidity 101-6 引用类型、array、struct
+1 array数组是一种变量类型，用来储存一组数据（int，bytes，address等）
+2 array数据分为固定长度数组和可变长度数组
+3 固定长度数组，比如unit[8] array1;
+4 可变长度数组（动态数组），比如unit[ ] array2
+5 bytes类型本身就是动态字节数组，理解成byte[ ]的简写，已经内置了动态数组功能，直接声明bytes array3即可，不需要再加上[ ]
+5 对于memory修饰的动态数组，用关键字new来创建，要声明长度，声明后长度不能改变，比如 unit [ ] memory array8 = new unit [ ] (5);
+6 数组字面常数array literals是通过使用方括号[ ]包围一组元素来初始化数组的方式
+7 数组字面量的元素类型是根据上下文推断，特别是以第一个元素类型为准，比如 [unit (1), 2, 3]
+8如果没有显式的制定元素的类型，solidity会默认选择最小的类型unit8来容纳这些值
+9 数组成员-length，用来查看或调整storage数组的长度数量（但对于memory数组来说，长度是固定的，不适用memory数组）
+10 数组成员-push( )，向动态storage数组末尾添加一个元素
+11 数组成员-pop( )，向动态storage数组移除最后一个元素
+12 数组成员-push(x)，向动态storage数组末尾添加一个具体的元素x
+13 结构体struct，struct是定义结构体的关键字
+14 uint256的默认值是0
 
+Solidity 101-7 映射类型 mapping
+1 声明映射的格式为mapping(KeyType => ValueType)，其中KeyType和ValueType分别是Key和Value的变量类型
+2 映射的key只能选择Solidity内置的值类型，比如uint，address等，不能用自定义的结构体struct
+3 映射的value可以使用自定义的类型，如struct
+4 映射的存储位置必须是storage
+5 mapping记录的是一种关系 (key-value pair)
+6 如果映射声明为public，那么Solidity会自动给你创建一个getter函数，可以通过Key来查询对应的Value
+7 给映射新增的键值对的语法为_Var[_Key] = _Value，其中_Var是映射变量名，_Key和_Value对应新增的键值对（注意是方括号）
+
+Solidity 101-8 变量初始值
+1 在Solidity中，声明但没赋值的变量都有它的初始值（默认值）
+2 值类型初始值 boolean：false
+3 值类型初始值 string：“ ”
+4 值类型初始值 int：0
+5 值类型初始值 uint：0
+6 值类型初始值 enum：枚举中第一个元素
+7 值类型初始值 address：0x后边40个0
+8 值类型初始值 bytes1: 0x00
+9 值类型初始值 function internal：空白函数
+10 值类型初始值 function external：空白函数
+11 引用类型初始值 映射mapping：所有元素都为其默认值的mapping
+12 引用类型初始值 结构体struct：所有成员设为其默认值的结构体
+13 引用类型初始值 数组array 动态数组：[ ]
+14 引用类型初始值 数组array 静态数组（定长数组）：所有成员设为其默认值的静态数组
+15 delete操作符：delete a会让a的值变成初始值
+
+Solidity 101-9 常数constant和immutable
+1 变量constant必须在声明时赋值（之后不能更改，完全静态，编译时就确定了值，在合约生命周期内保持不变）
+2 变量immutable是能在合约的构造函数(关键词constructor)中赋值（初始化）（之后不能更改）
+3 address(this)表示当前合约的地址
+4 initialize v初始化
+5 address(0)表示零地址(空地址)（0x后边40个0，全零地址，用于表示无效或未赋值的地址，或用于销毁代币）
+6 在构造函数中赋值 = 在部署合约时赋值
+<!-- Content_END -->
