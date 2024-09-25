@@ -114,7 +114,7 @@ _array = [uint256(3),2,1];
 }
 ```
 
-命令式返回也可以在returns先聲明變數類型及變數名稱，並在下方用return返回值
+命名式返回也可以在returns先聲明變數類型及變數名稱，並在下方用return返回值
 
 ```solidity
 function returnNamed2() public pure returns(uint256 _number, bool _bool, uint256[3] memory _array){
@@ -151,6 +151,32 @@ uint256[3] memory _array;
 storage: 存在鍊上數據，gas貴
 memory: 存在内存，不上鍊。string, bytes, array和自定义结构需加memory。
 calldata: 存在内存，不上鍊。但是calldata初始化賦值後不得改變變量。
+
+這邊要再確認一下calldata的作用，不知道為什麼calldata重新賦值後，點aa就變成新數據了，不過做myMemoery確實沒改變[0]，做myStorage有改變[0]，不能理解為什麼做calldata後會改變aa？ aa不是鍊上數據嗎?
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.26;
+
+contract DataStorage {
+
+uint[] public aa = [1,2,3]; 
+
+function myCallData(uint[] calldata _x) external {
+aa = _x;
+}
+
+function myMemory() external view {
+uint[] memory xMemory = aa;
+xMemory[0] = 100;
+}
+
+function myStorage() external {
+uint[] storage xMemory = aa;
+xMemory[0] = 100;    
+}
+
+}
+```
 
 狀態變量
 局部變量
@@ -214,6 +240,46 @@ return result;
 * pop(): 动态数组拥有pop()成员，可以移除数组最后一个元素。
 
 struct
+```solidity
+// 结构体
+struct Student{
+    uint256 id;
+    uint256 score; 
+}
+
+Student student; // 初始一个student结构体，後面小寫的student可以看做是命名Student這個結構體
+```
+有四種賦值方法
+方法1:在函数中创建一个storage的struct引用
+```solidity
+//  给结构体赋值
+function initStudent1() external{
+    Student storage _student = student; // assign a copy of student
+    _student.id = 11;
+    _student.score = 100;
+}
+```
+方法2:直接引用状态变量的struct
+```solidity
+function initStudent2() external{
+    student.id = 1;
+    student.score = 80;
+}
+```
+
+方法3:构造函数式
+```solidity
+function initStudent3() external {
+    student = Student(3, 90);
+}
+```
+
+方法4:key value
+```solidity
+function initStudent4() external {
+    student = Student({id: 4, score: 60});
+}
+```
 
 ### 2024.09.25
 
