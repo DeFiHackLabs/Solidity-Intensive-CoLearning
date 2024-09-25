@@ -45,7 +45,10 @@ timezone: Asia/Taipei
 #### 常數 constant, immutable
 - 變數聲明這兩個關鍵字後, 初始化後不能再變更數值
 - 數字變數可以使用 constant, immutable; string, bytes 則只能用 constant
-  
+
+### 2024.09.24
+學習內容  
+筆記:    
 #### 控制流
 - if, else
 - for
@@ -53,7 +56,7 @@ timezone: Asia/Taipei
 - do, while
 - 三元運算
 
-#### 構造函數, 修式器
+#### 構造函數, 修飾器
 - constructor, 每個合約可以定義一個, 部屬合約時會自動執行一次, 通常用於初始化合約的參數  
 - modifier, 聲明函數擁有的特性, 通常用於函數前的檢查 ex:地址, 變數, 餘額
 
@@ -67,10 +70,11 @@ function changeOwner(address _newOwner) external onlyOwner{
    owner = _newOwner;
 }
 ```
+
 #### 事件
 - 響應: 應用程式 ethers.js 可以通過 RPC 接口訂閱和監聽這些事件, 並在前端做響應
 - 經濟: event 是 EVM 上比較有經濟效益的儲存數據方式, 每個大概消耗 2,000 gas; 鏈上儲存一個新變數需要 20,000 gas
-- 
+
 ```solidity
 // 事件聲明
 // indexed 關鍵字, 表示會保存在 EVM 日誌的 topics 中
@@ -79,8 +83,8 @@ event Transfer(address indexed from, address indexed to, uint256 value);
 // 在函數裡釋放事件
 emit Transfer(from, to, amount);
 ```
-#### 繼承
 
+#### 繼承
 ```solidity
 contract Father{
    event Log(string msg);
