@@ -286,7 +286,7 @@ contract ReferenceType{
     // 定义动态数组：通过测验的学生编号
     uint256[] passedStudents;
     
-    // 定义静态数组：top10的学生编号
+    // 定义静态数组：top10的分数
     uint256[10] topScore10;
 
     // 定义mapping
@@ -304,7 +304,7 @@ contract ReferenceType{
         }
     }
 
-    // 排名前十
+    // 分数前十
     function sortTopScore10() external {
         uint256 len = passedStudents.length;
         for (uint256 s = 0; s < len; s++){
