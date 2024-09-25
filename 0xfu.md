@@ -89,4 +89,22 @@ contract MyToken is IERC20, ERC165 {
 
 ### 
 
+
+### 2024.09.25
+
+#### 空投合约
+
+在空投合约中需要注意：
+
+- 检查 **_addresses** 和 **_amounts** 的长度是否一致
+- 检查空投合约的授权额度是否大于要空投的代币数量总和
+
+#### 安全问题
+
+因为空投合约中会使用到循环逻辑，对于循环逻辑要非常谨慎安全问题，尤其是注意 [Dos攻击](https://github.com/AmazingAng/WTF-Solidity/blob/main/S09_DoS/readme.md) 。
+
+
+### 
+
+
 <!-- Content_END -->
