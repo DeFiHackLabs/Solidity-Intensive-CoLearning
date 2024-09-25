@@ -126,6 +126,7 @@ receive()存在?   fallback()
 receive()   fallback()
 ```
 20. 发送ETH
+    
 Solidity有三种方法向其他合约发送ETH，他们是：transfer()，send()和call()，其中call()是被鼓励的用法。
 
 1.transfer
