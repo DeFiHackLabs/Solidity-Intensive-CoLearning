@@ -125,7 +125,7 @@ contract Son is Father{
 
 // 部屬合約後, 可以看到 Son 合約有 4 個 function, 且 hip(), pop() 的輸出被改寫成 "Son", 繼承來的 father() 輸出扔然保持 "Father"
 ```
-### 2024.09.23
+### 2024.09.25
 學習內容  
 筆記:  
 
@@ -174,13 +174,34 @@ contract Base2 is Base1{
 }
 ```
 構造函數的繼承
-- 繼承時聲明父構造函數的參數, ex: contract B is A(1)
-- 在子合約的構造函數中聲明構造函數的參數
+1. 繼承時聲明父構造函數的參數, ex: contract B is A(1)
+2. 在子合約的構造函數中聲明構造函數的參數
+```solidity
+abstract contract A{
+   uint public a;
+   constructor(uint _a){
+      a = _a;
+   }
+}
+```
+```solidity
+contract B is A{
+   constructor(uint _b) A(_b * _b){}
+}
+```
 
 調用父合約的函數
+1. 直接調用
+2. 利用 super 關鍵字
+```solidity
+function callParent() public{
+   Father.pop();
+}
 
-
-
-
+function callParent() public{
+   // 假設子合約是 contract Eriz is Father, Son, 那麼 super 將調用最近的複合約函數, Son.pop()
+   super.pop()
+}
+```
 
 <!-- Content_END -->
