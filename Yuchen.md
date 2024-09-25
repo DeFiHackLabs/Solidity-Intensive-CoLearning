@@ -214,6 +214,7 @@ uint256[3] memory _array;
 ```
 <img src="https://github.com/user-attachments/assets/384f7fe6-2d2e-482f-a122-d438b4ebea19" height="300px" width="640px" />  
 
+### 2024.09.25
 
 #### 變量數據存儲
 **Solidity 的引用類型(Reference Type)**：數組(`array`)、結構體(`struct`)，因為這些類型的變量較複雜，占用的儲存空間較大，因此使用時要聲明數據存放的位置。
