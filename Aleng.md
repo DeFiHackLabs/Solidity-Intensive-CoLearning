@@ -18,6 +18,7 @@ timezone: Asia/Shanghai
 筆記 : [2024.09.23學習筆記](https://hackmd.io/@82tWd8u0TI6fMRC9VG6JXw/SkZ-UWnpA)
 
 內容 : 這次學習了101 的 1 ~ 4 單元。
+
 ### 2024.09.24
 #### 學習筆記
 筆記 : [2024.09.24學習筆記](https://hackmd.io/@82tWd8u0TI6fMRC9VG6JXw/Byqhk3ppA)
@@ -25,6 +26,7 @@ timezone: Asia/Shanghai
 內容 : 這次學習了101 的 5 ~ 6 單元。
 
 補充上了Bytes轉換等內容
+
 ### 2024.09.25
 #### 學習筆記
 筆記 : [2024.09.25學習筆記](https://hackmd.io/@82tWd8u0TI6fMRC9VG6JXw/SkUXPpJAR)
@@ -32,4 +34,11 @@ timezone: Asia/Shanghai
 內容 : 這次學習了101 的 7 單元。
 
 mapping的初步認識與儲存數據之方式，並且了解了其他學員提出的uint問題
+
+### 2024.09.26
+#### 學習筆記
+筆記 : [2024.09.26學習筆記](https://hackmd.io/@82tWd8u0TI6fMRC9VG6JXw/S18lOJZAA))
+
+著重在操作符合變數與引用類型的初始值，較少使用所以加深此記憶，
+**Delete不是清除而是還原到預設值。**
 <!-- Content_END -->
