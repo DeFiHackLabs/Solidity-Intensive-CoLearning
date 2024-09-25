@@ -214,4 +214,163 @@ uint256[3] memory _array;
 ```
 <img src="https://github.com/user-attachments/assets/384f7fe6-2d2e-482f-a122-d438b4ebea19" height="300px" width="640px" />  
 
+### 2024.09.25
+
+#### 變量數據存儲
+**Solidity 的引用類型(Reference Type)**：數組(`array`)、結構體(`struct`)，因為這些類型的變量較複雜，占用的儲存空間較大，因此使用時要聲明數據存放的位置。
+
+**數據儲存位置**：不同位置消耗的 `gas` 不同。  
+`storage` 的數據存在鏈上，類似電腦的硬碟，消耗gas多，反之`memory`、`calldata` 消耗的 `gas` 少。
+* `storage`：合約中的狀態變量默認都是 `storage`，儲存在鏈上。
+* `memory`：函數中的參數和臨時變量，存在記憶體中，不上鏈。
+* `calldata`：和 `memory` 類似，不上鏈。但不同點在於 `calldata` 變量是不可修改的(`immutable`)，通常是函數的參數。
+    例子：
+    ```
+    function fCalldata(uint[] calldata _x) public pure returns(uint[] calldata){
+        //参数为calldata数组，不能被修改
+        // _x[0] = 0 //这样修改会报错
+        return(_x);
+    }
+    ```
+**賦值規則**  
+* 創建了本體的副本，修改新變量不會影響原變量。
+* 創建引用指向本體，修改新變量會影響原變量。
+    ```
+    uint[] x = [1,2,3]; // 状态变量：数组 x
+    function fStorage() public{
+        //声明一个storage的变量 xStorage，指向x。修改xStorage也会影响x
+        uint[] storage xStorage = x;
+        xStorage[0] = 100;
+    }
+    ```  
+<img src="https://github.com/user-attachments/assets/68d5daa0-5d83-40b6-bbe6-de445ce13094" height="300px" width="600px" />  
+
+<img src="https://github.com/user-attachments/assets/b91d6de8-1e7a-43b5-afd1-e8fa756c9e5c" height="300px" width="600px" />  
+
+#### 變量的作用域
+1. 狀態變量：數據存在鏈上的變量，在合約內、函數外宣告，所有合約內函數都可以訪問，`gas` 消耗高。
+```Solidity
+contract Variables {
+    uint public x = 1;
+    uint public y;
+    string public z;
+}
+
+// 可以在函数里更改状态变量的值
+function foo() external{
+    x = 5;
+    y = 2;
+    z = "0xAA";
+}
+```
+
+2. 局部變量：僅在函數執行過程中才有效的變量，局部變量的數據存在記憶體中，不上鏈，`gas` 低。
+```Solidity
+function bar() external pure returns(uint){
+    uint xx = 1;
+    uint yy = 3;
+    uint zz = xx + yy;
+    return(zz);
+}
+```
+
+3. 全局變量：在全局範圍內工作的變量，都是 `solidity` 預留的關鍵字，可在不宣告的前提下就使用。
+[常用的全局變量](<https://learnblockchain.cn/docs/solidity/units-and-global-variables.html#special-variables-and-functions>)
+```Solidity
+function global() external view returns(address, uint, bytes memory){
+    address sender = msg.sender; // 請求發起地址
+    uint blockNum = block.number; // 當前區塊高度
+    bytes memory data = msg.data; // 請求數據
+    return(sender, blockNum, data);
+}
+```
+
+4. 全局變量-乙太單位與時間單位：  
+
+**乙太單位**  
+`Solidity` 中部存在小數點，以 `0` 代替小數點以確保交易的精確度損失。
+* `wei`: 1e9 = 1
+* `gwei`: 1e9 = 1000000000
+* `ether`: 1e18 = 1000000000000000000
+
+**時間單位**  
+在合約中規定某事件在一定時間後發生，如此可使合約的執行更加精確。
+* `seconds`: 1
+* `minutes`: 60 seconds = 60
+* `hours`: 60 minutes = 3600
+* `days`: 24 hours = 86400
+* `weeks`: 7 days = 604800
+
+#### 引用類型
+**數組 (array)**  
+Solidity 常用的變量型態，儲存一組數據(整數、字節、地址...等)
+* 固定長度 `array`：  
+    ```solidity
+    uint[8] array1;
+    bytes1[5] array2;
+    address[100] array3;
+    ```
+
+    * 以 `memory` 修飾的動態數組，可用 `new` 操作符創建，但必須宣告長度，且宣告後長度不能改變。
+        ```Solidity
+        uint[] memory array8 = new uint[](3);
+        bytes memory array9 = new bytes(9);
+        array8[0] = 1;
+        array8[1] = 3;
+        array8[2] = 4;
+        ```
+
+* 可變長度`array`：  
+    ```solidity
+    uint[] array4;
+    bytes1[] array5;
+    address[] array6;
+    bytes array7;
+    ```
+    ※ `bytes`是`array`但不用加`[]`，因為`bytes`為動態大小的字節數組，且它將所有字節緊湊地存儲在一起，這樣可以節省存儲空間，因此`bytes`比`bytes1[]` 省 gas。
+
+* `method`：
+    * `length`：取得數組長度，ex.`memory` 數組的長度固定。
+    * `push()`：在數組最後加入 `0` 元素。
+    * `push(x)`：在數組最後加入 `x` 元素。
+    * `pop()`：移除數組最後一個元素。
+
+**結構 (struct)**  
+Solidity 可以透過建構`struct`的形式定義新的類型。`struct`中的元素可以是原始類型，也可以是引用類型，`struct`也可以作為數組或映射的元素。  
+```Solidity
+struct Student{
+    uint256 id;
+    uint256 score; 
+}
+Student student; // 初始一个student结构体
+```
+* 給`struct`賦值的方法：
+    * 在函數中創建一個storage的struct引用  
+    ```Solidity
+    function initStudent1() external{
+        Student storage _student = student; // assign a copy of student
+        _student.id = 11;
+        _student.score = 100;
+    }
+    ```
+    * 直接引用狀態變量的`struct`  
+    ```Solidity
+    function initStudent2() external{
+        student.id = 1;
+        student.score = 80;
+    }
+    ```
+    * 構造函數式  
+    ```Solidity
+    function initStudent3() external {
+        student = Student(3, 90);
+    }
+    ```
+    * key value  
+    ```Solidity
+    function initStudent4() external {
+        student = Student({id: 4, score: 60});
+    }
+    ```
+
 <!-- Content_END -->

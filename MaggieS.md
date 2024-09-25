@@ -68,7 +68,13 @@ This training camp can force myself to take Solidity and English writing tasks a
 ### 2024.09.24
 
 1. Looking through 15 chapters of Solidity 102 and complete the text.
-2.
-3.
+   
+2.<img width="923" alt="image" src="https://github.com/user-attachments/assets/d570e47f-e1f8-444a-8d04-2dda4ab2dcbb">
+
+3.Difficlties
+
+I have a lot to say today. But it's time to sleep, have a good dream.
+
+Tomorrow I will share my feelings about difficulties.
 
 <!-- Content_END -->

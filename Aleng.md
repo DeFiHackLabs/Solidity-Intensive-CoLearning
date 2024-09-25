@@ -25,4 +25,11 @@ timezone: Asia/Shanghai
 內容 : 這次學習了101 的 5 ~ 6 單元。
 
 補充上了Bytes轉換等內容
+### 2024.09.25
+#### 學習筆記
+筆記 : [2024.09.25學習筆記](https://hackmd.io/@82tWd8u0TI6fMRC9VG6JXw/SkUXPpJAR)
+
+內容 : 這次學習了101 的 7 單元。
+
+mapping的初步認識與儲存數據之方式，並且了解了其他學員提出的uint問題
 <!-- Content_END -->
