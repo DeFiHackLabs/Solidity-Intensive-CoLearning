@@ -30,7 +30,7 @@ contract HelloWorld {
 }
 ```
 
-### 2024年9月24日
+### 2024.09.24
 #### 数据类型，bool，uint，address，byte，enum
 ```
 // SPDX-License-Identifier: MIT
@@ -102,7 +102,7 @@ contract Types {
     }
 }
 ```
-### 2024 年 9 月 25 日
+### 2024.09.25
 
 #### 函数
 
