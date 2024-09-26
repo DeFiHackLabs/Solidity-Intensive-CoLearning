@@ -220,4 +220,44 @@ contract HelloFunction {
 }
 ```
 
+### 2024.09.26
+#### 函数的返回
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+// 函数输出
+contract functionReturn {
+    // 创建公开可读写的数据
+    uint public myNum;
+    string public myStr1;
+    bool public myBool;
+
+    function returnName() internal pure returns (uint num, string memory str1, bool bool1) {
+        // 可以直接使用return()进行返回
+        // return(100, "Hello", false);
+
+        // 也可以使用命名返回方式
+        num = 200;
+        str1 = "World";
+        bool1 = true;
+    }
+    
+    // 使用返回值修改创建的可读写的数据
+    function getReturnName() external {
+        // 对获取到的返回进行解构，数据类型，顺序需要相同
+        (uint num, string memory str1, bool bool1) = returnName();
+        myBool = bool1;
+        myNum  = num;
+        myStr1 = str1;
+
+        // 也可以只解构需要的部分，区域部分可以为空
+        (, string memory str1,) = returnName();
+        myStr1 = str1;
+    }
+}
+```
+
+
+
 <!-- Content_END -->

@@ -120,6 +120,33 @@ function addPure(uint256 _number) external pure returns(uint256 new_number){
       idToAddress[_Key] = _Value;
    }
 ```
+
+### 2024.09.26
+1、`delete` 操作符可以删除一个变量的值并代替为初始值
+
+2、只有数值变量可以声明 `constant` 和 `immutable`；`string` 和 `bytes` 可以声明为 `constant`，但不能为 `immutable`
+
+3、`constant` 和 `immutable`初始化之后都不能改变数值，`immutable` 可以在声明时或者构造函数中初始化，如果两个地方都初始化了，以构造函数中为主
+
+4、Solidity 写插入排序
+
+```solidity
+   function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
+     // note that uint can not take negative value
+     for (uint i = 1;i < a.length;i++){
+         uint temp = a[i];
+         uint j=i;
+         while( (j >= 1) && (temp < a[j-1])){
+             a[j] = a[j-1];
+             j--;
+         }
+         a[j] = temp;
+     }
+     return(a);
+ }
+```
+
+
 ### 
 
 <!-- Content_END -->
