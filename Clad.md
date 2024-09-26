@@ -204,4 +204,18 @@ function callParent() public{
 }
 ```
 
+### 2024.09.25
+學習內容  
+筆記:  
+
+抽象合約(abstract)
+- 如果合約裡有一個未實現的函數, 則必須將該合約標示為 abstract, 且未實現的函數需要加上 virtual, 以便子合約重寫
+```solidity
+abstract contract InsertionSort{
+   function fun1(uint[] memory a) public pure virtual returns(uint[] memory);
+}
+```
+接口(interface)
+
+
 <!-- Content_END -->
