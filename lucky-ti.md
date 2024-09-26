@@ -266,5 +266,75 @@ PART 12
 4.	indexed关键字可以修饰任意类型的变量：错误
 5.	下列可以查询事件的是：Etherscan
 
+### 2024.09.25
+
+章节13——15
+
+笔记：
+
+继承（inheritance），包括简单继承，多重继承，以及修饰器（Modifier）和构造函数（Constructor）的继承。继承用is来表示，如：contract B is A。
+virtual: 父合约中的函数，如果希望子合约重写，需要加上virtual关键字。
+override：子合约重写了父合约中的函数，需要加上override关键字。
+多重继承中，is后接的顺序按最原始父辈的开始扩展，如：contract erzi is yeye,baba。如果某一个函数在多个继承的合约里都存在，在子合约里必须重写，否则会报错。重写在多个父合约中都重名的函数时，override关键字后面要加上所有父合约名字，但不强制要求顺序。
+```
+// 多重继承中，is后接的顺序按最原始父辈的开始扩展
+contract Erzi is Yeye, Baba{
+    // 继承两个function: hip()和pop()，输出值为Erzi。
+    // 重写了在Yeye,Baba的两个函数，override后标注出来，但不做顺序要求
+    function hip() public virtual override(Yeye, Baba){
+        emit Log("Erzi");
+    }
+
+    function pop() public virtual override(Yeye, Baba) {
+        emit Log("Erzi");
+    }
+}
+```
+```
+// 修饰器的继承
+contract Base1 {
+    modifier exactDividedBy2And3(uint _a) virtual {
+        require(_a % 2 == 0 && _a % 3 == 0);
+        _;
+    }
+}
+
+contract Identifier is Base1 {
+
+    //计算一个数分别被2除和被3除的值，但是传入的参数必须是2和3的倍数
+    function getExactDividedBy2And3(uint _dividend) public exactDividedBy2And3(_dividend) pure returns(uint, uint) {
+        return getExactDividedBy2And3WithoutModifier(_dividend);
+    }
+
+    //计算一个数分别被2除和被3除的值
+    function getExactDividedBy2And3WithoutModifier(uint _dividend) public pure returns(uint, uint){
+        uint div2 = _dividend / 2;
+        uint div3 = _dividend / 3;
+        return (div2, div3);
+    }
+}
+```
+```
+// 构造函数的继承
+abstract contract A {
+    uint public a;
+
+    constructor(uint _a) {
+        a = _a;
+    }
+}
+// 在继承时声明父构造函数的参数
+contract B is A(1)
+// 在子合约的构造函数中声明构造函数的参数
+contract C is A {
+    constructor(uint _c) A(_c * _c) {}
+}
+```
+子合约调用父合约函数：直接调用和利用super关键字调用（super只会调用最近的父辈合约，在钻石继承（也就是菱形结构的继承中，super会调用继承链条上的每一个合约的相关函数,并且按照最近的父辈到最原始的父辈的顺序））。
+
+
+答案：
+
+
 
 <!-- Content_END -->
