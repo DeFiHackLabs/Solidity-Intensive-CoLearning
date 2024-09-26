@@ -544,6 +544,7 @@ owner = _newOwner; // 只有owner地址运行这个函数，并改变owner
 #### 12_Event
 * 監聽事件
 * 省gas fee
+
 聲明事件
 ```solidity
 event Transfer(address indexed from, address indexed to, uint256 value);
