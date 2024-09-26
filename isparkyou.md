@@ -48,7 +48,7 @@ bool public _bool5 = _bool != _bool1; true// 不相等
 一般出现在逻辑与（&&）和逻辑或（||）中。 当逻辑与（&&）的第一个条件为false时，就不会再去判断第二个条件； 当逻辑或（||）的第一个条件为true时，就不会再去判断第二个条件，这就是短路规则。
 
 2. int
-   ```
+```
    // 整型
 int public _int = -1; // 整数，包括负数
 uint public _uint = 1; // 正整数
@@ -352,7 +352,112 @@ function weeksUnit() external pure returns(uint) {
 
 ### 引用类型
 #### 数组array
+固定长度数组：在声明时指定数组的长度。用T[k]的格式声明，其中T是元素的类型，k是长度，例如：
+```
+// 固定长度 Array
+uint[8] array1;
+bytes1[5] array2;
+address[100] array3;
+```
+可变长度数组（动态数组）：在声明时不指定数组的长度。用T[]的格式声明，其中T是元素的类型，例如：
+```
+// 可变长度 Array
+uint[] array4;
+bytes1[] array5;
+address[] array6;
+bytes array7;
+```
+bytes比较特殊，是数组，但是不用加[]。另外，不能用byte[]声明单字节数组，可以使用bytes或bytes1[]。bytes 比 bytes1[] 省gas。
+#### 创建数组的规则
+对于memory修饰的动态数组，可以用new操作符来创建，但是必须声明长度，并且声明后长度不能改变。例子：
+```
+// memory动态数组
+uint[] memory array8 = new uint[](5);
+bytes memory array9 = new bytes(9);
+```
+数组字面常数(Array Literals)是写作表达式形式的数组，用方括号包着来初始化array的一种方式，并且里面每一个元素的type是以第一个元素为准的
+如果创建的是动态数组，你需要一个一个元素的赋值。
 
+#### 数组成员
+length: 数组有一个包含元素数量的length成员，memory数组的长度在创建后是固定的。
+push(): 动态数组拥有push()成员，可以在数组最后添加一个0元素，并返回该元素的引用。
+push(x): 动态数组拥有push(x)成员，可以在数组最后添加一个x元素。
+pop(): 动态数组拥有pop()成员，可以移除数组最后一个元素。
+
+#### 结构体struct
+支持通过构造结构体的形式定义新的类型。结构体中的元素可以是原始类型，也可以是引用类型；结构体可以作为数组或映射的元素。
+```
+// 结构体
+struct Student{
+    uint256 id;
+    uint256 score; 
+}
+
+Student student; // 初始一个student结构体
+```
+给结构体赋值的四种方法：
+```
+//  给结构体赋值
+// 方法1:在函数中创建一个storage的struct引用
+function initStudent1() external{
+    Student storage _student = student; // assign a copy of student
+    _student.id = 11;
+    _student.score = 100;
+}
+// 方法2:直接引用状态变量的struct
+function initStudent2() external{
+    student.id = 1;
+    student.score = 80;
+}
+// 方法3:构造函数式
+function initStudent3() external {
+    student = Student(3, 90);
+}
+// 方法4:key value
+function initStudent4() external {
+    student = Student({id: 4, score: 60});
+}
+```
+
+### 映射类型mapping
+在映射中，人们可以通过键（Key）来查询对应的值（Value）
+声明映射的格式为mapping(_KeyType => _ValueType)，其中_KeyType和_ValueType分别是Key和Value的变量类型。例子：
+```
+mapping(uint => address) public idToAddress; // id映射到地址
+mapping(address => address) public swapPair; // 币对的映射，地址到地址
+```
+### 映射的规则
+规则1：映射的_KeyType只能选择Solidity内置的值类型，比如uint，address等，不能用自定义的结构体。而_ValueType可以使用自定义的类型。
+规则2：映射的存储位置必须是storage，因此可以用于合约的状态变量，函数中的storage变量和library函数的参数（见例子）。不能用于public函数的参数或返回结果中，因为mapping记录的是一种关系 (key - value pair)。
+规则3：如果映射声明为public，那么Solidity会自动给你创建一个getter函数，可以通过Key来查询对应的Value。
+规则4：给映射新增的键值对的语法为_Var[_Key] = _Value，其中_Var是映射变量名，_Key和_Value对应新增的键值对。
+
+### 映射的原理
+原理1: 映射不储存任何键（Key）的资讯，也没有length的资讯。
+原理2: 映射使用keccak256(abi.encodePacked(key, slot))当成offset存取value，其中slot是映射变量定义所在的插槽位置。
+原理3: 因为Ethereum会定义所有未使用的空间为0，所以未赋值（Value）的键（Key）初始值都是各个type的默认值，如uint的默认值是0。
+
+### 变量初始值
+#### 值类型初始值
+boolean: false
+string: ""
+int: 0
+uint: 0
+enum: 枚举中的第一个元素
+address: 0x0000000000000000000000000000000000000000 (或 address(0))
+function
+internal: 空白函数
+external: 空白函数
+
+#### 引用类型初始值
+映射mapping: 所有元素都为其默认值的mapping
+结构体struct: 所有成员设为其默认值的结构体
+数组array
+动态数组: []
+静态数组（定长）: 所有成员设为其默认值的静态数组
+
+#### delete操作符
+delete a会让变量a的值变为初始值。
 
 ### 2024.09.26
 
