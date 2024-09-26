@@ -801,6 +801,82 @@ contract people is Adam, Eve {
 }
 ```
 
+### 抽象合约和接口
+如果一个智能合约里至少有一个未实现的函数，即某个函数缺少主体{}中的内容，则必须将该合约标为abstract，不然编译会报错；另外，未实现的函数需要加virtual，以便子合约重写。
+```
+abstract contract InsertionSort{
+    function insertionSort(uint[] memory a) public pure virtual returns(uint[] memory);
+}
+```
+#### 接口
+接口类似于抽象合约，但它不实现任何功能。接口的规则：
+1. 不能包含状态变量
+2. 不能包含构造函数
+3. 不能继承除接口外的其他合约
+4. 所有函数都必须是external且不能有函数体
+5. 继承接口的非抽象合约必须实现接口定义的所有功能
+虽然接口不实现任何功能，但它非常重要。接口是智能合约的骨架，定义了合约的功能以及如何触发它们：如果智能合约实现了某种接口（比如ERC20或ERC721），其他Dapps和智能合约就知道如何与它交互。因为接口提供了两个重要的信息：
+1. 合约里每个函数的bytes4选择器，以及函数签名函数名(每个参数类型）。
+2. 接口id
+接口与合约ABI（Application Binary Interface）等价，可以相互转换：编译接口可以得到合约的ABI，利用abi-to-sol工具，也可以将ABI json文件转换为接口sol文件。
+接口和常规合约的区别在于每个函数都以;代替函数体{ }结尾。
+
+```
+interface IERC721 is IERC165 {
+    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+    event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
+    event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
+    
+    function balanceOf(address owner) external view returns (uint256 balance);
+
+    function ownerOf(uint256 tokenId) external view returns (address owner);
+
+    function safeTransferFrom(address from, address to, uint256 tokenId) external;
+
+    function transferFrom(address from, address to, uint256 tokenId) external;
+
+    function approve(address to, uint256 tokenId) external;
+
+    function getApproved(uint256 tokenId) external view returns (address operator);
+
+    function setApprovalForAll(address operator, bool _approved) external;
+
+    function isApprovedForAll(address owner, address operator) external view returns (bool);
+
+    function safeTransferFrom( address from, address to, uint256 tokenId, bytes calldata data) external;
+}
+```
+
+#### IERC721 event
+Transfer事件：在转账时被释放，记录代币的发出地址from，接收地址to和tokenId。
+Approval事件：在授权时被释放，记录授权地址owner，被授权地址approved和tokenId。
+ApprovalForAll事件：在批量授权时被释放，记录批量授权的发出地址owner，被授权地址operator和授权与否的approved。
+
+#### IERC721 function
+balanceOf：返回某地址的NFT持有量balance。
+ownerOf：返回某tokenId的主人owner。
+transferFrom：普通转账，参数为转出地址from，接收地址to和tokenId。
+safeTransferFrom：安全转账（如果接收方是合约地址，会要求实现ERC721Receiver接口）。参数为转出地址from，接收地址to和tokenId。
+approve：授权另一个地址使用你的NFT。参数为被授权地址approve和tokenId。
+getApproved：查询tokenId被批准给了哪个地址。
+setApprovalForAll：将自己持有的该系列NFT批量授权给某个地址operator。
+isApprovedForAll：查询某地址的NFT是否批量授权给了另一个operator地址。
+safeTransferFrom：安全转账的重载函数，参数里面包含了data。
+
+如果我们知道一个合约实现了IERC721接口，我们不需要知道它具体代码实现，就可以与它交互。
+
+### 异常
+#### error
+error是solidity 0.8.4版本新加的内容，方便且高效（省gas）地向用户解释操作失败的原因，同时还可以在抛出异常的同时携带参数，帮助开发者更好地调试。人们可以在contract之外定义异常。
+在执行当中，error必须搭配revert（回退）命令使用。
+#### require
+require命令是solidity 0.8版本之前抛出异常的常用方法，目前很多主流合约仍然还在使用它。它很好用，唯一的缺点就是gas随着描述异常的字符串长度增加，比error命令要高。使用方法：require(检查条件，"异常的描述")，当检查条件不成立的时候，就会抛出异常。
+#### asset
+assert命令一般用于程序员写程序debug，因为它不能解释抛出异常的原因（比require少个字符串）。它的用法很简单，assert(检查条件），当检查条件不成立的时候，就会抛出异常。
+error方法gas最少，其次是assert，require方法消耗gas最多！因此，error既可以告知用户抛出异常的原因，又能省gas，大家要多用！
+
+
+
 
 
 <!-- Content_END -->
