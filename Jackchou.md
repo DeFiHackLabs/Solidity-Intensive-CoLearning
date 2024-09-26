@@ -135,5 +135,27 @@ Dynamically-sized array（dynamic array）：Length of the array is not specifie
     return array55;
   }
   ```
-  ###
+###
+### 2024.09.26
+  - Mapping
+  - With mapping type, people can query the corresponding Value by using a Key. For example, a person's wallet address can be queried by their id
+```
+// define a struct
+      struct Student{
+          uint256 id;
+          uint256 score;
+      }
+      mapping(Student => uint) public testVar;
+```
+- Rule 2: The storage location of the mapping must be storage: it can serve as the state variable or the storage variable inside function. But it can't be used in arguments or return results of public function.
+
+Rule 3: If the mapping is declared as public then Solidity will automatically create a getter function for you to query for the Value by the Key.
+
+Rule 4：The syntax of adding a key-value pair to a mapping is _Var[_Key] = _Value, where _Var is the name of the mapping variable, and _Key and _Value correspond to the new key-value pair. For example:
+```
+ function writeMap (uint _Key, address _Value) public {
+        idToAddress[_Key] = _Value;
+      }
+```
+###
 <!-- Content_END -->

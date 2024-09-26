@@ -506,4 +506,86 @@ function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
 //         return(a);
 ```
 
+### 2024.09.26
+
+#### 11_Modifier
+
+* Constructor：每个合约可以定义一个，并在部署合约的时候自动运行一次。它可以用来初始化合约的一些参数，例如初始化合约的owner地址，部屬時會要求出入initialOwner
+
+```solidity
+address owner; // 定义owner变量
+
+// 构造函数
+constructor(address initialOwner) { //()聲明輸入值
+    owner = initialOwner; // 在部署合约的时候，将owner设置为传入的initialOwner地址
+}
+
+// getter
+function getOwner() external view returns(address _address){
+    _address = owner;
+}
+```
+
+* modifier
+
+```solidity
+// 定义modifier
+modifier onlyOwner {
+require(msg.sender == owner); // 检查调用者是否为owner地址
+_; // 如果是的话，继续运行函数主体；否则报错并revert交易
+}
+```
+上面是一個modifier，下面是一個叫onlyOwner modifier修飾的function，當這個function看到modifier之後，才會跑去執行modifier的內容，去判斷检查调用者是否为owner地址，如果是的话，继续运行changeOwner這個function
+```solidity
+function changeOwner(address _newOwner) external onlyOwner{
+owner = _newOwner; // 只有owner地址运行这个函数，并改变owner
+}
+```
+#### 12_Event
+* 監聽事件
+* 省gas fee
+
+聲明事件
+```solidity
+event Transfer(address indexed from, address indexed to, uint256 value);
+```
+
+釋放事件
+```solidity
+// 定义_transfer函数，执行转账逻辑
+function _transfer(
+    address from,
+    address to,
+    uint256 amount
+) external {
+    _balances[from] = 10000000; // 给转账地址一些初始代币
+    _balances[from] -=  amount; // from地址减去转账数量
+    _balances[to] += amount; // to地址加上转账数量
+
+    // 释放事件
+    emit Transfer(from, to, amount);
+}
+```
+EVM日志 Log (etherscan)
+
+topic
+```solidity
+keccak256("Transfer(address,address,uint256)") //事件簽名要這樣寫
+//0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+
+keccak256("Transfer(address,address,uint)") //uint不寫256，事件簽名hashed會跟上面不一樣
+```
+除了事件哈希，主题还可以包含至多3个indexed参数，也就是Transfer事件中的from和to。總共四個東西
+
+data
+* 事件中不带 indexed的参数会被存储在 data 部分中。
+* data 部分的变量在存储上消耗的gas相比于 topics 更少。
+
+#### 13_Inheritance
+
+#### 14_Interface
+
+#### 15_Errors
+
+
 <!-- Content_END -->

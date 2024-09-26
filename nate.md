@@ -89,4 +89,61 @@ timezone: Asia/Shanghai
        _owners[tokenId] = newOwner;  
      }
      ```
+### 2024.09.26
+   WTF solidity24-25
+   #### create, create2  
+   solidity中提供两种在合约中创建合约实例的方法
+   ``` text
+   // 通过create创建合约
+   Contract x = new Contract{value: _value}(params)
+   // 通过create2创建合约
+   Contract x = new Contract{salt:_salt, value: _value}(params)
+   ```
+   其中Contract是要创建的合约名，x是合约对象，如果构造函数是payable，可以创建时转入_value数量的ETH，_salt为随机的bytes32值，params是新合约构造函数的参数
+   - CREATE如何计算地址
+``` text
+   智能合约可以由其他合约和普通账户利用CREATE操作码创建。 在这两种情况下，新合约的地址都以相同的方式计算：创建者的地址(通常为部署的钱
+包地址或者合约地址)和nonce(该地址发送交易的总数,对于合约账户是创建的合约总数,每创建一个合约nonce+1)的哈希。
+
+新地址 = hash(创建者地址, nonce)
+```
+创建者地址不会变，但nonce可能会随时间而改变，因此用CREATE创建的合约地址不好预测。
+
+   - CREATE2如何计算地址
+``` text
+  CREATE2的目的是为了让合约地址独立于未来的事件。不管未来区块链上发生了什么，你都可以把合约部署在事先计算好的地址上。用CREATE2创建的合
+约地址由4个部分决定：
+0xFF：一个常数，避免和CREATE冲突
+CreatorAddress: 调用 CREATE2 的当前合约（创建合约）地址
+salt：一个创建者指定的bytes32类型的值，它的主要目的是用来影响新创建的合约的地址
+initcode: 新合约的初始字节码（合约的Creation Code和构造函数的参数）
+
+新地址 = hash("0xFF",创建者地址, salt, initcode)
+```
+   #### uniswap中create2应用
+   --- 
+   ``` 
+   function createPair(address tokenA, address tokenB) external returns (address pair) {
+        require(tokenA != tokenB, 'UniswapV2: IDENTICAL_ADDRESSES');
+        (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
+        require(token0 != address(0), 'UniswapV2: ZERO_ADDRESS');
+        require(getPair[token0][token1] == address(0), 'UniswapV2: PAIR_EXISTS'); // single check is sufficient
+        bytes memory bytecode = type(UniswapV2Pair).creationCode;
+        bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+        assembly {
+            pair := create2(0, add(bytecode, 32), mload(bytecode), salt)
+        }
+        IUniswapV2Pair(pair).initialize(token0, token1);
+        getPair[token0][token1] = pair;
+        getPair[token1][token0] = pair; // populate mapping in the reverse direction
+        allPairs.push(pair);
+        emit PairCreated(token0, token1, pair, allPairs.length);
+    }
+
+     uniswap提供两种代币的交换，其工产合约核心函数createPair可创建代币对合约`UniswapV2Pair`实例通过内联汇编assembly中
+   evm操作码create2创建实例，其中通过哈希token1和token2地址生成salt，bytecode为UniswapV2Pair的创建字节码。由于一对token
+   的地址是可知的，UniswapV2Pair合约的地址也是不变的，所以较容易推出一对代币的UniswapV2Pair合约地址。而采用create创建合约
+   的话，合约地址会随创建账户的状态而变化不好预测
+   ```
+
 <!-- Content_END -->
