@@ -134,7 +134,7 @@ Solidity中的变量类型
 
 2、 < function name >：函数名
 
-3、 (<parameter types>)：圆括号内写入函数的参数，即输入到函数的变量类型和名称
+3、 (<  parameter types  >)：圆括号内写入函数的参数，即输入到函数的变量类型和名称
 
 4、 {internal|external|public|private}：函数可见性说明符，共有4种
 
