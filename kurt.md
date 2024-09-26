@@ -177,7 +177,7 @@ function callETH(address payable _to, uint256 amount) external payable{
 ```
 ### 2024.09.26
 21. 调用其他合约
-
+    
 1. 传入合约地址
 ```
 我们可以在函数里传入目标合约地址，生成目标合约的引用，然后调用目标函数。以调用OtherContract合约的setX函数为例，我们在新合约中写一个callSetX函数，传入已部署好的OtherContract合约地址_Address和setX的参数x：
