@@ -158,4 +158,52 @@ Rule 4：The syntax of adding a key-value pair to a mapping is _Var[_Key] = _Val
       }
 ```
 ###
+### 2024.09.27
+  - init value
+  - boolean: false
+    string: ""
+    int: 0
+    uint: 0
+    enum: first element in enumeration
+    address: 0x0000000000000000000000000000000000000000 (or address(0))
+    function
+    internal: blank function
+    external: blank function
+    ```
+        bool public _bool; // false
+    string public _string; // ""
+    int public _int; // 0
+    uint public _uint; // 0
+    address public _address; // 0x0000000000000000000000000000000000000000
+
+    enum ActionSet {Buy, Hold, Sell}
+    ActionSet public _enum; // first element 0
+
+    function fi() internal{} // internal blank function
+    function fe() external{} // external blank function
+    ```
+    - Initial values of reference types
+mapping: a mapping which all members set to their default values
+
+struct: a struct which all members set to their default values
+
+array
+
+dynamic array: []
+static array（fixed-length): a static array where all members set to their default values.
+You can use getter function of public variables to confirm initial values:
+```
+    // reference types
+    uint[8] public _staticArray; // a static array which all members set to their default values[0,0,0,0,0,0,0,0]
+    uint[] public _dynamicArray; // `[]`
+    mapping(uint => address) public _mapping; // a mapping which all members set to their default values
+    // a struct which all members set to their default values 0, 0
+    struct Student{
+        uint256 id;
+        uint256 score; 
+    }
+    Student public student;
+
+```
+### 
 <!-- Content_END -->
