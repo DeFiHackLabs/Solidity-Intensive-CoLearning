@@ -70,6 +70,16 @@ Solidity 102
 
 的学习
 
-### 2024.09.25
+### 2024.09.26
+
+完成了 Solidity 102
+
+    21. 调用其他合约
+
+    22. Call
+
+    23. DelegateCall
+
+的学习
 
 <!-- Content_END -->

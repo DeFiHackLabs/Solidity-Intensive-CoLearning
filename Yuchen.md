@@ -373,4 +373,59 @@ Student student; // 初始一个student结构体
     }
     ```
 
+
+### 2024.09.26
+
+#### 映射(mapping)類型
+在映射中，可以通過鍵(`key`)來查詢對應的值(`value`)，例如，藉由`id`查詢姓名。  
+宣告映射的格式為`mapping(KeyType => ValueType)`，例子：  
+```Solidity
+mapping(uint => address) public idToAddress; // id映射到地址
+mapping(address => address) public swapPair; // 币对的映射，地址到地址
+```
+
+**映射規則**  
+1. `KeyType`只能為 Solidity 內置的值類型，ex.`uint`, `address`...，不能用自定義的結構，ex.`struct`，使用後會報錯。
+2. 映射的數據必須存在`storage`中，因此可以用於合約的狀態變量，但不能用於`public`函數的參數或返回結果中，因為`mapping`紀錄的是關係(key-value pair)，且是一種動態的、潛在無限長的結構，無法輕易地序列化或打包為交易的有效負載傳遞。
+3. `mapping`宣告為`public`時，Solidity 會自動創建一個`getter`函數，可以通過`key`查詢對應的`value`。
+4. 為`mapping`新增新的值對：`_Var[_Key] = _Value`，`_Var`是映射變量名，`_Key`和`_Value`是對英的鍵值對。
+    ```
+    function writeMap (uint _Key, address _Value) public{
+        idToAddress[_Key] = _Value;
+    }
+    ```
+
+**映射原理**  
+1. `mapping`不儲存任何鍵(`key`)的資訊，也沒有length。
+2. `mapping`並不直接儲存每個鍵值對，而是使用哈希計算：`keccak256(abi.encodePacked(key, slot))`當成 offset 存取 value，`slot`是映射變量定義所在的插槽位置。
+3. Ethereumc會定義所有未使用的空間為0，所以未賦值(`value`)的鍵(`key`)初始值都是各個型別的默認值，ex.`uint`的默認值是0。
+
+#### 變量初始值
+在 Solidity 中，宣告但沒賦值的變量都有其初始值。  
+* `boolean`: `false`
+* `string`: `""`
+* `int`: `0`
+* `uint`: `0`
+* `enum`: 枚举中的第一个元素
+* `address`: `0x0000000000000000000000000000000000000000` (或 `address(0)`)
+* `function`
+    * `internal`: 空白函数
+    * `external`: 空白函数
+    ```Solidity
+    bool public _bool; // false
+    string public _string; // ""
+    int public _int; // 0
+    uint public _uint; // 0
+    address public _address; // 0x0000000000000000000000000000000000000000
+
+    enum ActionSet { Buy, Hold, Sell}
+    ActionSet public _enum; // 第1个内容Buy的索引0
+
+    function fi() internal{} // internal空白函数
+    function fe() external{} // external空白函数 
+    ```
+    <img src="https://github.com/user-attachments/assets/22f1f38e-71bc-4820-84f1-8d1df1398be8" height="400px" width="640px" />
+    <img src="https://github.com/user-attachments/assets/7708bdf1-f6d3-46a2-a8a6-0817fea6a932" height="400px" width="640px" />
+
+
 <!-- Content_END -->
