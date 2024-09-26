@@ -134,9 +134,38 @@ timezone: Asia/Shanghai
             _student.score = 100;
         }
         ```
-    
-- 映射 (Mapping Types)
 
 ### 2024.09.25
+
+> 進度: Solidity 101 7~8
+
+- 映射 (Mapping Types)
+    > https://docs.soliditylang.org/en/latest/types.html#mapping-types
+    - `mapping(_KeyType => _ValueType)`
+        - `_KeyType` 只能使用內建的值類型, 不能使用結構
+        - `_ValueType` 可以使用結構
+    - 儲存位置必須為 `storage`
+    - 不能用於 `public` 函數的參數或回傳值
+
+- 變數初始值
+    - 值類型
+        - `boolean`: `false`
+        - `string`: `""`
+        - `int`: `0`
+        - `uint`: `0`
+        - `enum`: 第一個元素
+        - `address`: `0x0000000000000000000000000000000000000000` (`address(0)`)
+        - `function`
+    - 引用類型
+        - `mapping` key/value的初始值的映射
+        - `struct` 成員類型的初始值
+        - `array`
+            - 動態 `[]`
+            - 靜態
+    - `delete a` 會使變數 `a` 的值變為初始值
+
+### 2024.09.26
+
+> 進度: Solidity 101 
 
 <!-- Content_END -->

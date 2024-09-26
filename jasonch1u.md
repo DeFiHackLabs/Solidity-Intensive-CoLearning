@@ -37,6 +37,7 @@ contract HelloWorld { }
 
 #### 02_ValueTypes
 
+狀態變數：預設可見性是 internal。函數：預設可見性是 internal。
 值的寫法：
 ```solidity
 <value types> {internal|public|private|不寫?|還不知道為什麼不能寫external?} <_value name> = 數值、字串或判斷式

@@ -14,7 +14,7 @@ timezone: Asia/Shanghai
 <!-- Content_START -->
 
 ### 2024.09.23
-编译器 remix
+使用编译器 remix https://remix.ethereum.org/
 ```
 // 声明许可证
 // SPDX License-Identifier: MIT
@@ -30,7 +30,7 @@ contract HelloWorld {
 }
 ```
 
-### 2024年9月24日
+### 2024.09.24
 #### 数据类型，bool，uint，address，byte，enum
 ```
 // SPDX-License-Identifier: MIT
@@ -102,7 +102,7 @@ contract Types {
     }
 }
 ```
-### 2024 年 9 月 25 日
+### 2024.09.25
 
 #### 函数
 
@@ -111,25 +111,24 @@ Solidity语言的函数非常灵活，可以进行各种复杂操作。在本教
 
 我们先看一下 Solidity 中函数的形式:
 
-function () {internal|external|public|private} [pure|view|payable] [returns ()]
+function <function name> (<parameter types>) {internal|external|public|private} [pure|view|payable] [returns ()]
 
 Copy
 看着有一些复杂，让我们从前往后逐个解释(方括号中的是可写可不 写的关键字)：
 
 function：声明函数时的固定用法。要编写函数，就需要以 function 关键字开头。
 
-：函数名。
+ <function name> ：函数名。
 
-()：圆括号内写入函数的参数，即输入到函数的变量类型和名称。
+(<parameter types>)：圆括号内写入函数的参数，即输入到函数的变量类型和名称。
 
 {internal|external|public|private}：函数可见性说明符，共有4种。
 
-public：内部和外部均可见。
-private：只能从本合约内部访问，继承的合约也不能使用。
-external：只能从合约外部访问（但内部可以通过 this.f() 来调用，f是函数名）。
-internal: 只能从合约内部访问，继承的合约可以用。
+   public：内部和外部均可见。
+   private：只能从本合约内部访问，继承的合约也不能使用。
+   external：只能从合约外部访问（但内部可以通过 this.f() 来调用，f是函数名）。
+   internal: 只能从合约内部访问，继承的合约可以用。
 注意 1：合约中定义的函数需要明确指定可见性，它们没有默认值。
-
 注意 2：public|private|internal 也可用于修饰状态变量。public变量会自动生成同名的getter函数，用于查询数值。未标明可见性类型的状态变量，默认为internal。
 
 [pure|view|payable]：决定函数权限/功能的关键字。payable（可支付的）很好理解，带着它的函数，运行的时候可以给合约转入 ETH。pure 和 view 的介绍见下一节。
@@ -220,5 +219,45 @@ contract HelloFunction {
     }
 }
 ```
+
+### 2024.09.26
+#### 函数的返回
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+// 函数输出
+contract functionReturn {
+    // 创建公开可读写的数据
+    uint public myNum;
+    string public myStr1;
+    bool public myBool;
+
+    function returnName() internal pure returns (uint num, string memory str1, bool bool1) {
+        // 可以直接使用return()进行返回
+        // return(100, "Hello", false);
+
+        // 也可以使用命名返回方式
+        num = 200;
+        str1 = "World";
+        bool1 = true;
+    }
+    
+    // 使用返回值修改创建的可读写的数据
+    function getReturnName() external {
+        // 对获取到的返回进行解构，数据类型，顺序需要相同
+        (uint num, string memory str1, bool bool1) = returnName();
+        myBool = bool1;
+        myNum  = num;
+        myStr1 = str1;
+
+        // 也可以只解构需要的部分，区域部分可以为空
+        (, string memory str1,) = returnName();
+        myStr1 = str1;
+    }
+}
+```
+
+
 
 <!-- Content_END -->
