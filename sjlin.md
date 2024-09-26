@@ -17,10 +17,12 @@ timezone: Asia/Taipei
 
 <!-- Content_START -->
 
-### 2024.09.23
+### 2024.09.26
 
 學習內容: 
-- 
+完成 WTF Academy Solidity 101 1-2 
+<img width="897" alt="image" src="https://github.com/user-attachments/assets/6ccc0296-34bb-4bda-8d7e-563173e3f9af">
+
 
 ### 
 

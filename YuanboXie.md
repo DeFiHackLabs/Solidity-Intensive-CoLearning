@@ -127,4 +127,16 @@ function fStorage() public{
             - array.push()
             - array.pop()
 
+### 2024.09.25
+
+- [101-7] mapping(_KeyType => _ValueType)
+    - key 只能是 solidity 内置的值类型，value 可以是自定义 struct；mapping 不能用于 public 函数的参数或返回结果中；mapping 的存储位置必须是 storage; mapping 没有 .length;
+    - Ethereum 会定义所有未使用的空间为 0，所以未赋值（Value）的键（Key）初始值都是各个 type 的默认值，如 uint 的默认值是 0;
+- [101-8] delete 会让变量变为初始值;
+- [101-9] Const & immutable
+    - 数值变量可以声明 constant 和 immutable; string 和 bytes 可以声明为 constant，但不能为 immutable;
+    - constant 变量必须在声明的时候初始化，之后再也不能改变;
+    - immutable 变量可以在声明时或构造函数中初始化，因此更加灵活。在 Solidity v8.0.21 以后，immutable 变量不需要显式初始化。反之，则需要显式初始化。 若 immutable 变量既在声明时初始化，又在 constructor 中初始化，会使用 constructor 初始化的值;
+
+
 <!-- Content_END -->

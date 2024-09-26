@@ -2,39 +2,6 @@
 timezone: America/New_York
 ---
 
-> 请在上边的 timezone 添加你的当地时区，这会有助于你的打卡状态的自动化更新，如果没有添加，默认为北京时间 UTC+8 时区
-> 时区请参考以下列表，请移除 # 以后的内容
-
-timezone: Pacific/Honolulu # 夏威夷-阿留申标准时间 (UTC-10)
-
-timezone: America/Anchorage # 阿拉斯加夏令时间 (UTC-8)
-
-timezone: America/Los_Angeles # 太平洋夏令时间 (UTC-7)
-
-timezone: America/Denver # 山地夏令时间 (UTC-6)
-
-timezone: America/Chicago # 中部夏令时间 (UTC-5)
-
-timezone: America/New_York # 东部夏令时间 (UTC-4)
-
-timezone: America/Halifax # 大西洋夏令时间 (UTC-3)
-
-timezone: America/St_Johns # 纽芬兰夏令时间 (UTC-2:30)
-
-timezone: Asia/Dubai # 海湾标准时间 (UTC+4)
-
-timezone: Asia/Kolkata # 印度标准时间 (UTC+5:30)
-
-timezone: Asia/Dhaka # 孟加拉国标准时间 (UTC+6)
-
-timezone: Asia/Bangkok # 中南半岛时间 (UTC+7)
-
-timezone: Asia/Shanghai # 中国标准时间 (UTC+8)
-
-timezone: Asia/Tokyo # 日本标准时间 (UTC+9)
-
-timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
-
 ---
 
 # isparkyou
@@ -63,9 +30,6 @@ contract HelloWeb3 {
 Ctrl + S
 ### 部署：
 Deploy
-
-<!-- Content_END -->
-<!-- Content_START -->
 ### 2024.09.24
 ### value type
 1. bool
@@ -84,7 +48,7 @@ bool public _bool5 = _bool != _bool1; true// 不相等
 一般出现在逻辑与（&&）和逻辑或（||）中。 当逻辑与（&&）的第一个条件为false时，就不会再去判断第二个条件； 当逻辑或（||）的第一个条件为true时，就不会再去判断第二个条件，这就是短路规则。
 
 2. int
-   ```
+```
    // 整型
 int public _int = -1; // 整数，包括负数
 uint public _uint = 1; // 正整数
@@ -132,10 +96,370 @@ function enumToUint() external view returns(uint){
 
 ### mapping type
 
-
-<!-- Content_END -->
-<!-- Content_START -->
 ### 2024.09.25
+### 函数
+```
+function <function name>(<parameter types>) {internal|external|public|private} [pure|view|payable] [returns (<return types>)]
+```
+合约中定义的函数需要明确指定可见性，它们没有默认值。
+public|private|internal 也可用于修饰状态变量。
+public变量会自动生成同名的getter函数，用于查询数值。未标明可见性类型的状态变量，默认为internal。
+包含 pure 和 view 关键字的函数是不改写链上状态的，因此用户直接调用它们是不需要付 gas 的（注意，合约中非 pure/view 函数调用 pure/view 函数时需要付gas）。
+
+public：内部和外部均可见。
+private：只能从本合约内部访问，继承的合约也不能使用。
+external：只能从合约外部访问（但内部可以通过 this.f() 来调用，f是函数名）。
+internal: 只能从合约内部访问，继承的合约可以用。
+
+#### 在以太坊中，以下语句被视为修改链上状态：
+1. 写入状态变量。
+2. 释放事件。
+3. 创建其他合约。
+4. 使用 selfdestruct.
+5. 通过调用发送以太币。
+6. 调用任何未标记 view 或 pure 的函数。
+7. 使用低级调用（low-level calls）。
+8. 使用包含某些操作码的内联汇编。
+
+pure，pure 函数既不能读取也不能写入链上的状态变量。
+view，view函数能读取但也不能写入状态变量。
+非 pure 或 view 的函数既可以读取也可以写入状态变量。
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+contract FunctionTypes{
+    uint256 public number = 5;
+// 默认function
+function add() external{
+    number = number + 1;
+}
+// pure: 纯纯牛马
+function addPure(uint256 _number) external pure returns(uint256 new_number){
+    new_number = _number + 1;
+}
+// pure: 纯纯牛马
+function addPure(uint256 _number) external pure returns(uint256 new_number){
+    new_number = _number + 1;
+}
+// view: 看客
+function addView() external view returns(uint256 new_number) {
+    new_number = number + 1;
+}
+// internal: 内部函数
+function minus() internal {
+    number = number - 1;
+}
+
+// 合约内的函数可以调用内部函数
+function minusCall() external {
+    minus();
+}
+// payable: 递钱，能给合约支付eth的函数
+function minusPayable() external payable returns(uint256 balance) {
+    minus();    
+    balance = address(this).balance;
+}
+}
+```
+
+### 返回值：return和returns
+returns：跟在函数名后面，用于声明返回的变量类型及变量名。
+return：用于函数主体中，返回指定的变量。
+```
+// 返回多个变量
+function returnMultiple() public pure returns(uint256, bool, uint256[3] memory){
+    return(1, true, [uint256(1),2,5]);
+}
+```
+这里uint256[3]声明了一个长度为3且类型为uint256的数组作为返回值。因为[1,2,3]会默认为uint8(3)，因此[uint256(1),2,5]中首个元素必须强转uint256来声明该数组内的元素皆为此类型。数组类型返回值默认必须用memory修饰
+
+### 命名式返回
+我们可以在 returns 中标明返回变量的名称。Solidity 会初始化这些变量，并且自动返回这些函数的值，无需使用 return。
+```
+// 命名式返回
+function returnNamed() public pure returns(uint256 _number, bool _bool, uint256[3] memory _array){
+    _number = 2;
+    _bool = false;
+    _array = [uint256(3),2,1];
+}
+```
+也可以在命名式返回中用 return 来返回变量：
+```
+// 命名式返回，依然支持return
+function returnNamed2() public pure returns(uint256 _number, bool _bool, uint256[3] memory _array){
+    return(1, true, [uint256(1),2,5]);
+}
+```
+
+### 解构式赋值
+读取所有返回值：声明变量，然后将要赋值的变量用,隔开，按顺序排列。
+```
+uint256 _number;
+bool _bool;
+uint256[3] memory _array;
+(_number, _bool, _array) = returnNamed();
+```
+读取部分返回值：声明要读取的返回值对应的变量，不读取的留空。在下面的代码中，我们只读取_bool，而不读取返回的_number和_array：
+```
+(, _bool2, ) = returnNamed();
+```
+
+### 引用类型（Reference Type）
+包括数组（array）和结构体（struct），由于这类变量比较复杂，占用存储空间大，我们在使用时必须要声明数据存储的位置。
+#### 数据位置
+Solidity数据存储位置有三类：storage，memory和calldata。不同存储位置的gas成本不同。storage类型的数据存在链上，类似计算机的硬盘，消耗gas多；memory和calldata类型的临时存在内存里，消耗gas少。大致用法：
+storage：合约里的状态变量默认都是storage，存储在链上。
+memory：函数里的参数和临时变量一般用memory，存储在内存中，不上链。尤其是如果返回数据类型是变长的情况下，必须加memory修饰，例如：string, bytes, array和自定义结构。
+calldata：和memory类似，存储在内存中，不上链。与memory的不同点在于calldata变量不能修改（immutable），一般用于函数的参数。例子：
+```
+function fCalldata(uint[] calldata _x) public pure returns(uint[] calldata){
+    //参数为calldata数组，不能被修改
+    // _x[0] = 0 //这样修改会报错
+    return(_x);
+}
+```
+
+#### 数据位置和赋值规则
+赋值本质上是创建引用指向本体，因此修改本体或者是引用，变化可以被同步：
+storage（合约的状态变量）赋值给本地storage（函数里的）时候，会创建引用，改变新变量会影响原变量。例子：
+```
+uint[] x = [1,2,3]; // 状态变量：数组 x
+
+function fStorage() public{
+    //声明一个storage的变量 xStorage，指向x。修改xStorage也会影响x
+    uint[] storage xStorage = x;
+    xStorage[0] = 100;
+}
+```
+memory赋值给memory，会创建引用，改变新变量会影响原变量。
+其他情况下，赋值创建的是本体的副本，即对二者之一的修改，并不会同步到另一方
+
+#### 变量的作用域
+#### 状态变量
+状态变量是数据存储在链上的变量，所有合约内函数都可以访问，gas消耗高。状态变量在合约内、函数外声明：
+```
+contract Variables {
+    uint public x = 1;
+    uint public y;
+    string public z;
+}
+```
+我们可以在函数里更改状态变量的值：
+```
+function foo() external{
+    // 可以在函数里更改状态变量的值
+    x = 5;
+    y = 2;
+    z = "0xAA";
+}
+```
+#### 局部变量
+局部变量是仅在函数执行过程中有效的变量，函数退出后，变量无效。局部变量的数据存储在内存里，不上链，gas低。局部变量在函数内声明：
+```
+function bar() external pure returns(uint){
+    uint xx = 1;
+    uint yy = 3;
+    uint zz = xx + yy;
+    return(zz);
+}
+```
+#### 全局变量
+全局变量是全局范围工作的变量，都是solidity预留关键字。他们可以在函数内不声明直接使用：
+```
+function global() external view returns(address, uint, bytes memory){
+    address sender = msg.sender;
+    uint blockNum = block.number;
+    bytes memory data = msg.data;
+    return(sender, blockNum, data);
+}
+```
+blockhash(uint blockNumber): (bytes32) 给定区块的哈希值 – 只适用于256最近区块, 不包含当前区块。
+block.coinbase: (address payable) 当前区块矿工的地址
+block.gaslimit: (uint) 当前区块的gaslimit
+block.number: (uint) 当前区块的number
+block.timestamp: (uint) 当前区块的时间戳，为unix纪元以来的秒
+gasleft(): (uint256) 剩余 gas
+msg.data: (bytes calldata) 完整call data
+msg.sender: (address payable) 消息发送者 (当前 caller)
+msg.sig: (bytes4) calldata的前四个字节 (function identifier)
+msg.value: (uint) 当前交易发送的 wei 值
+block.blobbasefee: (uint) 当前区块的blob基础费用。这是Cancun升级新增的全局变量。
+blobhash(uint index): (bytes32) 返回跟当前交易关联的第 index 个blob的版本化哈希（第一个字节为版本号，当前为0x01，后面接KZG承诺的SHA256哈希的最后31个字节）。若当前交易不包含blob，则返回空字节。这是Cancun升级新增的全局变量。
+
+#### 以太单位与事件单位
+#### 以太单位
+Solidity中不存在小数点，以0代替为小数点，来确保交易的精确度，并且防止精度的损失，利用以太单位可以避免误算的问题，方便程序员在合约中处理货币交易。
+wei: 1
+gwei: 1e9 = 1000000000
+ether: 1e18 = 1000000000000000000
+```
+function weiUnit() external pure returns(uint) {
+    assert(1 wei == 1e0);
+    assert(1 wei == 1);
+    return 1 wei;
+}
+
+function gweiUnit() external pure returns(uint) {
+    assert(1 gwei == 1e9);
+    assert(1 gwei == 1000000000);
+    return 1 gwei;
+}
+
+function etherUnit() external pure returns(uint) {
+    assert(1 ether == 1e18);
+    assert(1 ether == 1000000000000000000);
+    return 1 ether;
+}
+```
+#### 时间单位
+可以在合约中规定一个操作必须在一周内完成，或者某个事件在一个月后发生。这样就能让合约的执行可以更加精确，不会因为技术上的误差而影响合约的结果。
+seconds: 1
+minutes: 60 seconds = 60
+hours: 60 minutes = 3600
+days: 24 hours = 86400
+weeks: 7 days = 604800
+```
+function secondsUnit() external pure returns(uint) {
+    assert(1 seconds == 1);
+    return 1 seconds;
+}
+
+function minutesUnit() external pure returns(uint) {
+    assert(1 minutes == 60);
+    assert(1 minutes == 60 seconds);
+    return 1 minutes;
+}
+
+function hoursUnit() external pure returns(uint) {
+    assert(1 hours == 3600);
+    assert(1 hours == 60 minutes);
+    return 1 hours;
+}
+
+function daysUnit() external pure returns(uint) {
+    assert(1 days == 86400);
+    assert(1 days == 24 hours);
+    return 1 days;
+}
+
+function weeksUnit() external pure returns(uint) {
+    assert(1 weeks == 604800);
+    assert(1 weeks == 7 days);
+    return 1 weeks;
+}
+```
+
+### 引用类型
+#### 数组array
+固定长度数组：在声明时指定数组的长度。用T[k]的格式声明，其中T是元素的类型，k是长度，例如：
+```
+// 固定长度 Array
+uint[8] array1;
+bytes1[5] array2;
+address[100] array3;
+```
+可变长度数组（动态数组）：在声明时不指定数组的长度。用T[]的格式声明，其中T是元素的类型，例如：
+```
+// 可变长度 Array
+uint[] array4;
+bytes1[] array5;
+address[] array6;
+bytes array7;
+```
+bytes比较特殊，是数组，但是不用加[]。另外，不能用byte[]声明单字节数组，可以使用bytes或bytes1[]。bytes 比 bytes1[] 省gas。
+#### 创建数组的规则
+对于memory修饰的动态数组，可以用new操作符来创建，但是必须声明长度，并且声明后长度不能改变。例子：
+```
+// memory动态数组
+uint[] memory array8 = new uint[](5);
+bytes memory array9 = new bytes(9);
+```
+数组字面常数(Array Literals)是写作表达式形式的数组，用方括号包着来初始化array的一种方式，并且里面每一个元素的type是以第一个元素为准的
+如果创建的是动态数组，你需要一个一个元素的赋值。
+
+#### 数组成员
+length: 数组有一个包含元素数量的length成员，memory数组的长度在创建后是固定的。
+push(): 动态数组拥有push()成员，可以在数组最后添加一个0元素，并返回该元素的引用。
+push(x): 动态数组拥有push(x)成员，可以在数组最后添加一个x元素。
+pop(): 动态数组拥有pop()成员，可以移除数组最后一个元素。
+
+#### 结构体struct
+支持通过构造结构体的形式定义新的类型。结构体中的元素可以是原始类型，也可以是引用类型；结构体可以作为数组或映射的元素。
+```
+// 结构体
+struct Student{
+    uint256 id;
+    uint256 score; 
+}
+
+Student student; // 初始一个student结构体
+```
+给结构体赋值的四种方法：
+```
+//  给结构体赋值
+// 方法1:在函数中创建一个storage的struct引用
+function initStudent1() external{
+    Student storage _student = student; // assign a copy of student
+    _student.id = 11;
+    _student.score = 100;
+}
+// 方法2:直接引用状态变量的struct
+function initStudent2() external{
+    student.id = 1;
+    student.score = 80;
+}
+// 方法3:构造函数式
+function initStudent3() external {
+    student = Student(3, 90);
+}
+// 方法4:key value
+function initStudent4() external {
+    student = Student({id: 4, score: 60});
+}
+```
+
+### 映射类型mapping
+在映射中，人们可以通过键（Key）来查询对应的值（Value）
+声明映射的格式为mapping(_KeyType => _ValueType)，其中_KeyType和_ValueType分别是Key和Value的变量类型。例子：
+```
+mapping(uint => address) public idToAddress; // id映射到地址
+mapping(address => address) public swapPair; // 币对的映射，地址到地址
+```
+### 映射的规则
+规则1：映射的_KeyType只能选择Solidity内置的值类型，比如uint，address等，不能用自定义的结构体。而_ValueType可以使用自定义的类型。
+规则2：映射的存储位置必须是storage，因此可以用于合约的状态变量，函数中的storage变量和library函数的参数（见例子）。不能用于public函数的参数或返回结果中，因为mapping记录的是一种关系 (key - value pair)。
+规则3：如果映射声明为public，那么Solidity会自动给你创建一个getter函数，可以通过Key来查询对应的Value。
+规则4：给映射新增的键值对的语法为_Var[_Key] = _Value，其中_Var是映射变量名，_Key和_Value对应新增的键值对。
+
+### 映射的原理
+原理1: 映射不储存任何键（Key）的资讯，也没有length的资讯。
+原理2: 映射使用keccak256(abi.encodePacked(key, slot))当成offset存取value，其中slot是映射变量定义所在的插槽位置。
+原理3: 因为Ethereum会定义所有未使用的空间为0，所以未赋值（Value）的键（Key）初始值都是各个type的默认值，如uint的默认值是0。
+
+### 变量初始值
+#### 值类型初始值
+boolean: false
+string: ""
+int: 0
+uint: 0
+enum: 枚举中的第一个元素
+address: 0x0000000000000000000000000000000000000000 (或 address(0))
+function
+internal: 空白函数
+external: 空白函数
+
+#### 引用类型初始值
+映射mapping: 所有元素都为其默认值的mapping
+结构体struct: 所有成员设为其默认值的结构体
+数组array
+动态数组: []
+静态数组（定长）: 所有成员设为其默认值的静态数组
+
+#### delete操作符
+delete a会让变量a的值变为初始值。
+
+### 2024.09.26
 
 
 <!-- Content_END -->

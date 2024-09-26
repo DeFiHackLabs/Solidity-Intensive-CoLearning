@@ -6,10 +6,10 @@ timezone: Asia/Shanghai
 
 # realgu
 
-1. 自我介绍
-   TradFi Dev
+1. 自我介绍  
+   TradFi Dev  
 
-3. 你认为你会完成本次残酷学习吗？
+3. 你认为你会完成本次残酷学习吗？  
    会，下死命令
    
 ## Notes
@@ -45,6 +45,14 @@ timezone: Asia/Shanghai
 7. [全局变量列表](https://learnblockchain.cn/docs/solidity/units-and-global-variables.html#special-variables-and-functions)
 8. bytes比较特殊，是数组，但是不用加[]。另外，不能用byte[]声明单字节数组，可以使用bytes或bytes1[]。bytes 比 bytes1[] 省gas。
 
-### 
+### 2024.09.25
+1. 声明映射的格式为mapping(_KeyType => _ValueType)，其中_KeyType和_ValueType分别是Key和Value的变量类型
+2. 映射的_KeyType只能选择Solidity内置的值类型，比如uint，address等，不能用自定义的结构体。而_ValueType可以使用自定义的类型
+3. 映射的存储位置必须是storage
+4. 声明但没赋值的变量都有它的初始值或默认值
+5. delete a会让变量a的值变为初始值
+6. constant变量必须在声明的时候初始化，之后再也不能改变。尝试改变的话，编译不通过。
+7. immutable变量可以在声明时或构造函数中初始化
+8. Solidity中最常用的变量类型是uint，也就是正整数，取到负值的话，会报underflow错误。而在插入算法中，变量j有可能会取到-1，引起报错。这里，我们需要把j加1，让它无法取到负值。
 
 <!-- Content_END -->
