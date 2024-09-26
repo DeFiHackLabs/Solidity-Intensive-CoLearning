@@ -506,4 +506,48 @@ function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
 //         return(a);
 ```
 
+### 2024.09.26
+
+#### 11_Modifier
+
+* Constructor：每个合约可以定义一个，并在部署合约的时候自动运行一次。它可以用来初始化合约的一些参数，例如初始化合约的owner地址，部屬時會要求出入initialOwner
+
+```solidity
+address owner; // 定义owner变量
+
+// 构造函数
+constructor(address initialOwner) { //()聲明輸入值
+    owner = initialOwner; // 在部署合约的时候，将owner设置为传入的initialOwner地址
+}
+
+// getter
+function getOwner() external view returns(address _address){
+    _address = owner;
+}
+```
+
+* modifier
+
+```solidity
+// 定义modifier
+modifier onlyOwner {
+require(msg.sender == owner); // 检查调用者是否为owner地址
+_; // 如果是的话，继续运行函数主体；否则报错并revert交易
+}
+```
+上面是一個modifier，下面是一個叫onlyOwner modifier修飾的function，當這個function看到modifier之後，才會跑去執行modifier的內容，去判斷检查调用者是否为owner地址，如果是的话，继续运行changeOwner這個function
+```solidity
+function changeOwner(address _newOwner) external onlyOwner{
+owner = _newOwner; // 只有owner地址运行这个函数，并改变owner
+}
+```
+#### 12_Event
+
+#### 13_Inheritance
+
+#### 14_Interface
+
+#### 15_Errors
+
+
 <!-- Content_END -->
