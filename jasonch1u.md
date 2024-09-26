@@ -568,10 +568,10 @@ function _transfer(
 EVM日志 Log
 topic
 ```solidity
-keccak256("Transfer(address,address,uint256)") //簽名要這樣寫
+keccak256("Transfer(address,address,uint256)") //事件簽名要這樣寫
 //0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
 
-keccak256("Transfer(address,address,uint)") //uint不寫256，簽名hashed會跟上面不一樣
+keccak256("Transfer(address,address,uint)") //uint不寫256，事件簽名hashed會跟上面不一樣
 ```
 除了事件哈希，主题还可以包含至多3个indexed参数，也就是Transfer事件中的from和to。總共四個東西
 
