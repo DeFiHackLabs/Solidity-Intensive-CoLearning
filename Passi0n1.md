@@ -274,5 +274,21 @@ contract CalldataExample {
 - **默认参数类型**：未声明类型的参数默认是 `memory`。
 - **Storage 变量**：需要显式声明。
 - **External 函数参数**：推荐使用`calldata`，尤其是对于复杂类型，但标量类型可以使用`memory`或`calldata`。
+补充：
+复杂类型（Complex Types）
+复杂类型通常指的是包含多个值或者具有内部结构的数据类型。在Solidity（一种智能合约编程语言）中，复杂类型包括但不限于：
 
+结构体（Structs）
+数组（Arrays）
+映射（Mappings）
+枚举（Enums）
+这些类型通常占用更多的内存空间，并且在函数调用时可能需要更多的处理来传递它们的状态。
+
+标量类型（Scalar Types）
+标量类型指的是单一的值，它们是最基本的数据类型。在Solidity中，标量类型包括：
+
+整数（如 int, uint）
+布尔值（bool）
+地址（address）
+固定大小字节数组（如 bytes1, bytes32）
 <!-- Content_END -->
