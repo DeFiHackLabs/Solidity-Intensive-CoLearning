@@ -132,7 +132,7 @@ Solidity中的变量类型
 
 1、function：声明函数时的固定用法，编写函数需要以 function 关键字开头
 
-2、 <function name>：函数名
+2、 < function name >：函数名
 
 3、 (<parameter types>)：圆括号内写入函数的参数，即输入到函数的变量类型和名称
 
