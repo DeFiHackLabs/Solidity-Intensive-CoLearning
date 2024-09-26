@@ -415,4 +415,31 @@ function initStudent4() external {
 }
 ```
 
+### 2024.09.27
+
+(Day 5)
+
+学习笔记
+
+#### 映射 mapping
+
+- 映射是 solidity 中的一种数据类型，用来存储一组键值对。
+- 映射的类型是 `mapping(_KeyType => _ValueType)`。
+- 映射的值类型可以是任何类型，包括数组、结构体、映射等。
+- 映射的键类型不能是映射类型。
+
+注：现在的映射可以支持用变量名进行声明。
+
+```solidity
+// 映射
+mapping(address wallet => string name) students;
+```
+
+映射的规则：
+
+- 映射的类型需要使用 solidity 内置的基本类型。比如 uint256、address、string、bytes 等。不可以使用自定义类型。而 value 可以使用自定义类型。
+- 映射的存储位置必须是 storage。因此可以使用合约的状态变量。
+- 如果映射为 public，那么 solidity 会给你创建一个 getter 函数，可以通过 key 来查询对应的 value。
+- 给映射新增的键值对的语法是`var[key]=value`。其中 var 是一个映射变量。
+
 <!-- Content_END -->
