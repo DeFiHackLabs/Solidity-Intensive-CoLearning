@@ -124,6 +124,10 @@ https://passi0n1.github.io/post/payable%E3%80%81view-he-%20pure.html
 
 ### 2024.09.26
 #### 学习笔记
+
+昨天的笔记忘记提交了，可惜了
+学习到了第八节，整理了一下Storage、memory这些储存的类型。
+
 ## Storage
 storage 存储的是声明定义的数据。
 
