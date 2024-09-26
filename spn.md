@@ -22,4 +22,6 @@ timezone: Asia/Shanghai
 重新学了1-3课，复现并顺便编写点测试，[笔记](https://github.com/spn21/web3-learning/tree/main/solidity_review/src)
 [测试](https://github.com/spn21/web3-learning/tree/main/solidity_review/test)
 
+### 2024.09.25
+[4-6课](https://github.com/spn21/web3-learning/tree/main/solidity_review/src)
 <!-- Content_END -->

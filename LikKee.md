@@ -344,6 +344,39 @@ function test() public pure returns (uint256) {
 
 ### 2024.09.26
 
+#### Chapter 11: Constructor & Modifier
+
+- `constructor`
+
+  - A special function, automatically run once during contract deployment.
+  - Usually use to initialize parameters of a contract
+
+  ```
+  address owner;
+
+  constructor() {
+   owner = msg.sender;
+  }
+  ```
+
+  - **Notes**: Solidity before `0.4.22`, the `constructor` keyword are the name as the contract name.
+
+- `modifier`
+
+  - Used to declare dedicated propoerties of functions and reduce code redundancy
+  - A `modifier` to restrict the function can only be called by owner:
+
+  ```
+  modifier onlyOwner {
+   require(msg.sender == owner);
+   _;
+  }
+
+  function changeOwner(address _newOwner) external onlyOwner {
+   owner = _newOwner;
+  }
+  ```
+
 ### 2024.09.27
 
 ### 2024.09.28
