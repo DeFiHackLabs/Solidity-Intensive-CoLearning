@@ -12,9 +12,20 @@ timezone: Asia/Shanghai
 2. 你认为你会完成本次残酷学习吗？
 绝对可以!
    
-## Notes
+# Notes
 
 <!-- Content_START -->
-### 
+### 2024.09.23
+[WTF Academy Solidity 101 01-02 Note](content/CraigC/01-02.md)
 
+### 2024.09.24
+[WTF Academy Solidity 101 03 Note](content/CraigC/03.md)
+
+### 2024.09.24
+[WTF Academy Solidity 101 04 Note](content/CraigC/04.md)
+
+### 2024.09.25
+[WTF Academy Solidity 101 05 Note](content/CraigC/05.md)
 <!-- Content_END -->
+
+

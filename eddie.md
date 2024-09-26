@@ -13,8 +13,85 @@ timezone: Asia/Shanghai
 必须的，恰好有一段时间可以用于本次学习活动中；
    
 ## Notes
-
 <!-- Content_START -->
+
+### 2024.09.25
+- WTF101章节内容：抽象合约和接口、异常
+- WTF102章节内容：重载、库合约、Import
+
+#### 笔记
+
+- 接口规则
+    1. 不能包含状态变量
+    2. 不能包含构造函数
+    3. 不能继承除接口外的其他合约
+    4. 所有函数都必须是external且不能有函数体
+    5. 继承接口的非抽象合约必须实现接口定义的所有功能
+- 异常
+
+  1.error
+    
+    ```solidity
+    error TransferNotOwner();
+    revert TransferNotOwner();
+    //省gas
+    ```
+    
+    2.Require
+    
+    ```solidity
+    require(_owners[tokenId] == msg.sender, "Transfer Not Owner");
+    //随着字符串增加gas增加
+    ```
+    
+    3.Assert
+    
+    ```solidity
+    assert(_owners[tokenId] == msg.sender);
+    //只能抛出异常
+    ```
+
+### 2024.09.24
+- WTF101章节内容：映射类型、变量初始值、常数、控制流、构造函数和修饰器、事件、继承
+#### 笔记
+
+- map
+  
+1、key仅支持内置值类型，value支持struct
+
+2、存储位置为storage，这里的map只用来记录关系，而不是一个类型；
+
+3、当映射声明为public 时候，自动创建getter函数
+
+4、val[key] = val
+
+- constant和immutable
+
+数值变量可以声明`constant`和`immutable`；
+
+`string`和`bytes`可以声明为`constant`，但不能为`immutable`。
+- EVM Log
+
+用于存储Solidity Event，是函数和区块链之间的模块；
+
+Topics: 描述事件,事件的签名（哈希）+最多3个indexed参数（256bit）
+
+data: 事件的值，可存储任意大小的数据；
+- 构造函数的继承
+
+```Solidity
+abstract contract A {
+    uint public a;
+
+    constructor(uint _a) {
+        a = _a;
+    }
+}
+//调用父合约的构造函数
+contract C is A {
+	constructor(uint _c) A(_c * _c) {}
+}//这里是C继承了父合约的构造函数，将_c为参数，_c*_c作为父合约构造函数的参数调用；
+```
 
 ### 2024.09.23
 - WTF101章节：HelloWeb3（三行代码）、数值类型、函数类型、函数输出、变量数据存储、引用类型

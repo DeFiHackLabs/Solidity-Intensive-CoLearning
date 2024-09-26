@@ -38,6 +38,49 @@ function <function name>(<parameter types>) {internal|external|public|private} [
   
 storage（合约的状态变量）赋值给本地storage（函数里的）,memory赋值给memory，会创建引用 
 - tansfer的默认单位是wei
-### 
 
+### 2024.09.24
+时间：90min  學習內容: solidity101 5~10
+- array：
+  - bytes比较特殊，是数组，但是不用加[]
+  - memory动态数组，可以用new操作符来创建，但是必须声明长度
+  - 如果创建的是动态数组，你需要一个一个元素的赋值
+
+- struct
+- Mapping，struct和array不可以作为mapping的key
+- 变量初始值
+- 0x00 = 1 byte
+- constant和immutable
+  -string可以是constant，但是不能是immutable，**constant的值在编译时确定，immutable的值在部署时确定**。
+- 定义时赋值为显示赋值，构造函数为隐式赋值
+  
+### 2024.09.25
+时间：90min  學習內容: solidity101 11~15
+- 构造函数
+- modifier  类似decorator
+- event  
+  - Solidity中的事件（event）是EVM上日志的抽象，它具有两个特点：
+  
+      响应：应用程序（ethers.js）可以通过RPC接口订阅和监听这些事件，并在前端做响应。
+
+      经济：事件是EVM上比较经济的存储数据的方式，每个大概消耗2,000 gas；相比之下，链上存储一个新变量至少需要20,000 gas。
+
+  - event <event name>(<parameter types>);  // 声明事件
+  - emit <event name>(<parameter values>);  // 触发事件
+  - indexed 记的参数可以理解为检索事件的索引“键”
+- require和revert
+  - error 可自定义，可包含信息，revert error()  **gas最低**
+  - require(condition, "error message");  // 如果条件为false，则回滚交易并返回错误信息
+  - revert("error message");  // 回滚交易并返回错误信息
+- assert
+  - assert(condition);  // 如果条件为false，则回滚交易并返回错误信息，并且不会返回任何错误信息
+- 继承 
+  - virtual 和 override
+  - 钻石继承（菱形继承）使用super会调用继承链条上的每一个合约的相关函数
+- 抽象合约  接口
+  - 接口与合约ABI（Application Binary Interface）等价，可以相互转换，通过 IERC721 IERC721等可以调用实现接口功能的合约
+  - 接口不能包含状态变量，只能包含函数声明
+  - 接口不能包含构造函数，也不能包含函数体
+  - 接口不能继承其他合约，只能继承其他接口
+  
 <!-- Content_END -->

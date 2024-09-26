@@ -86,5 +86,54 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
             }
     ```
 ### 
+### 2024.09.24
+   - storage: The state variables are storage by default, which are stored on-chain.
 
+  - memory: The parameters and temporary variables in the function generally use memory label, which is stored in memory and not on-chain.
+
+  - calldata: Similar to memory, stored in memory, not on-chain. The difference from memory is that calldata variables cannot be modified, and is generally used for function parameters. Example
+  - Variable scope
+  There are three types of variables in Solidity according to their scope: state variables, local variables, and global variables.
+
+   - Below are some commonly used global variables:
+
+blockhash(uint blockNumber): (bytes32) The hash of the given block - only applies to the 256 most recent block.
+block.coinbase : (address payable) The address of the current block miner
+block.gaslimit : (uint) The gaslimit of the current block
+block.number : (uint) Current block number
+block.timestamp : (uint) The timestamp of the current block, in seconds since the unix epoch
+gasleft() : (uint256) Remaining gas
+msg.data : (bytes calldata) Complete calldata
+msg.sender : (address payable) Message sender (current caller)
+msg.sig : (bytes4) first four bytes of the calldata (i.e. function identifier)
+msg.value : (bytes4) number of wei sent with the message
+
+###
+### 2024.09.25
+An array is a variable type commonly used in Solidity to store a set of data (integers, bytes, addresses, etc.).
+
+fixed-sized arrays: The length of the array is specified at the time of declaration. An array is declared in the format T[k], where T is the element type and k is the length.
+
+Dynamically-sized array（dynamic array）：Length of the array is not specified during declaration. It uses the format of T[], where T is the element type.
+
+  - only storage can use dynamic array
+  In Solidity, the `push` method can only be used on dynamic arrays that are stored in storage, not on arrays that are stored in memory. The reason for this is that `push` is a mutating operation that modifies the underlying storage, which is not allowed on memory variables.
+
+  - To fix this issue, you can create a new dynamic array in storage and copy the elements from the original array into the new one, like this:
+
+  ```solidity
+  function initArray() external pure returns(uint[] memory){
+    uint[] memory x = new uint[](3);
+    x[0] = 1;
+    x[1] = 3;
+    x[2] = 4;
+    uint[] memory array55 = new uint[](x.length + 1);
+    for (uint i = 0; i < x.length; i++) {
+        array55[i] = x[i];
+    }
+    array55[array55.length - 1] = 3;
+    return array55;
+  }
+  ```
+  ###
 <!-- Content_END -->

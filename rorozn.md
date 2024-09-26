@@ -577,4 +577,98 @@ function transferOwner1(uint256 tokenId, address newOwner) public {
 
 ### 2024.09.24
 
+16. 函数重载：名字相同但入参不同，调用时根据不同参数选择执行哪个函数
+
+- 装饰器 modifier 不能重载
+- 如果出现多个匹配的重载函数，则会报错。
+
+17. 库合约
+
+- 一系列函数集合，方便实用，减少 gas，关键字 library。
+  - 不能存在状态变量
+  - 不能够继承或被继承
+  - 不能接收以太币
+  - 不可以被销毁
+  - **尚未理解的：** 库合约重的函数可见性如果被设置为 public 或者 external，则在调用函数时会触发一次 delegatecall。而如果被设置为 internal，则不会引起。对于设置为 private 可见性的函数来说，其仅能在库合约中可见，在其他合约中不可用。
+- 使用 常用的有：  
+   Strings：将 uint256 转换为 String  
+   Address：判断某个地址是否为合约地址  
+   Create2：更安全的使用 Create2 EVM opcode  
+   Arrays：跟数组相关的库合约
+
+```solidity
+// 方法一： 利用using for指令
+using Strings for uint256;
+function getString1(uint256 _number) public pure returns(string memory){
+    // 库合约中的函数会自动添加为uint256型变量的成员
+    return _number.toHexString();
+}
+
+// 方法二： 直接通过库合约名调用
+function getString2(uint256 _number) public pure returns(string memory){
+    return Strings.toHexString(_number);
+}
+```
+
+18. 跨文件引用 import
+
+- 在声明版本号之后，在其余代码之前。  
+  可以引用的内容：  
+  文件相对位置（import './Yeye.sol';）  
+  网址源文件（import 'https://xxx/xxx.sol'）  
+  npm(import @openzeppelin/xxx.sol)  
+  全局符号（import {xxx as yyy} from './xxx.sol'
+
+### 2024.09.25
+
+19. 回调函数
+
+- 0.6 之前是 fallback(),之后拆分成 receive()和 fallback()
+- receive():  
+  合约收到 eth 时被调用  
+  不要写太多逻辑，因为 transfer 发送 eth 的话限制 gas 2300
+
+```solidity
+event Received(address Sender, uint Value);// 定义事件
+
+receive() external payable {// 接收ETH时释放Received事件
+   emit Received(msg.sender, msg.value);
+}
+```
+
+**有些恶意合约，会在 receive()/fallback() 函数，嵌入恶意消耗 gas 的内容或者使得执行故意失败的代码，导致一些包含退款和转账逻辑的合约不能正常工作**
+
+- fallback()  
+  在调用合约不存在的函数时被触发
+
+  ```solidity
+  event fallbackCalled(address Sender, uint Value, bytes Data);
+
+  fallback() external payable{//释放事件
+  emit fallbackCalled(msg.sender, msg.value, msg.data);
+  }
+  ```
+
+- receive 和 fallback 区别
+
+```graph
+           接收ETH
+              |
+         msg.data是空？
+            /  \
+          是    否
+          /      \
+receive()存在?   fallback()
+        / \
+       是  否
+      /     \
+receive()   fallback()
+```
+
+### 2024.09.26
+
 <!-- Content_END -->
+
+```
+
+```

@@ -93,11 +93,118 @@ view 函数可以读取状态变量，但不能改写；pure 函数既不能读�
 
 ### 2024.09.24
 
-笔记内容
+Solidity 中与函数输出相关的有两个关键字：return和returns。它们的区别在于：
+
+returns：跟在函数名后面，用于声明返回的变量类型及变量名。
+return：用于函数主体中，返回指定的变量。
+数组类型返回值默认必须用memory修饰
+在 returns 中标明返回变量的名称。Solidity 会初始化这些变量，并且自动返回这些函数的值，无需使用 return。
+
+storage：合约里的状态变量默认都是storage，存储在链上。
+
+memory：函数里的参数和临时变量一般用memory，存储在内存中，不上链。尤其是如果返回数据类型是变长的情况下，必须加memory修饰，例如：string, bytes, array和自定义结构。
+
+calldata：和memory类似，存储在内存中，不上链。与memory的不同点在于calldata变量不能修改（immutable），一般用于函数的参数。
+
+赋值本质上是创建引用指向本体，因此修改本体或者是引用，变化可以被同步：
+storage（合约的状态变量）赋值给本地storage（函数里的）时候，会创建引用，改变新变量会影响原变量。
+memory赋值给memory，会创建引用，改变新变量会影响原变量。
+
+其他情况下，赋值创建的是本体的副本，即对二者之一的修改，并不会同步到另一方
+状态变量是数据存储在链上的变量，所有合约内函数都可以访问，gas消耗高。状态变量在合约内、函数外声明， 我们可以在函数里更改状态变量的值
+局部变量是仅在函数执行过程中有效的变量，函数退出后，变量无效。局部变量的数据存储在内存里，不上链，gas低。局部变量在函数内声明
+全局变量是全局范围工作的变量，都是solidity预留关键字。他们可以在函数内不声明直接使用
+Solidity中不存在小数点，以0代替为小数点，来确保交易的精确度，并且防止精度的损失，利用以太单位可以避免误算的问题，方便程序员在合约中处理货币交易。
+
+wei: 1
+gwei: 1e9 = 1000000000
+ether: 1e18 = 1000000000000000000
+
+seconds: 1
+minutes: 60 seconds = 60
+hours: 60 minutes = 3600
+days: 24 hours = 86400
+weeks: 7 days = 604800
+数组分为固定长度数组和可变长度数组两种：
+固定长度数组：在声明时指定数组的长度。用T[k]的格式声明，其中T是元素的类型，k是长度，
+可变长度数组（动态数组）：在声明时不指定数组的长度。用T[]的格式声明，其中T是元素的类型
+注意：bytes比较特殊，是数组，但是不用加[]。另外，不能用byte[]声明单字节数组，可以使用bytes或bytes1[]。bytes 比 bytes1[] 省gas。
+对于memory修饰的动态数组，可以用new操作符来创建，但是必须声明长度，并且声明后长度不能改变
+[1,2,3]里面所有的元素都是uint8类型，因为在Solidity中，如果一个值没有指定type的话，会根据上下文推断出元素的类型，默认就是最小单位的type，这里默认最小单位类型是uint8。而[uint(1),2,3]里面的元素都是uint类型，因为第一个元素指定了是uint类型了，里面每一个元素的type都以第一个元素为准。
+如果创建的是动态数组，你需要一个一个元素的赋值
+给结构体赋值的四种方法：
+
+```solidity
+// 结构体
+struct Student{
+    uint256 id;
+    uint256 score; 
+}
+
+Student student; // 初始一个student结构体
+
+//  给结构体赋值
+// 方法1:在函数中创建一个storage的struct引用
+function initStudent1() external{
+    Student storage _student = student; // assign a copy of student
+    _student.id = 11;
+    _student.score = 100;
+}
+
+// 方法2:直接引用状态变量的struct
+function initStudent2() external{
+    student.id = 1;
+    student.score = 80;
+}
+
+// 方法3:构造函数式
+function initStudent3() external {
+    student = Student(3, 90);
+}
+
+// 方法4:key value
+function initStudent4() external {
+    student = Student({id: 4, score: 60});
+}
+```
 
 ### 2024.09.25
 
-笔记内容
+映射（Mapping）类型，Solidity中存储键值对的数据结构，可以理解为哈希表。
+声明映射的格式为mapping(_KeyType =>_ValueType)，其中_KeyType和_ValueType分别是Key和Value的变量类型。
+规则1：映射的_KeyType只能选择Solidity内置的值类型，比如uint，address等，不能用自定义的结构体。而_ValueType可以使用自定义的类型，比如结构体。
+规则2：映射的存储位置必须是storage，因此可以用于合约的状态变量，函数中的storage变量和library函数的参数。不能用于public函数的参数或返回结果中，因为mapping记录的是一种关系 (key - value pair)。
+
+规则3：如果映射声明为public，那么Solidity会自动给你创建一个getter函数，可以通过Key来查询对应的Value。
+
+规则4：给映射新增的键值对的语法为_Var[_Key] =_Value，其中_Var是映射变量名，_Key和_Value对应新增的键值对。
+在Solidity中，声明但没赋值的变量都有它的初始值或默认值。
+值类型初始值
+boolean: false
+string: ""
+int: 0
+uint: 0
+enum: 枚举中的第一个元素
+address: 0x0000000000000000000000000000000000000000 (或 address(0))
+function
+internal: 空白函数
+external: 空白函数
+引用类型初始值
+映射mapping: 所有元素都为其默认值的mapping
+结构体struct: 所有成员设为其默认值的结构体
+数组array
+动态数组: []
+静态数组（定长）: 所有成员设为其默认值的静态数组
+delete操作符
+delete a会让变量a的值变为初始值。
+
+在 Solidity 中，`bytes1` 类型的初始值是 `0x00`，也就是 1 个字节的值全为 0。可以理解为二进制的 `00000000`，也就是 `0x00`。
+constant（常量）和immutable（不变量）。状态变量声明这两个关键字之后，不能在初始化后更改数值。这样做的好处是提升合约的安全性并节省gas。
+只有数值变量可以声明constant和immutable；string和bytes可以声明为constant，但不能为immutable。
+constant变量必须在声明的时候初始化，之后再也不能改变。尝试改变的话，编译不通过。
+immutable变量可以在声明时或构造函数中初始化，因此更加灵活。
+若immutable变量既在声明时初始化，又在constructor中初始化，会使用constructor初始化的值。
+你可以使用全局变量例如address(this)，block.number 或者自定义的函数给immutable变量初始化。
 
 ### 2024.09.26
 

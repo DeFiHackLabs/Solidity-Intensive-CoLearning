@@ -73,4 +73,237 @@ bytes 定长数组，声明时需要定义长度
 枚举类型enum 目前不常用
 
 
+### 2024.09.24
+
+
+// SPDX-License-Identifier: MIT
+pragma solidity ~0.8.21;
+
+
+contract testFunction{
+
+    uint256 public number = 5;
+
+    constructor() payable {}
+
+    function add() external {//外部可以调用
+        number = number+100;
+    }
+    function addpure(uint256 a) external pure returns(uint256 num){//不能看也不能操作链上的元素
+        num = a;
+    }
+
+    function addpure() external view returns(uint256){
+        return number;
+    }
+    
+    function addview() external view returns(uint256 num){ //只能看不能修改
+        num = number;  
+    }
+
+    function minus() internal  { //只能内部调用
+        number = number-1;
+    }
+    function minusCall() external { //只能外部调用
+        minus();
+    }
+    
+    function minusPayable() external payable returns(uint256 balance){
+        minus();
+        balance = address(this).balance;
+    }
+
+    
+}
+第三小节，学习了函数的定义，函数的作用范围和权限的概念。
+函数可见性关键字：  public 内部外部都可见 private 内部可见，不可继承 external 只能外部可见  internal 只能内部可见与private的区别是可继承
+权限关键字：pure不能看也不能修改  view只能看  不显式定义的话既可以看也可以修改  payable修饰的话可以支付etl
+returns 定义返回的类型(不是必须的)，方法体内可以return，也可以用returns后边定义的参数结合return使用
+
+
+
+// SPDX-License-Identifier: MIT
+pragma solidity ~0.8.21;
+contract testReturn{
+    //返回多个参数
+    function returnMuliti() external pure returns(uint256 number,string memory name,bool b){
+        return (1,"test",false);
+    }
+    //命名式返回
+    function returnNamed() public pure returns(uint256 number,string memory name,bool b){
+       number =2;
+       name = "test";
+       b = false;
+    }
+    //解构式读取
+    function readName() external pure returns(uint256 number,string memory name,bool b){
+        (number,name,b) = returnNamed();
+        //返回部分值
+        (,name,) = returnNamed();
+    }
+}
+第四小节主要是返回值的相关操作，可以返回多个值，也可以读取别的方式的返回值再选择性的返回
+注意点：1.调用别的方法时，被调用方法不能申明成external，否则内部方法无法访问
+        2.string和array数组，定义时需要用memory修饰
+
+contract testStorage{
+    uint[] public arr = [2,3,4];
+
+    function fstorage() public{  //存储在链上，修改后的值会同步到链上
+        uint[] storage arr2 = arr;
+        arr2[0] =100;
+    }
+    function fmemory() public view{ //存放在内存上，修改后的值不会同步到链上
+        uint[] memory arr3 = arr;
+        arr3[1] =50;
+    }
+    function fcalldata(uint[] calldata data) public pure returns(uint[] calldata){//只用来读取参数
+       return data;
+    }
+
+    function readData() public view returns(uint[] memory a){ //读取arr的值，看是否被修改
+       a = arr;  
+    }
+}
+第五小节，变量存储的位置
+storage 存储在链上，修改后的值会同步到链上
+memory 存储在内存中，修改的值不会同步到链上
+calldata 存储在内存中，且不能更改，所以一般用到做参数
+
+
+
+contract testStruct{
+    uint256[]  arr1 = new uint256[](5); //动态数组，后边申明的是长度
+    uint256[3] arr2 = [1,2,3]; //定长数组,申明的是值
+    function initArray() external pure returns(uint[] memory arr){
+        uint[] memory a = new uint[](3);
+        a[0] =1;
+        a[1] =2;
+        a[2] =3;
+        arr = a;
+    }
+    uint[] public  arr4;
+    function pushpopArray() public  returns(uint[] memory ){
+         arr4.push(2); 
+         arr4.push(4);
+         return arr4;
+    }
+    struct student{
+        string name;
+        uint256 age;
+    }
+
+    student stu;
+    function initStudent()external {
+        stu = student({name:"test",age:10});
+    }
+    function initStudent2() external {
+        stu.name = "lala";
+        stu.age = 20;
+    }
+}
+学习了动态数组和定长数组的创建和赋值方式，动态数组如果用memory修饰需要定义长度，不能使用pop,push方法
+因为pop,push的数组必须存在链上
+还学习了结构体的声明，主要写了常用的初始化方式，如果部署后想知道初始化的结果，需要将stu声明成public
+
+
+### 2024.09.25
+// SPDX-License-Identifier: MIT
+pragma solidity ~0.8.21;
+
+contract Mapping{
+
+    mapping(uint=>address) public iptoaddress;
+
+    function getData(uint ip) public view returns(address){//根据key获取value
+       address addr = iptoaddress[ip];
+       return addr;
+    }
+
+    function writeMap() public {//map赋值
+        iptoaddress[123] = 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4;
+    }
+}
+第七小节mapping的赋值和根据key获取value，相当于java的map，key不能使用自定义的类型
+存储位置必须是storage
+
+第八小节学习了不同类型变量的默认值
+bool: false,string:"",int uint :0,enum:枚举的第一个值，address:address(0),struct是各个元素的默认值
+
+第九个小节 常量的申明
+constant  声明后必须初始化，初始化后不可变
+immutable 可在声明货构造器中初始化，更加灵活
+
+第10个小节学习了循环，因为跟java相差不大，只写示例
+
+// SPDX-License-Identifier: MIT
+pragma solidity ~0.8.21;
+
+contract looptest{
+    function ifelsetest(uint num) public pure returns(bool){
+        if (num>0){
+            return true;
+        }else{
+            return false;
+        }
+    }
+    function fortest() public pure returns(uint sum){
+        for (uint i=0;i<10;i++){
+            sum+=i;
+        }
+    }
+    function forwhile() public pure returns(uint){
+        uint sum =0 ;
+        uint i=0;
+        while(i<10){
+            sum+=i;
+            i++;
+        }
+        return sum;
+    }
+    function tenarytest(uint x,uint y) public pure returns(uint a){
+        return x>y?x:y;
+    }
+//插入排序
+    function insertSort(uint[] memory a) public pure returns(uint[] memory){
+        for(uint i=1;i<a.length;i++){
+            uint temp = a[i];
+            uint j=i;
+            while((j>=1)&&temp<a[j-1]){
+                a[j] = a[j-1];
+                j--;
+            }
+            a[j] = temp;
+        }
+        return a;
+    }
+}
+
+
+contract modifiertest{
+
+    address public ownAddress;
+
+    constructor (address addr){
+        ownAddress = addr;
+    }
+
+    modifier onlyOwner{
+        require (msg.sender == ownAddress); //如果校验通过会进行后边的业务操作
+        _;
+    }
+
+    function changeOwner(address newAddr) external onlyOwner{
+        ownAddress = newAddr;
+    }
+}
+学习了修饰器和构造器的创建方式，构造器在初始化的时候会并且只会运行一次
+修饰器一旦定义可以多次使用，简化了代码，常用来校验权限
+
+
+
+
+
+
+
 <!-- Content_END -->

@@ -1,5 +1,5 @@
 ---
-timezone: Asia/Toyko
+timezone: Asia/Dubai
 ---
 
 # shiroshiro
@@ -24,6 +24,17 @@ timezone: Asia/Toyko
 6. finished 02 coding exercise
 
 
-### 
+### 2024.09.24
+1. 03 functions
+2. pivate keyword => can be only accessed within this contract
+3. extra solidity keywords => pure/view/payable
+4. pure and view function doesnt cost gas ( no rewrite no gas fee )
+5. low-level calls cost gas
+6. internal and external functions
+7. payable function for transferring eth
+8. finished 03 quiz
+
+
+
 
 <!-- Content_END -->

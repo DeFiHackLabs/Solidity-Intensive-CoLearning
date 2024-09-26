@@ -14,4 +14,23 @@ timezone: Asia/Shanghai
 1 学习什么是Solidity 以及Remix工具
 新建了第一个 HelloWeb3 程序
 
+
+### 2024.09.24
+
+1 学习了101 第二章
+知识点 1：Solidity中的变量类型 值类型  引用类型 映射类型
+      2：address 与 payable address 的区别
+      3：uint256（256位正整数） uint（正整数） int（整数，包括负数）  的区别
+
+
+### 2024.09.25
+
+1 学习了101 第三章
+知识点 1：public：内部和外部均可见。
+        private：只能从本合约内部访问，继承的合约也不能使用。
+        external：只能从合约外部访问（但内部可以通过 this.f() 来调用，f是函数名）。
+        internal: 只能从合约内部访问，继承的合约可以用。
+      2： pure 与  view  关键字的区别 payable代表的意思。
+      3: https://github.com/DeFiHackLabs/Solidity-Intensive-CoLearning/blob/MrF/content/MrF/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20240925234418.png
+
 <!-- Content_END -->
