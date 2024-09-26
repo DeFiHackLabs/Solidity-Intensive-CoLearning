@@ -101,14 +101,20 @@ uint256[3] memory _array;
 ```
 ### 2024.09.26
 ## 05_DataStorage
+
 ###引用類型
 引用類型包括：array（數組）和 struct（結構體）。
 這些類型的變數較為複雜，佔用較多存儲空間，因此需要明確聲明數據存儲的位置。
+
 ###數據存儲位置
 Solidity 中的數據存儲位置有三類：storage、memory 和 calldata，每種位置的 gas 消耗不同：
+
 ####storage：合約中的狀態變數默認存儲在 storage，數據存在鏈上，消耗較多 gas，類似電腦的硬碟。
+
 ####memory：函數中的參數和臨時變數通常用 memory，數據存在內存中，不上鏈，消耗較少 gas，適用於返回變長數據類型。
+
 ####calldata：類似於 memory，但數據不可修改，用於函數參數。
+
 ###數據位置與賦值規則
 ####引用：當 storage 賦值給另一個 storage 或 memory 賦值給另一個 memory 時，會創建引用，修改一方會影響另一方。
 ####副本：其他情況下賦值會創建副本，修改其中一方不會影響另一方。
@@ -121,6 +127,7 @@ Solidity 中的數據存儲位置有三類：storage、memory 和 calldata，每
 #####wei: 1
 #####gwei: 1e9
 #####ether: 1e18
+
 ####時間單位：可使用 seconds、minutes、hours 等來設置合約中的時間，確保操作的準確性。
 #####seconds: 1
 #####minutes: 60
