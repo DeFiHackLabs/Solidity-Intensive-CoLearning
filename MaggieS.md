@@ -126,7 +126,7 @@ Which is useable to the understand the definition itself deeply and practice Eng
 
 Fortunately，the structure of single article is more clearly and comcise, 
 
-most of these are composed of definition, events, state variables, and functions. 
+most of these are composed of definition, events, state variables, and functions，which have elaborate description in 101 and 102.
 
 We learn them together can promote the understanding of framework, also, the differences and connections between them.
 
