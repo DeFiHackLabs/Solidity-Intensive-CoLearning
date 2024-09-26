@@ -65,6 +65,7 @@ It’s exactly a challenge for me cause I’m not only unfamiliar with Solidity,
 
 This training camp can force myself to take Solidity and English writing tasks and face them directly, and it’s also a good opportunity to observe my own solutions and mindset in the face of difficulties and fears. Though I want to quit many times today, I'm sticking with it. It's a good begining.
 
+
 ### 2024.09.24
 
 1. Looking through 15 chapters of Solidity 102 and complete the text.
@@ -87,6 +88,48 @@ And after learning in two days, I have a more clear goal about this 21-day Solid
 Maybe I can be a translator in open source program first(If there is) after I master English terms in Coding,
 
 Entering the blockchain world needs sustained effort，“Go the extra mile” it really really just a beginning.
+
+
+### 2024.09.25
+
+1.Looking through 7 chapters of Solidity 103 and complete the text.
+
+2.<img width="883" alt="image" src="https://github.com/user-attachments/assets/a0ea7885-eabd-4116-a7e6-532983dde339">
+
+3.Difficulties
+
+Why I never marked specific question in tutorial details?
+
+Excatly “questions mountain questions sea”hhh
+
+This is my first time to learn coding deeply, it’s reasonable to meet various questions.
+
+I need to keep calm down and find the interest where attracts me when I look through the tutorial. 
+
+I find that many names of function is so casual and direct. it’s my fun today. Yahoo~ ~
+
+### 2024.09.26
+
+1.Looking through 7 chapters of Solidity 103 and complete the text.
+
+2.
+<img width="944" alt="image" src="https://github.com/user-attachments/assets/fcf04ea9-d155-4d73-b07d-9faf61657006">
+
+
+3.Difficulties
+
+On account of the more complicated chapters in Solidity 103, there are more definitions in the front of articles. 
+
+So in the Step2, it is essential to figure out definitions by my own explanation. 
+
+Which is useable to the understand the definition itself deeply and practice English coding terminology.
+
+Fortunately，the structure of single article is more clearly and comcise, 
+
+most of these are composed of definition, events, state variables, and functions，which have elaborate description in 101 and 102.
+
+We learn them together can promote the understanding of framework, also, the differences and connections between them.
+
 
 
 <!-- Content_END -->
