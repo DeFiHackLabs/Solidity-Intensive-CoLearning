@@ -566,7 +566,8 @@ function _transfer(
     emit Transfer(from, to, amount);
 }
 ```
-EVM日志 Log
+EVM日志 Log (etherscan)
+
 topic
 ```solidity
 keccak256("Transfer(address,address,uint256)") //事件簽名要這樣寫
