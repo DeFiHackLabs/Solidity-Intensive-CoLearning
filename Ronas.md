@@ -166,6 +166,29 @@ timezone: Asia/Shanghai
 
 ### 2024.09.26
 
+> 進度: Solidity 101 9~11
+
+- 常數
+    - `constant` 須在宣告時賦值, 後續不能改 `TypeError: Cannot assign to a constant variable.`
+    - `immutable` 可在宣告時或在建構函數中賦值, 後續不能改 `TypeError: Immutable state variable already initialized.`
+    - `string` 和 `bytes` 可以宣告為 `constant`, 但不能為 `immutable`
+
+- 流程控制
+    - `if-else`
+    - `for` loop
+    - `while` loop
+    - `do-while` loop
+
+- 建構函數
+    - 合約布署時會執行的函數
+    - 0.4.22 版本後, 以 `constructor` 關鍵字定義建構函數, 避免出現因 typo 造成漏洞
+        > example: Ethernaut CTF Fal1out
+
+- 修飾器 (modifier)
+    - 控制合約權限
+
+### 2024.09.27
+
 > 進度: Solidity 101 
 
 <!-- Content_END -->
