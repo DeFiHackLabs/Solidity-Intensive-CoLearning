@@ -32,5 +32,22 @@ timezone: Asia/Shanghai
 
 一些节省gas的tips: 函数体内将storage遍历转化为memory变量，能够在后续使用的过程中有效降低gas。
 
+### 2024.09.25
+数组是一种引用类型，所以必须在声明定义时，加上三个数据位置（data location）关键字之一： `storage` , `memory` , `calldata` 
+1. 静态数组
+```
+uint[3] memory memArray;
+uint[3] storage storageArray;
+```
+静态数组的大小必须在编译时确定，即不能使用变量来指定数组的大小。如`uint size=2; uint[size][size] memory array;` 这种写法是错误的。
+
+2. 动态数组
+```
+uint n = 2;
+uint[] memory memArray = new uint[](n);
+// 仅storage才可以使用下面的方式初始化
+uint[] storage storageArray = [uint(1), 2];;
+```
+      
 
 <!-- Content_END -->

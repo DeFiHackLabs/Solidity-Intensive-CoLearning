@@ -86,4 +86,33 @@ bytes dynamicByteArray = "Hello";  // 动态字节数组
 - 从storage到本地存储变量(**local**)的赋值也仅分配一个引用。
 - 对存储的所有其他分配始终进行复制。这种情况的示例是对状态变量或存储结构类型的局部变量的成员的赋值，即使局部变量本身只是一个引用。???
 
+
+### 2024.09.25
+学习内容：<br>
+`require`和`assert`是用于进行条件检查的函数。
+
+`require(condition, "Error message")` 用于确保条件为真，如果条件为假，合约将抛出异常并回滚。
+
+`assert(condition)` 通常用于检查逻辑错误。如果条件为假，将导致所有状态变化被回滚，并消耗所有的 Gas。
+
+
+
+Solidity使用状态恢复（state-reverting）异常来处理错误。此类异常会撤销当前调用（及其所有子调用）中对状态所做的所有更改，并向调用者标记错误。
+
+**revert**：
+
+回滚可以被revert语句和revert函数触发。
+
+```
+// revert语句
+revert CoustomError(arg1,arg2);
+// revert函数
+revert();
+revert("description");
+```
+
+使用自定义错误示例通常比字符串描述便宜得多
+
+自定义error
+
 <!-- Content_END -->

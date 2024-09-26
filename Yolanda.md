@@ -28,7 +28,17 @@ timezone: Asia/Shanghai
    (1)value type:布爾、整型
    (2)reference type:數組
    (3)mapping type:
-   (4)enum 
-### 
+   (4)enum
+
+### 2024.09.24
+1. 聲明函數可見性的關鍵字有4種：public, private, external, internal
+2. 聲明函數所擁有的權限：pure（不能讀寫鏈上狀態的變量）、view（能讀取但不能寫入狀態變量）、默認寫法（自由讀取和寫入狀態變量）
+3. 引用pure和view：節省gas、控制函數權限
+
+
+### 2024.09.25
+1. 函數輸出：(1)returns加在函數名後面，聲明返回的變量類型和變量名；return用在函數主體，返回指定的變量
+2. 命名式返回
+3. 解構式返回：(1)讀取所有返回值（聲明變量），要賦值的變量用“,”隔開、(2)讀取部分返回值：不讀取的部分留白
 
 <!-- Content_END -->
