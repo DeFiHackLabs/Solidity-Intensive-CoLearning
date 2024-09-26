@@ -82,5 +82,27 @@ storage（合约的状态变量）赋值给本地storage（函数里的）,memor
   - 接口不能包含状态变量，只能包含函数声明
   - 接口不能包含构造函数，也不能包含函数体
   - 接口不能继承其他合约，只能继承其他接口
+
+### 2024.09.26
+时间：90min  學習內容: solidity102 16~20
+- overloading 重载 
+- 库合约 
+  - using A for B;语法糖 B.xxx()调用A函数 
+  - A.xxx()
+  - Strings：将uint256转换为String
+  
+    Address：判断某个地址是否为合约地址
+
+    Create2：更安全的使用Create2 EVM opcode
+
+    Arrays：跟数组相关的库合约
+
+- import
+- receive 和 fallback
+- 接收ETH调用 receive，fallback()函数会在调用合约不存在的函数时被触发。可用于接收ETH，也可以用于代理合约proxy contract。一般external payable修饰
+- transfer send call
+- tansfer和send的区别在于，如果接收者合约没有receive函数，那么transfer会回滚交易，而send会返回一个布尔值，表示交易是否成功。
+- call和send的区别在于，call可以调用合约的任何函数，而send只能发送ETH。call可以返回一个布尔值，表示交易是否成功，也可以返回一个字节数组，表示函数的返回值。
+- (bool success,) = _to.call{value: amount}(""); // 使用call发送ETH, **("")为msg，如果receive()无法处理，就会调用fallback()**
   
 <!-- Content_END -->

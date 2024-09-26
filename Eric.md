@@ -33,6 +33,15 @@ day02:
 
 day03:
 
-[WTF Academy Solidity 101 3-4 Note](/content/Eric/103.md)
+[WTF Academy Solidity 101 5-6 Note](/content/Eric/103.md)
+
+
+
+### 2024.09.26
+
+day04:
+
+[WTF Academy Solidity 101 7-8 Note](/content/Eric/104.md)
+
 
 <!-- Content_END -->

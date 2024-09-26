@@ -384,4 +384,88 @@ contract structType{
           return(what);
       }
       ```
+###  2024.09.26
+**控制流**
+   * `if-else`、`for`、`while`、`do while`、三元运算符
+   * 插入排序: `uint`是正整数，取到负值的话，会报underflow错误，要注意。
+   ```Solidity
+   // 插入排序 正确版
+   function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
+       // note that uint can not take negative value
+       for (uint i = 1;i < a.length;i++){
+           uint temp = a[i];
+           uint j=i;
+           while( (j >= 1) && (temp < a[j-1])){
+               a[j] = a[j-1];
+               j--;
+           }
+           a[j] = temp;
+       }
+       return(a);
+   }
+   ```
+**构造函数**
+   * `constructor`: 是一种特殊的函数，每个合约可以定义一个，并在部署合约的时候自动运行一次。它可以用来初始化合约的一些参数，例如初始化合约的owner地址
+   ```Solidity
+   address owner; // 定义owner变量
+   
+   // 构造函数
+   constructor(address initialOwner) {
+       owner = initialOwner; // 在部署合约的时候，将owner设置为传入的initialOwner地址
+   }
+   ```
+**修饰器**
+   * 修饰器（`modifier`）: 类似于面向对象编程中的装饰器（decorator），声明函数拥有的特性，并减少代码冗余。modifier的主要使用场景是运行函数前的检查，例如地址，变量，余额等。
+   ```Solidity
+   // 定义modifier
+   modifier onlyOwner {
+      require(msg.sender == owner); // 检查调用者是否为owner地址
+      _; // 如果是的话，继续运行函数主体；否则报错并revert交易
+   }
+   function changeOwner(address _newOwner) external onlyOwner{
+      owner = _newOwner; // 只有owner地址运行这个函数，并改变owner
+   }
+   ```
+**事件**
+   * 事件（`event`）: 是`EVM`上日志的抽象，它具有两个特点：
+      1. 响应：应用程序（ethers.js）可以通过RPC接口订阅和监听这些事件，并在前端做响应。
+      2. 经济：事件是EVM上比较经济的存储数据的方式，每个大概消耗2,000 gas；相比之下，链上存储一个新变量至少需要20,000 gas。
+   * 声明事件: 事件的声明由`event`关键字开头，接着是事件名称，括号里面写好事件需要记录的变量类型和变量名。
+   * 释放事件:
+   ```Solidity
+   event Transfer(address indexed from, address indexed to, uint256 value);
+   // 定义_transfer函数，执行转账逻辑
+   function _transfer(
+       address from,
+       address to,
+       uint256 amount
+   ) external {
+   
+       _balances[from] = 10000000; // 给转账地址一些初始代币
+   
+       _balances[from] -=  amount; // from地址减去转账数量
+       _balances[to] += amount; // to地址加上转账数量
+   
+       // 释放事件
+       emit Transfer(from, to, amount);
+   }
+   ```
+**EVM日志 `Log`**
+
+   以太坊虚拟机（EVM）用日志`Log`来存储Solidity事件，每条日志记录都包含主题`topics`和数据`data`两部分。
+   
+**主题 `topics`**
+   * 日志的第一部分是主题数组，用于描述事件，长度不能超过4。它的第一个元素是事件的签名（哈希）。
+   ```Solidity
+   keccak256("Transfer(address,address,uint256)")
+   
+   //0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+   ```
+   * 除了事件哈希，主题还可以包含至多3个`indexed`参数，也就是Transfer事件中的`from`和`to`。
+   * `indexed`标记的参数可以理解为检索事件的索引“键”，方便之后搜索。每个`indexed`参数的大小为固定的256bits，如果参数太大了（比如字符串），就会自动计算哈希存储在主题中。
+
+**数据 data**
+   * 事件中不带`indexed`的参数会被存储在`data`部分中，可以理解为事件的“值”。
+   * `data`部分的变量不能被直接检索，但可以存储任意大小的数据。因此一般`data`部分可以用来存储复杂的数据结构，例如数组和字符串等等。
+   * `data`部分的变量在存储上消耗的gas相比于`topics`更少。
 <!-- Content_END -->

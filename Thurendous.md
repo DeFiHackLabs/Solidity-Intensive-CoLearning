@@ -221,10 +221,12 @@ uint256[3] memory _array;
 #### 变量数据存储和作用域 storage/memory/calldata
 
 solidity 中的引用类型（Reference Type）
+
 - array 数组、struct 结构体
 - 由于这种数据类型比较复杂，占用的存储空间比较大。我们在使用的时候要声明数据的存储的位置。
 
 - 数据的存储位置有三类
+
   - storage：永久存储在区块链上，直到合约被销毁。
   - memory：临时存储在内存中，函数调用结束后销毁。
   - calldata：只读，用于函数参数，不能修改。
@@ -241,8 +243,8 @@ function fCalldata(uint[] calldata _x) public pure returns(uint[] calldata){
 
 - 数据的位置和赋值规则
 - 赋值本质上是创建引用指向本体，因此修改本体或者是引用，变化可以被同步：
-  - storage（合约的状态变量）赋值给本地storage（函数里的）时候，会创建引用，改变新变量会影响原变量。例子：
-  - memory赋值给memory，会创建引用，改变新变量会影响原变量。
+  - storage（合约的状态变量）赋值给本地 storage（函数里的）时候，会创建引用，改变新变量会影响原变量。例子：
+  - memory 赋值给 memory，会创建引用，改变新变量会影响原变量。
 
 ```solidity
 uint[] x = [1,2,3]; // 状态变量：数组 x
@@ -255,11 +257,12 @@ function fStorage() public{
 ```
 
 变量的作用域
-solidity之中作用域分成三种。分别是状态变量（state variable）、局部变量（local variable）、全局变量（global variable）。
+solidity 之中作用域分成三种。分别是状态变量（state variable）、局部变量（local variable）、全局变量（global variable）。
 
-- 状态变量（state variable）：合约的状态变量，永久存储在区块链上，直到合约被销毁。消耗gas比较高。
-- 局部变量（local variable）：函数内部的变量，临时存储在内存中，函数调用结束后销毁。消耗gas比较低。
-- 全局变量（global variable）：全局变量，这是solidity预留的关键字，他们在函数内不许要声明就可以直接食用。
+- 状态变量（state variable）：合约的状态变量，永久存储在区块链上，直到合约被销毁。消耗 gas 比较高。
+- 局部变量（local variable）：函数内部的变量，临时存储在内存中，函数调用结束后销毁。消耗 gas 比较低。
+- 全局变量（global variable）：全局变量，这是 solidity 预留的关键字，他们在函数内不许要声明就可以直接食用。
+
 ```solidity
 function global() external view returns(address, uint, bytes memory){
     address sender = msg.sender;
@@ -269,19 +272,19 @@ function global() external view returns(address, uint, bytes memory){
 }
 ```
 
-在上面例子里，我们使用了3个常用的全局变量：msg.sender，block.number和msg.data，他们分别代表请求发起地址，当前区块高度，和请求数据。
+在上面例子里，我们使用了 3 个常用的全局变量：msg.sender，block.number 和 msg.data，他们分别代表请求发起地址，当前区块高度，和请求数据。
 
 全局变量 - 以太的单位和时间
 
 - 以太单位
-Solidity中不存在小数点，以0代替为小数点，来确保交易的精确度，并且防止精度的损失，利用以太单位可以避免误算的问题，方便程序员在合约中处理货币交易。
+  Solidity 中不存在小数点，以 0 代替为小数点，来确保交易的精确度，并且防止精度的损失，利用以太单位可以避免误算的问题，方便程序员在合约中处理货币交易。
 
 - wei: 1
 - gwei: 1e9 = 1000000000
 - ether: 1e18 = 1000000000000000000
 
 - 时间单位
-可以在合约中规定一个操作必须在一周内完成，或者某个事件在一个月后发生。这样就能让合约的执行可以更加精确，不会因为技术上的误差而影响合约的结果。因此，时间单位在Solidity中是一个重要的概念，有助于提高合约的可读性和可维护性。
+  可以在合约中规定一个操作必须在一周内完成，或者某个事件在一个月后发生。这样就能让合约的执行可以更加精确，不会因为技术上的误差而影响合约的结果。因此，时间单位在 Solidity 中是一个重要的概念，有助于提高合约的可读性和可维护性。
 
 - seconds: 1
 - minutes: 60 seconds = 60
@@ -295,7 +298,148 @@ Solidity中不存在小数点，以0代替为小数点，来确保交易的精�
 
 学习笔记
 
+#### 引用类型
 
+- 数组 array
+  - 数组是 solidity 的常用的一种变量，用来存储一组数据（整数、字节、地址等等）。数组分为固定长度数组和可变长度数组两种：
+- 固定长度数组：数组的长度是固定的，不能改变。用｀ T[k]｀表示，T 是数组类型，k 是数组长度。
 
+```solidity
+uint256[8] array1; // 8个元素的数组，元素类型为uint256
+bytes1[5] array2; // 5个元素的数组，元素类型为bytes1
+address[100] array3; // 100个元素的数组，元素类型为address
+```
+
+- 可变长度数组：数组的长度是可变的，可以随时改变。用 `T[]`表示，`T` 是数组类型。
+
+```solidity
+uint256[] array4; // 可变长度的数组，元素类型为uint256
+bytes1[] array5; // 可变长度的数组，元素类型为bytes1
+address[] array6; // 可变长度的数组，元素类型为address
+bytes array7; // 可变长度的数组，元素类型为bytes
+```
+
+`bytes`很特殊，是一个数组。但是不用加 `[]`。
+
+- 创建数组的规则：
+
+  - 对于 memory 修饰的动态数组。可以使用 new 操作符来创建。但是必须声明长度。并且声明后长度不能改变。
+  - 例子：
+
+```solidity
+uint256[] memory array8 = new uint256[](3); // 创建一个长度为3的数组，元素类型为uint256
+bytes memory array9 = new bytes(5); // 创建一个长度为5的数组，元素类型为bytes
+```
+
+- 数组字面常数(Array Literals)是写作表达式形式的数组，用方括号包着来初始化 array 的一种方式，并且里面每一个元素的 type 是以第一个元素为准的，例如[1,2,3]里面所有的元素都是 uint8 类型，比如`[1,2,3]`里面所有的元素都是 uint8 类型。
+- solidity 中，如果一个值没有置顶 type 的话，会根据上下文推断出元素的类型。默认就是最小单位的 type。
+
+```solidity
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.4.16 <0.9.0;
+
+contract C {
+    function f() public pure {
+        g([uint(1), 2, 3]);
+    }
+    function g(uint[3] memory _data) public pure {
+        // ...
+    }
+}
+```
+
+这里的 `uint(1), 2, 3` 是字面常数，`[uint(1), 2, 3]` 是数组字面常数。
+
+```solidity
+uint[] memory x = new uint[](3);
+x[0] = 1;
+x[1] = 3;
+x[2] = 4;
+```
+
+- 动态数组可以用以上的方式来赋值。
+
+- 结构体 struct
+  - 结构体是用户自定义的复合类型，可以用来表示一组相关的数据。
+
+```solidity
+// 结构体
+struct Student{
+    uint256 id;
+    uint256 score;
+}
+
+Student student; // 初始一个student结构体
+```
+
+结构体赋值的 4 种方式：
+
+- 直接赋值
+
+```solidity
+//  给结构体赋值
+// 方法1:在函数中创建一个storage的struct引用
+function initStudent1() external{
+    Student storage _student = student; // assign a copy of student
+    _student.id = 11;
+    _student.score = 100;
+}
+```
+
+记住这里必须使用 storage 的指定方式。否则这里会出现问题的。有的 Defi 协议就因此被黑了。
+
+- 直接引用状态变量的 struct
+
+```solidity
+// 方法2:直接引用状态变量的struct
+function initStudent2() external{
+    student.id = 1;
+    student.score = 80;
+}
+```
+
+- 构造函数式
+
+```solidity
+// 方法3:构造函数式
+function initStudent3() external {
+}
+```
+
+- key value 赋值
+
+```solidity
+// 方法4:key value
+function initStudent4() external {
+    student = Student({id: 4, score: 60});
+}
+```
+
+### 2024.09.27
+
+(Day 5)
+
+学习笔记
+
+#### 映射 mapping
+
+- 映射是 solidity 中的一种数据类型，用来存储一组键值对。
+- 映射的类型是 `mapping(_KeyType => _ValueType)`。
+- 映射的值类型可以是任何类型，包括数组、结构体、映射等。
+- 映射的键类型不能是映射类型。
+
+注：现在的映射可以支持用变量名进行声明。
+
+```solidity
+// 映射
+mapping(address wallet => string name) students;
+```
+
+映射的规则：
+
+- 映射的类型需要使用 solidity 内置的基本类型。比如 uint256、address、string、bytes 等。不可以使用自定义类型。而 value 可以使用自定义类型。
+- 映射的存储位置必须是 storage。因此可以使用合约的状态变量。
+- 如果映射为 public，那么 solidity 会给你创建一个 getter 函数，可以通过 key 来查询对应的 value。
+- 给映射新增的键值对的语法是`var[key]=value`。其中 var 是一个映射变量。
 
 <!-- Content_END -->

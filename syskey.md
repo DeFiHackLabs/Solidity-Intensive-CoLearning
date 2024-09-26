@@ -630,4 +630,194 @@ timezone: Asia/Shanghai
             ```
         - 特点：revert 会退还剩余 gas，但如果传递错误消息字符串，gas 消耗会增加。
 ###
+
+### 2024.09.26
+
+学习内容:
+1. 第十六讲
+    - 函数重载 - 即在`Solidity`中允许函数进行重载（`overloading`），即**名字相同**但**输入参数类型不同**的函数可以同时存在，他们被**视为不同的函数**。**注意，Solidity不允许修饰器（modifier）重载。**
+    - 下面这两个函数的定义就用到了重载，虽然函数名相同，但它们的参数不同，对应的函数选择器也是不同的。
+        ```Solidity
+        function saySomething() public pure returns(string memory){
+            return("Nothing");
+        }
+
+        function saySomething(string memory something) public pure returns(string memory){
+            return(something);
+        }
+        ```
+    - 对于调用重载的函数，需要确定好传入的参数。
+
+2. 第十七讲
+    - 库合约的作用
+        - 库合约是一种特殊的合约，为了提升Solidity代码的复用性和减少gas而存在，库合约是一系列的函数合集。
+    - 库合约与普通合约的不同
+        - 不能存在状态变量
+        - 不能够继承或被继承
+        - 不能接收以太币
+        - 不可以被销毁
+    - 库合约的使用方式
+        - 利用using for指令
+            ```Solidity
+
+            // 利用using for指令
+            using Strings for uint256;
+
+            function getString1(uint256 _number) public pure returns(string memory){
+                // 库合约中的函数会自动添加为uint256型变量的成员
+                return _number.toHexString();
+            }
+            ```
+        - 通过库合约名称调用函数
+            ```Solidity
+
+            // 直接通过库合约名调用
+            function getString2(uint256 _number) public pure returns(string memory){
+                return Strings.toHexString(_number);
+            }
+            ```
+    
+    **注意**: 库合约重的函数可见性如果被设置为`public`或者`external`，则在调用函数时会触发一次`delegatecall`。而如果被设置为`internal`，则不会引起。对于设置为`private`可见性的函数来说，其仅能在库合约中可见，在其他合约中不可用。
+
+3. 第十八讲
+    - `import`用法
+        - 通过源文件相对位置导入，例子：
+
+            ```text
+            文件结构
+            ├── Import.sol
+            └── Yeye.sol
+
+            // 通过文件相对位置import
+            import './Yeye.sol';
+            ```
+
+            - 通过源文件网址导入网上的合约的全局符号，例子：
+
+            ```text
+            // 通过网址引用
+            import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+            ```
+
+            - 通过`npm`的目录导入，例子：
+
+            ```solidity
+            import '@openzeppelin/contracts/access/Ownable.sol';
+            ```
+
+            - 通过指定`全局符号`导入合约特定的全局符号，例子：
+
+            ```solidity
+            import {Yeye} from './Yeye.sol';
+            ```
+
+            - 引用(`import`)在代码中的位置为：在声明版本号之后，在其余代码之前。
+4. 第十九讲
+    - Solidity中两种特殊的回调函数，`receive()`和`fallback()`。
+    - 接收ETH函数 `receive`
+        - `receive()`函数是在合约收到ETH转账时被调用的函数且一个合约最多有一个`receive()`函数
+        - 声明： `receive() external payable { ... }`
+        - 注意：`receive()`函数不能有任何的参数，不能返回任何值，必须包含`external`和`payable`。还有`receive()`最好不要执行太多的逻辑因为如果别人用`send`和`transfer`方法发送ETH的话，`gas`会限制在`2300`，`receive()`太复杂可能会触发`Out of Gas`报错。
+            ```Solidity
+            // 定义事件
+            event Received(address Sender, uint Value);
+            // 接收ETH时释放Received事件
+            receive() external payable {
+                emit Received(msg.sender, msg.value);
+            }
+            ```
+    - 回退函数 `fallback`
+        - `fallback()`函数会在调用合约不存在的函数时被触发。可用于接收ETH，也可以用于代理合约`proxy contract`。
+
+        - 声明： `fallback() external payable { ... }`
+
+        - 注意：`fallback()`声明时不需要`function`关键字，必须由`external`修饰，一般也会用`payable`修饰，用于接收`ETH`。
+
+            ```Solidity
+            event fallbackCalled(address Sender, uint Value, bytes Data);
+
+            // fallback
+            fallback() external payable{
+                emit fallbackCalled(msg.sender, msg.value, msg.data);
+            }
+            ```
+
+    - `receive`和`fallback`的区别
+        - `receive`和`fallback`都能够用于接收`ETH`，他们触发的规则如下
+
+            ```text
+                触发fallback() 还是 receive()?
+                        接收ETH
+                            |
+                        msg.data是空？
+                            /  \
+                        是    否
+                        /      \
+                receive()存在?   fallback()
+                        / \
+                    是  否
+                    /     \
+                receive()   fallback()
+            ```
+        - 简单来说，合约接收`ETH`时，`msg.data`为空且存在`receive()`时，会触发`receive()`；`msg.data`不为空或不存在`receive()`时，会触发`fallback()`，此时`fallback()`必须为`payable`。
+        - `receive()`和`payable fallback()`均不存在的时候，向合约直接发送`ETH`将会报错（你仍可以通过带有`payable`的函数向合约发送ETH）。
+    
+    **注意⚠️**：在`Solidity 0.6.x`版本之前，语法上只有 `fallback()` 函数，用来接收用户发送的ETH时调用以及在被调用函数签名没有匹配到时，来调用。 `0.6`版本之后，`Solidity`才将 `fallback()` 函数拆分成 `receive()` 和 `fallback()` 两个函数。
+5. 第二十讲
+    - 在`Solidity`中，有三种方法可以向其他合约发送 `ETH`，它们分别是 `transfer()`、`send()` 和 `call()`。每种方法的使用方式、返回值以及安全性都不同。
+        - `transfer()`
+            - transfer() 是 Solidity 中最早用于发送 ETH 的方法之一。
+            - 该方法每次最多发送 2300 gas，这个限制是为了避免受目标合约复杂逻辑的影响，如重入攻击。
+            - 如果发送失败，transfer() 会自动回滚交易，不需要手动检查。
+                ```Solidity
+                // 用transfer()发送ETH
+                function transferETH(address payable _to, uint256 amount) external payable{
+                    _to.transfer(amount);
+                }
+                ```
+        - `send()`
+            - 	send() 与 transfer() 类似，但它不会在失败时抛出异常。
+            - 同样只提供 2300 gas 给目标合约，确保安全性。
+            - 如果 send() 失败，只会返回 false，不会自动回滚。
+                ```Solidity
+                error SendFailed(); // 用send发送ETH失败error
+
+                // send()发送ETH
+                function sendETH(address payable _to, uint256 amount) external payable{
+                    // 处理下send的返回值，如果失败，revert交易并发送error
+                    bool success = _to.send(amount);
+                    if(!success){
+                        revert SendFailed();
+                    }
+                }
+                ```
+        - `call()`
+            - call() 是一种低级调用，用于执行外部合约或发送 ETH。它没有固定的 gas 限制，并且更灵活。
+            - call 返回的是一个布尔值，表示是否成功，还可以获取返回的数据。
+            - 不受 2300 gas 限制，可以发送任意数量的 gas。
+            灵活性高：可以发送任意数量的 gas，适用于复杂的合约交互。
+            - 安全性需要注意：如果不小心，目标合约可能会消耗大量 gas 或引发重入攻击。为了防止重入攻击，通常建议使用**检查-效果-交互**模式。
+            - 返回值：需要手动检查返回值来处理失败情况。
+                ```Solidity
+                error CallFailed(); // 用call发送ETH失败error
+
+                // call()发送ETH
+                function callETH(address payable _to, uint256 amount) external payable{
+                    // 处理下call的返回值，如果失败，revert交易并发送error
+                    (bool success,) = _to.call{value: amount}("");
+                    if(!success){
+                        revert CallFailed();
+                    }
+                }
+                ```
+    - 关键区别和对比
+    
+        | 特性              | `transfer()`               | `send()`                   | `call()`                             |
+        |-------------------|----------------------------|----------------------------|--------------------------------------|
+        | gas 限制          | 固定 2300 gas               | 固定 2300 gas               | 无固定限制，可以灵活设置 gas          |
+        | 失败处理          | 抛出异常，自动回滚         | 返回 `false`，需手动处理    | 返回 `bool`，需手动处理              |
+        | 安全性            | 较高（防重入攻击）          | 较高（防重入攻击）          | 需注意重入攻击等问题                |
+        | 灵活性            | 较低                        | 较低                        | 较高，可传递 gas、调用合约函数       |
+        | 推荐场景          | 简单的 ETH 发送             | 简单的 ETH 发送             | 复杂合约调用，推荐当前使用方式      |
+###
 <!-- Content_END -->

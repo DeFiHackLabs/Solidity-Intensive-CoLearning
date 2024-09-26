@@ -294,4 +294,66 @@ transferFrom(from, to, amount)
 
 `constant` 一般用来指定编译期已知的变量，如数字或者是所有合约都一样的配置；`immutable` 则是用于部署后不变的值，如合约地址或者是因合约而异的配置值
 
+### 2024.09.26
+#### 10 Control Flow
+
+Solidity 的控制流和其他语言基本是一模一样了。
+
+既然教程用 Solidity 写了个插入排序，那么我就不写插入排序了，写个 leetcode 的起手题: [twosum](https://leetcode.com/problems/two-sum/description/) .
+
+> Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.
+> You may assume that each input would have exactly one solution, and you may not use the same element twice.
+> You can return the answer in any order.
+
+> Example 1:
+
+> Input: nums = [2,7,11,15], target = 9
+> Output: [0,1]
+> Explanation: Because nums[0] + nums[1] == 9, we return [0, 1].
+
+> Example 2:
+> Input: nums = [3,2,4], target = 6
+> Output: [1,2]
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+contract TwoSum {
+    mapping (uint32 => uint32) public num_indics;
+    mapping (uint32 => bool) public contains;
+
+    function twoSum(uint32[] calldata input, uint32 target) external payable returns (uint32[] memory){
+        for(uint32 i = 0; i < input.length; i++){
+            num_indics[input[i]] = i;
+            contains[input[i]] = true;
+        }
+        uint32[] memory result = new uint32[](2);
+        for(uint32 i = 0; i < input.length; i++){
+            if (contains[target - input[i]] && i != num_indics[target - input[i]]){
+                result[0] = i;
+                result[1] = num_indics[target - input[i]];
+                return result;
+            }
+        }
+
+        // not found
+        return result;
+    }
+}
+```
+
+`twosum` 非常简单，真正写起来的时候才意识到 Solidity 和其他编程语言的差别， Solidity 的 mapping 不像正常的 hashmap 那样，它是不支持 =contains= 函数的，所以我只好用另外一个 mapping 来模拟 contains 的函数，但是这样又会增加存储的开销。
+
+顺便推荐个 web3 的 Leetcode，用 Solidity 来解决编程题：https://dapp-world.com
+
+#### 11 Constructor and Modifier
+
+0.4.22之前的构造器函数估计是向 Java 学习的，使用与合约名同名的函数作为构造函数而使用，但是Java中的构造函数是和普通函数不一样的，是没有返回值的，所以无法与普通函数混淆。
+
+但是 Solidity 并没有这样的限制，函数并不一定要强制声明返回值，所以使得构造函数可能成普通函数，引发漏洞。
+
+所以0.4.22版本及之后，采用了全新的 constructor 写法，这个就是向 Javascript 学习，显式声明构造函数。（感觉这个语法设计着实没有深思熟虑）
+
+与Java/C++ 不同的是，因为 Solidity 没有函数重载的概念，所以 Solidity 最多只有一个构造函数，如果没有显式声明构造函数，就使用默认的构造函数。
+
 <!-- Content_END -->

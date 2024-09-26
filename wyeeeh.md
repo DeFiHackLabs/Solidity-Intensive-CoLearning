@@ -125,4 +125,37 @@ contract ValueTypes {
 ### 2024.09.25
 #### WTF Academy Solidity 101.3 函数
 
+- Solidity中函数的形式
+
+  ```Solidity
+  function <function name>(<parameter types>) {internal|external|public|private} [pure|view|payable] [returns (<return types>)]
+  ```
+  - function：声明函数
+  - `<function name>`：函数名。
+  - `(<parameter types>)`：参数，输入到函数的变量类型和名称
+  - `{internal|external|public|private}`：函数可见性说明符，共有4种。
+    - public：内部和外部均可见。
+    - private：只能从本合约内部访问，继承的合约也不能使用。
+    - external：只能从合约外部访问（但内部可以通过 this.f() 来调用，f是函数名）。
+    - internal: 只能从合约内部访问，继承的合约可以用。
+    - 注意 1：合约中定义的函数需要明确指定可见性，它们没有默认值。
+    - 注意 2：public|private|internal 也可用于修饰状态变量。public变量会自动生成同名的getter函数，用于查询数值。未标明可见性类型的状态变量，默认为internal。
+  - `[pure|view|payable]`：决定函数权限/功能的关键字。payable（可支付的）很好理解，带着它的函数，运行的时候可以给合约转入 ETH。pure 和 view 的介绍见下一节。
+  - `[returns ()]`：函数返回的变量类型和名称。
+- Pure和View
+  - 包含 pure 和 view 关键字的函数是不改写链上状态的，因此用户直接调用它们是不需要付 gas 的。
+    - pure 函数既不能读取也不能写入链上的状态变量。
+    - view函数能读取但也不能写入状态变量。
+  - 非 pure 或 view 的函数既可以读取也可以写入状态变量。合约中非 pure/view 函数调用 pure/view 函数时需要付gas。
+- internal v.s. external
+  - `internal` 函数只能由合约内部调用
+  - 我们必须再定义一个 `external` 的 `minusCall()` 函数，通过它间接调用内部的 `minus()` 函数。
+- payable
+  - 运行的时候可以给合约转入 ETH。
+- 测验结果
+  - 100/100
+
+### 2024.09.26
+#### WTF Academy Solidity 101.4 函数输出
+
 <!-- Content_END -->
