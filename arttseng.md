@@ -13,28 +13,22 @@ timezone: Asia/Taipei
 ### 2024.09.22
 學習內容: 
 報名
-### 
 
 ### 2024.09.23
 學習內容: 
 使用Remix, 跑Hellow,word。
 ps.每按一次deploy 按鈕,會部署一次合約
-### 
-
 
 ### 2024.09.24
 認識一些value type
-###
+
 
 
 ### 2024.09.25
 function的結構
-
 function有三種權限，pure, view, payable<br>
 payable或不指定要花 gas<br>
 pure, view不花 gas<br>
-###
-
 
 ### 2024.09.26
 // 命名式返回
@@ -48,8 +42,8 @@ function returnNamed() public pure returns(uint256 _number, bool _bool, uint256[
 function returnNamed2() public pure returns(uint256 _number, bool _bool, uint256[3] memory _array){
     return( 2, false, [uint256(3),2,1]);
 }
+
 但修飾詞memory要到下一課才有解釋。
-###
 
 
 <!-- Content_END -->
