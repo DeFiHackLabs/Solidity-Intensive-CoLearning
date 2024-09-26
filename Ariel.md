@@ -221,16 +221,31 @@ notice:
 OpenZeppelin是一个维护Solidity标准化代码库的组织，他的Ownable标准实现如下： https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/Ownable.sol
 
 
-### 2024.09.
+### 2024.09.26
 
-學習內容：WTF #12-
+學習內容：WTF #12 (今天比較忙ＱＱ)
+![image](https://github.com/user-attachments/assets/8cc42e19-bbc5-49eb-bc9f-86ad44b65ee4)
+
 
 # 12:事件
 
+   1. 应用程序（ethers.js）可以通过RPC接口订阅和监听这些事件，并在前端做响应
+   2. 每個只消耗200gas, 較鏈上新變量少（20000gas）
+   3. 聲明：ERC20 Transfer
+        event Transfer(address indexed from, address indexed to, uint256 value);
+        3个变量from，to和value
+        from和to前面带有indexed关键字，他们会保存在以太坊虚拟机日志的topics
+   4. 釋放:emit Transfer(from, to, amount);
+   5. 儲存：
+      1. EVM log 以太坊虚拟机（EVM）用日志Log来存储Solidity事件，每条日志记录都包含主题topics和数据data两部分。
+      2. 事件中不带 indexed的参数会被存储在 data 部分中，可以理解为事件的“值”。data 部分的变量不能被直接检索，但可以存储任意大小的数据。因此一般 data 部分可以用来存储复杂的数据结构，例如数组和字符串
+   6. event hash:keccak256("Transfer(address,address,uint256)")
+   7. 在Etherscan上查询事件:Etherscan
 
 
+### 2024.09.
 
-
+學習內容：WTF #13~
 
 
 
