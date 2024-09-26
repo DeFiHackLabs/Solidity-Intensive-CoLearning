@@ -115,4 +115,16 @@ revert("description");
 
 自定义error
 
+### 2024.09.26
+学习内容：<br>
+内建函数：msg
+
+- msg.sender：消息调用者
+- msg.data：完整的调用数据，不可修改，函数参数存储在其中；
+- msg.gas：返回当前交易剩余的可用gas
+- msg.sig：函数调用数据的前四个字节，指定要调用的函数；
+- msg.value：通过消息发送给合约的wei的数量
+
+gasleft()是一个内置的Solidity函数，它返回当前以太坊交易中剩余的gas量。
+
 <!-- Content_END -->
