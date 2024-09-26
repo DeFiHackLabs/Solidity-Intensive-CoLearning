@@ -534,9 +534,9 @@ modifier onlyOwner {
 require(msg.sender == owner); // 检查调用者是否为owner地址
 _; // 如果是的话，继续运行函数主体；否则报错并revert交易
 }
-
+```
 上面是一個modifier，下面是一個叫onlyOwner modifier修飾的function，當這個function看到modifier之後，才會跑去執行modifier的內容，去判斷检查调用者是否为owner地址，如果是的话，继续运行changeOwner這個function
-
+```solidity
 function changeOwner(address _newOwner) external onlyOwner{
 owner = _newOwner; // 只有owner地址运行这个函数，并改变owner
 }
