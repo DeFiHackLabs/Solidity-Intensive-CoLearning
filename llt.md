@@ -30,7 +30,11 @@ day03:
 
 [solidity-101 5-6 Note](./content/llt/103.md)
 
+### 2024.09.26
 
+day04:
+
+[solidity-101 7-8 Note](./content/llt/104.md)
 
 <!-- Content_END -->
 
