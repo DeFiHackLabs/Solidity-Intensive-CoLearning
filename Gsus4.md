@@ -75,6 +75,16 @@ contract HelloWeb3{                 // 合約部分
 * 抽象合約 (abstract) & 接口 (Interface)
 * 異常 (error/require/assert)
 
+---
+
+### 2024.09.26
+#### 學習內容：Solidity 進階 16 - 20
+* 函數重載
+* library
+* import
+* 接收 ETH：receive & fallback
+* 發送 ETH：transfer & send & call
+
 ### 
 
 <!-- Content_END -->
