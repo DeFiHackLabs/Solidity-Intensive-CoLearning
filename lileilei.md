@@ -301,6 +301,22 @@ contract modifiertest{
 修饰器一旦定义可以多次使用，简化了代码，常用来校验权限
 
 
+### 2024.09.26
+contract testEvent{
+    mapping(address=>uint) public balanceMap;
+    event Transfer(address indexed from,address indexed to,uint value);
+
+    function transfer(address from,address to,uint value) public {
+        balanceMap[from] = 1000;
+        balanceMap[from] -= value;
+        balanceMap[to] +=value;
+        emit Transfer(from,to,value);
+    }
+}
+学习了事件的创建和简单使用，使用事件的好处：1.节省gas
+2.如果用indexed修饰，会根据索引生成一个topic，保存到日志中，便于查询，最多三个
+3.前端可以对该事件进行订阅监听，相应。
+4.事件和数据一起保存，保证了安全性
 
 
 
