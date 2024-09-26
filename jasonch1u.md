@@ -541,6 +541,13 @@ function changeOwner(address _newOwner) external onlyOwner{
 owner = _newOwner; // 只有owner地址运行这个函数，并改变owner
 }
 ```
+#### 12_Event
+
+#### 13_Inheritance
+
+#### 14_Interface
+
+#### 15_Errors
 
 
 <!-- Content_END -->
