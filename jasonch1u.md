@@ -544,6 +544,7 @@ owner = _newOwner; // 只有owner地址运行这个函数，并改变owner
 #### 12_Event
 * 監聽事件
 * 省gas fee
+
 聲明事件
 ```solidity
 event Transfer(address indexed from, address indexed to, uint256 value);
@@ -557,9 +558,7 @@ function _transfer(
     address to,
     uint256 amount
 ) external {
-
     _balances[from] = 10000000; // 给转账地址一些初始代币
-
     _balances[from] -=  amount; // from地址减去转账数量
     _balances[to] += amount; // to地址加上转账数量
 
@@ -567,6 +566,21 @@ function _transfer(
     emit Transfer(from, to, amount);
 }
 ```
+EVM日志 Log (etherscan)
+
+topic
+```solidity
+keccak256("Transfer(address,address,uint256)") //事件簽名要這樣寫
+//0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+
+keccak256("Transfer(address,address,uint)") //uint不寫256，事件簽名hashed會跟上面不一樣
+```
+除了事件哈希，主题还可以包含至多3个indexed参数，也就是Transfer事件中的from和to。總共四個東西
+
+data
+* 事件中不带 indexed的参数会被存储在 data 部分中。
+* data 部分的变量在存储上消耗的gas相比于 topics 更少。
+
 #### 13_Inheritance
 
 #### 14_Interface
