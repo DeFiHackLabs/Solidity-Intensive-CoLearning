@@ -28,4 +28,8 @@ LFG～～～～～ 會完成的
 
 [**WTF Solidity 極簡入門：3. 函數**](<content/Haoder/md/103.md>)
 
+### 2024.09.26
+
+[**WTF Solidity 極簡入門：4. 函數輸出**](<content/Haoder/md/104.md>)
+
 <!-- Content_END -->
