@@ -112,6 +112,35 @@ Solidity中的变量类型
 4. 定长字节数组
 5. 枚举 enum
 
+### 2024.09.25
+
+ Solidity 中函数的形式
+
+ Solidity中函数的形式为
+ 
+    function <function name>(<parameter types>) {internal|external|public|private} [pure|view|payable] [returns (<return types>)]
+
+主题结构可以简化为 
+
+        function <>(<>) {|||} [||] [(<>)]
+
+
+即为function 、<>、(<>) 、{|||}、[||]、[(<>)]
+
+即function 、<function name>、(<parameter types>) 、{internal|external|public|private}、[pure|view|payable]、[returns (<return types>)]
+
+
+方括号中的是可写可不 写的关键字
+
+
+
+
+
+
+
+
+
+
 
 
 
