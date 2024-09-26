@@ -108,4 +108,28 @@ I need to keep calm down and find the interest where attracts me when I look thr
 
 I find that many names of function is so casual and direct. it’s my fun today. Yahoo~ ~
 
+### 2024.09.26
+
+1.Looking through 7 chapters of Solidity 103 and complete the text.
+
+2.
+<img width="944" alt="image" src="https://github.com/user-attachments/assets/fcf04ea9-d155-4d73-b07d-9faf61657006">
+
+
+3.Difficulties
+
+On account of the more complicated chapters in Solidity 103, there are more definitions in the front of articles. 
+
+So in the Step2, it is essential to figure out definitions by my own explanation. 
+
+Which is useable to the understand the definition itself deeply and practice English coding terminology.
+
+Fortunately，the structure of single article is more clearly and comcise, 
+
+most of these are composed of definition, events, state variables, and functions，which have elaborate description in 101 and 102.
+
+We learn them together can promote the understanding of framework, also, the differences and connections between them.
+
+
+
 <!-- Content_END -->
