@@ -105,7 +105,7 @@ storage（合约的状态变量）赋值给本地storage（函数里的）,memor
 - tansfer和send的区别在于，如果接收者合约没有receive函数，那么transfer会回滚交易，而send会返回一个布尔值，表示交易是否成功。
 - call和send的区别在于，call可以调用合约的任何函数，而send只能发送ETH。call可以返回一个布尔值，表示交易是否成功，也可以返回一个字节数组，表示函数的返回值。
 - (bool success,) = _to.call{value: amount}(""); // 使用call发送ETH, **("")为msg，如果receive()无法处理，就会调用fallback()**
-### 2024.09.26
+### 2024.09.27
 - _Name(_Address).f()，其中f()是要调用的函数。
 -  如果能直接调用原合约的set() 是不安全的
 -  call
