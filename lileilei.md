@@ -394,7 +394,7 @@ assert gas最多，返回的错误信息未知
 上边mapping没初始化，所以都会报错
 
 
-### 2024.09.26
+### 2024.09.27
 
 pragma solidity ~0.8.21;
 contract overrideTest{
