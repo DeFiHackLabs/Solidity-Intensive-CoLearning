@@ -33,4 +33,10 @@ timezone: Asia/Shanghai
       2： pure 与  view  关键字的区别 payable代表的意思。
       3: https://github.com/DeFiHackLabs/Solidity-Intensive-CoLearning/blob/MrF/content/MrF/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20240925234418.png
 
+### 2024.09.26
+
+1 学习了101 第四章
+知识点 1 returns：跟在函数名后面，用于声明返回的变量类型及变量名。
+        return：用于函数主体中，返回指定的变量。
+      2 命名式返回  解构式赋值  两者区别
 <!-- Content_END -->

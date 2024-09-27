@@ -204,4 +204,82 @@ function callParent() public{
 }
 ```
 
+### 2024.09.26
+學習內容  
+筆記:  
+
+抽象合約(abstract)
+- 如果合約裡有一個未實現的函數, 則必須將該合約標示為 abstract, 且未實現的函數需要加上 virtual, 以便子合約重寫
+```solidity
+abstract contract InsertionSort{
+   function fun1(uint[] memory a) public pure virtual returns(uint[] memory);
+}
+```
+接口(interface)
+- 接口類似抽象合約, 但不實現任何功能
+- 定義了合約的功能及如何觸發接口
+- 接口提供 1.合約裡每個函數的 bytes4 選擇器及函數簽名 2.接口 id
+
+規則
+1. 不能包含狀態變數
+2. 不能包含構造函數
+3. 不能繼承除了接口外的其他合約
+4. 所有的函數必須是 external 且不能有函數體
+5. 繼承接口的抽象合約必須實現接口定義的所有功能
+
+- 如果知道合約實現了 ex: IERC721 接口, 不用知道它具體程式碼實現, 就可以與它互動
+```solidity
+contract interactBAYC {
+
+    IERC721 BAYC = IERC721(0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D);
+
+
+    function balanceOfBAYC(address owner) external view returns (uint256 balance){
+        return BAYC.balanceOf(owner);
+    }
+
+
+    function safeTransferFromBAYC(address from, address to, uint256 tokenId) external{
+        BAYC.safeTransferFrom(from, to, tokenId);
+    }
+}
+```
+異常
+- 三種方法 error, require, assert
+- gas 消耗程度 require > error > assert
+
+error
+- error 必須搭配 revert(退回) 命令使用
+```solidity
+error TransferNotOwner(); // 自訂義 error
+error TransferNotOwner(address sender); // 自訂義帶參數的 error
+
+function transferOwner1(uint256 tokedId, address newOwner) public{
+   if(_owners[tokenId] != msg.sender){
+      revert TransferNotOwner();
+   }
+   _owners = newOwner;
+}
+```
+
+require
+- 使用方法 require(檢查條件, "異常的描述")
+- 如果檢查條件不成立, 就會拋出錯誤
+```solidity
+function transferOwner2(uint256 tokedId, address newOwner) public{
+   require(_owner[tokenId] == msg.sender, "Transfer Not Owner");
+   _owners = newOwner;
+}
+```
+assert
+- 不會解釋拋出異常的原因
+- 如果檢查條件不成立, 就會拋出錯誤
+```solidity
+function transferOwner3(uint256 tokedId, address newOwner) public{
+   assert(_owner[tokenId] == msg.sender);
+   _owners = newOwner;
+}
+```
+
+
 <!-- Content_END -->

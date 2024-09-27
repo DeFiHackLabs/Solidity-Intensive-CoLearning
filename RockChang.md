@@ -56,4 +56,15 @@ timezone: Asia/Taipei
 4. 完成了第六章測驗
 
 ### 2024.09.26
+1. 學習了第七章mapping，但是還需要更多的範例或練習，才能夠更了解mapping能運用在哪一些用途上
+2. 完成了第七章的測驗
+3. 學習了變數宣告但不賦值時會有一個預設的值
+4. 使用delete變數，可以將變數的值變為預設值
+5. 完成了第八章的測驗
+6. 第九章有點需要慢慢理解
+    这一讲，我们介绍Solidity中和常量相关的两个关键字，constant（常量）和immutable（不变量）。状态变量声明这两个关键字之后，不能在初始化后更改数值。这样做的好处是提升合约的安全性并节省gas。
+
+    另外，只有数值变量可以声明constant和immutable；string和bytes可以声明为constant，但不能为immutable。
+
+
 <!-- Content_END -->

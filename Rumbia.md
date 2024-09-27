@@ -155,4 +155,88 @@ uint256[3] memory _array;
 
 
 ###
+### 2024.09.26
+ 
+变量数据存储和作用域  
+Morkdown笔记的用法...
+
+#### 1.Solidity 变量数据存储和作用域
+
+引用类型（Reference Type）
+- 包括数组（array）和结构体（struct）
+- 占用存储空间大，使用时必须声明数据存储位置
+  （这就是为啥数组后面不加memory会报错的原因哈）
+数据存储位置
+- storage
+  - **合约里的状态变量默认使用**
+  - 存储在链上，类似计算机硬盘
+  - 消耗 gas 多
+- memory
+  - **用于函数参数和临时变量**
+  - 存储在内存中，不上链
+  -  花费gas 少，
+  
+- calldata
+  - **类似 memory，存储在内存中，不上链**
+  - 变量不可修改（immutable）
+  - 常用于函数参数
+
+数据位置赋值规则
+**基于传值和传址**
+- storage 到 local storage：创建引用，修改会影响原变量
+- memory 到 memory：创建引用，修改会影响原变量
+- 其他情况：创建独立副本，修改不影响原变量
+```solidity
+uint[] x = [1,2,3]; // 状态变量：数组 x
+
+function fStorage() public{
+    //声明一个storage的变量 xStorage，指向x。**修改xStorage也会影响x**
+    uint[] storage xStorage = x;
+    xStorage[0] = 100;
+}
+```
+**变量作用域**
+
+- 状态变量
+  - 存储在链上
+  - 所有合约内函数可访问
+  - gas 消耗高
+
+```solidity
+    contract Variables {
+    uint public a1 = 1;
+    uint public y=999;
+   
+}
+```
+- 局部变量
+  - 仅在函数执行过程中有效
+  - 存储在内存中，不上链
+  - gas 消耗低
+```solidity
+function bar() external pure returns(uint){
+    uint xx = 1;
+    uint yy = 3;
+    uint zz = xx + yy;
+    return(zz);
+}
+
+```
+- 全局变量
+  - Solidity 预留关键字
+  - 可在函数内直接使用，无需声明
+  - [全局变量使用文档](https://learnblockchain.cn/docs/solidity/units-and-global-variables.html#special-variables-and-functions)
+就比如下面：
+以太单位与时间单位  
+solidity中不存在小数点！！ 用0来代替小数点，来确保交易的精度
+- 以太单位：wei, gwei, ether
+- wei: 1
+- gewi: 1e9=1000000000
+- ether: 1e18=1000000000000000000
+
+    时间单位：可以在合约中规定一个操作必须在一周内完成，或者某个事件在一个月后发生。这样就能让合约的执行可以更加精确，不会因为技术上的误差而影响合约的结果。
+- 时间单位：seconds, minutes, hours, days, weeks
+
+
+#
 <!-- Content_END -->
