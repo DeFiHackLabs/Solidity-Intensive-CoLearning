@@ -352,8 +352,8 @@ contract MyContract{
 }
 ```
 - [x] 了解solidity中的常量constant、immutable关键字
-    - constant: 修饰函数，表示函数不会修改状态变量，不消耗gas，不上链
-    - immutable: 修饰状态变量，表示状态变量只能在构造函数中赋值，不可修改，不消耗gas，不上链
+    - constant: 声明时初始化，且不可被更改
+    - immutable: 可以在声明的时候 或者 构造函数中初始化，且不可被更改，如果声明的时候和在构造函数中同时初始化，以构造函数中的为准
 
 - [x] 了解控制流
     - if...else
@@ -362,6 +362,54 @@ contract MyContract{
     - do...while
     - 三元运算符
 
+### 2024.09.27
+
+學習內容:
+
+- [x] 利用控制流实现数组的插入排序
+- [x] 构造函数
+- [x] 修饰器
+   ownable的标准实现：https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/Ownable.sol
 ```solidity
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract MyContract{
+
+    address public deployOwner ;
+
+    // 构造函数
+    constructor (){
+        deployOwner = msg.sender;
+    }
+
+    // 修饰器
+    modifier onlyOwner {
+        require(deployOwner == msg.sender, "only owner!");
+        _;
+    }
+
+    // 排序：编程时注意uint256是无符号，不能小于0，否则报错。
+    function sorted(uint256[] memory _param) external view onlyOwner returns(uint256[] memory){
+        uint256 len = _param.length;
+        for(uint256 i = 1; i < len; i++){
+
+            uint256 tmp = _param[i];
+            uint256 j = i;
+
+            while((j >= 1) && tmp < _param[j - 1]){
+                _param[j] = _param[j-1];
+                j--;
+            }
+            _param[j] = tmp;
+        }
+        return _param;
+    }
+}
+
+```
+
+
 
 <!-- Content_END -->
