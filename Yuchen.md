@@ -427,5 +427,120 @@ mapping(address => address) public swapPair; // 币对的映射，地址到地�
     <img src="https://github.com/user-attachments/assets/22f1f38e-71bc-4820-84f1-8d1df1398be8" height="400px" width="640px" />
     <img src="https://github.com/user-attachments/assets/7708bdf1-f6d3-46a2-a8a6-0817fea6a932" height="400px" width="640px" />
 
+### 2024.09.27
+
+#### 常數
+* `constant`（常量）：宣告的時候就必須初始化(需要顯式初始化)，之後無法改變。
+    ```Solidity
+    uint256 constant CONSTANT_NUM = 10;
+    ```
+* `immutable`（不變量）：在8.0.21後，`immutable`不需要顯式初始化(可以使用系統自動分配的默認值)。若`immutable`在宣告時初始化，且在`constructor`中再次初始化，會依最後賦予的值為標準，之後無法改變。
+    <img src="https://github.com/user-attachments/assets/29577185-fd41-4949-8111-4843b2979fc9" height="300px" width="640px" />
+    <img src="https://github.com/user-attachments/assets/c7f9707c-7304-4392-bd9c-8c1b5837f938" height="300px" width="640px" />
+
+※變量不隨意改變的特性可以節省`gas`，並提升合約的安全性。
+
+> 題目：  
+> 2.下面定义变量的语句中，会报错的一项是：  
+> 选择一个答案  
+> A. string constant x5 = "hello world";  
+> B. address constant x6 = address(0);  
+> C. string immutable x7 = "hello world";  
+> D. address immutable x8 = address(0);  
+>
+> ANS：  
+> 選項 C 會報錯，因為 immutable 變量不能在聲明時初始化字面值，必須在 構造函數 中初始化。而 constant 變量可以在聲明時初始化字面值。
+    <img src="https://github.com/user-attachments/assets/b50ecca8-7e27-4f10-9b82-4da17ef25fdf" height="300px" width="640px" />
+
+#### 控制流
+1. `if-else`：
+    ```Solidity
+    function ifElseTest(uint256 _number) public pure returns(bool){
+        if(_number == 0){
+            return(true);
+        }else{
+            return(false);
+        }
+    }
+    ```
+2. `for loop`：
+    ```Solidity
+    function forLoopTest() public pure returns(uint256){
+        uint sum = 0;
+        for(uint i = 0; i < 10; i++){
+            sum += i;
+        }
+        return(sum);
+    }
+    ```
+3. `while`：
+    ```Solidity
+    function whileTest() public pure returns(uint256){
+        uint sum = 0;
+        uint i = 0;
+        while(i < 10){
+            sum += i;
+            i++;
+        }
+        return(sum);
+    }
+    ```
+4. `do while`：
+    ```Solidity
+    function doWhileTest() public pure returns(uint256){
+        uint sum = 0;
+        uint i = 0;
+        do{
+            sum += i;
+            i++;
+        }while(i < 10);
+        return(sum);
+    }
+    ```
+5. 三元運算子：Solidity 中唯一一個接受三個操作數的運算符，規則條件? 條件為真的表達式:條件為假的表達式。此運算符經常用作if語句的快捷方式。
+    ```Solidity
+    // 三元运算符 ternary/conditional operator
+    function ternaryTest(uint256 x, uint256 y) public pure returns(uint256){
+        // return the max of x and y
+        return x >= y ? x: y; 
+    }
+    ```
+6. `conitnue`：立刻進入下輪循環。
+7. `break`：跳出當前循環。
+
+#### 插入排序
+```Solidity
+    // 插入排序 错误版
+function insertionSortWrong(uint[] memory a) public pure returns(uint[] memory) {    
+    for (uint i = 1;i < a.length;i++){
+        uint temp = a[i];
+        uint j=i-1;
+        while( (j >= 0) && (temp < a[j])){
+            a[j+1] = a[j];
+            j--;
+        }
+        a[j+1] = temp;
+    }
+    return(a);
+}
+```  
+因為Solidity使用的`uint`只能為正整數，若取到負值則會有`underflow`錯誤，在以上的程式中`j`有可能取到`-1`。
+```Solidity
+// 插入排序 正确版
+function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
+    // note that uint can not take negative value
+    for (uint i = 1;i < a.length;i++){
+        uint temp = a[i];
+        uint j=i;
+        while( (j >= 1) && (temp < a[j-1])){
+            a[j] = a[j-1];
+            j--;
+        }
+        a[j] = temp;
+    }
+    return(a);
+}
+```
+
 
 <!-- Content_END -->

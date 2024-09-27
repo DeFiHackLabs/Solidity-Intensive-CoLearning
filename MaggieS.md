@@ -130,6 +130,9 @@ most of these are composed of definition, events, state variables, and functions
 
 We learn them together can promote the understanding of framework, also, the differences and connections between them.
 
+### 2024.09.27
+
+1. Looking through 7 chapters of Solidity 103 and complete the text.
 
 
 <!-- Content_END -->

@@ -127,4 +127,19 @@ revert("description");
 
 gasleft()是一个内置的Solidity函数，它返回当前以太坊交易中剩余的gas量。
 
+### 2024.09.27
+**学习内容：**<br>
+Interfaces，接口。常用于标准化合约，如ERC20和ERC721等标准。
+
+1. 不能有任何函数实现；
+2. 不能继承合约，但可以继承接口；
+3. 所有声明的函数必须是`external`，即使它们是`public`的；
+4. 不能声明构造器；
+5. 不能声明状态变量；
+6. 不能声明modifiers；
+
+interfaces中声明的所有函数都是隐式虚拟(`virtual`)的，并且任何重写它们的函数都不需要`override`关键字。
+
+
+
 <!-- Content_END -->

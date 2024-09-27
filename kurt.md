@@ -241,7 +241,67 @@ abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)
 ```
 23. Delegatecall
 ### 2024.09.27
+24. 在合约中创建新合约
+    在以太坊链上，用户（外部账户，EOA）可以创建智能合约，智能合约同样也可以创建新的智能合约。去中心化交易所uniswap就是利用工厂合约（PairFactory）创建了无数个币对合约（Pair）。
+Uniswap V2核心合约中包含两个合约：
+```
+UniswapV2Pair: 币对合约，用于管理币对地址、流动性、买卖。
+UniswapV2Factory: 工厂合约，用于创建新的币对，并管理币对地址。
+```
+下面我们用create方法实现一个极简版的Uniswap：Pair币对合约负责管理币对地址，PairFactory工厂合约用于创建新的币对，并管理币对地址。
+Pair合约
+```
+contract Pair{
+    address public factory; // 工厂合约地址
+    address public token0; // 代币1
+    address public token1; // 代币2
 
+    constructor() payable {
+        factory = msg.sender;
+    }
+
+    // called once by the factory at time of deployment
+    function initialize(address _token0, address _token1) external {
+        require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
+        token0 = _token0;
+        token1 = _token1;
+    }
+}
+```
+PairFactory
+```
+contract PairFactory{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair(address tokenA, address tokenB) external returns (address pairAddr) {
+        // 创建新合约
+        Pair pair = new Pair(); 
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+}
+```
+25. CREATE2
+CREATE2 操作码使我们在智能合约部署在以太坊网络之前就能预测合约的地址。Uniswap创建Pair合约用的就是CREATE2而不是CREATE。这一讲，我将介绍CREATE2的用法
+
+CREATE2如何计算地址
+CREATE2的目的是为了让合约地址独立于未来的事件。不管未来区块链上发生了什么，你都可以把合约部署在事先计算好的地址上。用CREATE2创建的合约地址由4个部分决定：
+
+0xFF：一个常数，避免和CREATE冲突
+CreatorAddress: 调用 CREATE2 的当前合约（创建合约）地址。
+salt（盐）：一个创建者指定的bytes32类型的值，它的主要目的是用来影响新创建的合约的地址。
+initcode: 新合约的初始字节码（合约的Creation Code和构造函数的参数）。
+新地址 = hash("0xFF",创建者地址, salt, initcode)
+Copy
+CREATE2 确保，如果创建者使用 CREATE2 和提供的 salt 部署给定的合约initcode，它将存储在 新地址 中。
+
+如何使用CREATE2
 ### 2024.09.28
 
 ### 2024.09.29
