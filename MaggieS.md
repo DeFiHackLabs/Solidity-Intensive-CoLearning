@@ -139,13 +139,13 @@ We learn them together can promote the understanding of framework, also, the dif
 
 3. Difficulties
 
-In the fifth learning day, as the last step1 day,We have learned all 50 chapters. 
+In the fifth learning day, as the last step1 day, we have learned overall 50 chapters. 
 
-However, it’s just a new beginning of Step2,there is still lots of room for development. 
+However, it’s just a new beginning of Step2, there is still lots of room for development. 
 
 We need more enough time and space to promote coding and English terminology skills. 
 
-Fortunately,The second part, can be modularized according to the relationship between chapters in the tutorials,
+Fortunately,the second part, can be modularized according to the relationship between chapters in the tutorials,
 
 which is not only more convenient for memory and understanding, but also more convenient for logical sorting.
 
