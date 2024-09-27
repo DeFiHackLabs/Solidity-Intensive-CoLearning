@@ -150,11 +150,17 @@ Fortunately,the second part, can be modularized according to the relationship be
 which is not only more convenient for memory and understanding, but also more convenient for logical sorting.
 
 Just Like:
+
 45 Time lock —— 22 Call
+
 46 Proxy Contract —— 22 Call —— 23 Delegatecall —— Lesson 27: ABI encoding 
+
 47 Upgradeable Contract —— 46  Proxy Contract
-48 Transparent Proxy ——29 Function Selectors.
+
+48 Transparent Proxy ——29 Function Selectors
+
 49 UUPS  —— 23 Delegatecall
+
 50 Multisignature Wallet —— 27 ABI encoding 
 
 <!-- Content_END -->
