@@ -50,6 +50,78 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 ## Notes
 
 <!-- Content_START -->
+### 2024.09.27
+Day 5
+WTF Academy Solidity 101 16-19
+
+Library
+1. State variables are not allowed
+2. Cannot inherit or be inherited
+3. Cannot receive ether
+4. Cannot be destroyed.
+
+Use library contracts
+```solidity
+   // Using the library with the "using for"
+   using Strings for uint256;
+   function getString1(uint256 _number) public pure returns(string memory){
+      // Library functions are automatically added as members of uint256 variavles
+      return _number.toHexSting();
+   }
+```
+
+```solidity
+    // Called directly by the library contract name
+    function getString2(uint256 _number) public pure returns(string memory){
+        return Strings.toHexString(_number);
+    }
+```
+
+4 Ways of Import
+
+```solidity
+   Hierarchy
+   |-- Import.sol
+   |__ Yeye.sol
+
+   // Import by relative location of source file
+   import './Yeye.sol';
+   
+   // Import by URL
+   import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+
+   // Import via the npm
+   import '@openzeppelin/contracts/access/Ownable.sol';
+
+
+   // Import contract-specific global symbols by specifying global symbols.
+   import {Yeye} from './Yeye.sol';
+
+```
+
+`receive()`
+- revceiving `ETH` 
+- Some malicious contracts intentionally add codes in `receive()`, which cosume massive `gas` or cause the transaction to get reversted. -- **Pull over push pattern**
+
+
+`fallback()`
+
+```
+Execute fallback() or receive()?
+         Receive ETH
+              |
+      msg.data is empty?
+            /  \
+          Yes   No
+          /      \
+Has receive()?   fallback()
+        / \
+      Yes  No
+      /     \
+receive()   fallback()
+```
+---
+
 ### 2024.09.26
 Day 4 
 WTF Academy Solidity 101 13-15
@@ -171,6 +243,8 @@ WTF Academy Solidity 101 9-12
       - Data: value parameter in event
   
 
+---
+
 ### 2024.09.24
 
 Class WTF Academy Solidity 101 5-8
@@ -274,6 +348,8 @@ Read (not write):
 - Gas data
 - Program Counter
 - (other)
+
+---
 
 ### 2024.09.23
 
