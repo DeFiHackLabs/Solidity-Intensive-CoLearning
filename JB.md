@@ -115,4 +115,181 @@ contract function_practice{
 }
 ```
 ![image](https://github.com/user-attachments/assets/c31a3b3c-569d-42ec-9cf1-9c0fe3a5c4fc)
+
+### 2024.09.25
+1. 学习了变量的数据存储和作用域。以下是在remix上的练习。
+   // SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract solidity_start5{
+    uint[] xMemory = new uint[] (5);
+
+    uint public _s = 3;
+    string private  _string = "a";
+    bool private  _bool = true;
+
+    function fCalldata(uint[] calldata _x) public pure returns(uint[] calldata){
+    //参数为calldata数组，不能被修改
+    // _x[0] = 0 //这样修改会报错
+    return(_x);
+}
+    function testStorage() public {
+        //此处不能使用pure或view关键字，因为下面的_storage[0]会修改状态变量。
+        uint[] storage _storage = xMemory;
+        _storage[0] = 3;
+    }
+
+    function testStorage2() internal view {
+        uint[] memory _storage = xMemory;
+        _storage[2] = 4;
+    }
+
+    //修改state variable 的值。
+    function changeStateVariables() external   {
+        _s = 5;
+        _string = "JB";
+        _bool = false;
+    }
+
+    //局部变量
+    function declareLocalVariable() external pure returns(uint256 ll) {
+        uint _x = 3;
+        uint _y = 6;
+        ll = _x + _y;
+    }
+
+    function globalVariable() public view returns(address, uint, bytes memory) {
+        address _address = msg.sender;
+        uint blockNum = block.number;
+        bytes memory data = msg.data;
+        return (_address, blockNum, data);
+    }
+
+    function weuint() external pure returns(uint) {
+        assert(1 wei == 1e0);
+        assert(1 wei == 1);
+        return 1 wei;
+    }
+
+    function guint() external pure returns(uint) {
+        assert(1 gwei == 1e9);
+        assert(1 gwei == 1000000000);
+        return 1 gwei;
+    }
+
+    function etherTest() external pure returns(uint) {
+        assert(1 ether == 1e18);
+        assert(1 ether == 1000000000000000000);
+        return 1 ether;
+    }
+
+     //时间单位
+    function secondUint() external pure returns(uint){
+        assert(1 seconds == 1);
+        return 1 seconds;
+    }
+
+    function minutesUint() external pure returns(uint){
+        assert(1 minutes == 60);
+        return 1 minutes;
+    }
+
+    function hoursUint() external pure returns(uint) {
+        assert(1 hours == 3600);
+        return 1 hours;
+    }
+    
+    function daysUnit() external pure returns(uint) {
+    assert(1 days == 86400);
+    assert(1 days == 24 hours);
+    return 1 days;
+    }
+
+    function weeksUnit() external pure returns(uint) {
+    assert(1 weeks == 604800);
+    assert(1 weeks == 7 days);
+    return 1 weeks;
+    }
+
+}
+    
+   ![image](https://github.com/user-attachments/assets/21b0875e-a9a1-4aed-9bb8-432f39e46b70)
+   ![image](https://github.com/user-attachments/assets/09ea5ed9-caf9-4ae5-bb91-021e782ee68f)
+
+### 2024.09.26
+1.学习了数组的声明以及赋值方式。
+2.学习了struct的声明以及4种赋值方式。和JAVA中的POJO 类很像。
+3.如下是做的练习。
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+contract array_struct {
+
+//结构体
+    struct Student{
+    uint256 id;
+    uint256 score; 
+    }
+    
+    // 初始一个student结构体
+    Student public  student;
+
+    //固定长数组
+    uint[3] _array1;
+    //不固定数组
+    uint[] _array2;
+    //不固定数组
+    uint [] _array3 = new uint[](3);
+     //固定长数组
+    bytes1[2] _byte1;
+     //固定长数组
+    address[10] _address;
+    bytes array;
+
+    function memory_array() external pure {
+        uint[] memory _array4 = new uint[](3);
+        _array4[0] = 3;
+        _array4[1] = 4;
+        _array4[2] = 3;
+    
+    }
+
+    function callG() public  {
+        g([uint(3),3,5]);
+    }
+    
+    
+    function g(uint[3] memory _as) public  returns (uint[] memory  ) {
+        _array3 = _as;
+        _array3.push(3);
+        return _array3;
+    }
+    
+
+    function initStudent1() external  {
+        Student storage _student = student;
+        _student.id = 11;
+        _student.score = 100;
+    }
+
+    //直接引用strut。
+    function initStudent2() external  {
+        student.id = 3;
+        student.score = 90;
+    }
+
+    //构造函数
+    function initStudent3() external  {
+        student = Student(3,90);
+    }
+    
+    //key-value形式
+    function initStudent4() external   {
+        student = Student({id:3,score:40});
+    }
+
+}
+![image](https://github.com/user-attachments/assets/73680974-14b3-471a-858b-278fc538c978)
+
+总结：对语法不熟悉，对数组修饰符之间的变量赋值影响理解不够深刻。
+
 <!-- Content_END -->

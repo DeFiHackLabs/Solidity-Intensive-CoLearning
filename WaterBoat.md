@@ -238,6 +238,203 @@ function enumToUint() external view returns(uint){
 
 
 
+### 2024.09.25
+
+
+
+#### 函数
+
+
+
+语法格式
+
+```sol
+function <function name>(<parameter types>) {internal|external|public|private} [pure|view|payable] [returns (<return types>)]
+```
+
+1. function:关键字用于声明函数
+2. `<function name>`:函数名
+3. parameter types: 传入的参数类型和参数名
+4. { internal | external | public | private } 函数可见性说明符
+   1. internal : 只能从合约内部访问,继承的合约可以使用
+   2. external : 只能从合约外部访问(内部可以通过 `this.f()` 调用,`f`是函数名)
+   3. public : 内部和外部均可访问
+   4. private : 只能从合约内部访问,继承的合约也不可以使用
+
+**注意 1**：合约中定义的函数需要明确指定可见性，它们没有默认值。
+
+**注意 2**：`public|private|internal` 也可用于修饰状态变量。`public`变量会自动生成同名的`getter`函数，用于查询数值。未标明可见性类型的状态变量，默认为`internal`
+
+5. `[pure|view|payable]`：决定函数权限/功能的关键字。`payable`（可支付的）很好理解，带着它的函数，运行的时候可以给合约转入 ETH。`pure` 和 `view` 的介绍见下一节。
+6. `[returns ()]`：函数返回的变量类型和名称。
+
+
+
+#### 到底什么是 `Pure` 和`View`？
+
+在 Solidity 中,存在 `prue` 和 `view` 关键字其原因是因为以太坊交易需要支付气费(gas fee)。合约的状态变量存储在链上，gas fee 很贵，如果计算不改变链上状态，就可以不用付 gas。包含 `pure` 和 `view` 关键字的函数不会改写链上状态,因此用户直接调用它们是不需要支付 gas 的(注意,合约中非 `pure`/`view`函数调用`pure`/`view`函数时需要付gas)
+
+在以太坊中，以下语句被视为修改链上状态：
+
+1. 写入状态变量。
+2. 释放事件。
+3. 创建其他合约。
+4. 使用 `selfdestruct`.
+5. 通过调用发送以太币。
+6. 调用任何未标记 `view` 或 `pure` 的函数。
+7. 使用低级调用（low-level calls）。
+8. 使用包含某些操作码的内联汇编。
+
+
+
+#### 代码
+
+##### 1. pure 和 view
+
+```sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract FunctionTypes {
+    uint256 public number = 5;
+
+    // 定义一个 add() 函数，每次调用会让 number 增加 1。
+    function add() external {
+        number += 1;
+    }
+
+    //如果 add() 函数被标记为 pure，比如 function add() external pure，就会报错。因为 pure 是不配读取合约里的状态变量的，更不配改写。那 pure 函数能做些什么？举个例子，你可以给函数传递一个参数 _number，然后让他返回 _number + 1，这个操作不会读取或写入状态变量。
+    function addPure(uint256 _number)
+        external
+        pure
+        returns (uint256 new_number)
+    {
+        new_number = _number + 1;
+    }
+}
+
+```
+
+##### 2.internal v.s. external
+
+```sol
+// internal: 内部函数
+function minus() internal {
+    number = number - 1;
+}
+
+// 合约内的函数可以调用内部函数
+function minusCall() external {
+    minus();
+}
+```
+
+我们定义一个 `internal` 的 `minus()` 函数，每次调用使得 `number` 变量减少 1。由于 `internal` 函数只能由合约内部调用，我们必须再定义一个 `external` 的 `minusCall()` 函数，通过它间接调用内部的 `minus()` 函数。
+
+
+
+#### 3.payable
+
+```sol
+// payable: 递钱，能给合约支付eth的函数
+function minusPayable() external payable returns(uint256 balance) {
+    minus();    
+    balance = address(this).balance;
+}
+```
+
+我们定义一个 `external payable` 的 `minusPayable()` 函数，间接的调用 `minus()`，并且返回合约里的 ETH 余额（`this` 关键字可以让我们引用合约地址）。我们可以在调用 `minusPayable()` 时往合约里转入1个 ETH。
+
+
+
+#### 总结
+
+`view` 函数可以读取状态变量，但不能改写；`pure` 函数既不能读取也不能改写状态变量。
+
+
+
+
+
+### 2024.09.26
+
+#### 返回值 : return 和 returns
+
+在 Solidity 中 `return` 和 `returns` 的区别 :
+
+- `returns`：跟在函数名后面，用于声明返回的变量类型及变量名。
+- `return`：用于函数主体中，返回指定的变量。
+
+
+
+```sol
+function returnMulitple() puiblc pure returns(uint256,bool,uint256[3] memory){
+	return(1,ture,[uint256(1),2,5]);
+}
+```
+
+在上述代码中，我们利用 `returns` 关键字声明了有多个返回值的 `returnMultiple()` 函数，然后我们在函数主体中使用 `return(1, true, [uint256(1),2,5])` 确定了返回值。
+
+这里`uint256[3]`声明了一个长度为`3`且类型为`uint256`的数组作为返回值。因为`[1,2,3]`会默认为`uint8(3)`，因此`[uint256(1),2,5]`中首个元素必须强转`uint256`来声明该数组内的元素皆为此类型。数组类型返回值默认必须用memory修饰
+
+
+
+#### 命名式返回
+
+我们可以在 `returns` 中标明返回变量的名称。Solidity 会初始化这些变量，并且自动返回这些函数的值，无需使用 `return`。
+
+```sol
+// 命名式返回
+function returnNamed() public pure returns(uint256 _number, bool _bool, uint256[3] memory _array){
+    _number = 2;
+    _bool = false;
+    _array = [uint256(3),2,1];
+}
+```
+
+在上述代码中，我们用 `returns(uint256 _number, bool _bool, uint256[3] memory _array)` 声明了返回变量类型以及变量名。这样，在主体中只需为变量 `_number`、`_bool`和`_array` 赋值，即可自动返回。
+
+当然，你也可以在命名式返回中用 `return` 来返回变量：
+
+```solidity
+// 命名式返回，依然支持return
+function returnNamed2() public pure returns(uint256 _number, bool _bool, uint256[3] memory _array){
+    return(1, true, [uint256(1),2,5]);
+}
+```
+
+
+
+#### 解构式赋值
+
+Solidity 支持使用解构式赋值规则来读取函数的全部或部分返回值。
+
+- 读取所有返回值：声明变量，然后将要赋值的变量用`,`隔开，按顺序排列。
+
+```sol
+    function readReturn() public pure {
+        uint256 _number;
+        bool _bool;
+        uint256[3] memory _array;
+        (_number, _bool, _array) = returnNamed();
+    }
+```
+
+- 读取部分返回值：声明要读取的返回值对应的变量，不读取的留空。在下面的代码中，我们只读取`_bool`，而不读取返回的`_number`和`_array`：
+
+```sol
+    function readReturn() public pure {
+        uint256 _number;
+        bool _bool;
+        uint256[3] memory _array;
+        (_number, _bool, _array) = returnNamed();
+
+
+        bool _bool2;
+        // 读取部分返回值
+        (,_bool2,)=returnNamed();
+    }
+```
+
 
 
 

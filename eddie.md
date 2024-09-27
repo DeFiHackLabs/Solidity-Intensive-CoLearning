@@ -14,6 +14,81 @@ timezone: Asia/Shanghai
    
 ## Notes
 <!-- Content_START -->
+### 2024.09.27
+
+- WTF102章节内容：Call、Delegatecall
+
+#### 笔记
+
+- 通过call来进行调用某一个合约函数
+    
+    ```solidity
+    address.call(abi.encodeWithSignature(”function signature”,prop))
+    //当call 不存在的函数时，返回依然为success，但返回的data为0x0，实质调用了目标合约的fallback函数
+    ```
+    
+- delegatecall
+    
+    要求当前合约中的状态变量和被调用合约中的状态变量相同；
+    即为在调用过程中，delegatecall的执行结果可以修改当前合约的状态变量；
+    
+    **`要求变量类型和声明顺序必须相同，变量名可以不同；`**
+    
+    原因：变量名对于storage并不重要，storage是基于位置的；Solidity将状态变量以线性布局的方式存储在合约的storage slots中，如，第一个变量存在slot 0，第二个在slot1；
+
+### 2024.09.26
+
+- WTF102章节内容：接收ETH、发送ETH、调用其他合约
+
+#### 笔记
+
+- 接收ETH:receive和fallback
+
+```solidity
+触发fallback() 还是 receive()?
+           接收ETH
+              |
+         msg.data是空？
+            /  \
+          是    否
+          /      \
+receive()存在?   fallback()
+        / \
+       是  否
+      /     \
+receive()   fallback()
+```
+
+- 接收ETH
+
+| function | gas limit | 是否支持对方合约fallback() or receive实现复杂逻辑 | 是否支持revert | 返回值 |
+| --- | --- | --- | --- | --- |
+|  paybale(_to).transfer(amount) | 2300 | 否 | 支持 | no returns |
+| _to.send(amount) | 2300 | 否 | 不支持 | bool |
+| _to.call{value: amount}("") | none | 是 | 不支持 | (bool,bytes) |
+
+- gas limit
+
+执行交易或合约时所能消耗的最大计算资源。如果你设定的 gas limit 是 100,000 gas，那么你的交易在任何情况下都不会消耗超过 100,000 gas。如果交易需要的 gas 超过了这个限制，交易就会失败。
+
+- 调用其他合约
+
+```solidity
+function callSetX(address _Address, uint256 _x) external{
+        OtherContract(_Address).setX(_x);
+}
+function callGetX(OtherContract _Address) external view returns(uint x){
+    x = _Address.getX();
+}
+function callGetX2(address _Address) external view returns (uint x){
+    OtherContract oc = OtherContract(_Address);
+    x = oc.getX();
+}
+function setXTransferETH(address otherContract, uint256 x) payable external{
+    OtherContract(otherContract).setX{value: msg.value}(x);
+    //语法糖，隐式调用的是_to.call(value: msg.value);
+}
+```
 
 ### 2024.09.25
 - WTF101章节内容：抽象合约和接口、异常

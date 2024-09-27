@@ -599,5 +599,471 @@ function <function name>(<parameter types>) {internal|external|public|private} [
                 
                 ![image](https://github.com/user-attachments/assets/44a164f4-d427-443e-9da5-92165f8beb80)
 
+### 2024.09.26
+#### 變量數據儲存與作用域
+## **Solidity 中的 Reference Type:**
+
+- 在 Solidity 中，**Reference Type** 是指那些資料型別的數據存放在儲存位置上（如 memory、storage 或 calldata），而不是直接儲存在堆棧上（stack）。
+- 這些類型的變數只存儲數據的**引用（reference）**，因此被稱為「參考型別」。
+    - **Array**（陣列）
+    - **Bytes**（動態字節數組 `bytes`，而不是定長 `bytesN`）
+    - **String**（字串）
+    - **Struct**（結構體）
+    - **Mapping**（映射，但 Mapping 通常只能存在於 storage 中，無法存在於 memory）
+
+## **Reference Type 的儲存位置**：
+
+- 在 Solidity 中，由於參考型別佔的空間大，使用時需要宣告數據儲存的位置。
+- 存在不同地方，`gas fee` 不同
+- 常見的存儲位置包括：
+    - **`storage`**：數據持久化儲存在區塊**鏈上**，是合約的狀態變量。（電腦硬碟，gas fee高）
+    - **`memory`**：數據僅在函數執行期間存在，並且不會持久化到區塊鏈。（記憶體）
+    - **`calldata`**：僅用於函數參數，**數據是不可修改**的，適用於外部函數參數。（記憶體）
+    
+    ```solidity
+    contract StorageMemoryCalldataExample {
+    	// 狀態變量，存儲在 storage 中
+    	string public storedData;
+    	
+    	// 使用 calldata 接收數據，並將數據存儲到 storage 中
+    	function setData(string calldata _inputData) public {
+    	    storedData = _inputData;  // calldata 中的數據複製到 storage 中
+    	}
+    	
+    	// 使用 memory 中的數據處理
+    	function processData() public view returns (string memory) {
+    	    string memory temporaryData = storedData;  // 將 storage 中的數據複製到 memory 中
+    	    return temporaryData;  // 返回處理過的 memory 中的數據
+    	}
+    }
+    ```
+    
+
+## Reference Type 的賦值：
+
+- **賦值本質上是創建引用指向本體**。
+- 當你將一個參考型別賦值給另一個變數時，兩個變數會共享同一個底層數據。
+- 這樣一來，**修改本體或者引用中的數據，變化都會被同步**，因為它們指向的是同一個數據位置。
+- `Storage` 的引用
+    
+    ```solidity
+    contract ReferenceExample {
+    	struct Data {
+    	uint value;
+    	}
+    	
+    	Data public data1;
+    	Data public data2;
+    	
+    	function assignReference() public {
+    	    data1.value = 100;
+    	
+    	    // 創建 data1 的引用並賦值給 data2，這裡的賦值是創建引用，兩者共享相同的數據
+    	    data2 = data1;
+    	
+    	    // 修改 data2.value，會影響到 data1.value，因為兩者指向同一個存儲位置
+    	    data2.value = 200;
+    	}
+    	
+    	function getData1Value() public view returns (uint) {
+    	    return data1.value;  // 這裡會返回 200，因為 data1 和 data2 是同一個數據
+    	}
+    }
+    ```
+    
+- `Memory` 的引用
+    
+    ```solidity
+    contract MemoryReferenceExample {
+    	struct Data {
+    	uint value;
+    	}
+    	
+    	function modifyMemory() public pure returns (uint) {
+        // 創建兩個 memory 中的變數
+        Data memory data1 = Data(100);
+        Data memory data2 = data1;  // 創建引用，兩者指向同一個 memory 儲存
+    
+        data2.value = 200;  // 修改 data2.value 會影響 data1.value
+    
+        return data1.value;  // 返回 200，因為 data1 和 data2 共享同一個 memory 引用
+    	}
+    }
+    ```
+    
+- 什麼情況下不會同步？
+    
+    當進行深度複製時，會創建一個新的實例，而不是引用同一個存儲位置。這種情況下，修改其中一個變數不會影響到另一個變數。
+    
+    例如：
+    
+    - 如果你明確地在不同的存儲區域（如 `storage` 和 `memory`）之間進行數據傳遞，會發生數據拷貝。
+    - 當涉及值型別（如 `uint`、`bool` 等），賦值操作會直接進行數據拷貝，而不會是引用。
+    
+    ```solidity
+    contract CopyExample {
+    	uint public x = 10;
+    	uint public y;
+    	
+    	function copyValue() public {
+        y = x;  // 這裡是值的拷貝，而不是引用
+        y = 20; // 修改 y 不會影響 x，因為它們是獨立的變數
+    	}
+    	
+    	function getX() public view returns (uint) {
+    	    return x;  // 返回 10，因為 x 沒有被修改
+    	}
+    }
+    ```
+    
+
+## 小結 - 何時使用：
+
+- **`storage`**：當需要永久存儲在區塊鏈上的數據時使用，通常是狀態變量。
+- **`memory`**：當你需要處理臨時數據且不需要永久保存時使用，特別是在函數執行期間。
+- **`calldata`**：當你需要外部函數的參數且這些參數不需要修改時使用。它是一個節省 gas 的選擇，因為參數直接從交易數據讀取，不進行複製。
+
+### 作用域的分類
+
+**作用域（scope）** 是指變數或函數的可見性範圍，即變數或函數在程式中哪個區域可以被訪問或使用。
+
+在 Solidity 中，作用域主要分為三個層次：
+
+1. **區域作用域（Local Scope）**
+2. **狀態作用域（State Scope）**
+3. **全域作用域（Global Scope）**
+
+### 1. **區域作用域（Local Scope）**
+
+區域作用域是指在**函數內部**宣告的變數，它們只能在該函數內部使用。一旦函數執行完畢，這些變數就會被銷毀，無法在函數外部或其他函數中訪問。
+
+```solidity
+contract Example {
+	function localVariableExample() public pure returns (uint) {
+		uint localVar = 100;  // 區域變數，作用域僅限於此函數
+		return localVar;      // 可以在函數內部訪問
+	}
+	
+	// 在其他函數中無法訪問 localVar，因為它是區域變數
+	function anotherFunction() public pure returns (uint) {
+	    // uint x = localVar;  // 這行會產生錯誤，localVar 不可見
+	    return 200;
+	}
+}
+```
+
+**區域作用域的要點**：
+
+- 區域變數只能在它們所在的函數內使用。
+- 區域變數在函數執行結束後會被銷毀。
+- 優點：可以避免函數之間的變數命名衝突。
+
+### 2. **狀態作用域（State Scope）**
+
+狀態作用域是指**合約的狀態變數**，這些變數儲存在區塊鏈上，可以在合約中的所有函數中訪問。狀態變數通常是永久存在的，它們會保留在合約的存儲空間（`storage`）中，直到合約被銷毀。
+
+```solidity
+contract Example {
+	uint public stateVar = 50;  // 狀態變數，可以在合約中所有函數中訪問
+	
+	function modifyStateVar() public {
+	   stateVar = 100;  // 修改狀態變數
+	}
+	
+	function getStateVar() public view returns (uint) {
+	    return stateVar;  // 在任何函數中都可以訪問 stateVar
+	}
+}
+```
+
+**狀態作用域的要點**：
+
+- 狀態變數在合約的所有函數中都是可見的。
+- 狀態變數存儲在區塊鏈的 `storage` 中，具有持久性。
+- 優點：可以保存合約的持久狀態，隨時被合約中的其他函數讀取或修改。
+
+### 3. **全域作用域（Global Scope）**
+
+全域作用域是 Solidity 預定義的變數或函數，這些變數或函數可以在任何地方使用，無需顯式宣告。這些通常是一些全域變數、區塊信息或函數，如 `msg.sender`、`block.timestamp` 等。
+
+```solidity
+contract Example {
+	function globalScopeExample() public view returns (address, uint) {
+		address sender = msg.sender;    // 全域變數，表示呼叫者的地址
+		uint timestamp = block.timestamp; // 全域變數，表示區塊時間戳
+		return (sender, timestamp);
+	}
+}
+```
+
+**全域作用域的要點**：
+
+- 全域變數或函數是由 Solidity 提供的，不需要顯式宣告。
+- 可以在合約的任何地方使用。
+- 這些全域變數為合約提供了區塊鏈的上下文信息，例如交易發起者（`msg.sender`）、當前區塊號（`block.number`）等。
+
+### 作用域的重要性
+
+1. **變數衝突與覆蓋**：
+使用區域作用域可以避免變數名稱衝突。如果多個函數內部使用相同名稱的變數，由於它們的作用域不同，變數不會相互影響。同時，區域變數可以暫時覆蓋狀態變數的值。
+    
+    ```solidity
+    contract Example {
+        uint public stateVar = 50;  // 狀態變數
+    
+        function localScopeExample() public view returns (uint) {
+            uint stateVar = 100;  // 區域變數，暫時覆蓋狀態變數
+            return stateVar;      // 返回的是區域變數的值 100，而不是狀態變數的 50
+        }
+    }
+    ```
+    
+2. **節省資源**：
+區域變數存儲在記憶體（`memory`）或堆疊（`stack`）中，並且只在函數執行期間存在，這相比於存儲在區塊鏈上的狀態變數要更高效且節省 gas。這對於臨時運算或處理數據非常重要。
+3. **數據安全與邏輯正確性**：
+函數的區域變數和狀態變數的作用域清晰界定，有助於確保合約邏輯的正確性，並防止無意中修改合約的狀態變數。
+4. **防止無意修改數據**：
+理解作用域可以幫助你控制數據的可訪問性，防止不必要的修改。例如，狀態變數的變更是持久性的，如果只需要在短期內使用數據，應該使用區域變數來避免無意的狀態改變。
+
+### 2024.09.27
+#### 變量類型：引用
+
+這裡介紹兩種常用的 Reference Type: Array 和 Struct 用法
+
+## Array
+
+通用寫法 T[] 
+
+```solidity
+// 固定陣列
+uint[3] array4;
+
+// 可變（動態）陣列
+bytes1[] array5;
+address[] array6;
+bytes array7;
+```
+
+**注意**：`bytes`比较特殊，不用`[]`
+
+1. 固定長度
+    
+    ```solidity
+    contract ExampleContract {
+        // 1.固定
+        uint[3] arr1;
+    
+        // 賦值
+        function changFixedArraye() external {
+            arr1[0] = 1;
+            arr1[1] = 2;
+            arr1[2] = 3;
+        }
+    
+        // 直接針對指定索引進行賦值
+        function setFixedArray(uint index, uint value) public {
+            require(index < 3, "Index out of bounds");
+            arr1[index] = value;  
+        }
+    
+        function getFixedArray() external view returns(uint[3] memory) {
+            return arr1;
+        }
+    }
+    ```
+    
+    - 回憶：宣告 `arr1` 時有沒有 `public` 差在哪
+        - **有 `public`**：
+            - Solidity 會自動生成一個 getter 函數。
+            - 外部合約和帳戶可以通過自動生成的 getter 函數直接存取陣列中的個別元素。
+        - **沒有 `public`**：
+            - 不會生成 getter 函數。
+            - 如果需要允許外部存取陣列的值，必須顯式編寫一個函數。
+2. 變動長度
+    
+    ```solidity
+    contract ExampleContract {
+        // 1.固定
+        uint[3] arr1;
+    
+        // 2. 變動 ---可以使用push.pop
+        uint[] arr2;
+    
+        // 3.動態＋可變
+        uint[] arr3 = new uint[](2);
+    
+        // 賦值
+        function changNonFixedArraye() external {
+            arr2.push(5);
+            arr2.push(6);
+            arr2.pop();
+        }
+    
+         function getNonFixedArray() external view returns(uint[] memory) {
+            return arr2;
+        }
+    }
+    ```
+    
+    - deploy後起始值
+        
+        ![image](https://github.com/user-attachments/assets/41d55237-bfb8-430e-9c2d-e0c85b04b5fc)
+
+        
+    - changeNonFixedArray() 之後
+        
+        ![image](https://github.com/user-attachments/assets/0ffe0da9-ce48-438e-a50c-2a969dd31bb1)
+
+        
+3. 動態陣列
+    
+    ```solidity
+    contract ExampleContract {
+        // 1.固定
+        uint[3] arr1;
+    
+        // 2. 變動 ---可以使用push.pop
+        uint[] arr2;
+    
+        // 3.動態＋可變
+        uint[] arr3 = new uint[](2);
+    
+        // 賦值
+        function changeDynamicArray() external {
+            arr3[0] = 9;
+            arr3[1] = 10;
+            arr3.push(11);
+            arr3.push(12);
+        }
+    
+        function getDynamicArray() external view returns(uint[] memory) {
+            return arr3;
+        }
+    
+        function getDynamicArrayLength() external view returns(uint) {
+            return arr3.length;
+        }
+    }
+    ```
+    
+    - deploy後起始值
+        
+        ![image](https://github.com/user-attachments/assets/da227efa-d08c-4dd1-b89f-83f09da052a1)
+
+        
+    - changeDynamicArray() 之後
+        
+        ![image](https://github.com/user-attachments/assets/eb609211-f339-4890-b6af-29975184b075)
+
+### Array 總結：
+
+1. **固定長度陣列 `arr1`**：長度固定，無法動態增減元素，只能通過索引賦值。
+2. **變動長度陣列 `arr2`**：可以動態增減元素，使用 `push` 和 `pop` 操作來調整陣列長度。
+3. **動態長度陣列 `arr3`（初始有固定長度）**：初始時長度固定，但仍然是一個動態陣列，允許使用 `push` 和 `pop` 進行動態增減。
+
+## Struct
+
+在 Solidity 中，**`struct`** 是用來定義自訂型別的數據結構。
+
+- 定義與宣告
+    
+    ```solidity
+    contract ExampleContract {
+        // 定義一個 struct
+        struct Person {
+            string name;
+            uint age;
+            address wallet;
+        }
+    
+        // 宣告一個狀態變數，使用這個 struct 類型
+        Person public person;
+    }
+    ```
+    
+    - 結果
+        
+        ![image](https://github.com/user-attachments/assets/433068c9-4109-45dd-9dbe-f06eb6c950ac)
+        
+- 4種賦值寫法
+    
+    ```solidity
+    contract ExampleContract {
+        // 定義一個 struct
+        struct Person {
+            string name;
+            uint age;
+            address wallet;
+        }
+    
+        // 宣告一個狀態變數，使用這個 struct 類型
+        Person public person;
+    
+        function setPerson1() external {
+            Person storage _person = person;
+            _person.name = "Tim";
+            _person.age = 18;
+        }
+    
+        function setPerson2() external {
+            // 使用點語法（dot notation）
+            person.name = "John";
+            person.age = 30;
+        }
+    
+        function setPerson3() external {
+            person = Person("Ken", 60, 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4);
+        }
+    
+        function setPerson4() external {
+            person = Person({name: "Gary", age: 90, wallet: 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4});
+        }
+    }
+    ```
+    
+    - 注意：`setPerson1()` 中的 `Person storage _person = person;`
+        - 創建了一個指向合約中實際儲存在 `storage` 的 `person` 的引用。
+        - 對 `_person` 所做的任何修改，將直接影響原來存儲的 `person`。
+- `struct` 的常見應用
+    1. **儲存複雜數據結構**：
+    當合約需要處理包含多個欄位的數據時，`struct` 是非常理想的解決方案。例如，儲存一個人的詳細資訊、車輛數據、物品資訊等。
+    2. **管理多個對象的集合**：
+    通常我們會使用 `struct` 來管理一組相關的數據，例如一組玩家、交易或產品。結構體可以用來定義每個對象的屬性，然後將它們存儲在陣列或 `mapping` 中。
+    3. **建構複雜的智能合約**：
+    當需要處理更複雜的業務邏輯時，`struct` 提供了一種清晰的數據建模方式。例如，在拍賣合約中，`Auction` 可以是一個 `struct`，裡面包含拍賣商品、出價、拍賣時間等多個欄位。
+    4. **與 `mapping` 結合**：
+    `struct` 經常與 `mapping` 一起使用來快速存取和管理複雜的數據。例如，可以通過 `mapping(address => Person)` 來將每個地址與一個 `Person` 結構體相關聯。
+        
+        ```solidity
+        contract Example {
+        		struct Person {
+        		string name;
+        		uint age;
+        		address wallet;
+        		}
+        		
+        		// 使用 mapping 將 address 與 Person 結構體關聯
+        	mapping(address => Person) public personMapping;
+        	
+        	// 添加或更新 Person 資訊
+        	function setPerson(string memory _name, uint _age) public {
+        	    personMapping[msg.sender] = Person(_name, _age, msg.sender);
+        	}
+        	
+        	// 獲取某個地址的 Person 資訊
+        	function getPerson(address _person) public view returns (string memory, uint, address) {
+        	    Person memory person = personMapping[_person];
+        	    return (person.name, person.age, person.wallet);
+        	}
+        }
+        ```
+        
+
+### Struct 總結 :
+
+- **`struct`** 是用來定義自訂數據型別的工具，能將多種不同類型的資料組合在一起。
+- 常見應用包括儲存和管理複雜的數據，如人的資訊、產品資訊、交易詳情等。
+- 可以與陣列或 `mapping` 結合來管理多個實體。
+- 透過 `struct`，可以有效提高代碼的結構性和可讀性，讓智能合約的邏輯更清晰、易於維護。
 
 <!-- Content_END -->

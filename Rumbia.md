@@ -155,4 +155,162 @@ uint256[3] memory _array;
 
 
 ###
+### 2024.09.26
+ 
+变量数据存储和作用域  
+Morkdown笔记的用法...
+
+#### 1.Solidity 变量数据存储和作用域
+
+引用类型（Reference Type）
+- 包括数组（array）和结构体（struct）
+- 占用存储空间大，使用时必须声明数据存储位置
+  （这就是为啥数组后面不加memory会报错的原因哈）
+数据存储位置
+- storage
+  - **合约里的状态变量默认使用**
+  - 存储在链上，类似计算机硬盘
+  - 消耗 gas 多
+- memory
+  - **用于函数参数和临时变量**
+  - 存储在内存中，不上链
+  -  花费gas 少，
+  
+- calldata
+  - **类似 memory，存储在内存中，不上链**
+  - 变量不可修改（immutable）
+  - 常用于函数参数
+
+数据位置赋值规则
+**基于传值和传址**
+- storage 到 local storage：创建引用，修改会影响原变量
+- memory 到 memory：创建引用，修改会影响原变量
+- 其他情况：创建独立副本，修改不影响原变量
+```solidity
+uint[] x = [1,2,3]; // 状态变量：数组 x
+
+function fStorage() public{
+    //声明一个storage的变量 xStorage，指向x。**修改xStorage也会影响x**
+    uint[] storage xStorage = x;
+    xStorage[0] = 100;
+}
+```
+**变量作用域**
+
+- 状态变量
+  - 存储在链上
+  - 所有合约内函数可访问
+  - gas 消耗高
+
+```solidity
+    contract Variables {
+    uint public a1 = 1;
+    uint public y=999;
+   
+}
+```
+- 局部变量
+  - 仅在函数执行过程中有效
+  - 存储在内存中，不上链
+  - gas 消耗低
+```solidity
+function bar() external pure returns(uint){
+    uint xx = 1;
+    uint yy = 3;
+    uint zz = xx + yy;
+    return(zz);
+}
+
+```
+- 全局变量
+  - Solidity 预留关键字
+  - 可在函数内直接使用，无需声明
+  - [全局变量使用文档](https://learnblockchain.cn/docs/solidity/units-and-global-variables.html#special-variables-and-functions)
+就比如下面：
+以太单位与时间单位  
+solidity中不存在小数点！！ 用0来代替小数点，来确保交易的精度
+- 以太单位：wei, gwei, ether
+- wei: 1
+- gewi: 1e9=1000000000
+- ether: 1e18=1000000000000000000
+
+    时间单位：可以在合约中规定一个操作必须在一周内完成，或者某个事件在一个月后发生。这样就能让合约的执行可以更加精确，不会因为技术上的误差而影响合约的结果。
+- 时间单位：seconds, minutes, hours, days, weeks
+
+
+###
+### 2024.09.27
+
+# 引用类型
+## 数组 array
+可存整数，字节，地址等等。
+分为可变长（**动态**）和固定长度(**静态**)数组
+
+- 固定长度数组
+  - 基本格式： T[k] T是元素类型 K是长度
+  ```solidity
+  uint[8] public a;
+  address[100] public a1;
+  ```
+- 动态数组
+  - T[] 
+  ```solidity
+  uint[] array1; 
+  ```
+
+  ==bytes==比较特殊！！
+  + bytes是数组 但是不用加[]
+  + 不能用byte[]声明单字节数组
+  + 可以用**bytes**和**bytes1[]**
+
+## 数组创建规则
+ + 对memory 修饰的动态数组,用new来创建，但是必须声明长度！ 且长度不可改变
+ + [1,2,3] 不声明类型的情况下 会默认uint8 声明则按找第一个元素为准
+ ```solidity
+uint[] memory array=new uint[](5);
+ ```
+
+ ## 数组成员
+ + length： 数组长度
+ + push(): 添加**0**元素
+ + push(x)：在数组最后添加一个元素x
+ + pop()：去除栈顶元素（最后一个）
+
+# 结构体 Struct
+结构体元素类型可以是原始类型，也可以是引用类型  
+
+结构体可以作为数组或映射的元素（?）
+
+```solidity
+struct student{
+    string public name;
+    uint8: public scroe；
+}
+
+给结构体赋值的四种方法：
+// 方法1:在函数中创建一个storage的struct引用
+ function method1() public {
+        student storage s = student({name: "Alice", score: 80});
+    }
+// 方法2:直接引用状态变量的struct
+ student public s2 = student("Bob", 90);
+// 方法3:构造函数式
+ student public s3;
+ constructor() {
+        s3 = student("Charlie", 75);
+    }
+// 方法4:key value
+    student public s4;
+    function method4() public {
+        s4 = student({name: "David", score: 85});
+    }
+```
+
+
+
+
+
+
+
+###
 <!-- Content_END -->

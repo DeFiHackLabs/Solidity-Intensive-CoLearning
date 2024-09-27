@@ -621,4 +621,70 @@ function getString2(uint256 _number) public pure returns(string memory){
 
 ### 2024.09.25
 
+19. 接收 eth
+
+- 0.6 之前是 fallback(),之后拆分成 receive()和 fallback()
+- receive():  
+  合约收到 eth 时被调用  
+  不要写太多逻辑，因为 transfer 发送 eth 的话限制 gas 2300
+
+```solidity
+event Received(address Sender, uint Value);// 定义事件
+
+receive() external payable {// 接收ETH时释放Received事件
+   emit Received(msg.sender, msg.value);
+}
+```
+
+**有些恶意合约，会在 receive()/fallback() 函数，嵌入恶意消耗 gas 的内容或者使得执行故意失败的代码，导致一些包含退款和转账逻辑的合约不能正常工作**
+
+- fallback()  
+  在调用合约不存在的函数时被触发
+
+  ```solidity
+  event fallbackCalled(address Sender, uint Value, bytes Data);
+
+  fallback() external payable{//释放事件
+  emit fallbackCalled(msg.sender, msg.value, msg.data);
+  }
+  ```
+
+- receive 和 fallback 区别
+
+```graph
+           接收ETH
+              |
+         msg.data是空？
+            /  \
+          是    否
+          /      \
+receive()存在?   fallback()
+        / \
+       是  否
+      /     \
+receive()   fallback()
+```
+
+### 2024.09.26
+
+20. 发送 eth
+
+- transfer()，  
+  gas 限制是 2300  
+  失败自动 revert
+- send()几乎没人用  
+  gas 限制是 2300  
+  不会 revert  
+  返回 bool，代表成功/失败，需要额外代码处理下
+- call()【推荐】
+  没有 gas 限制  
+  如果转账失败，不会 revert  
+  返回值是(bool, bytes)，其中 bool 代表着转账成功或失败，需要额外代码处理一下
+
+  ### 2024.09.27
+
 <!-- Content_END -->
+
+```
+
+```

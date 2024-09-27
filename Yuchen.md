@@ -373,4 +373,174 @@ Student student; // 初始一个student结构体
     }
     ```
 
+
+### 2024.09.26
+
+#### 映射(mapping)類型
+在映射中，可以通過鍵(`key`)來查詢對應的值(`value`)，例如，藉由`id`查詢姓名。  
+宣告映射的格式為`mapping(KeyType => ValueType)`，例子：  
+```Solidity
+mapping(uint => address) public idToAddress; // id映射到地址
+mapping(address => address) public swapPair; // 币对的映射，地址到地址
+```
+
+**映射規則**  
+1. `KeyType`只能為 Solidity 內置的值類型，ex.`uint`, `address`...，不能用自定義的結構，ex.`struct`，使用後會報錯。
+2. 映射的數據必須存在`storage`中，因此可以用於合約的狀態變量，但不能用於`public`函數的參數或返回結果中，因為`mapping`紀錄的是關係(key-value pair)，且是一種動態的、潛在無限長的結構，無法輕易地序列化或打包為交易的有效負載傳遞。
+3. `mapping`宣告為`public`時，Solidity 會自動創建一個`getter`函數，可以通過`key`查詢對應的`value`。
+4. 為`mapping`新增新的值對：`_Var[_Key] = _Value`，`_Var`是映射變量名，`_Key`和`_Value`是對英的鍵值對。
+    ```
+    function writeMap (uint _Key, address _Value) public{
+        idToAddress[_Key] = _Value;
+    }
+    ```
+
+**映射原理**  
+1. `mapping`不儲存任何鍵(`key`)的資訊，也沒有length。
+2. `mapping`並不直接儲存每個鍵值對，而是使用哈希計算：`keccak256(abi.encodePacked(key, slot))`當成 offset 存取 value，`slot`是映射變量定義所在的插槽位置。
+3. Ethereumc會定義所有未使用的空間為0，所以未賦值(`value`)的鍵(`key`)初始值都是各個型別的默認值，ex.`uint`的默認值是0。
+
+#### 變量初始值
+在 Solidity 中，宣告但沒賦值的變量都有其初始值。  
+* `boolean`: `false`
+* `string`: `""`
+* `int`: `0`
+* `uint`: `0`
+* `enum`: 枚举中的第一个元素
+* `address`: `0x0000000000000000000000000000000000000000` (或 `address(0)`)
+* `function`
+    * `internal`: 空白函数
+    * `external`: 空白函数
+    ```Solidity
+    bool public _bool; // false
+    string public _string; // ""
+    int public _int; // 0
+    uint public _uint; // 0
+    address public _address; // 0x0000000000000000000000000000000000000000
+
+    enum ActionSet { Buy, Hold, Sell}
+    ActionSet public _enum; // 第1个内容Buy的索引0
+
+    function fi() internal{} // internal空白函数
+    function fe() external{} // external空白函数 
+    ```
+    <img src="https://github.com/user-attachments/assets/22f1f38e-71bc-4820-84f1-8d1df1398be8" height="400px" width="640px" />
+    <img src="https://github.com/user-attachments/assets/7708bdf1-f6d3-46a2-a8a6-0817fea6a932" height="400px" width="640px" />
+
+### 2024.09.27
+
+#### 常數
+* `constant`（常量）：宣告的時候就必須初始化(需要顯式初始化)，之後無法改變。
+    ```Solidity
+    uint256 constant CONSTANT_NUM = 10;
+    ```
+* `immutable`（不變量）：在8.0.21後，`immutable`不需要顯式初始化(可以使用系統自動分配的默認值)。若`immutable`在宣告時初始化，且在`constructor`中再次初始化，會依最後賦予的值為標準，之後無法改變。
+    <img src="https://github.com/user-attachments/assets/29577185-fd41-4949-8111-4843b2979fc9" height="300px" width="640px" />
+    <img src="https://github.com/user-attachments/assets/c7f9707c-7304-4392-bd9c-8c1b5837f938" height="300px" width="640px" />
+
+※變量不隨意改變的特性可以節省`gas`，並提升合約的安全性。
+
+> 題目：  
+> 2.下面定义变量的语句中，会报错的一项是：  
+> 选择一个答案  
+> A. string constant x5 = "hello world";  
+> B. address constant x6 = address(0);  
+> C. string immutable x7 = "hello world";  
+> D. address immutable x8 = address(0);  
+>
+> ANS：  
+> 選項 C 會報錯，因為 immutable 變量不能在聲明時初始化字面值，必須在 構造函數 中初始化。而 constant 變量可以在聲明時初始化字面值。
+    <img src="https://github.com/user-attachments/assets/b50ecca8-7e27-4f10-9b82-4da17ef25fdf" height="300px" width="640px" />
+
+#### 控制流
+1. `if-else`：
+    ```Solidity
+    function ifElseTest(uint256 _number) public pure returns(bool){
+        if(_number == 0){
+            return(true);
+        }else{
+            return(false);
+        }
+    }
+    ```
+2. `for loop`：
+    ```Solidity
+    function forLoopTest() public pure returns(uint256){
+        uint sum = 0;
+        for(uint i = 0; i < 10; i++){
+            sum += i;
+        }
+        return(sum);
+    }
+    ```
+3. `while`：
+    ```Solidity
+    function whileTest() public pure returns(uint256){
+        uint sum = 0;
+        uint i = 0;
+        while(i < 10){
+            sum += i;
+            i++;
+        }
+        return(sum);
+    }
+    ```
+4. `do while`：
+    ```Solidity
+    function doWhileTest() public pure returns(uint256){
+        uint sum = 0;
+        uint i = 0;
+        do{
+            sum += i;
+            i++;
+        }while(i < 10);
+        return(sum);
+    }
+    ```
+5. 三元運算子：Solidity 中唯一一個接受三個操作數的運算符，規則條件? 條件為真的表達式:條件為假的表達式。此運算符經常用作if語句的快捷方式。
+    ```Solidity
+    // 三元运算符 ternary/conditional operator
+    function ternaryTest(uint256 x, uint256 y) public pure returns(uint256){
+        // return the max of x and y
+        return x >= y ? x: y; 
+    }
+    ```
+6. `conitnue`：立刻進入下輪循環。
+7. `break`：跳出當前循環。
+
+#### 插入排序
+```Solidity
+    // 插入排序 错误版
+function insertionSortWrong(uint[] memory a) public pure returns(uint[] memory) {    
+    for (uint i = 1;i < a.length;i++){
+        uint temp = a[i];
+        uint j=i-1;
+        while( (j >= 0) && (temp < a[j])){
+            a[j+1] = a[j];
+            j--;
+        }
+        a[j+1] = temp;
+    }
+    return(a);
+}
+```  
+因為Solidity使用的`uint`只能為正整數，若取到負值則會有`underflow`錯誤，在以上的程式中`j`有可能取到`-1`。
+```Solidity
+// 插入排序 正确版
+function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
+    // note that uint can not take negative value
+    for (uint i = 1;i < a.length;i++){
+        uint temp = a[i];
+        uint j=i;
+        while( (j >= 1) && (temp < a[j-1])){
+            a[j] = a[j-1];
+            j--;
+        }
+        a[j] = temp;
+    }
+    return(a);
+}
+```
+
+
 <!-- Content_END -->

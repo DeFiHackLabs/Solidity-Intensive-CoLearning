@@ -301,9 +301,118 @@ contract modifiertest{
 修饰器一旦定义可以多次使用，简化了代码，常用来校验权限
 
 
+### 2024.09.26
+contract testEvent{
+    mapping(address=>uint) public balanceMap;
+    event Transfer(address indexed from,address indexed to,uint value);
+
+    function transfer(address from,address to,uint value) public {
+        balanceMap[from] = 1000;
+        balanceMap[from] -= value;
+        balanceMap[to] +=value;
+        emit Transfer(from,to,value);
+    }
+}
+学习了事件的创建和简单使用，使用事件的好处：1.节省gas
+2.如果用indexed修饰，会根据索引生成一个topic，保存到日志中，便于查询，最多三个
+3.前端可以对该事件进行订阅监听，相应。
+4.事件和数据一起保存，保证了安全性
+
+// SPDX-License-Identifier: MIT
+pragma solidity ~0.8.21;
+contract older{
+    event log(string message);
+    function pip()public virtual { //virtual表示需要被继承
+        emit log("your grandpa is pip");
+    }
+    function pop() public{
+        emit log("your grandpa is pop");
+    }
+}
+contract old is older{
+    function pip() public virtual override {//实现了父类函数，并且需要子类继承
+        emit log("your baba is pip");
+    }
+    function popping() public  {
+        emit log("popping");
+    }
+}
+contract young is older,old{ //多重继承，从高到低依次申明
+    function pip() public  override(older,old) {
+        emit log("the young is pip");
+    }
+    function callParentPip() public {
+       super.popping(); //调用的是直接上级的方法
+    }
+}
+
+修饰器的继承
+contract Base{
+    modifier exactDividedBy2And3(uint a) virtual{
+        require(a%3==0 && a%2==0); //校验通过后再进行后边的操作
+        _;
+    }
+}
+contract cal is Base{
+    function getData(uint num) public exactDividedBy2And3(num) pure returns(uint,uint){
+        return getRes(num);
+    }
+    function getRes(uint num) public pure returns(uint x,uint y){
+        x = num%2;
+        y = num%3;
+    }
+}
+
+继承：函数，构造器和修饰器都可以继承，简化了代码
+需要被继承时函数声明为virtual,实现时加override 关键字
+多次继承的话需要按优先级申明继承的顺序，如果继承的多个合约都有一个共同的函数，super.函数()会调用上一级的方法
+修饰器继承后使用时，跟的参数需要与前边函数调用的参数保持一致
 
 
+contract errtest{
+    error transferOwner();
+    mapping(uint=>address) private owners;
+    function transferNotOwner(uint token,address newOwner) public {
+         if(owners[token] != msg.sender){
+            revert transferOwner();
+         }
+         owners[token] = newOwner;
+    }
+    function testRequire(uint token,address newOwner) public view{
+        require(owners[token] == msg.sender,"transfer not owner");
+        owners[token] == newOwner;
+    }
+    function testAssert(uint token,address newOwner) public{
+        assert(owners[token]==msg.sender);
+        owners[token]= newOwner;
+    }
+}
+
+error 搭配revert使用，可以返回报错信息，gas最少
+require 可以自定义返回的报错信息
+assert gas最多，返回的错误信息未知
+上边mapping没初始化，所以都会报错
 
 
+### 2024.09.27
+
+pragma solidity ~0.8.21;
+contract overrideTest{
+
+    function getString() public pure returns(string memory){
+        return "hello";
+    }
+    function getString(string memory msg) public pure returns(string memory){
+        
+        return string.concat("hello",msg); 
+    }
+    function f(uint8 _in) public pure returns(uint8 out){
+        out=_in;
+    }
+    function f(uint256 _in) public pure returns(uint256 out){
+        out=_in;
+    }
+}
+重载就是可以声明多个相同名字不同参数类型的方法
 
 <!-- Content_END -->

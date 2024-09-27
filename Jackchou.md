@@ -109,4 +109,101 @@ msg.sig : (bytes4) first four bytes of the calldata (i.e. function identifier)
 msg.value : (bytes4) number of wei sent with the message
 
 ###
+### 2024.09.25
+An array is a variable type commonly used in Solidity to store a set of data (integers, bytes, addresses, etc.).
+
+fixed-sized arrays: The length of the array is specified at the time of declaration. An array is declared in the format T[k], where T is the element type and k is the length.
+
+Dynamically-sized array（dynamic array）：Length of the array is not specified during declaration. It uses the format of T[], where T is the element type.
+
+  - only storage can use dynamic array
+  In Solidity, the `push` method can only be used on dynamic arrays that are stored in storage, not on arrays that are stored in memory. The reason for this is that `push` is a mutating operation that modifies the underlying storage, which is not allowed on memory variables.
+
+  - To fix this issue, you can create a new dynamic array in storage and copy the elements from the original array into the new one, like this:
+
+  ```solidity
+  function initArray() external pure returns(uint[] memory){
+    uint[] memory x = new uint[](3);
+    x[0] = 1;
+    x[1] = 3;
+    x[2] = 4;
+    uint[] memory array55 = new uint[](x.length + 1);
+    for (uint i = 0; i < x.length; i++) {
+        array55[i] = x[i];
+    }
+    array55[array55.length - 1] = 3;
+    return array55;
+  }
+  ```
+###
+### 2024.09.26
+  - Mapping
+  - With mapping type, people can query the corresponding Value by using a Key. For example, a person's wallet address can be queried by their id
+```
+// define a struct
+      struct Student{
+          uint256 id;
+          uint256 score;
+      }
+      mapping(Student => uint) public testVar;
+```
+- Rule 2: The storage location of the mapping must be storage: it can serve as the state variable or the storage variable inside function. But it can't be used in arguments or return results of public function.
+
+Rule 3: If the mapping is declared as public then Solidity will automatically create a getter function for you to query for the Value by the Key.
+
+Rule 4：The syntax of adding a key-value pair to a mapping is _Var[_Key] = _Value, where _Var is the name of the mapping variable, and _Key and _Value correspond to the new key-value pair. For example:
+```
+ function writeMap (uint _Key, address _Value) public {
+        idToAddress[_Key] = _Value;
+      }
+```
+###
+### 2024.09.27
+  - init value
+  - boolean: false
+    string: ""
+    int: 0
+    uint: 0
+    enum: first element in enumeration
+    address: 0x0000000000000000000000000000000000000000 (or address(0))
+    function
+    internal: blank function
+    external: blank function
+    ```
+        bool public _bool; // false
+    string public _string; // ""
+    int public _int; // 0
+    uint public _uint; // 0
+    address public _address; // 0x0000000000000000000000000000000000000000
+
+    enum ActionSet {Buy, Hold, Sell}
+    ActionSet public _enum; // first element 0
+
+    function fi() internal{} // internal blank function
+    function fe() external{} // external blank function
+    ```
+    - Initial values of reference types
+mapping: a mapping which all members set to their default values
+
+struct: a struct which all members set to their default values
+
+array
+
+dynamic array: []
+static array（fixed-length): a static array where all members set to their default values.
+You can use getter function of public variables to confirm initial values:
+```
+    // reference types
+    uint[8] public _staticArray; // a static array which all members set to their default values[0,0,0,0,0,0,0,0]
+    uint[] public _dynamicArray; // `[]`
+    mapping(uint => address) public _mapping; // a mapping which all members set to their default values
+    // a struct which all members set to their default values 0, 0
+    struct Student{
+        uint256 id;
+        uint256 score; 
+    }
+    Student public student;
+
+```
+### 
 <!-- Content_END -->

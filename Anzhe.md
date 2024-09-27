@@ -288,4 +288,340 @@ function ReadReturn() public pure{
 ```
 ## 執行結果
 ![](https://i.imgur.com/Bhud5Up.png)
+
+### 2024.09.26
+# 引用類型
+引用類型變數會存儲引用（類似於指針），賦值時不會直接複製值，兩個變數可能引用同一塊資料，分成以下類型：
+1. 字串類型：`string`，動態長度的 UTF-8 字符串。
+2. 動態長度位元組陣列：`bytes`，類似於 `string`，但可以存儲任意長度的字位元組資料。
+3. 陣列：`uint[]`、`uint[5]`，固定長度和動態長度的數組。
+4. 結構：用來定義自訂的複合資料類型。
+5. 映射：類似於哈希表，可以將鍵類型對應到值類型，鍵類型可以是 `address`、`uint` 等，值類型可以是任何變數類型。
+陣列、結構占用的儲存空間較大，這類變數需宣告資料儲存的位置。
+---
+## 資料儲存位置
+資料儲存位置有三類，`storage`、 `memory` 和 `calldata`，不同儲存位置的 gas 成本不同。
+1. `storage` 資料存在鍊上，類似電腦硬碟，消耗較多 gas，合約裡的狀態變數預設都是storage。
+2. `memory` 資料臨時存在記憶體，不上鍊，消耗較少 gas，函數裡的參數和臨時變數一般用 `memory`。若函數回傳資料像是 `string`、`bytes`、`array` 和 `struct` 這種比較長的，必須加 `memory` 修飾。
+3. `calldata` 類似 `memory`，區別在 `calldata` 變數**不能被修改**（`immutable`），一般用在函數的參數。
+```
+function fCalldata(uint[] calldata _x) public pure returns(uint[] calldata){
+    return(_x); // _x 不能被修改
+}
+```
+### 資料儲存位置與賦值規則
+當不同儲存位置類型變數互相賦值時，有時會產生獨立的副本（修改新變數不會影響原變數），有時會產生引用（修改新變數會影響原變數）。
+1. 賦值本質上是建立**引用（參考）**指向本體，因此修改本體或引用，資料變化是可以同步的。
+    * `storage`（合約的狀態變數）賦值給本地 `storage`（函數內部）時候，會建立引用，改變新變數會影響原變數。例如
+    ```
+    uint[] x = [1,2,3];
+    function fStorage() public{
+        uint[] storage xStorage = x; // 宣告一個 storage 的變數 xStorage，指向 x
+        xStorage[0] = 100; // x 第一個元素也會被修改成 100
+    }
+    ```
+    * `memory` 賦值給 `memory`，會建立引用，改變新變數會影響原變數。
+2. 其他情況賦值創建的是本體的副本，即對二者之一的修改，並不會同步到另一方。
+## 變數的作用域
+### 1. 狀態變數
+狀態變數儲存在鏈上，所有合約內函數都可以訪問，gas 消耗多。狀態變數在合約內、函數外宣告。
+#### 狀態變數宣告與更改
+```
+contract Variables {
+    uint public x = 1;
+    uint public y;
+    string public z;
+    function foo() external {
+        x = 5;
+        y = 2;
+        z = "Hi~";
+    }
+}
+```
+### 2. 局部變數
+局部變數僅在函數執行過程中有效，函數外變數無效。局部變數的資料儲存在記憶體裡，不上鏈，gas 消耗少。局部變數在函數內宣告。
+```
+function bar() external pure returns(uint){
+    uint xx = 1;
+    uint yy = 3;
+    uint zz = xx + yy;
+    return(zz);
+}
+```
+### 3. 全域變數
+全域變數是全域範圍皆可用的變數，都是 solidity 預留關鍵字。全域變數可以在函數內不聲明直接使用。如：`msg.sender` 請求發起地址、`block.number` 目前區塊的編號、`msg.data` 請求資料。
+| 全域變數 | 回傳型別 | 說明 |
+| --- | --- | --- |
+| `blockhash(uint blockNumber) returns (bytes32)` | `bytes32` | 當 blocknumber 是 256 個最新區塊之一時，給定區塊的雜湊值；否則返回零 |
+| `blobhash(uint index) returns (bytes32)` | `bytes32` | 傳回跟目前交易關聯的第 index 個 blob 的版本化哈希，如果不存在具有給定索引的 blob，則傳回零。 |
+| `gasleft() returns (uint256)` | `uint256` | 剩餘 gas |
+
+| 全域變數 | 型別 | 說明 |
+| --- | --- | --- |
+| `block.basefee` | `uint` | 目前區塊的基本費用 |
+| `block.blobbasefee ` | `uint` | 目前區塊的 blob 基本費用 |
+| `block.chainid` | `uint` | 目前區塊鍊的 ID |
+| `block.coinbase` | `address payable` | 目前區塊礦工地址 |
+| `block.difficulty` | `uint` | 目前區塊難度 |
+| `block.gaslimit` | `uint` | 目前區塊 gaslimit |
+| `block.number` | `uint` | 目前區塊的編號 |
+| `block.prevrandao` | `uint` | 信標鏈提供的隨機數 |
+| `block.timestamp` | `uint` | 目前區塊時間戳，以 unix epoch 以來的秒數來計 |
+| `msg.data` | `bytes calldata` | 完整的 calldata |
+| `msg.sender` | `address` |  請求發起的地址 |
+| `msg.sig` | `bytes4` | 呼叫資料的前四個位元組（即函數標識符） |
+| `msg.value` | `uint` | 與訊息一起傳送的 wei 數量 |
+| `tx.gasprice` | `uint` | 交易的 gas 價格 |
+| `tx.origin` | `address` | 交易發起者（完全的調用鍊） |
+
+```
+function global() external view returns(address, uint, bytes memory){
+    address sender = msg.sender;
+    uint blockNum = block.number;
+    bytes memory data = msg.data;
+    return(sender, blockNum, data);
+}
+```
+### 4. 全域變數-以太單位與時間單位
+#### 以太單位
+Solidity 沒有小數點，以 0 代替小數點來確保交易精確度，使用乙太單位避免誤算。
+* `wei`：1
+* `gwei`：1e9 = 1000000000
+* `ether`：1e18 = 1000000000000000000
+```
+function weiUint() external pure returns(uint) {
+    assert(1 wei == 1e0);
+    assert(1 wei == 1);
+    return 1 wei;
+}
+function gweiUnit() external pure returns(uint) {
+    assert(1 gwei == 1e9);
+    assert(1 gwei == 1000000000);
+    return 1 gwei;
+}
+function etherUnit() external pure returns(uint) {
+    assert(1 ether == 1e18);
+    assert(1 ether == 1000000000000000000);
+    return 1 ether;
+}
+```
+註： `assert` 是一個用於檢查條件是否為 true 的內建函數，它通常被用來檢測合約中的邏輯錯誤。當 `assert` 的條件不滿足時，會觸發一個錯誤並且回退（revert）整個交易。
+![](https://i.imgur.com/B3IRBAd.png)
+#### 時間單位
+合約中可以規定一個操作必須在一週內完成，或某個事件在一個月後發生，就能讓合約的執行可以更精確，不會因為技術上的誤差而影響合約的結果。因此，時間單位在 Solidity 中是一個重要的概念，可以提高合約的可讀性和可維護性。
+* `seconds`: 1
+* `minutes`: 60 = 60 seconds
+* `hours`: 3600 = 3600 seconds
+* `days`: 24 hours = 86400
+* `weeks`: 7 days = 604800
+```
+function secondsUnit() external pure returns(uint) {
+    assert(1 seconds == 1);
+    return 1 seconds;
+}
+
+function minutesUnit() external pure returns(uint) {
+    assert(1 minutes == 60);
+    assert(1 minutes == 60 seconds);
+    return 1 minutes;
+}
+
+function hoursUnit() external pure returns(uint) {
+    assert(1 hours == 3600);
+    assert(1 hours == 60 minutes);
+    return 1 hours;
+}
+
+function daysUnit() external pure returns(uint) {
+    assert(1 days == 86400);
+    assert(1 days == 24 hours);
+    return 1 days;
+}
+
+function weeksUnit() external pure returns(uint) {
+    assert(1 weeks == 604800);
+    assert(1 weeks == 7 days);
+    return 1 weeks;
+}
+```
+![](https://i.imgur.com/1RTxMs0.png)
+---
+## 陣列
+可以用來儲存一整組相同變數型別的資料：整數、位元組、地址，分成固定長度與可變長度。
+* 固定長度陣列：宣告時指定長度
+```
+uint[8] array1;
+bytes1[5] array2;
+address[100] array3;
+```
+* 動態陣列：宣告時不指定數組的長度
+```
+uint[] array4;
+bytes1[] array5;
+address[] array6;
+bytes array7; // bytes 是動態長度位元組陣列
+```
+註：不能用 `byte[]` 宣告單位元組陣列，應使用 `bytes` 或 `bytes1[]`，但 `bytes` 更省 gas。
+### 建立陣列的規則
+1. 用 `memory` 修飾的動態陣列，可以用 `new` 運算元來創建，但是必須宣告長度，且宣告後長度不能改變。動態陣列需一個個元素賦值。
+```
+uint[] memory array8 = new uint[](5);
+bytes memory array9 = new bytes(9);
+```
+```
+function initArray() external pure returns(uint[] memory){
+    uint[] memory x = new uint[](3);
+    x[0] = 1;
+    x[1] = 3;
+    x[2] = 4;
+    return(x);
+}  
+```
+2. Array Literals 用方括號包著來初始化陣列，裡面每一個元素的型別以第一個元素為準，如果一個值沒有指定type的話，會根據上下文推斷出元素的類型，預設就是最小單位的型別。
+### 陣列成員（陣列操作）
+* `length`：陣列有一個包含元素數量的 length 成員，memory 陣列的長度在建立後是固定的。
+* `push()`：動態陣列擁有 `push()` 成員，可以在陣列最後加上一個 `0` 元素，並傳回該元素的參考。
+* `push(x)`：動態陣列擁有 `push(x)` 成員，可以在陣列最後加上一個 x 元素。
+* `pop()`：動態陣列擁有 `pop()` 成員，可以移除陣列最後一個元素。
+```
+function arrayPush() public returns(uint[] memory){
+    uint[2] memory a = [uint(1),2];
+    array4 = a;
+    array4.push(3);
+    return array4;
+}
+```
+
+---
+## 結構
+結構中的元素可以是數值類型，也可以是引用類型，結構也可以作為陣列或映射的元素。
+```
+struct Student{
+    uint256 id;
+    uint256 score;
+}
+Student student; // 建立一個結構
+```
+### 結構賦值
+#### 1. 在函數中建立一個 storage 的 struct引用
+```
+function initStudent() external {
+    Student storage _student = student; // storage 賦值 storage 直接引用
+    _student.id = 11;
+    _student.score = 100;
+}
+```
+#### 2. 直接引用狀態變數的結構
+```
+function initStudent2() external{
+    student.id = 1;
+    student.score = 80;
+}
+```
+#### 3. 建構函數式
+```
+function initStudent3() external{
+    student = Student(3, 90);
+}
+```
+#### 4. 用 key value
+```
+function initStudent4() external {
+    student = Student({id: 4, score: 60});
+}
+```
+### 2024.09.27
+# 映射類型
+映射類型是一種鍵值對（Key-value Pair）資料結構的的變數類型，是引用類型變數的一種，使用者利用鍵值（Key） 查詢對應的值（Value）。語法是 `mapping(<Key type> => <Value Type>)`，`<Key Type>` 和 `<Value Type>` 分別是 Key 的變數類型和 Value 的變數類型。
+```
+mapping(uint => address) public idToAddress;
+mapping(address => address) public SwapPair;
+```
+## 映射規則
+1. Key 只能是 Solidity 的數值類型，不能使用引用類型的自定義結構，但 Vaule 可以使用自定義的結構。
+```
+struct Student{
+    uint256 id;
+    uint256 score;
+}
+mapping(Student => uint) public testVar;
+```
+2. 映射的儲存位置是 `storage`，可用於合約的狀態變數，作為函數中 `storage` 變數的參數和 `library` 函數的參數，但不可用於 `public` 函數的參數或回傳，因為映射紀錄的是一種關係（Key-value Pair）。
+3. 如果映射宣告為 `public`，那麼 Solidity 會自動為映射建立一個 `getter` 函數，透過 Key 來查詢對應的 Value。
+4. 映射新增鍵值對的語法為 `_Var[_Key] = _Value
+```
+function WriteMap(uint _Key, address _Value) public {
+    idToAddress[_Key] = _Value;
+}
+```
+5. 映射不儲存任何按鍵（Key）的資訊，也沒有 length 的資訊。
+6. 映射原理：使用 `keccak256(abi.encodePacked(key, slot))` 當成 offset 存取 value ，其中 slot 是映射變數定義所在的插槽位置。
+7. 因為乙太坊會定義所有未使用的空間為 0，所以未賦值（Value）的鍵（Key）初始值都是各個型別的預設值，如 `uint` 的預設值是 0。
+### 結果
+先用 WriteMap 輸入兩個參數設定 Key 和 Value，`idToAddress` 映射變數再用 Key 去查， Value 從預設值（0x000...）變成設定的 Value。
+![](https://i.imgur.com/dQVOn6e.png)
+# 變數初始值
+變數在宣告後如果沒有賦值，都有其初始值（預設值）。
+| 變數類型 | 初始值 |
+|---|---|
+| `bool` | `false` |
+| `string` | `""` |
+| `int` | `0` |
+| `uint` | `0` |
+| `bytes1` | `0x00` |
+| `enum` | 枚舉的第一個元素 |
+| `address` | `0x0000000000000000000000000000000000000000` 或 `address(0)`|
+| `function` | `internal`、`external` 都是空白函數 |
+| `mapping` | 所有元素設為其預設值，mapping 本身會回傳 ValueType 變數類型的的初始值 |
+| `struct` | 所有成員設為其預設值 |
+| `array` | 動態陣列：`[]`、 靜態陣列：所有成員設為其預設值|
+```
+uint[8] public _staticArray; // [0,0,0,0,0,0,0,0]
+uint[] public _dynamicArray; // `[]`
+mapping(uint => address) public _mapping;
+struct Student{
+    uint256 id; // 0
+    uint256 score; // 0
+}
+Student public student;
+```
+註：mapping 本身會回傳 ValueType 變數類型的的初始值，所以 `_mapping` 的初始值是 address 的預設值 `0x0000000000000000000000000000000000000000`
+### delete 操作符
+`delete a` 讓變數 `a` 的值變為初始值。
+```
+bool public _bool2 = true;
+function d() external {
+    delete _bool2; // _bool2 變成初始值 false
+}
+```
+# 常數
+狀態變數宣告 `constant` 和 `immutable` 這兩個關鍵字後，狀態變數就不能在初始化後更改數值，可以提升合約安全性和節省 gas。
+只有數值變數可以聲明 `constant` 和 `immutable`；`string` 和 `bytes` 可宣告為 `constant`，但不能是 `immutable`。
+## Constant
+constant 必須宣告時初始化變數，宣告時必須賦值，之後變數不能再變更數值。
+```
+uint256 constant CONSTANT_NUM = 10;
+string constant CONSTANT_STRING = "0xAA";
+bytes constant CONSTANT_BYTES = "WTF";
+address constant CONSTANT_ADDRESS = 0x0000000000000000000000000000000000000000;
+```
+## Immutable
+immutable 變數可以在宣告時或建構子中初始化，若 immutable 變數既在宣告時初始化，又在 constructor 中初始化，會使用 constructor 初始化的值，用法更靈活。
+```
+uint256 public immutable IMMUTABLE_NUM = 9999999999;
+address public immutable IMMUTABLE_ADDRESS;
+uint256 public immutable IMMUTABLE_BLOCK;
+uint256 public immutable IMMUTABLE_TEST;
+// 利用建構子初始化 immutable 變數
+constructor(){
+    IMMUTABLE_ADDRESS = address(this);
+    IMMUTABLE_NUM = 1118;
+    IMMUTABLE_TEST = test(); // 利用函數給 IMMUTABLE_TEST 初始化為 9
+}
+function test() public pure returns(uint256){
+    uint256 what = 9;
+    return(what);
+}
+```
+
 <!-- Content_END -->

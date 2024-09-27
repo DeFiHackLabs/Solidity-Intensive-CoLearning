@@ -39,4 +39,27 @@ timezone: Asia/Shanghai (UTC+8)
 > + 常見Value type: bool, int, uint, uint256, address, address payable, bytes(可變), bytes1, bytes8, bytes32, enum
 
 
+### 2024.09.25
+學習內容: `3.function`
+> 這集對我來說單看有點難理解(碧琪公主那我看不懂)，
+> 看[這篇](https://medium.com/taipei-ethereum-meetup/solidity-weekly-11-70c5208a3bf1)才懂`pure`、`view`是為取代`constant`(到v0.4.17才取代)。
+> 此外`internal`、`external`蠻好懂。
+
+### 2024.09.26
+學習內容: `4.Return`
+> 分`returns`和`returns`，後者和其他程式語言類似，前者跟在函數名後面。
+> 特別的寫法，解構式賦值: `(, _bool2, ) = returnNamed();`
+
+
+### 2024.09.27
+學習內容: `5.Data Storage`
+> 引用類型: `array`, `struct`
+> 數據位置(與一般程式不同): `storage`, `memory`, `calldata`，`storage`消耗gas較多，且合約裡默認是`storage`，`memory`和`calldata`只存內存但不上鏈，
+`calldate`較`memory`不同的是其`immutable`特性。
+> 作用域: `state variable`, `local variable`, `global variable`。
+> 乙太單位: `wei(1)`, `gwei(1e9)`, `ether(1e18)`
+> 時間: 可以規定一個操作須在指定時間內完成。
+
++ 心得: 這章和gas和省空間(是否上鏈)息息相關，若未來寫合約時產生不必要的gas浪費，可回頭看這章找靈感。
+
 <!-- Content_END -->

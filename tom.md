@@ -2,39 +2,6 @@
 timezone: Asia/Shanghai
 ---
 
-> 请在上边的 timezone 添加你的当地时区，这会有助于你的打卡状态的自动化更新，如果没有添加，默认为北京时间 UTC+8 时区
-> 时区请参考以下列表，请移除 # 以后的内容
-
-timezone: Pacific/Honolulu # 夏威夷-阿留申标准时间 (UTC-10)
-
-timezone: America/Anchorage # 阿拉斯加夏令时间 (UTC-8)
-
-timezone: America/Los_Angeles # 太平洋夏令时间 (UTC-7)
-
-timezone: America/Denver # 山地夏令时间 (UTC-6)
-
-timezone: America/Chicago # 中部夏令时间 (UTC-5)
-
-timezone: America/New_York # 东部夏令时间 (UTC-4)
-
-timezone: America/Halifax # 大西洋夏令时间 (UTC-3)
-
-timezone: America/St_Johns # 纽芬兰夏令时间 (UTC-2:30)
-
-timezone: Asia/Dubai # 海湾标准时间 (UTC+4)
-
-timezone: Asia/Kolkata # 印度标准时间 (UTC+5:30)
-
-timezone: Asia/Dhaka # 孟加拉国标准时间 (UTC+6)
-
-timezone: Asia/Bangkok # 中南半岛时间 (UTC+7)
-
-timezone: Asia/Shanghai # 中国标准时间 (UTC+8)
-
-timezone: Asia/Tokyo # 日本标准时间 (UTC+9)
-
-timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
-
 ---
 
 # Tom
@@ -49,19 +16,209 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 
 <!-- Content_START -->
 
+
 ### 2024.09.23
 
 主要学习知识点: solidity的格式
 - 1. 以软件许可作为每个sol文件的开头(标准格式)
 - 2. 声明solidity的版本,为了更好的兼容语法,比如 0.8.21代表只兼容这个版本,还可以使用版本区间,来表明大于某个版本，或小于某个版本
 - 3. 学习了合约代码以什么关键字开头，contract为关键字，然后定义这个合约的名称(跟java定义类的方式基本一致)
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+//合约开头许定义关键字
+contract Helloworld3{
+    string public _a = "hello world3 2024.09.23";
+}
+```
 ### 
 
 ### 2024.09.24
 主要学习知识点: solidity的格式
 - 1. 学习了remix开发工具的初步使用, 使用步骤为新建sol文件->编写代码->编译->部署->查看结果(简单的调用public变量获取值)
 - 2. 学习了solidity的数据格式,包括bool,int,uint,address,bytes这几种类型,和各自的使用场景
-     bool 表示 true/false,  int表示正整数, uint表示负整数 address用来存储 地址， bytes存储字节数组
-  3. 学习了函数function,这个概念跟js中的函数类似
+     bool 表示 true/false,  int表示正整数, uint表示负整数 address用来存储 地址， bytes存储字节数组   
+```
+// 1.布尔类型，true/false
+    bool public isSuccess = true;
+
+    //布尔运算
+    bool public  b2 = !isSuccess; //取反
+    bool public  b3 = isSuccess && b2; //与
+    bool public  b4 = isSuccess || b2; //或  短路规则
+    bool public  b5 = isSuccess == b2; //是否相等
+    bool public  b6 = isSuccess != b2; //是否不等
+
+    // 2.整数
+    int public myInt = -5;  //整数 可以表示负数
+    uint public myInt2 = 5;  //整数 只表示正整数
+    uint256 public maxInt = 23423; //256表示允许存储的字节数
+
+    // 3.运算  +、-、*、/、%、** 、 > < != == <= >=
+    int public addCount = myInt + 1;
+    uint public addSum = myInt2 + 1;
+    int public mins = myInt -3;
+    int public c = myInt * 10;
+    int public c2 = myInt /2;
+
+    uint public c3 = 7 % 2;
+
+    uint public c4 = myInt2 ** 2;
+
+    bool public isRight = c < c2;
+
+    //4.地址类型 address
+    address public myWalletAddress = 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4;
+    uint public myBalance = myWalletAddress.balance;
+    // payable 关键字可以进行转账
+    address payable public  payAddress = payable(myWalletAddress);
+
+    uint public myBalance2 = payAddress.balance;
+
+    //5.定长数组和非定长数组   bytes1,bytes2,bytes32      非定长数组bytes
+    bytes1 public by1 = "a";
+    bytes32 public  by2 = "hellobyte";
+
+```
+###
+
+### 2024.09.25
+
+##### 函数
+- function <function name>(<parameter types>) {internal|external|public|private} [pure|view|payable] [returns (<return types>)]
+- 函数的概念在很多语言中都有，js，java，python等，solidity中的函数跟其他的语言很像，包括函数关键字、名称、参数、函数权限关键字、返回值等
+  
+1. `function`：声明函数时的固定用法。要编写函数，就需要以 `function` 关键字开头。
+
+2. `<function name>`：函数名。
+
+3. `(<parameter types>)`：圆括号内写入函数的参数，即输入到函数的变量类型和名称。
+
+4. `{internal|external|public|private}`：函数可见性说明符，共有4种。
+
+    - `public`：内部和外部均可见。
+    - `private`：只能从本合约内部访问，继承的合约也不能使用。
+    - `external`：只能从合约外部访问（但内部可以通过 `this.f()` 来调用，`f`是函数名）。
+    - `internal`: 只能从合约内部访问，继承的合约可以用。
+
+    **注意 1**：合约中定义的函数需要明确指定可见性，它们没有默认值。
+
+    **注意 2**：`public|private|internal` 也可用于修饰状态变量。`public`变量会自动生成同名的`getter`函数，用于查询数值。未标明可见性类型的状态变量，默认为`internal`。
+
+5. `[pure|view|payable]`：决定函数权限/功能的关键字。`payable`（可支付的）很好理解，带着它的函数，运行的时候可以给合约转入 ETH。`pure` 和 `view` 的介绍见下一节。
+
+6. `[returns ()]`：函数返回的变量类型和名称。
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract HelloFunction {
+    // 函数
+
+
+    // internal,external,public,private
+
+    // public 内部和外部均可见
+    function add() public  {
+        number += 5;
+    }
+    //  private 只能从本合约内部访问，外部不可见，继承的合约也不可使用
+    function private() private  {
+        number += 10;
+    }
+
+    // internal 只能从合约内部访问，外部不可见，继承的合约可以使用
+    function internal() internal {
+        number += 15;
+    }
+
+    // external 只能从合约外部访问，但是内部可以通过 this.f()来调用，f是函数名字
+    function external() external {
+        number += 20;
+    }
+}
+
+```
 ### 
+
+### 2024.09.27
+
+#### 变量数据存储和作用域
+
+- 引用类型 数组和结构体
+- 数据存储类型有三类: storage 、 memory、calldata 
+- storage存储在链上，gas高
+- memory、calldata存储在内存中gas低
+#### 用法
+- storage：合约里的状态变量默认都是storage，存储在链上。
+
+- memory：函数里的参数和临时变量一般用memory，存储在内存中，不上链。尤其是如果返回数据类型是变长的情况下，必须加memory修饰，例如：string, bytes, array和自定义结构。
+
+- calldata：和memory类似，存储在内存中，不上链。与memory的不同点在于calldata变量不能修改（immutable），一般用于函数的参数
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract VarTest{
+
+    function testCallData(int[] calldata a) public pure returns(int b){
+       return (a[0]);
+    }
+
+
+    uint[] public uArray = [1,2,3];
+
+    function testVar() public {
+        uint[] storage bArray = uArray;
+        bArray[0] = 6;
+    }
+
+    //状态变量
+    int a = -1;
+
+
+    //局部变量
+    function testVar22() external pure {
+        uint b = 2;
+    }
+
+    //全局变量
+    function testGlobal() public view{
+        address a = msg.sender;
+        uint blockId = block.number;
+    }
+
+    // 以太单位
+    //solidity 不包含小数，以0作为代替，方便计算
+    // wei:1
+    // gwei: 1e9 = 100000000
+    // ether: 1e18 = 100000000000000000
+
+    function weiUnit() external pure returns(uint) {
+        assert(1 wei == 1e0);
+        assert(1 wei == 1);
+        return 1 wei;
+    }
+
+    function gweiUnit() external pure returns (uint) {
+        assert(1 gwei == 1e9);
+        assert(1 gwei == 1000000000);
+        return 1 gwei;
+    }
+
+    function etherUnit() external pure  returns (uint) {
+        assert(1 ether == 1e18);
+        assert(1 ether == 1000000000000000000);
+        return 1 ether;
+    }
+
+}
+```
+
+
+### 
+
 <!-- Content_END -->

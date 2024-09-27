@@ -115,4 +115,31 @@ revert("description");
 
 自定义error
 
+### 2024.09.26
+学习内容：<br>
+内建函数：msg
+
+- msg.sender：消息调用者
+- msg.data：完整的调用数据，不可修改，函数参数存储在其中；
+- msg.gas：返回当前交易剩余的可用gas
+- msg.sig：函数调用数据的前四个字节，指定要调用的函数；
+- msg.value：通过消息发送给合约的wei的数量
+
+gasleft()是一个内置的Solidity函数，它返回当前以太坊交易中剩余的gas量。
+
+### 2024.09.27
+**学习内容：**<br>
+Interfaces，接口。常用于标准化合约，如ERC20和ERC721等标准。
+
+1. 不能有任何函数实现；
+2. 不能继承合约，但可以继承接口；
+3. 所有声明的函数必须是`external`，即使它们是`public`的；
+4. 不能声明构造器；
+5. 不能声明状态变量；
+6. 不能声明modifiers；
+
+interfaces中声明的所有函数都是隐式虚拟(`virtual`)的，并且任何重写它们的函数都不需要`override`关键字。
+
+
+
 <!-- Content_END -->

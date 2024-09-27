@@ -176,9 +176,132 @@ function callETH(address payable _to, uint256 amount) external payable{
 }
 ```
 ### 2024.09.26
+21. 调用其他合约
+    
+1. 传入合约地址
+```
+我们可以在函数里传入目标合约地址，生成目标合约的引用，然后调用目标函数。以调用OtherContract合约的setX函数为例，我们在新合约中写一个callSetX函数，传入已部署好的OtherContract合约地址_Address和setX的参数x：
 
+function callSetX(address _Address, uint256 x) external{
+    OtherContract(_Address).setX(x);
+}
+复制OtherContract合约的地址，填入callSetX函数的参数中，成功调用后，调用OtherContract合约中的getX验证x变为123
+```
+2. 传入合约变量
+```
+我们可以直接在函数里传入合约的引用，只需要把上面参数的address类型改为目标合约名，比如OtherContract。下面例子实现了调用目标合约的getX()函数。
+
+注意：该函数参数OtherContract _Address底层类型仍然是address，生成的ABI中、调用callGetX时传入的参数都是address类型
+
+function callGetX(OtherContract _Address) external view returns(uint x){
+    x = _Address.getX();
+}
+复制OtherContract合约的地址，填入callGetX函数的参数中，调用后成功获取x的值
+```
+3. 创建合约变量
+```
+我们可以创建合约变量，然后通过它来调用目标函数。下面例子，我们给变量oc存储了OtherContract合约的引用：
+
+function callGetX2(address _Address) external view returns(uint x){
+    OtherContract oc = OtherContract(_Address);
+    x = oc.getX();
+}
+复制OtherContract合约的地址，填入callGetX2函数的参数中，调用后成功获取x的值
+```
+4. 调用合约并发送ETH
+如果目标合约的函数是payable的，那么我们可以通过调用它来给合约转账：_Name(_Address).f{value: _Value}()，其中_Name是合约名，_Address是合约地址，f是目标函数名，_Value是要转的ETH数额（以wei为单位）。
+```
+OtherContract合约的setX函数是payable的，在下面这个例子中我们通过调用setX来往目标合约转账。
+
+function setXTransferETH(address otherContract, uint256 x) payable external{
+    OtherContract(otherContract).setX{value: msg.value}(x);
+}
+复制OtherContract合约的地址，填入setXTransferETH函数的参数中，并转入10ETH
+```
+22. Call
+
+call 是address类型的低级成员函数，它用来与其他合约交互。它的返回值为(bool, bytes memory)，分别对应call是否成功以及目标函数的返回值。
+
+call是Solidity官方推荐的通过触发fallback或receive函数发送ETH的方法。
+不推荐用call来调用另一个合约，因为当你调用不安全合约的函数时，你就把主动权交给了它。推荐的方法仍是声明合约变量后调用函数，见第21讲：调用其他合约
+当我们不知道对方合约的源代码或ABI，就没法生成合约变量；这时，我们仍可以通过call调用对方合约的函数。
+call的使用规则
+call的使用规则如下：
+```
+目标合约地址.call(字节码);
+其中字节码利用结构化编码函数abi.encodeWithSignature获得：
+```
+```
+abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)
+函数签名为"函数名（逗号分隔的参数类型）"。例如abi.encodeWithSignature("f(uint256,address)", _x, _addr)。
+```
+另外call在调用合约时可以指定交易发送的ETH数额和gas数额：
+```
+目标合约地址.call{value:发送数额, gas:gas数额}(字节码);
+```
+23. Delegatecall
 ### 2024.09.27
+24. 在合约中创建新合约
+    在以太坊链上，用户（外部账户，EOA）可以创建智能合约，智能合约同样也可以创建新的智能合约。去中心化交易所uniswap就是利用工厂合约（PairFactory）创建了无数个币对合约（Pair）。
+Uniswap V2核心合约中包含两个合约：
+```
+UniswapV2Pair: 币对合约，用于管理币对地址、流动性、买卖。
+UniswapV2Factory: 工厂合约，用于创建新的币对，并管理币对地址。
+```
+下面我们用create方法实现一个极简版的Uniswap：Pair币对合约负责管理币对地址，PairFactory工厂合约用于创建新的币对，并管理币对地址。
+Pair合约
+```
+contract Pair{
+    address public factory; // 工厂合约地址
+    address public token0; // 代币1
+    address public token1; // 代币2
 
+    constructor() payable {
+        factory = msg.sender;
+    }
+
+    // called once by the factory at time of deployment
+    function initialize(address _token0, address _token1) external {
+        require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
+        token0 = _token0;
+        token1 = _token1;
+    }
+}
+```
+PairFactory
+```
+contract PairFactory{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair(address tokenA, address tokenB) external returns (address pairAddr) {
+        // 创建新合约
+        Pair pair = new Pair(); 
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+}
+```
+25. CREATE2
+CREATE2 操作码使我们在智能合约部署在以太坊网络之前就能预测合约的地址。Uniswap创建Pair合约用的就是CREATE2而不是CREATE。这一讲，我将介绍CREATE2的用法
+
+CREATE2如何计算地址
+CREATE2的目的是为了让合约地址独立于未来的事件。不管未来区块链上发生了什么，你都可以把合约部署在事先计算好的地址上。用CREATE2创建的合约地址由4个部分决定：
+
+0xFF：一个常数，避免和CREATE冲突
+CreatorAddress: 调用 CREATE2 的当前合约（创建合约）地址。
+salt（盐）：一个创建者指定的bytes32类型的值，它的主要目的是用来影响新创建的合约的地址。
+initcode: 新合约的初始字节码（合约的Creation Code和构造函数的参数）。
+新地址 = hash("0xFF",创建者地址, salt, initcode)
+Copy
+CREATE2 确保，如果创建者使用 CREATE2 和提供的 salt 部署给定的合约initcode，它将存储在 新地址 中。
+
+如何使用CREATE2
 ### 2024.09.28
 
 ### 2024.09.29

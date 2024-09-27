@@ -134,9 +134,91 @@ timezone: Asia/Shanghai
             _student.score = 100;
         }
         ```
-    
-- 映射 (Mapping Types)
 
 ### 2024.09.25
+
+> 進度: Solidity 101 7~8
+
+- 映射 (Mapping Types)
+    > https://docs.soliditylang.org/en/latest/types.html#mapping-types
+    - `mapping(_KeyType => _ValueType)`
+        - `_KeyType` 只能使用內建的值類型, 不能使用結構
+        - `_ValueType` 可以使用結構
+    - 儲存位置必須為 `storage`
+    - 不能用於 `public` 函數的參數或回傳值
+
+- 變數初始值
+    - 值類型
+        - `boolean`: `false`
+        - `string`: `""`
+        - `int`: `0`
+        - `uint`: `0`
+        - `enum`: 第一個元素
+        - `address`: `0x0000000000000000000000000000000000000000` (`address(0)`)
+        - `function`
+    - 引用類型
+        - `mapping` key/value的初始值的映射
+        - `struct` 成員類型的初始值
+        - `array`
+            - 動態 `[]`
+            - 靜態
+    - `delete a` 會使變數 `a` 的值變為初始值
+
+### 2024.09.26
+
+> 進度: Solidity 101 9~11
+
+- 常數
+    - `constant` 須在宣告時賦值, 後續不能改 `TypeError: Cannot assign to a constant variable.`
+    - `immutable` 可在宣告時或在建構函數中賦值, 後續不能改 `TypeError: Immutable state variable already initialized.`
+    - `string` 和 `bytes` 可以宣告為 `constant`, 但不能為 `immutable`
+
+- 流程控制
+    - `if-else`
+    - `for` loop
+    - `while` loop
+    - `do-while` loop
+
+- 建構函數
+    - 合約布署時會執行的函數
+    - 0.4.22 版本後, 以 `constructor` 關鍵字定義建構函數, 避免出現因 typo 造成漏洞
+        > example: Ethernaut CTF Fal1out
+
+- 修飾器 (modifier)
+    - 控制合約權限
+
+### 2024.09.27
+
+> 進度: Solidity 101 12
+
+- 事件 `event`: EVM 上日誌的抽象概念
+    - Example
+        ```
+        event Transfer(address indexed from, address indexed to, uint256 value);
+        ```
+    - 釋放事件
+        ```
+        // 定义_transfer函数，执行转账逻辑
+        function _transfer(
+            address from,
+            address to,
+            uint256 amount
+        ) external {
+
+            _balances[from] = 10000000; // 给转账地址一些初始代币
+
+            _balances[from] -=  amount; // from地址减去转账数量
+            _balances[to] += amount; // to地址加上转账数量
+
+            // 释放事件
+            emit Transfer(from, to, amount);
+        }
+        ```
+
+
+- 日誌 (Log)
+    - `topics`: `keccak256("Transfer(address,address,uint256)")`
+    - `data`
+
 
 <!-- Content_END -->

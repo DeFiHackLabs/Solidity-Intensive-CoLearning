@@ -211,6 +211,100 @@ mapping(_KeyType => _ValueType) public mappingName;
 `delete` 操作符
 - `delete` 操作符可以将变量的值重置为初始值。
   
+### 2024.09.26
+
+常量：constant 和 immutable 
+
+常量：`constant` 和 `immutable` 总结
+
+1. `constant` 关键字
+- **特点**：`constant` 变量必须在声明时初始化，之后不能再改变。
+- **作用**：提高合约的安全性和节省 gas。
+- **支持的类型**：数值类型、`string` 和 `bytes` 可以声明为 `constant`，其他类型则不支持。
+
+2. `immutable` 关键字
+- **特点**：`immutable` 变量可以在声明时或构造函数（`constructor`）中初始化，但初始化后不能再改变。
+- **灵活性**：可以通过构造函数或全局变量来初始化，例如 `address(this)`、`block.number`，或自定义函数返回值。
+- **Solidity 版本影响**：在 Solidity v0.8.21 之后，`immutable` 变量不需要显式初始化，否则需要显式初始化。
+
+
+3. 常见错误
+- **修改 `constant` 变量**：会抛出错误 `TypeError: Cannot assign to a constant variable.`。
+- **修改 `immutable` 变量**：会抛出错误 `TypeError: Immutable state variable already initialized.`。
+
+
+- `constant` 和 `immutable` 关键字用于确保某些变量在初始化后不再改变，增加了合约的安全性和降低了 gas 消耗。
+
+
+控制流与插入排序实现
+
+1. 控制流
+Solidity 的控制流与其他编程语言类似，主要包含以下几种：
+
+- **if-else**
+- **for 循环**
+- **while 循环**
+- **do-while 循环**
+- **三元运算符**
+
+2. Solidity 插入排序实现
+
+正确的做法是确保 `j` 不会小于 1，从而避免负值问题：
+```solidity
+function insertionSort(uint[] memory a) public pure returns (uint[] memory) {
+    for (uint i = 1; i < a.length; i++) {
+        uint temp = a[i];
+        uint j = i;
+        while (j >= 1 && temp < a[j - 1]) {
+            a[j] = a[j - 1];
+            j--;
+        }
+        a[j] = temp;
+    }
+    return a;
+}
+```
+**运行结果**：输入 `[2,5,3,1]`，输出 `[1,2,3,5]`。
+
+### 2024.09.27
+
+构造函数和修饰器总结
+
+构造函数 (Constructor)
+- 构造函数是一种特殊的函数，在合约部署时自动运行一次，用来初始化合约的参数。
+- 每个合约可以定义一个构造函数，只能在部署时调用一次。
+
+- **历史变化**: 在 0.4.22 之前，构造函数和合约同名。0.4.22 后改用 `constructor` 语法，避免函数名冲突导致的漏洞。
+
+修饰器 (Modifier)
+- 修饰器类似面向对象中的装饰器，主要用于函数运行前进行条件检查，减少代码冗余。
+- 用法示例：定义一个 `onlyOwner` 修饰器，确保只有合约的 `owner` 地址能调用某个函数。
+  ```solidity
+  // 定义修饰器
+  modifier onlyOwner {
+     require(msg.sender == owner);  // 检查调用者是否是 owner 地址
+     _;  // 继续执行函数主体
+  }
+
+  // 函数使用 onlyOwner 修饰器
+  function changeOwner(address _newOwner) external onlyOwner {
+     owner = _newOwner;
+  }
+  ```
+
+OpenZeppelin的Ownable标准实现
+- **OpenZeppelin** 维护了一套标准的 Solidity 合约库，`Ownable.sol` 是其中用于控制合约权限的标准实现。
+- 通过定义 `onlyOwner` 修饰器来保护重要函数，仅允许合约所有者调用这些函数。
+- 可以通过 Remix 测试 OpenZeppelin 的 Ownable 合约实现。
+
+
+
+
+
+- **构造函数** 在合约部署时初始化参数，只能调用一次。
+- **修饰器** 用于执行条件检查，例如权限控制，减少重复代码。
+- **Ownable 合约** 是常见的权限控制实现，确保合约的关键操作只能由特定地址执行。
+
 
 
 
