@@ -206,6 +206,29 @@ pop(): 动态数组拥有pop()成员，可以移除数组最后一个元素。
    (4) 结构体 struct
 Solidity支持通过构造结构体的形式定义新的类型。结构体中的元素可以是原始类型，也可以是引用类型；结构体可以作为数组或映射的元素。
 
+### 2024.09.27
+1. 映射
+(1）語法: mapping(KeyType => ValueType) mappingName;
+(2) 特點:所有可能的鍵都存在,未賦值的鍵對應的值為該類型的默認值
+(3) 無法獲取映射的大小或遍歷所有鍵
+(4) 只能用作狀態變量
+(5) 規則1: 映射的_KeyType只能选择Solidity内置的值类型，比如uint，address等，不能用自定义的结构体。而_ValueType可以使用自定义的类型。
+(6) 规则2：映射的存储位置必须是storage，因此可以用于合约的状态变量，函数中的storage变量和library函数的参数（见例子）。不能用于public函数的参数或返回结果中，因为mapping记录的是一种关系 (key - value pair)。
+(7) 规则3：如果映射声明为public，那么Solidity会自动给你创建一个getter函数，可以通过Key来查询对应的Value。
+(8) 规则4：给映射新增的键值对的语法为_Var[_Key] = _Value，其中_Var是映射变量名，_Key和_Value对应新增的键值对。
 
+4. 變量初始值
+   ■ Value Types:
+      ● boolean: false
+      ● string: "" (an empty string)
+      ● int: 0
+      ● uint: 0
+      ● enum: The first element listed in the enum definition
+      ● address: 0x0000000000000000000000000000000000000000 (or address(0))
+   ■ Reference Types:
+      ● mapping: All members are set to their respective default values.
+      ● struct: All members are set to their respective default values.
+      ● array (dynamic): [] (an empty array)
+      ● array (static/fixed-length): All members are set to their respective default values.
 
 <!-- Content_END -->

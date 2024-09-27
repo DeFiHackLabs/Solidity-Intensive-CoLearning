@@ -65,4 +65,18 @@ function fi() internal{} // internal空白函数
 function fe() external{} // external空白函数 
 ```
 
+### 2024.09.27
+1. `constant`,`immutable`变量
+   - 基础类型可以定义为`constant`, `immutable`. `string`类型不能被定义为`immutable`
+   - `constant`变量必须在声明的时候初始化，之后再也不能改变。
+   - `immutable`变量可以在声明时或构造函数中初始化。
+2. 控制流
+   - `if-else`
+   - `for`循环
+   - `while`循环
+   - `do-while`循环
+   - `三元运算`: `条件` ? `条件为真的表达式` : `条件为假的表达式`
+   
+
+
 <!-- Content_END -->

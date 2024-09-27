@@ -14,6 +14,27 @@ timezone: Asia/Shanghai
    
 ## Notes
 <!-- Content_START -->
+### 2024.09.27
+
+- WTF102章节内容：Call、Delegatecall
+
+#### 笔记
+
+- 通过call来进行调用某一个合约函数
+    
+    ```solidity
+    address.call(abi.encodeWithSignature(”function signature”,prop))
+    //当call 不存在的函数时，返回依然为success，但返回的data为0x0，实质调用了目标合约的fallback函数
+    ```
+    
+- delegatecall
+    
+    要求当前合约中的状态变量和被调用合约中的状态变量相同；
+    即为在调用过程中，delegatecall的执行结果可以修改当前合约的状态变量；
+    
+    **`要求变量类型和声明顺序必须相同，变量名可以不同；`**
+    
+    原因：变量名对于storage并不重要，storage是基于位置的；Solidity将状态变量以线性布局的方式存储在合约的storage slots中，如，第一个变量存在slot 0，第二个在slot1；
 
 ### 2024.09.26
 
