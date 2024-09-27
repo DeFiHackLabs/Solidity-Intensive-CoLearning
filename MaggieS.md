@@ -134,5 +134,8 @@ We learn them together can promote the understanding of framework, also, the dif
 
 1. Looking through 7 chapters of Solidity 103 and complete the text.
 
+2. 
+<img width="819" alt="image" src="https://github.com/user-attachments/assets/432267d9-df22-4a54-8cfd-702d84fb053e">
 
+3. 
 <!-- Content_END -->
