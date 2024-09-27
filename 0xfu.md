@@ -103,8 +103,59 @@ contract MyToken is IERC20, ERC165 {
 
 因为空投合约中会使用到循环逻辑，对于循环逻辑要非常谨慎安全问题，尤其是注意 [Dos攻击](https://github.com/AmazingAng/WTF-Solidity/blob/main/S09_DoS/readme.md) 。
 
-
 ### 
 
+
+### 2024.09.26
+
+#### ERC721代币标准
+
+ERC721标准是为了抽象非同质化的物品，相比于ERC20代币，很多实物是无法非同质化的，不能用同质化代币来抽象。满足ERC721
+标准的代币称为 NFT。
+
+#### EIP 和 ERC
+
+EIP可以是 Ethereum 生态中任意领域的改进, 比如新特性、ERC、协议改进、编程工具等等。
+
+ERC全称 Ethereum Request For Comment (以太坊意见征求稿), 用以记录以太坊上应用级的各种开发标准和协议。如典型的
+Token标准(ERC20, ERC721)、名字注册(ERC26, ERC13), URI范式(ERC67), Library/Package格式(EIP82), 钱包格式(EIP75,EIP85)。
+
+#### IERC721Receiver 接口合约
+
+如果一个合约没有实现ERC721的相关函数，转入的NFT就进了黑洞，永远转不出来了。为了防止误转账，ERC721实现了
+safeTransferFrom()安全转账函数，目标合约必须实现了IERC721Receiver接口才能接收ERC721代币，不然会revert。
+IERC721Receiver接口只包含一个onERC721Received()函数。
+
+```Solidity
+interface IERC721Receiver {
+    function onERC721Received(
+        address operator,
+        address from,
+        uint tokenId,
+        bytes calldata data
+    ) external returns (bytes4);
+}
+```
+
+#### IERC721Metadata
+
+IERC721Metadata 是 ERC721 的拓展接口，实现了3个查询metadata元数据的常用函数：
+
+```Solidity
+interface IERC721Metadata is IERC721 {
+    function name() external view returns (string memory);
+
+    function symbol() external view returns (string memory);
+
+    function tokenURI(uint256 tokenId) external view returns (string memory);
+}
+```
+
+
+
+ERC721 主合约实现了IERC721，IERC165 和 IERC721Metadata 接口合约，在开发自己的
+NFT 合约时可以通过继承 ERC721 合约从而快速高效的进行业务开发。
+
+### 
 
 <!-- Content_END -->

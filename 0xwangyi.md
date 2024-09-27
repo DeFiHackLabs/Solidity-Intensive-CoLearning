@@ -145,3 +145,41 @@ Solidity 101-9 常数constant和immutable
 5 address(0)表示零地址(空地址)（0x后边40个0，全零地址，用于表示无效或未赋值的地址，或用于销毁代币）
 6 在构造函数中赋值 = 在部署合约时赋值
 <!-- Content_END -->
+<!-- Content_START -->
+### 2024.09.26
+Day4
+Solidity 101-10 控制流 用solidity实现插入排序
+1 solidity控制流：if-else
+2 solidity控制流：for循环
+3 solidity控制流：while循环
+4 solidity控制流：do-while循环
+5 silidity控制流：三元运算符ternary operator实现两个数之间的大小比较，并返回其中最大值（return x >= y ? x : y;）
+6 用solidity实现插入排序InsertionSort（注意⚠️：90%以上的人用solidity写插入算法都会出错，坑很多，每个月都有项目因为这些小bug损失钱）
+7 常见错误：开发者错误地假设 Solidity 提供了类似于 Python 或 JavaScript 中的insert 方法，而实际上需要手动实现插入逻辑
+8 Solidity 本身的局限性：Solidity 没有提供像其他高级语言那样的数组操作功能，需要开发者手动处理插入逻辑
+9 i++在每次循环结束时执行，将i的值增加1
+10 solidity控制流关键字：continue（跳过当前循环的剩余部分，直接进入下一次循环
+11 solidity控制流关键字：break（立即终止整个循环）
+
+Solidity 101-11 构造函数和修饰器
+1 构造函数constructor：每一个合约可以定义一个构造函数constructor，并在部署合约的时候自动运行一次，可以用来初始化合约的一些参数
+2 合约权限控制Ownable（Ownable合约是Openzeppelin中常见合约，为智能合约提供了一个基本的所有权控制机制
+3 OpenZeppelin 是一个开源的智能合约库，它为开发者提供了一套经过审计的、安全的智能合约模块（安全性，标准化，模块化，可扩展性）
+4 修饰器modifier（类似OOP中的装饰器decorator），主要用于运行函数前的检查，比如地址，变量，余额等
+5 Cloudflare公司（内容分发网络CDN，DDoS攻击防护，DNS服务）
+
+Solidity 101-12 事件event
+1 事件event是EVM上日志的抽象
+2 事件event特点：应用程序ether.js可以通过RPC接口订阅和监听这些事件，并在前端做响应；事件event是EVM上比较经济的储存数据的方式
+3 声明事件：事件的声明又关键词event开头，接着是事件名称，然后（）里边写好事件需要记录的变量类型和变量名
+4 Transfer事件：event Transfer (address indexed from, address indexed to, uint256 value);
+5 indexed关键字，会保存在以太坊虚拟主机日志的topics中，方便检索
+6 释放事件：emit Transfer (from, to, amount); //使用emit触发Transfer事件，记录转账细节
+7 emit关键字用于触发事件，它告诉EVM记录一个事件到区块链日志中，以便外部系统可以监听和处理该事件
+8 address indexed from代币转出地址
+9 address indexed to代币接收地址
+10 uint256 value转移代币数量
+11 EVM日志log：以太坊虚拟机EVM用日志log来储存solidity事件，每条日志记录都包含主题topics和数据data两部分
+12 主题topics包括：哈希keccak256（事件的签名），from，to（除了哈希，topics还可以包括最多3个indexed参数）
+13 数据data：事件event中不带indexed的参数会被储存在data中（可以理解成事件event的值value）
+<!-- Content_END -->

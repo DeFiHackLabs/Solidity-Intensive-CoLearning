@@ -135,5 +135,75 @@ Dynamically-sized array（dynamic array）：Length of the array is not specifie
     return array55;
   }
   ```
-  ###
+###
+### 2024.09.26
+  - Mapping
+  - With mapping type, people can query the corresponding Value by using a Key. For example, a person's wallet address can be queried by their id
+```
+// define a struct
+      struct Student{
+          uint256 id;
+          uint256 score;
+      }
+      mapping(Student => uint) public testVar;
+```
+- Rule 2: The storage location of the mapping must be storage: it can serve as the state variable or the storage variable inside function. But it can't be used in arguments or return results of public function.
+
+Rule 3: If the mapping is declared as public then Solidity will automatically create a getter function for you to query for the Value by the Key.
+
+Rule 4：The syntax of adding a key-value pair to a mapping is _Var[_Key] = _Value, where _Var is the name of the mapping variable, and _Key and _Value correspond to the new key-value pair. For example:
+```
+ function writeMap (uint _Key, address _Value) public {
+        idToAddress[_Key] = _Value;
+      }
+```
+###
+### 2024.09.27
+  - init value
+  - boolean: false
+    string: ""
+    int: 0
+    uint: 0
+    enum: first element in enumeration
+    address: 0x0000000000000000000000000000000000000000 (or address(0))
+    function
+    internal: blank function
+    external: blank function
+    ```
+        bool public _bool; // false
+    string public _string; // ""
+    int public _int; // 0
+    uint public _uint; // 0
+    address public _address; // 0x0000000000000000000000000000000000000000
+
+    enum ActionSet {Buy, Hold, Sell}
+    ActionSet public _enum; // first element 0
+
+    function fi() internal{} // internal blank function
+    function fe() external{} // external blank function
+    ```
+    - Initial values of reference types
+mapping: a mapping which all members set to their default values
+
+struct: a struct which all members set to their default values
+
+array
+
+dynamic array: []
+static array（fixed-length): a static array where all members set to their default values.
+You can use getter function of public variables to confirm initial values:
+```
+    // reference types
+    uint[8] public _staticArray; // a static array which all members set to their default values[0,0,0,0,0,0,0,0]
+    uint[] public _dynamicArray; // `[]`
+    mapping(uint => address) public _mapping; // a mapping which all members set to their default values
+    // a struct which all members set to their default values 0, 0
+    struct Student{
+        uint256 id;
+        uint256 score; 
+    }
+    Student public student;
+
+```
+### 
 <!-- Content_END -->

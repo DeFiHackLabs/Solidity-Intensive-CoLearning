@@ -15,6 +15,60 @@ timezone: Asia/Shanghai
 ## Notes
 <!-- Content_START -->
 
+### 2024.09.26
+
+- WTF102章节内容：接收ETH、发送ETH、调用其他合约
+
+#### 笔记
+
+- 接收ETH:receive和fallback
+
+```solidity
+触发fallback() 还是 receive()?
+           接收ETH
+              |
+         msg.data是空？
+            /  \
+          是    否
+          /      \
+receive()存在?   fallback()
+        / \
+       是  否
+      /     \
+receive()   fallback()
+```
+
+- 接收ETH
+
+| function | gas limit | 是否支持对方合约fallback() or receive实现复杂逻辑 | 是否支持revert | 返回值 |
+| --- | --- | --- | --- | --- |
+|  paybale(_to).transfer(amount) | 2300 | 否 | 支持 | no returns |
+| _to.send(amount) | 2300 | 否 | 不支持 | bool |
+| _to.call{value: amount}("") | none | 是 | 不支持 | (bool,bytes) |
+
+- gas limit
+
+执行交易或合约时所能消耗的最大计算资源。如果你设定的 gas limit 是 100,000 gas，那么你的交易在任何情况下都不会消耗超过 100,000 gas。如果交易需要的 gas 超过了这个限制，交易就会失败。
+
+- 调用其他合约
+
+```solidity
+function callSetX(address _Address, uint256 _x) external{
+        OtherContract(_Address).setX(_x);
+}
+function callGetX(OtherContract _Address) external view returns(uint x){
+    x = _Address.getX();
+}
+function callGetX2(address _Address) external view returns (uint x){
+    OtherContract oc = OtherContract(_Address);
+    x = oc.getX();
+}
+function setXTransferETH(address otherContract, uint256 x) payable external{
+    OtherContract(otherContract).setX{value: msg.value}(x);
+    //语法糖，隐式调用的是_to.call(value: msg.value);
+}
+```
+
 ### 2024.09.25
 - WTF101章节内容：抽象合约和接口、异常
 - WTF102章节内容：重载、库合约、Import
