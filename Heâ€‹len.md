@@ -15,6 +15,30 @@ timezone: Asia/Shanghai
 ## Notes
 
 <!-- Content_START -->
+### 2024.09.26
+進度：值类型
+
+3. ||（邏輯或，OR）VS `&&`（邏輯與）
+|| 是邏輯或運算符，只要任一操作數為 true，結果就是 true。只有當兩個操作數都為 false 時，結果才是 false。
+
+範例：
+```solidity
+bool public _bool3 = _bool || _bool1;  // _bool3 為 true
+                    //True or False
+```
+4. `==`（等於，Equality）
+`==` 用來判斷兩個pool是否相等。如果兩者相等，結果為 true，否則為 false。
+範例：
+```solidity
+bool public _bool4 = _bool == _bool1;  // _bool4 為 false
+                    // True== False(以右邊值為主）
+```
+5. `!=`（不等於，Inequality）
+`!=` 用來判斷兩個布林值是否不相等。如果兩者不相等，結果為 true，否則為 false。
+```solidity
+bool public _bool5 = _bool != _bool1;  // _bool5 為 true
+                    // True != False(負負得正）
+```
 
 ### 2024.09.25
 進度：值类型 & 熟悉Github 語言

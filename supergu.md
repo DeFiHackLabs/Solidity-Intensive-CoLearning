@@ -117,4 +117,16 @@ timezone: Asia/Shanghai
    (, _bool2, ) = returnNamed(); // dropping 2 returned values
    ```
 
+### 2024.09.26
+
+#### Chapter 5: Data Storage and Scope
+
+- Data location
+
+   - `storage`: default, stored on-chain, expensive gas
+   - `memory`: temp variables used in function, cheaper gas
+   - `calldata`: `memory` that can't be modified
+
+- Only applicable to Reference variable types: `array`, `struct` and `mapping`
+
 <!-- Content_END -->

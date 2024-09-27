@@ -243,12 +243,34 @@ OpenZeppelin是一个维护Solidity标准化代码库的组织，他的Ownable�
    7. 在Etherscan上查询事件:Etherscan
 
 
+### 2024.09.27
+
+學習內容：WTF #13
+
+# 13:繼承  （contract Erzi is Yeye）
+
+![image](https://github.com/user-attachments/assets/a0cb4b70-bcb9-4caa-8a88-15545372adb4)
+
+
+   1. virtual: 父合约中的函数，如果希望子合约重写，需要加上virtual关键字。
+
+   2. override：子合约重写了父合约中的函数（与变量同名的getter函数），需要加上override关键字。
+
+      mapping(address => uint256) public override balanceOf;   
+
+   3. 多重继承：高～低排(contract Erzi is Yeye, Baba)、多重需重寫、父在需冠父親名
+   4. Modifier 同样可以继承
+         构造函数继承:in 聲明or 子構造函數中
+   5. 调用父合约的函数:1)直接调用(Yeye.pop())和2)利用super关键字調用最近父合約函數(super.pop();)
+   6. 钻石继承（菱形继承）指一个派生类同时有两个或两个以上的基类
+
+   7. https://www.wtf.academy/docs/solidity-101/Inheritance/
+        
 ### 2024.09.
 
-學習內容：WTF #13~
+學習內容：WTF #14
 
-
-
+# 14:抽象合约和接口
 
 
 

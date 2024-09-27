@@ -64,7 +64,7 @@ contract HelloWeb3{
 ##### 映射类型(Mapping Type)
 存储键值对，可以理解为哈希表
 
-### 2024.09.24
+### 2024.09.26
 ####  3. 函数
 `function <function name>(<parameter types>) {internal|external|public|private} [pure|view|payable] [returns (<return types>)]`
 

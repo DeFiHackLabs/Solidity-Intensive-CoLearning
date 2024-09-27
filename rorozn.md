@@ -621,7 +621,7 @@ function getString2(uint256 _number) public pure returns(string memory){
 
 ### 2024.09.25
 
-19. 回调函数
+19. 接收 eth
 
 - 0.6 之前是 fallback(),之后拆分成 receive()和 fallback()
 - receive():  
@@ -666,6 +666,22 @@ receive()   fallback()
 ```
 
 ### 2024.09.26
+
+20. 发送 eth
+
+- transfer()，  
+  gas 限制是 2300  
+  失败自动 revert
+- send()几乎没人用  
+  gas 限制是 2300  
+  不会 revert  
+  返回 bool，代表成功/失败，需要额外代码处理下
+- call()【推荐】
+  没有 gas 限制  
+  如果转账失败，不会 revert  
+  返回值是(bool, bytes)，其中 bool 代表着转账成功或失败，需要额外代码处理一下
+
+  ### 2024.09.27
 
 <!-- Content_END -->
 
