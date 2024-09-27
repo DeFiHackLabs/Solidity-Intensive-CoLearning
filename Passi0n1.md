@@ -431,5 +431,8 @@ contract.on("Deposit", (user, amount) => {
 ```
 
 
+
+https://passi0n1.github.io/post/he-yue-zhong-de-event.html
+
 测试链怎么去进行监听之类的呢？
 <!-- Content_END -->
