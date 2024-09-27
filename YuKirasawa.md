@@ -79,4 +79,11 @@ ETH 交易的签名使用 ECDSA 签名算法，但与标准的 ECDSA 有一点�
 
 今天比较忙，简单看了一下 103 的代币水龙头。
 
+### 2024.09.27
+
+学了一下 solidity 中的函数调用的底层原理。solidity 中的函数调用有两种。
+
+- 内部函数调用 (Internal Function Calls)：对于在同一个合约内直接通过函数名进行的调用，会被编译为 EVM 的跳转指令。因此这样的调用不会创建新的 context 环境，也不会改变 `msg.sender` (`caller()`) 的值。但依然会进行压栈操作，从而只能进行非常有限的递归。
+- 外部函数调用 (External Function Calls)：对于使用 `<contract instance>.<function>` 进行的调用，会被编译为 EVM 的 `call` 指令。这样的调用会创建新的 context 环境，也会改变 `msg.sender` (`caller()`) 的值。
+
 <!-- Content_END -->
