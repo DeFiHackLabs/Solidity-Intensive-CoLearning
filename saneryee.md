@@ -50,6 +50,116 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 ## Notes
 
 <!-- Content_START -->
+### 2024.09.27
+Day 5
+WTF Academy Solidity 101 16-19
+
+Library
+1. State variables are not allowed
+2. Cannot inherit or be inherited
+3. Cannot receive ether
+4. Cannot be destroyed.
+
+Use library contracts
+```solidity
+   // Using the library with the "using for"
+   using Strings for uint256;
+   function getString1(uint256 _number) public pure returns(string memory){
+      // Library functions are automatically added as members of uint256 variavles
+      return _number.toHexSting();
+   }
+```
+
+```solidity
+    // Called directly by the library contract name
+    function getString2(uint256 _number) public pure returns(string memory){
+        return Strings.toHexString(_number);
+    }
+```
+
+4 Ways of Import
+
+```solidity
+   Hierarchy
+   |-- Import.sol
+   |__ Yeye.sol
+
+   // Import by relative location of source file
+   import './Yeye.sol';
+   
+   // Import by URL
+   import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+
+   // Import via the npm
+   import '@openzeppelin/contracts/access/Ownable.sol';
+
+
+   // Import contract-specific global symbols by specifying global symbols.
+   import {Yeye} from './Yeye.sol';
+
+```
+
+`receive()`
+- revceiving `ETH` 
+- Some malicious contracts intentionally add codes in `receive()`, which cosume massive `gas` or cause the transaction to get reversted. -- **Pull over push pattern**
+
+
+`fallback()`
+
+```
+Execute fallback() or receive()?
+         Receive ETH
+              |
+      msg.data is empty?
+            /  \
+          Yes   No
+          /      \
+Has receive()?   fallback()
+        / \
+      Yes  No
+      /     \
+receive()   fallback()
+```
+---
+
+### 2024.09.26
+Day 4 
+WTF Academy Solidity 101 13-15
+
+13. Inheritance
+    
+    - If a `public` state variable is labelled as `override`, it `getter` function will be overridden. For example:
+  
+      ```solidity
+         mapping(address => uint256) public override balanceOf;
+      ```
+      `getter` function is `balanceOf(address)`
+
+      Why:
+      -  Unexpected behavior changes: Callers might expect the original getter behavior. but instead receive the overridden behavior.
+      -  Security considerations: Overriding the getter could affect other contracts that depend on the original behavior.
+
+14. Abstract and Interface
+    
+     Abstract
+
+     - At least oun unimplemented function (empty in `{}` )
+     
+     Interface
+
+     - no state variavles
+     - no constructors
+     - no inherit non-interface
+     - must be external and empty in `{}`
+     - Contract inherits interface must implement all functions
+
+     - like " a manual of the contract "
+
+15. Errors
+    
+    - `revert` => `error`
+    - `require(condition, "error message");`
+
 
 ### 2024.09.25
 Day 3
@@ -132,7 +242,9 @@ WTF Academy Solidity 101 9-12
       ...
       - Data: value parameter in event
   
-  
+
+---
+
 ### 2024.09.24
 
 Class WTF Academy Solidity 101 5-8
@@ -147,7 +259,7 @@ Reference Type: `array`, `struct`
 | -- | -- | -- |--|
 | `storage` | state variables|on-chain||
 | `memory`| function parameters | memory, not on-chain|`string`, `bytes`, `array`|
-| `calldata`|function parameters, cannot be modified |memory, not on-chain||
+| `calldata`|function parameters, **cannot be modified** |memory, not on-chain||
 
 Assignment behaviour
 
@@ -213,6 +325,31 @@ Mapping
 
 ```
 
+**The EVM can read and write to several places**
+
+Write & Read:
+
+- Stack
+- Memory
+- Storage
+- Calldata
+- Transient Storage
+- Code
+- Returndata
+
+Write (not read):
+
+- Logs
+
+Read (not write):
+
+- Chain Data
+- Transaction data (& Blobhash)
+- Gas data
+- Program Counter
+- (other)
+
+---
 
 ### 2024.09.23
 

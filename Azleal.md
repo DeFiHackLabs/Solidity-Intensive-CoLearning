@@ -48,6 +48,21 @@ uint[] memory memArray = new uint[](n);
 // 仅storage才可以使用下面的方式初始化
 uint[] storage storageArray = [uint(1), 2];;
 ```
-      
+### 2024.09.26
+1. `mapping`
+   - 声明映射的格式为`mapping(_KeyType => _ValueType)`.其中`_KeyType`只能为solidity的内置类型，`_ValueType`可以使用内置类型及自定义的类型(`struct`).
+   - `mapping`布局, keccak256(abi.encodePacked(key, slot)).映射元素槽索引是通过keccak256我们想要的元素的键（左侧填充 0 到 32 字节）和映射的声明槽索引的串联哈希来计算的.
+2. 变量初始值
+```solidity
+bool public _bool; // false
+string public _string; // ""
+int public _int; // 0
+uint public _uint; // 0
+address public _address; // 0x0000000000000000000000000000000000000000
+enum ActionSet { Buy, Hold, Sell}
+ActionSet public _enum; // 第1个内容Buy的索引0
+function fi() internal{} // internal空白函数
+function fe() external{} // external空白函数 
+```
 
 <!-- Content_END -->

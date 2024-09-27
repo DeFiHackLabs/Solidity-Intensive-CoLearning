@@ -24,4 +24,7 @@ timezone: Asia/Shanghai
 
 ### 2024.09.25
 [4-6课](https://github.com/spn21/web3-learning/tree/main/solidity_review/src)
+
+### 2024.09.26
+[7-9课](https://github.com/spn21/web3-learning/tree/main/solidity_review/src)
 <!-- Content_END -->

@@ -289,4 +289,76 @@ function add(uint256 _number) external pure returns (uint256 result) {
 Solidity 中函數的靈活度很高，尤其是 pure 和 view 關鍵字在 Gas 優化方面有特殊應用。
 
 payable 則是用於處理 ETH 交易的重要工具。
+
+
+
+
+### 2024.09.26
+
+
+返回值：return 和 returns
+Solidity 中與函數輸出相關的關鍵字有兩個：return 和 returns，它們的區別如下：
+
+returns：跟在函數名後面，用來聲明返回的變數類型及變數名。
+return：用於函數主體中，返回指定的變數。
+返回多個變數
+可以定義一個返回多個變數的函數，示例如下：
+
+
+function returnMultiple() public pure returns (uint256, bool, uint256[3] memory) {
+    return (1, true, [uint256(1), 2, 5]);
+}
+
+
+在這段代碼中，我們利用 returns 聲明了多個返回值的 returnMultiple 函數，並在函數主體中使用 return 來確定返回的值。uint256[3] 定義了一個長度為 3 的 uint256 數組作為返回值，且需要用 memory 修飾，因為 Solidity 中的數組類型返回值默認需要這樣標註。
+
+
+命名式返回
+
+
+可以在 returns 中標明返回變數的名稱。Solidity 會自動初始化這些變數，並自動返回它們的值，而不需要使用 return：
+
+
+function returnNamed() public pure returns (uint256 _number, bool _bool, uint256[3] memory _array) {
+    _number = 2;
+    _bool = false;
+    _array = [uint256(3), 2, 1];
+}
+
+
+在這段代碼中，我們用 returns(uint256 _number, bool _bool, uint256[3] memory _array) 聲明了返回變數的類型及名稱，因此在函數主體中只需為這些變數賦值，即可自動返回它們的值。當然，命名式返回中也可以使用 return：
+
+
+function returnNamed2() public pure returns (uint256 _number, bool _bool, uint256[3] memory _array) {
+    return (1, true, [uint256(1), 2, 5]);
+}
+
+
+解構式賦值
+
+
+Solidity 支持使用解構式賦值規則來讀取函數的全部或部分返回值：
+
+
+讀取所有返回值：先聲明變數，然後按順序排列，使用逗號隔開。
+
+
+uint256 _number;
+
+
+bool _bool;
+
+
+uint256[3] memory _array;
+
+
+(_number, _bool, _array) = returnNamed();
+
+
+讀取部分返回值：只需聲明需要的變數，未讀取的變數可以留空。例如，下面的代碼只讀取 _bool，而不讀取 _number 和 _array：
+
+
+(, _bool2, ) = returnNamed();
+
+
 <!-- Content_END -->
