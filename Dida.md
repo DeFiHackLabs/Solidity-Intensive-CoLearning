@@ -123,6 +123,36 @@ bytes1 public _byte = _byte32[0];
 ```
 enum ActionSet { Buy, Hold, Sell }
 ```
+
+
+### 2024.09.26
+
+### 函式
+
+```
+function <function name>(<parameter types>) {internal|external|public|private} [pure|view|payable] [returns (<return types>)]
+```
+- function：宣告函式定義的開始
+- <function name>: 函式名稱
+- (<parameter types>): 函式允許傳入的參數的基態及名稱
+- {internal | external | public | private }: 函式的可見度宣告
+  - public: 內外部都可見
+  - private: 只能從合約內部進行呼叫，就算是繼承也不可使用
+  - external: 只能從合約外部呼叫，而內部可以透過 `this.<function name>()` 的方式來呼叫
+  - internal: 只能在合約內部使用，繼承的的合約也可以使用
+
+  > 注意1: 要明確定義可見度，沒有預設值
+
+  > 注意2: 可見度也可以用來定義變數的可見度，當定義為 `public` 的時候會自動生成同名的 `getter` 函式，如果變數未標明可見度的話默認為 internal
+- [pure|view|payable]: 
+  - pure: 不能讀取也不能入變數，就是一個純粹的函式，因為不會改變鏈上資料，所以不會有 gas fee 產生
+  - view: 單純讀取變數，不可改變變數資料
+  - paybale: 可以進行支付的函式
+- [returns()]: 定義函數要回傳的變數型別及名稱
+
+
+
+
 <!-- Content_END -->
 
 <!-- Content_END -->

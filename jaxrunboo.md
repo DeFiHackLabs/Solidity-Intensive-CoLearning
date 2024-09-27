@@ -131,4 +131,129 @@ contract Test{
 
 ###
 
+
+### 2024.09.26
+
+#### 1. 事件
+
+```
+event Transfer(address indexed from,address indexed to,uint256 value);
+```
+作用：
+
+1. 事件能够被前端ether.js订阅
+2. 事件的消耗(2000gas)要比链上存储一个变量要少(20000gas),但是这个作用性要存疑
+
+>indexed修饰的变量，能够被保存在虚拟机日志的topics中，方便查询
+
+日志结构
+
+1. topics
+
+topics数组的长度要求<=4，且indexed修饰的参数<=3
+
+数组的首位存储 keccak("Transfer(address,address,uint256)")的结果
+
+2. data
+
+不带indexed修饰的参数值
+
+#### 2. 继承
+
+各种开发语言都有继承这一特性。学习时只要注意solidity语言与其他语言的区别即可。
+
+描述继承关系关键词: <strong>is</strong>
+
+抽象关键词: <strong>virtual</strong>
+
+子类重写关键词: <strong>overrid</strong>
+
+1. 函数继承
+
+大部分高级语言都只允许继承一个类，允许继承多个接口。对solidity语言来说，它允许继承多个合约。要求越底层、兼容性越高的要排在前面。
+
+比如：
+
+```solidity
+
+contract child is grandPa,father{
+    function say() public override{
+
+    }
+}
+
+```
+
+2. 修饰器继承
+
+3. 构造函数继承
+
+``` solidity
+// 构造函数的继承
+abstract contract A {
+    uint public a;
+
+    constructor(uint _a) {
+        a = _a;
+    }
+}
+
+//方式1
+contract B is A(3){
+
+}
+
+//方式2
+contract C is A {
+    constructor(uint _C) A(_C){
+
+    }
+}
+
+```
+
+4. 调用父合约的参数
+
+```solidity
+//方式1：通过super关键词，使用当前的最靠近的父级的方法
+function callP() public{
+    super.test();
+}
+//方法2： 直接制定继承的父级
+function callP1() public {
+    Papa.test();
+}
+
+```
+
+5. 钻石继承
+
+```solidity
+/* 继承树：
+  God
+ /  \
+Adam Eve
+ \  /
+people
+*/
+
+contract people is Adam, Eve {
+    function foo() public override(Adam, Eve) {
+        super.foo();
+    }
+
+    function bar() public override(Adam, Eve) {
+        super.bar();
+    }
+}
+
+//执行的顺序将会是：
+//people eve adam god 
+//且god只会在结尾被调用一次
+
+```
+
+###
+
+
 <!-- Content_END -->

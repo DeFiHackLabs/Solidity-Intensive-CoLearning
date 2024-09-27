@@ -138,5 +138,34 @@ function fStorage() public{
     - constant 变量必须在声明的时候初始化，之后再也不能改变;
     - immutable 变量可以在声明时或构造函数中初始化，因此更加灵活。在 Solidity v8.0.21 以后，immutable 变量不需要显式初始化。反之，则需要显式初始化。 若 immutable 变量既在声明时初始化，又在 constructor 中初始化，会使用 constructor 初始化的值;
 
+### 2024.09.26
+
+- [101-10] 控制流: if-else, for, while, do-while
+- [101-11] 构造函数、修饰器
+    - 在Solidity 0.4.22之前，构造函数不使用 constructor 而是使用与合约名同名的函数作为构造函数而使用，由于这种旧写法容易使开发者在书写时发生疏漏（例如合约名叫 Parents，构造函数名写成 parents），使得构造函数变成普通函数，引发漏洞，所以0.4.22版本及之后，采用了全新的 constructor 写法;
+    - 新版构造函数: `constructor(){}` 构造函数（constructor）是一种特殊的函数，每个合约可以定义一个，并在部署合约的时候自动运行一次;
+    - Modifier 修饰器:明函数拥有的特性，并减少代码冗余,使用场景是运行函数前的检查，例如地址，变量，余额等;
+    ```solidity
+    // 定义modifier
+    modifier onlyOwner {
+        require(msg.sender == owner); // 检查调用者是否为owner地址
+        _; // 如果是的话，继续运行函数主体；否则报错并revert交易
+    }
+    function changeOwner(address _newOwner) external onlyOwner{
+        owner = _newOwner; // 只有owner地址运行这个函数，并改变owner
+    }
+    ```
+    - OpenZeppelin的Ownable标准实现: https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/Ownable.sol
+- [101-12] Event
+    - Solidity中的事件（event）是EVM上日志的抽象,事件是EVM上比较经济的存储数据的方式，每个大概消耗2,000 gas；相比之下，链上存储一个新变量至少需要20,000 gas。
+    ```solidity
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    // indexed: 会保存在以太坊虚拟机日志的topics中，方便之后检索
+    ```
+    - 以太坊虚拟机（EVM）用日志Log来存储Solidity事件，每条日志记录都包含主题topics和数据data两部分。![](./content/YuanboXie/evm-log.png)
+        - 日志的第一部分是主题数组，用于描述事件，长度不能超过4。它的第一个元素是事件的签名（哈希）。对于上面的Transfer事件，它的事件哈希就是：keccak256("Transfer(address,address,uint256)")
+        - 除了事件哈希，主题还可以包含至多3个indexed参数，也就是Transfer事件中的from和to。indexed标记的参数可以理解为检索事件的索引“键”，方便之后搜索。每个 indexed 参数的大小为固定的256比特，如果参数太大了（比如字符串），就会自动计算哈希存储在主题中。
+
+
 
 <!-- Content_END -->

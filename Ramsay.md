@@ -346,7 +346,7 @@ contract TwoSum {
 
 顺便推荐个 web3 的 Leetcode，用 Solidity 来解决编程题：https://dapp-world.com
 
-#### 11 Constructor and Modifier
+#### 11 Constructor 
 
 0.4.22之前的构造器函数估计是向 Java 学习的，使用与合约名同名的函数作为构造函数而使用，但是Java中的构造函数是和普通函数不一样的，是没有返回值的，所以无法与普通函数混淆。
 
@@ -355,5 +355,103 @@ contract TwoSum {
 所以0.4.22版本及之后，采用了全新的 constructor 写法，这个就是向 Javascript 学习，显式声明构造函数。（感觉这个语法设计着实没有深思熟虑）
 
 与Java/C++ 不同的是，因为 Solidity 没有函数重载的概念，所以 Solidity 最多只有一个构造函数，如果没有显式声明构造函数，就使用默认的构造函数。
+
+### 2024.09.27
+
+#### 11 Modifier
+
+Modifier 类似其他语言的装饰器，或者是切面编程，可以运行函数主体前或者运行后执行对应的操作。常见的用法是把包含 Modifier 的合约定义成库，然后通过继承来使用相应的 `Modifier`:
+
+```solidity
+contract owned {
+    constructor() { owner = payable(msg.sender); }
+    address payable owner;
+
+    // This contract only defines a modifier but does not use
+    // it: it will be used in derived contracts.
+    // The function body is inserted where the special symbol
+    // `_;` in the definition of a modifier appears.
+    // This means that if the owner calls this function, the
+    // function is executed and otherwise, an exception is
+    // thrown.
+    modifier onlyOwner {
+        require(
+            msg.sender == owner,
+            "Only owner can call this function."
+        );
+        _;
+    }
+}
+
+contract priced {
+    // Modifiers can receive arguments:
+    modifier costs(uint price) {
+        if (msg.value >= price) {
+            _;
+        }
+    }
+}
+
+contract Register is priced, owned {
+    mapping(address => bool) registeredAddresses;
+    uint price;
+
+    constructor(uint initialPrice) { price = initialPrice; }
+
+    // It is important to also provide the
+    // `payable` keyword here, otherwise the function will
+    // automatically reject all Ether sent to it.
+    function register() public payable costs(price) {
+        registeredAddresses[msg.sender] = true;
+    }
+
+    // This contract inherits the `onlyOwner` modifier from
+    // the `owned` contract. As a result, calls to `changePrice` will
+    // only take effect if they are made by the stored owner.
+    function changePrice(uint price_) public onlyOwner {
+        price = price_;
+    }
+}
+```
+
+而 `_` 指代的就是被修改的函数主体。
+
+#### 12 Event
+
+如果从存储的角度来思考事件(Event)，也可以解释为什么存储在事件的gas费会比链上便宜那么多。
+
+存储在链上的最大特点就是不可篡改，意味着有多个节点都对写入的值达成共识（可以理解成多副本冗余），而日志并不存储在链上，就是不需要网络节点达成共识，类似于单机存储，成本自然就下来。
+
+如果所有存储的内容都需要达成共识，开销也太大了。
+
+按照 Event 的 [ABI 标准](https://docs.soliditylang.org/en/v0.8.27/abi-spec.html#abi-events), 事件包含以下的内容:
+- address: 合约地址
+- topics 数组:
+  - topics[0]: 第一个元素的值是 "anonymous" 或者 `keccak(EVENT_NAME+"("+EVENT_ARGS.map(canonical_type_of).join(",")+")")`, `canonical_type_of` 是用来获取参数类型的函数
+  - topics[1-n]: 保存被声明成 `indexed` 类型的参数，最多3个参数
+  - 所以 topics 数组的长度最大为4，最多包含3个参数，因为第1个参数被用来标识事件了
+- data: 就是存储的数据，对应的就是没有被声明成 `indexed` 的参数
+
+`indexed` 可以标记值类型，枚举，静态数组和 string （如果超过256个字节，就会使用 Keccak 函数计算 hash 值，确保长度都是固定的），但不可用来标记 mapping, struct 和动态数组。
+
+其他语言中也有事件的概念，如 Javascript 里面有许多浏览器操作的事件，如点击按钮，移动鼠标等等。我们同样可以使用 `web3.js` 这个库来订阅我们感兴趣的事件：
+
+```js
+var options = {
+    fromBlock: 0,
+    address: web3.eth.defaultAccount,
+    topics: ["0x0000000000000000000000000000000000000000000000000000000000000000", null, null]
+};
+web3.eth.subscribe('logs', options, function (error, result) {
+    if (!error)
+        console.log(result);
+})
+    .on("data", function (log) {
+        console.log(log);
+    })
+    .on("changed", function (log) {
+});
+
+```
 
 <!-- Content_END -->

@@ -825,5 +825,245 @@ contract Example {
 4. **防止無意修改數據**：
 理解作用域可以幫助你控制數據的可訪問性，防止不必要的修改。例如，狀態變數的變更是持久性的，如果只需要在短期內使用數據，應該使用區域變數來避免無意的狀態改變。
 
+### 2024.09.27
+#### 變量類型：引用
+
+這裡介紹兩種常用的 Reference Type: Array 和 Struct 用法
+
+## Array
+
+通用寫法 T[] 
+
+```solidity
+// 固定陣列
+uint[3] array4;
+
+// 可變（動態）陣列
+bytes1[] array5;
+address[] array6;
+bytes array7;
+```
+
+**注意**：`bytes`比较特殊，不用`[]`
+
+1. 固定長度
+    
+    ```solidity
+    contract ExampleContract {
+        // 1.固定
+        uint[3] arr1;
+    
+        // 賦值
+        function changFixedArraye() external {
+            arr1[0] = 1;
+            arr1[1] = 2;
+            arr1[2] = 3;
+        }
+    
+        // 直接針對指定索引進行賦值
+        function setFixedArray(uint index, uint value) public {
+            require(index < 3, "Index out of bounds");
+            arr1[index] = value;  
+        }
+    
+        function getFixedArray() external view returns(uint[3] memory) {
+            return arr1;
+        }
+    }
+    ```
+    
+    - 回憶：宣告 `arr1` 時有沒有 `public` 差在哪
+        - **有 `public`**：
+            - Solidity 會自動生成一個 getter 函數。
+            - 外部合約和帳戶可以通過自動生成的 getter 函數直接存取陣列中的個別元素。
+        - **沒有 `public`**：
+            - 不會生成 getter 函數。
+            - 如果需要允許外部存取陣列的值，必須顯式編寫一個函數。
+2. 變動長度
+    
+    ```solidity
+    contract ExampleContract {
+        // 1.固定
+        uint[3] arr1;
+    
+        // 2. 變動 ---可以使用push.pop
+        uint[] arr2;
+    
+        // 3.動態＋可變
+        uint[] arr3 = new uint[](2);
+    
+        // 賦值
+        function changNonFixedArraye() external {
+            arr2.push(5);
+            arr2.push(6);
+            arr2.pop();
+        }
+    
+         function getNonFixedArray() external view returns(uint[] memory) {
+            return arr2;
+        }
+    }
+    ```
+    
+    - deploy後起始值
+        
+        ![image](https://github.com/user-attachments/assets/41d55237-bfb8-430e-9c2d-e0c85b04b5fc)
+
+        
+    - changeNonFixedArray() 之後
+        
+        ![image](https://github.com/user-attachments/assets/0ffe0da9-ce48-438e-a50c-2a969dd31bb1)
+
+        
+3. 動態陣列
+    
+    ```solidity
+    contract ExampleContract {
+        // 1.固定
+        uint[3] arr1;
+    
+        // 2. 變動 ---可以使用push.pop
+        uint[] arr2;
+    
+        // 3.動態＋可變
+        uint[] arr3 = new uint[](2);
+    
+        // 賦值
+        function changeDynamicArray() external {
+            arr3[0] = 9;
+            arr3[1] = 10;
+            arr3.push(11);
+            arr3.push(12);
+        }
+    
+        function getDynamicArray() external view returns(uint[] memory) {
+            return arr3;
+        }
+    
+        function getDynamicArrayLength() external view returns(uint) {
+            return arr3.length;
+        }
+    }
+    ```
+    
+    - deploy後起始值
+        
+        ![image](https://github.com/user-attachments/assets/da227efa-d08c-4dd1-b89f-83f09da052a1)
+
+        
+    - changeDynamicArray() 之後
+        
+        ![image](https://github.com/user-attachments/assets/eb609211-f339-4890-b6af-29975184b075)
+
+### Array 總結：
+
+1. **固定長度陣列 `arr1`**：長度固定，無法動態增減元素，只能通過索引賦值。
+2. **變動長度陣列 `arr2`**：可以動態增減元素，使用 `push` 和 `pop` 操作來調整陣列長度。
+3. **動態長度陣列 `arr3`（初始有固定長度）**：初始時長度固定，但仍然是一個動態陣列，允許使用 `push` 和 `pop` 進行動態增減。
+
+## Struct
+
+在 Solidity 中，**`struct`** 是用來定義自訂型別的數據結構。
+
+- 定義與宣告
+    
+    ```solidity
+    contract ExampleContract {
+        // 定義一個 struct
+        struct Person {
+            string name;
+            uint age;
+            address wallet;
+        }
+    
+        // 宣告一個狀態變數，使用這個 struct 類型
+        Person public person;
+    }
+    ```
+    
+    - 結果
+        
+        ![image](https://github.com/user-attachments/assets/433068c9-4109-45dd-9dbe-f06eb6c950ac)
+        
+- 4種賦值寫法
+    
+    ```solidity
+    contract ExampleContract {
+        // 定義一個 struct
+        struct Person {
+            string name;
+            uint age;
+            address wallet;
+        }
+    
+        // 宣告一個狀態變數，使用這個 struct 類型
+        Person public person;
+    
+        function setPerson1() external {
+            Person storage _person = person;
+            _person.name = "Tim";
+            _person.age = 18;
+        }
+    
+        function setPerson2() external {
+            // 使用點語法（dot notation）
+            person.name = "John";
+            person.age = 30;
+        }
+    
+        function setPerson3() external {
+            person = Person("Ken", 60, 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4);
+        }
+    
+        function setPerson4() external {
+            person = Person({name: "Gary", age: 90, wallet: 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4});
+        }
+    }
+    ```
+    
+    - 注意：`setPerson1()` 中的 `Person storage _person = person;`
+        - 創建了一個指向合約中實際儲存在 `storage` 的 `person` 的引用。
+        - 對 `_person` 所做的任何修改，將直接影響原來存儲的 `person`。
+- `struct` 的常見應用
+    1. **儲存複雜數據結構**：
+    當合約需要處理包含多個欄位的數據時，`struct` 是非常理想的解決方案。例如，儲存一個人的詳細資訊、車輛數據、物品資訊等。
+    2. **管理多個對象的集合**：
+    通常我們會使用 `struct` 來管理一組相關的數據，例如一組玩家、交易或產品。結構體可以用來定義每個對象的屬性，然後將它們存儲在陣列或 `mapping` 中。
+    3. **建構複雜的智能合約**：
+    當需要處理更複雜的業務邏輯時，`struct` 提供了一種清晰的數據建模方式。例如，在拍賣合約中，`Auction` 可以是一個 `struct`，裡面包含拍賣商品、出價、拍賣時間等多個欄位。
+    4. **與 `mapping` 結合**：
+    `struct` 經常與 `mapping` 一起使用來快速存取和管理複雜的數據。例如，可以通過 `mapping(address => Person)` 來將每個地址與一個 `Person` 結構體相關聯。
+        
+        ```solidity
+        contract Example {
+        		struct Person {
+        		string name;
+        		uint age;
+        		address wallet;
+        		}
+        		
+        		// 使用 mapping 將 address 與 Person 結構體關聯
+        	mapping(address => Person) public personMapping;
+        	
+        	// 添加或更新 Person 資訊
+        	function setPerson(string memory _name, uint _age) public {
+        	    personMapping[msg.sender] = Person(_name, _age, msg.sender);
+        	}
+        	
+        	// 獲取某個地址的 Person 資訊
+        	function getPerson(address _person) public view returns (string memory, uint, address) {
+        	    Person memory person = personMapping[_person];
+        	    return (person.name, person.age, person.wallet);
+        	}
+        }
+        ```
+        
+
+### Struct 總結 :
+
+- **`struct`** 是用來定義自訂數據型別的工具，能將多種不同類型的資料組合在一起。
+- 常見應用包括儲存和管理複雜的數據，如人的資訊、產品資訊、交易詳情等。
+- 可以與陣列或 `mapping` 結合來管理多個實體。
+- 透過 `struct`，可以有效提高代碼的結構性和可讀性，讓智能合約的邏輯更清晰、易於維護。
 
 <!-- Content_END -->
