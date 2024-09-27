@@ -1,3 +1,4 @@
+
 ---
 timezone: Asia/Shanghai
 ---
@@ -104,5 +105,15 @@ storage（合约的状态变量）赋值给本地storage（函数里的）,memor
 - tansfer和send的区别在于，如果接收者合约没有receive函数，那么transfer会回滚交易，而send会返回一个布尔值，表示交易是否成功。
 - call和send的区别在于，call可以调用合约的任何函数，而send只能发送ETH。call可以返回一个布尔值，表示交易是否成功，也可以返回一个字节数组，表示函数的返回值。
 - (bool success,) = _to.call{value: amount}(""); // 使用call发送ETH, **("")为msg，如果receive()无法处理，就会调用fallback()**
-  
+### 2024.09.26
+- _Name(_Address).f()，其中f()是要调用的函数。
+-  如果能直接调用原合约的set() 是不安全的
+-  call
+   - 目标合约地址.call(字节码); abi.encodeWithSignature("函数签名", 逗号分隔的具体参数) 
+   - 返回 (bool, bytes memory) 需要通过abi.decode解码
+   - 失败会调用 fallback()函数
+-  Delegatecall
+     - 而当用户A通过合约B来delegatecall合约C的时候，执行的是合约C的函数，但是上下文仍是合约B的：msg.sender是A的地址，并且如果函数改变一些状态变量，产生的效果会作用于合约B的变量上。
+     - ![](https://images.mirror-media.xyz/publication-images/VgMR533pA8WYtE5Lr65mQ.png?height=698&width=1860) 
+     - ![](https://images.mirror-media.xyz/publication-images/JucQiWVixdlmJl6zHjCSI.png?height=702&width=1862)
 <!-- Content_END -->
