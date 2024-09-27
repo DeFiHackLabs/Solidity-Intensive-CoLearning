@@ -394,4 +394,25 @@ assert gas最多，返回的错误信息未知
 上边mapping没初始化，所以都会报错
 
 
+### 2024.09.26
+
+pragma solidity ~0.8.21;
+contract overrideTest{
+
+    function getString() public pure returns(string memory){
+        return "hello";
+    }
+    function getString(string memory msg) public pure returns(string memory){
+        
+        return string.concat("hello",msg); 
+    }
+    function f(uint8 _in) public pure returns(uint8 out){
+        out=_in;
+    }
+    function f(uint256 _in) public pure returns(uint256 out){
+        out=_in;
+    }
+}
+重载就是可以声明多个相同名字不同参数类型的方法
+
 <!-- Content_END -->
