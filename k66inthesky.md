@@ -45,6 +45,11 @@ timezone: Asia/Shanghai (UTC+8)
 > 看[這篇](https://medium.com/taipei-ethereum-meetup/solidity-weekly-11-70c5208a3bf1)才懂`pure`、`view`是為取代`constant`(到v0.4.17才取代)。
 > 此外`internal`、`external`蠻好懂。
 
+### 2024.09.26
+學習內容: `4.Return`
+> 分`returns`和`returns`，後者和其他程式語言類似，前者跟在函數名後面。
+> 特別的寫法，解構式賦值: `(, _bool2, ) = returnNamed();`
+> 
 
 
 <!-- Content_END -->

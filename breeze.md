@@ -20,4 +20,7 @@ of course
 I studied lessons 01-03 of the Solidity 101 course from WTF Academy and completed the corresponding tasks
 ### 2024.09.24
 completed lessons 04-06
+### 2024.09.26
+completed lessons 07-09
+
 <!-- Content_END -->

@@ -55,4 +55,8 @@ d) Execute the contract code
 - 今天在看 Wagmi 和 Wallet Connect 相关的内容。我在 lido 的 dao-voting-ui 仓库里看源代码，梳理了整个 UI 和合约侧交互的逻辑。 web3 的 交互需要把 Contract 的 Abi 的 Json 文件传给 Wagmi，然后 Wagmi 会生成一些代码来给JS 调用 （React 则是以各种 Hook 的形式。 这里很麻烦，没有上手实践，明天继续看代码。
 
 
+
+### 2024.09.26
+- 今天对着 WTF 34 写 ERC721 的实现，总算搞懂了 NFT 是如何被实现的。
+- 说一个我觉得有意思的点：NFT 就是通过合约内的 tokenUri() 以及 tokenId 指向IPFS上的一个数据文件。所有的交易部分都是在合约里。看懂了这一点就觉得很神奇。
 <!-- Content_END -->

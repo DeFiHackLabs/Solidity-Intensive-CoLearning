@@ -329,4 +329,39 @@ contract ReferenceType{
     }
 }
 ```
+
+### 2024.09.26
+
+學習內容:
+
+- [x] 了解solidity中各种类型的初始化值
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+contract MyContract{
+    bool public _bool; // false
+    string public _string; // ""
+    int public _int; // 0
+    uint public _uint; // 0
+    address public _address; // 0x0000000000000000000000000000000000000000
+    enum ActionSet { Buy, Hold, Sell}
+    ActionSet public _enum; // 第1个内容Buy的索引0
+    function fi() internal{} // internal空白函数
+    function fe() external{} // external空白函数 
+}
+```
+- [x] 了解solidity中的常量constant、immutable关键字
+    - constant: 修饰函数，表示函数不会修改状态变量，不消耗gas，不上链
+    - immutable: 修饰状态变量，表示状态变量只能在构造函数中赋值，不可修改，不消耗gas，不上链
+
+- [x] 了解控制流
+    - if...else
+    - for
+    - while
+    - do...while
+    - 三元运算符
+
+```solidity
+
 <!-- Content_END -->
