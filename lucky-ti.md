@@ -452,6 +452,30 @@ require > assert > error
 
 ### 2024.09.27
 
+章节16——18
+
+笔记：
+
+Solidity中允许函数进行重载（overloading），即名字相同但输入参数类型不同的函数可以同时存在，他们被视为不同的函数。注意，Solidity不允许修饰器（modifier）重载。
+```
+function f(uint8 _in) public pure returns (uint8 out) {
+    out = _in;
+}
+function f(uint256 _in) public pure returns (uint256 out) {
+    out = _in;
+}
+// 调用f(50)，因为50既可以被转换为uint8，也可以被转换为uint256，因此会报错。
+```
+库合约和普通合约主要有以下几点不同：
+
+1.不能存在状态变量
+2.不能够继承或被继承
+3.不能接收以太币
+4.不可以被销毁
+
+库合约可见性被设置为public或者external,在调用函数时会触发一次delegatecall。
+
+
 
 
 
