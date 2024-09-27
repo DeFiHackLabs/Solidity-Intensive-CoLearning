@@ -15,7 +15,7 @@ timezone: Asia/Taipei
 <!-- Content_START -->
 
 ### 2024.09.23
-學習內容  
+學習內容 Solidity 101  
 筆記:  
 #### Mapping
 ###### 使用 mapping 的時機？
@@ -208,14 +208,14 @@ function callParent() public{
 學習內容  
 筆記:  
 
-抽象合約(abstract)
+#### 抽象合約(abstract)
 - 如果合約裡有一個未實現的函數, 則必須將該合約標示為 abstract, 且未實現的函數需要加上 virtual, 以便子合約重寫
 ```solidity
 abstract contract InsertionSort{
    function fun1(uint[] memory a) public pure virtual returns(uint[] memory);
 }
 ```
-接口(interface)
+#### 接口(interface)
 - 接口類似抽象合約, 但不實現任何功能
 - 定義了合約的功能及如何觸發接口
 - 接口提供 1.合約裡每個函數的 bytes4 選擇器及函數簽名 2.接口 id
@@ -244,7 +244,7 @@ contract interactBAYC {
     }
 }
 ```
-異常
+#### 異常
 - 三種方法 error, require, assert
 - gas 消耗程度 require > error > assert
 
@@ -280,6 +280,52 @@ function transferOwner3(uint256 tokedId, address newOwner) public{
    _owners = newOwner;
 }
 ```
+<hr>
 
+### 2024.09.27
+學習內容 Solidity 102    
+筆記:  
 
+#### 函數重載
+重載(overloading), 名字相同但輸入參數類型不同的函數可以同時存在, 被視為不同函數; 注意, 不允許 modifier 重載
+疑問: 什時間點會使用到重載函數, 基本上我用函數的習慣不會重複命名
+
+實參匹配
+調用重載函數時, 會把輸入的實際參數和函數參數的變數類型做匹配, 如果出現多個匹配的重載函數, 會報錯
+ex: 調用f(50), 50 可以被轉換成 uint8, 也可以轉換成 uint256
+```Solidity
+function f(uint8 _in) public pure returns(uint8 out){
+   out = _in;
+}
+
+function f(uint256 _in) public pure returns(uint256 out){
+   out = _in;
+}
+```
+#### 庫合約
+- 目的, 減少程式碼的重複性和減少 gas
+- 常用的庫合約有, Strings, Address, Create2, Arrays
+兩種方式  
+1. 利用 using for 指令
+```Solidity
+using Strings for uint256;
+function getString1(uint256 _number) public pure returns(string memory){
+   return _number.toHexString();
+}
+```
+2. 通過庫合約名稱調用函數
+```Solidity
+function getString2(uint256 _number) public pure returns(string memory){
+   returns Strings.toHexString(_number);
+}
+```
+#### Import
+- 目的, 利用 import 引入外部程式碼, ex: 引用我們或別人寫好的合約, 函數, 程式碼
+
+用法
+1. 通過文件相對位置引用
+2. 通過全局符號, 引用指定的合約
+3. 通過網址引用
+4. 引用 OpenZeppelin 合約
+   
 <!-- Content_END -->
