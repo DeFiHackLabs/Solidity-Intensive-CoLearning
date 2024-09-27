@@ -319,8 +319,13 @@ function getString2(uint256 _number) public pure returns(string memory){
    returns Strings.toHexString(_number);
 }
 ```
+#### Import
+- 目的, 利用 import 引入外部程式碼, ex: 引用我們或別人寫好的合約, 函數, 程式碼
 
-
-
-
+用法
+1. 通過文件相對位置引用
+2. 通過全局符號, 引用指定的合約
+3. 通過網址引用
+4. 引用 OpenZeppelin 合約
+   
 <!-- Content_END -->
