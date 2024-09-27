@@ -390,7 +390,7 @@ contract MyContract{
         _;
     }
 
-    // 排序：编程时注意uint256是无符号，不能小于0，否则报错。
+    // 排序：编程时注意uint256是无符号，不能小于0，否则报错。 函数这里因为用了onlyOwner修饰器，修饰器中访问量global变量，所以，不能使用pure修饰器
     function sorted(uint256[] memory _param) external view onlyOwner returns(uint256[] memory){
         uint256 len = _param.length;
         for(uint256 i = 1; i < len; i++){
