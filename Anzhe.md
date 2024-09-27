@@ -530,4 +530,98 @@ function initStudent4() external {
     student = Student({id: 4, score: 60});
 }
 ```
+### 2024.09.27
+# 映射類型
+映射類型是一種鍵值對（Key-value Pair）資料結構的的變數類型，是引用類型變數的一種，使用者利用鍵值（Key） 查詢對應的值（Value）。語法是 `mapping(<Key type> => <Value Type>)`，`<Key Type>` 和 `<Value Type>` 分別是 Key 的變數類型和 Value 的變數類型。
+```
+mapping(uint => address) public idToAddress;
+mapping(address => address) public SwapPair;
+```
+## 映射規則
+1. Key 只能是 Solidity 的數值類型，不能使用引用類型的自定義結構，但 Vaule 可以使用自定義的結構。
+```
+struct Student{
+    uint256 id;
+    uint256 score;
+}
+mapping(Student => uint) public testVar;
+```
+2. 映射的儲存位置是 `storage`，可用於合約的狀態變數，作為函數中 `storage` 變數的參數和 `library` 函數的參數，但不可用於 `public` 函數的參數或回傳，因為映射紀錄的是一種關係（Key-value Pair）。
+3. 如果映射宣告為 `public`，那麼 Solidity 會自動為映射建立一個 `getter` 函數，透過 Key 來查詢對應的 Value。
+4. 映射新增鍵值對的語法為 `_Var[_Key] = _Value
+```
+function WriteMap(uint _Key, address _Value) public {
+    idToAddress[_Key] = _Value;
+}
+```
+5. 映射不儲存任何按鍵（Key）的資訊，也沒有 length 的資訊。
+6. 映射原理：使用 `keccak256(abi.encodePacked(key, slot))` 當成 offset 存取 value ，其中 slot 是映射變數定義所在的插槽位置。
+7. 因為乙太坊會定義所有未使用的空間為 0，所以未賦值（Value）的鍵（Key）初始值都是各個型別的預設值，如 `uint` 的預設值是 0。
+### 結果
+先用 WriteMap 輸入兩個參數設定 Key 和 Value，`idToAddress` 映射變數再用 Key 去查， Value 從預設值（0x000...）變成設定的 Value。
+![](https://i.imgur.com/dQVOn6e.png)
+# 變數初始值
+變數在宣告後如果沒有賦值，都有其初始值（預設值）。
+| 變數類型 | 初始值 |
+|---|---|
+| `bool` | `false` |
+| `string` | `""` |
+| `int` | `0` |
+| `uint` | `0` |
+| `bytes1` | `0x00` |
+| `enum` | 枚舉的第一個元素 |
+| `address` | `0x0000000000000000000000000000000000000000` 或 `address(0)`|
+| `function` | `internal`、`external` 都是空白函數 |
+| `mapping` | 所有元素設為其預設值，mapping 本身會回傳 ValueType 變數類型的的初始值 |
+| `struct` | 所有成員設為其預設值 |
+| `array` | 動態陣列：`[]`、 靜態陣列：所有成員設為其預設值|
+```
+uint[8] public _staticArray; // [0,0,0,0,0,0,0,0]
+uint[] public _dynamicArray; // `[]`
+mapping(uint => address) public _mapping;
+struct Student{
+    uint256 id; // 0
+    uint256 score; // 0
+}
+Student public student;
+```
+註：mapping 本身會回傳 ValueType 變數類型的的初始值，所以 `_mapping` 的初始值是 address 的預設值 `0x0000000000000000000000000000000000000000`
+### delete 操作符
+`delete a` 讓變數 `a` 的值變為初始值。
+```
+bool public _bool2 = true;
+function d() external {
+    delete _bool2; // _bool2 變成初始值 false
+}
+```
+# 常數
+狀態變數宣告 `constant` 和 `immutable` 這兩個關鍵字後，狀態變數就不能在初始化後更改數值，可以提升合約安全性和節省 gas。
+只有數值變數可以聲明 `constant` 和 `immutable`；`string` 和 `bytes` 可宣告為 `constant`，但不能是 `immutable`。
+## Constant
+constant 必須宣告時初始化變數，宣告時必須賦值，之後變數不能再變更數值。
+```
+uint256 constant CONSTANT_NUM = 10;
+string constant CONSTANT_STRING = "0xAA";
+bytes constant CONSTANT_BYTES = "WTF";
+address constant CONSTANT_ADDRESS = 0x0000000000000000000000000000000000000000;
+```
+## Immutable
+immutable 變數可以在宣告時或建構子中初始化，若 immutable 變數既在宣告時初始化，又在 constructor 中初始化，會使用 constructor 初始化的值，用法更靈活。
+```
+uint256 public immutable IMMUTABLE_NUM = 9999999999;
+address public immutable IMMUTABLE_ADDRESS;
+uint256 public immutable IMMUTABLE_BLOCK;
+uint256 public immutable IMMUTABLE_TEST;
+// 利用建構子初始化 immutable 變數
+constructor(){
+    IMMUTABLE_ADDRESS = address(this);
+    IMMUTABLE_NUM = 1118;
+    IMMUTABLE_TEST = test(); // 利用函數給 IMMUTABLE_TEST 初始化為 9
+}
+function test() public pure returns(uint256){
+    uint256 what = 9;
+    return(what);
+}
+```
+
 <!-- Content_END -->
