@@ -102,33 +102,33 @@ uint256[3] memory _array;
 ### 2024.09.26
 ## 05_DataStorage
 
-引用類型
+#### 引用類型
 引用類型包括：array（數組）和 struct（結構體）。
 這些類型的變數較為複雜，佔用較多存儲空間，因此需要明確聲明數據存儲的位置。
 
-數據存儲位置
+#### 數據存儲位置
 Solidity 中的數據存儲位置有三類：storage、memory 和 calldata，每種位置的 gas 消耗不同：
 
 storage：合約中的狀態變數默認存儲在 storage，數據存在鏈上，消耗較多 gas，類似電腦的硬碟。
 memory：函數中的參數和臨時變數通常用 memory，數據存在內存中，不上鏈，消耗較少 gas，適用於返回變長數據類型。
 calldata：類似於 memory，但數據不可修改，用於函數參數。
 
-數據位置與賦值規則
+#### 數據位置與賦值規則
 引用：當 storage 賦值給另一個 storage 或 memory 賦值給另一個 memory 時，會創建引用，修改一方會影響另一方
 副本：其他情況下賦值會創建副本，修改其中一方不會影響另一方
 
-變數的作用域
+#### 變數的作用域
 狀態變數：存儲在鏈上，合約內所有函數可訪問，gas 消耗高，合約內、函數外聲明
 局部變數：僅在函數執行過程中有效，存儲在內存中，不上鏈，gas 消耗低，函數內聲明
 全局變數：Solidity 預留的關鍵字，在函數內可直接使用，如 msg.sender、block.number 等
 
-以太單位與時間單位
+#### 以太單位與時間單位
 以太單位：Solidity 中無法使用小數點，使用 wei、gwei、ether 等單位來表示不同的以太值，確保交易的精確性。
 wei: 1
 gwei: 1e9
 ether: 1e18
 
-時間單位：可使用 seconds、minutes、hours 等來設置合約中的時間，確保操作的準確性。
+#### 時間單位：可使用 seconds、minutes、hours 等來設置合約中的時間，確保操作的準確性。
 seconds: 1
 minutes: 60
 hours: 3600
@@ -136,6 +136,47 @@ days: 86400
 weeks: 604800
 
 ### 2024.09.27
+
+#### 數組（Array）
+數組是用來存儲一組數據的變量類型，可分為固定長度數組和可變長度數組兩種：
+固定長度數組：在聲明時指定長度，格式為 T[k]，其中 T 是元素類型，k 是長度，例如：uint[8] array1;
+可變長度數組：在聲明時不指定長度，格式為 T[]，例如：uint[] array4;
+
+#### 創建數組的規則：
+使用 memory 修飾的動態數組可以用 new 操作符創建，必須指定長度，且創建後長度不能改變，例如：uint;
+數組字面常數用來初始化數組，例如 [uint(1), 2, 3]，元素類型以第一個元素為準
+
+#### 數組成員：
+length: 表示數組的長度
+push(): 在動態數組末尾添加一個元素
+pop(): 移除數組末尾的元素
+
+#### 結構體（Struct）
+結構體允許自定義類型，其元素可以是原始類型或引用類型。結構體可以作為數組或映射的元素
+
+#### 創建結構體的方法：
+存儲引用：在函數中創建一個 storage 的 struct 引用
+```solidity
+Student storage _student = student;
+_student.id = 11;
+_student.score = 100;
+```
+
+直接引用狀態變量的 struct
+```solidity
+student.id = 1;
+student.score = 80;
+```
+
+構造函數式
+```solidity
+student = Student(3, 90);
+```
+
+鍵值對方式
+```solidity
+student = Student({id: 4, score: 60});
+```
 
 ### 2024.09.28
 
