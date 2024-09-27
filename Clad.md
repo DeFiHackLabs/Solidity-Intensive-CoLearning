@@ -302,6 +302,23 @@ function f(uint256 _in) public pure returns(uint256 out){
    out = _in;
 }
 ```
+#### 庫合約
+- 目的, 減少程式碼的重複性和減少 gas
+- 常用的庫合約有, Strings, Address, Create2, Arrays
+兩種方式  
+1. 利用 using for 指令
+```Solidity
+using Strings for uint256;
+function getString1(uint256 _number) public pure returns(string memory){
+   return _number.toHexString();
+}
+```
+2. 通過庫合約名稱調用函數
+```Solidity
+function getString2(uint256 _number) public pure returns(string memory){
+   returns Strings.toHexString(_number);
+}
+```
 
 
 
