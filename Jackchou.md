@@ -205,5 +205,119 @@ You can use getter function of public variables to confirm initial values:
     Student public student;
 
 ```
-### 
+###
+### 2024.09.28
+
+- Value-typed variables can be declared as constant and immutable; string and bytes can be declared as constant, but not immutable.
+
+- constant and immutable
+constant
+constant variable must be initialized during declaration and cannot be changed afterwards. Any modification attempt will result in error at compilation.
+```
+    // The constant variable must be initialized when declared and cannot be changed after that
+    uint256 constant CONSTANT_NUM = 10;
+    string constant CONSTANT_STRING = "0xAA";
+    bytes constant CONSTANT_BYTES = "WTF";
+    address constant CONSTANT_ADDRESS = 0x0000000000000000000000000000000000000000;
+```
+Copy
+- Immutable
+- The immutable variable can be initialized during declaration or in the constructor, which is more flexible.
+```
+    // The immutable variable can be initialized in the constructor and cannot be changed later
+    uint256 public immutable IMMUTABLE_NUM = 9999999999;
+    address public immutable IMMUTABLE_ADDRESS;
+    uint256 public immutable IMMUTABLE_BLOCK;
+    uint256 public immutable IMMUTABLE_TEST;
+```  
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+contract Constant {
+    // constant变量必须在声明的时候初始化，之后不能改变
+    uint256 public constant CONSTANT_NUM = 10;
+    string public constant CONSTANT_STRING = "0xAA";
+    bytes public constant CONSTANT_BYTES = "WTF";
+    address public constant CONSTANT_ADDRESS = 0x0000000000000000000000000000000000000000;
+
+    // immutable变量可以在constructor里初始化，之后不能改变
+    uint256 public immutable IMMUTABLE_NUM = 9999999999;
+    address public immutable IMMUTABLE_ADDRESS;
+    uint256 public immutable IMMUTABLE_BLOCK;
+    uint256 public immutable IMMUTABLE_TEST;
+
+    // 利用constructor初始化immutable变量，因此可以利用
+    constructor(){
+        IMMUTABLE_ADDRESS = address(this);
+        IMMUTABLE_NUM = 1118;
+        IMMUTABLE_TEST = test();
+    }
+
+    function test() public pure returns(uint256){
+        uint256 what = 9;
+        return(what);
+    }
+}
+```  
+###
+
+### 2024.09.29
+if-else
+function ifElseTest(uint256 _number) public pure returns(bool){
+    if(_number == 0){
+    return(true);
+    }else{
+    return(false);
+    }
+}
+
+Copy
+for loop
+function forLoopTest() public pure returns(uint256){
+    uint sum = 0;
+    for(uint i = 0; i < 10; i++){
+    sum += i;
+    }
+    return(sum);
+}
+
+Copy
+while loop
+function whileTest() public pure returns(uint256){
+    uint sum = 0;
+    uint i = 0;
+    while(i < 10){
+    sum += i;
+    i++;
+    }
+    return(sum);
+}
+
+Copy
+do-while loop
+function doWhileTest() public pure returns(uint256){
+    uint sum = 0;
+    uint i = 0;
+    do{
+    sum += i;
+    i++;
+    }while(i < 10);
+    return(sum);
+}
+
+Copy
+Conditional (ternary) operator
+The ternary operator is the only operator in Solidity that accepts three operands：a condition followed by a question mark (?), then an expression x to execute if the condition is true followed by a colon (:), and finally the expression y to execute if the condition is false: condition ? x : y.
+
+This operator is frequently used as an alternative to an if-else statement.
+
+// ternary/conditional operator
+function ternaryTest(uint256 x, uint256 y) public pure returns(uint256){
+    // return the max of x and y
+    return x >= y ? x: y; 
+}
+
+Copy
+In addition, there are continue (immediately enter the next loop) and break (break out of the current loop) keywords that can be used.
+###
 <!-- Content_END -->
