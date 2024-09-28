@@ -2,8 +2,6 @@
 timezone: Asia/Taipei
 ---
 
----
-
 # Haoder
 
 1. 自我介绍  
@@ -35,5 +33,17 @@ LFG～～～～～ 會完成的
 ### 2024.09.27
 
 [**WTF Solidity 極簡入門：5. 變量數據儲存和作用域**](<content/Haoder/md/105.md>)
+
+### 2024.09.28
+
+[**WTF Solidity 極簡入門：6. 引用類型**](<content/Haoder/md/106.md>)
+
+[**WTF Solidity 極簡入門：7. 映射類型**](<content/Haoder/md/107.md>)
+
+[**WTF Solidity 極簡入門：8. 變量初始值**](<content/Haoder/md/108.md>)
+
+[**WTF Solidity 極簡入門：9. 常數**](<content/Haoder/md/109.md>)
+
+[**WTF Solidity 極簡入門：10. 控制流**](<content/Haoder/md/110.md>)
 
 <!-- Content_END -->
