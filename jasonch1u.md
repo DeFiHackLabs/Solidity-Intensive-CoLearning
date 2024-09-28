@@ -542,17 +542,10 @@ owner = _newOwner; // 只有owner地址运行这个函数，并改变owner
 }
 ```
 #### 12_Event
-* 監聽事件
-* 省gas fee
-
-聲明事件
-12_Event
-
 * 監聽事件，方便被找出來
 * 省gas fee，用事件儲存資料，比直接存鍊上數據，gas fee便宜10倍
 
 聲明事件
-
 ```solidity
 event Transfer(address indexed from, address indexed to, uint256 value); //正確通用
 
@@ -628,9 +621,8 @@ contract Events {
 ```
 
 ### 2024.09.27
-DeFiHackLabs-BootCamp
-
-建立ERC20合約
+* 複習12_Event並更新筆記
+* BootCamp任務：建立ERC20合約
 
 ```solidity
 
@@ -655,7 +647,8 @@ contract DefiHackLabsToken is ERC20 { //繼承ERC20
 ```
 
 ### 20204.09.28
-DeFiHackLabs-BootCamp
+* BootCamp作業：ERC20發幣合約、測試合約
+
 #### 13_Inheritance
 
 #### 14_Interface
