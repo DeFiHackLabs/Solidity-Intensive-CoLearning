@@ -87,4 +87,42 @@ contract HelloWeb3{
    - `view`函数可以读取状态变量。
 
 - `[returns ()]`：函数返回的变量类型和名称。
+
+### 2024.09.28
+####  4. 函数输出
+- returns：跟在函数名后面，用于声明返回的变量类型及变量名。
+- return：用于函数主体中，返回指定的变量。
+
+##### 命名式返回
+可以在 returns 中标明返回变量的名称。Solidity 会初始化这些变量，在函数直接修改就能自动返回这些值，无需使用 return。
+```
+// 命名式返回
+function returnNamed() public pure returns(uint256 _number, bool _bool, uint256[3] memory _array){
+    _number = 2;
+    _bool = false;
+    _array = [uint256(3),2,1];
+}
+```
+当然，想要使用return也可以。
+```
+// 命名式返回，依然支持return
+function returnNamed2() public pure returns(uint256 _number, bool _bool, uint256[3] memory _array){
+    return(1, true, [uint256(1),2,5]);
+}
+```
+##### 解构式赋值
+Solidity 支持使用解构式赋值规则来读取函数的全部或部分返回值
+- 读取所有返回值：声明变量，然后将要赋值的变量用`,`隔开，注意按顺序排列
+```
+uint256 _number;
+bool _bool;
+uint256[3] memory _array;
+(_number, _bool, _array) = returnNamed();
+```
+- 读取部分返回值：声明要读取的返回值对应的变量，不读取的留空。在下面的代码中，我们只读取_bool
+```
+(, _bool2, ) = returnNamed();
+```
+
+
 <!-- Content_END -->
