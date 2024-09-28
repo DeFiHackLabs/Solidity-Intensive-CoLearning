@@ -57,4 +57,6 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 [Note for Solidity 101 Ch5-7](https://warp-icecream-5ae.notion.site/Ch5-7-10d6892cc8a680088ee5f642d904f33e) 
 ### 2024.09.26
 [Note for Solidity 101 Ch8-9](https://warp-icecream-5ae.notion.site/Ch8-9-10e6892cc8a68065a1d7c73973f9b1c8) 
+### 2024.09.27
+[Note for Solidity 101 Ch8-10](https://warp-icecream-5ae.notion.site/Ch8-9-10e6892cc8a68065a1d7c73973f9b1c8) 
 <!-- Content_END -->

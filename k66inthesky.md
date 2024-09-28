@@ -62,4 +62,20 @@ timezone: Asia/Shanghai (UTC+8)
 
 + 心得: 這章和gas和省空間(是否上鏈)息息相關，若未來寫合約時產生不必要的gas浪費，可回頭看這章找靈感。
 
+### 2024.09.28
+學習內容: `6.Array and Struct`
+> `array`: `T[k]`, `T[]`, `bytes`, `bytes1`, `bytes`比`bytes1`省gas。
+> `push()`, ,`push(x)`, `pop()`
+
+```
+struct先創建後賦值: 
+struct Student{
+   uint256 id;
+   uint256 score;
+}
+function initStu() external {
+   _stu = Student(3,90);
+}
+```
+
 <!-- Content_END -->

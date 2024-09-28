@@ -184,7 +184,7 @@ timezone: Asia/Shanghai
     - 0.4.22 版本後, 以 `constructor` 關鍵字定義建構函數, 避免出現因 typo 造成漏洞
         > example: Ethernaut CTF Fal1out
 
-- 修飾器 (modifier)
+- 修飾器 (Modifier)
     - 控制合約權限
 
 ### 2024.09.27
@@ -217,8 +217,106 @@ timezone: Asia/Shanghai
 
 
 - 日誌 (Log)
-    - `topics`: `keccak256("Transfer(address,address,uint256)")`
-    - `data`
+    - `topics`: 函數簽名 e.g. `keccak256("Transfer(address,address,uint256)")`
+    - `data`: 事件中不含 `index` 的資料會儲存在 data
 
+# 2024.09.28
+
+> 進度: Solidity 101 13~15
+
+- 繼承 `inheritance`
+    - 合約繼承
+        ```
+        contract ChildContract is ParentContract {
+        }
+        ```
+        - 父合約中希望子合約重寫的函數, 要加上 `virtual` 關鍵字
+            ```
+            function hip() public virtual {
+                emit Log("Parent");
+            }
+            ```
+        - 子合約內重寫合約函數, 要加上 `override` 關鍵字
+            ```
+            function hip() public override {
+                emit Log("Child");
+            }
+            ```
+        - 多重繼承
+            ```
+            contract ChildContract is GrandParentContract, ParentContract, {
+            }
+            ```
+            - 輩分高 -> 輩分低
+            - 若函數在多個繼承的合約都存在, 子合約裡必須重寫 `override(GrandParent, Parent)`
+    - 修飾器繼承
+        - 在繼承的合約中, 可以直接用父合約中的修飾器, 也可以重寫
+            ```
+            modifier exactDividedBy2And3(uint _a) override {
+            }
+            ```
+    - 建構函數
+        - 繼承時宣告父建構函數的參數
+            ```
+            contract DeFiHackLabsToken is ERC20("DeFiHackLabs", "HACK") {
+                constructor(uint256 initialSupply) {
+                    _mint(msg.sender, initialSupply * 10 ** decimals());
+                }
+
+                function decimals() public view virtual override returns (uint8) {
+                    return 18;
+                }
+            }
+            ```
+        - 在子合約的建構函數中宣告建構函數的參數
+            ```
+            contract DeFiHackLabsToken is ERC20 {
+                constructor(uint256 initialSupply) ERC20("DeFiHackLabs", "HACK") {
+                    _mint(msg.sender, initialSupply * 10 ** decimals());
+                }
+
+                function decimals() public view virtual override returns (uint8) {
+                    return 18;
+                }
+            }
+            ```
+    - 於子合約中呼叫父合約函數
+        - 直接呼叫
+            ```
+            ParentContract.func();
+            ```
+        - 使用 `super` 關鍵字，會呼叫到最近的父合約函數
+            ```
+            super.func(); // ParentContract.func() 而不是 GrandParent.func()
+            ```
+    - 鑽石/菱形繼承: 繼承自兩個以上的合約
+        - 注意使用 `super` 關鍵字的呼叫順序
+
+- 抽象合約
+    - 合約中有未實現的函數, 需標註為抽象 `abstract`, 該為實現函數需標註 `virtual`
+        ```
+        abstract contract InsertionSort{
+            function insertionSort(uint[] memory a) public pure virtual returns(uint[] memory);
+        }
+        ```
+
+- 接口/介面 (Interface)
+    - 性質
+        - 不能包含狀態變數
+        - 不能包含建構函數
+        - 只能繼承接口合約
+        - 所有函數必須為 `external`, 不能有功能
+        - 繼承接口的非抽象合約必須實現接口內功能
+    - 資訊
+        - 每個函數的 `bytes4` 選擇器, 函數簽名
+        - 接口 id
+    - 不須知道原始碼即可與之互動, 且與 ABI 可互相轉換
+
+- 異常種類
+    - `error`: solidity 0.8.4 新增, 可以在合約外定義 `error`, 在合約內搭配 `revert` 使用, 較省 gas
+    - `require`: solidity 0.8 之前, gas 隨著描述異常的字數增加而增加
+        - e.g. `require(_owners[tokenId] == msg.sender, "Transfer Not Owner");`
+    - `assert`: 確認某些已知條件, 常用於除錯 
+        - e.g. `assert(檢查條件);`
 
 <!-- Content_END -->

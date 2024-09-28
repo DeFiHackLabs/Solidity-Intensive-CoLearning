@@ -306,9 +306,44 @@ struct student{
     }
 ```
 
+###
+
+### 2024.09.28
+
+# 映射类型 mapping
++ Mapping 在 Solidity 中是一种数据结构
++ 类似于其他编程语言中的哈希表或字典。
++ 它允许你将一个特定类型的值映射到另一个特定类型的值。
 
 
+## 语法
+```solidity
+mapping(keyType => valueType) variableName;
+```
+keyType：可以是任何内置类型或用户自定义类型，但不能是动态类型（如 bytes 和 string），也不能是映射类型或包含映射类型的结构体或数组。  
+valueType：可以是任何类型，包括内置类型、用户自定义类型、结构体、数组等。
+```solidity
+pragma solidity ^0.8.0;
 
+contract MappingExample {
+    mapping(address => uint) public balances;
+
+    function setBalance(address _addr, uint _amount) public {
+        balances[_addr] = _amount;
+    }
+
+    function getBalance(address _addr) public view returns (uint) {
+        return balances[_addr];
+    }
+}
+``` 
++ 创建了一个名为 balances 的映射 将 address 类型的地址映射到 uint 类型的余额
+
+
+## 特点：
++ Mapping 是一种存储在存储（storage）中的数据结构，而不是内存（memory）或临时（calldata）数据结构。
++ Mapping 不能被迭代，因为 Solidity 目前没有提供一种直接的方法来遍历映射的所有键值对。
++ Mapping 的键类型不能是动态类型，这是为了确保在存储中可以有效地定位和访问值。
 
 
 

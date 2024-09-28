@@ -292,7 +292,8 @@ contract array_struct {
 
 总结：对语法不熟悉，对数组修饰符之间的变量赋值影响理解不够深刻。
 
-##2024/09/27
+### 2024/09/27
+
 学习了mapping的映射。
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.21;
@@ -316,6 +317,53 @@ contract Map{
 
 }
 
+### 2024/09/28
+学习了变量初始值的，以及如何使用delete方法恢复变量的初始值。
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+contract initValue {
+
+    bool public  _bool;
+    string public _string;
+    int public _int;
+    uint public _uint;
+    address public _address;
+
+    enum Action {Buy, Hold, Sell}
+
+    Action public _enum;
+
+    struct Student {
+        uint score;
+        uint id;
+    }
+
+    Student private _tom;
+
+    function fi() internal {}
+
+    function gi() external  {}
+
+    uint256 [5] _static;
+    uint [] _dynamic;
+
+    function test_bool() public {
+        _bool = true;
+    }
+
+    function call() external returns(bool )  {
+        this.test_bool();
+        return _bool;
+
+    }
+
+    function call_delete() external  {
+        _bool = this.call();
+        delete _bool;
+    }
+}
+
+![image](https://github.com/user-attachments/assets/f72bb525-5f6d-4143-9449-f1a69d8ed252)
 
 
 <!-- Content_END -->
