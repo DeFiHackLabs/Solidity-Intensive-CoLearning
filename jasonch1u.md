@@ -630,6 +630,27 @@ contract Events {
 ### 2024.09.27
 DeFiHackLabs-BootCamp
 
+建立ERC20合約
+
+```solidity
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol"; //import
+
+contract DefiHackLabsToken is ERC20 { //繼承ERC20
+
+    uint256 public initialSupply = 1000; //設定初始發行量
+
+    constructor() ERC20("DefiHackLabs", "HACK") { //constructor() 後面接 ERC20("代幣名稱","代幣符號")
+        _mint(msg.sender, initialSupply * 10**decimals()); // _mint(地址,代幣量)，通常這邊都是用_mint
+
+    }
+}
+
+```
+
 ### 20204.09.28
 DeFiHackLabs-BootCamp
 #### 13_Inheritance
