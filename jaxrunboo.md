@@ -339,4 +339,63 @@ require(condition,"error messager");
 
 ###
 
+### 2024.09.28
+
+#### 1. 重载
+
+函数重载，即函数名称相同，但是入参不同的
+
+```solidity
+function saySomething() public pure returns(string memory){
+    return("Nothing");
+}
+
+function saySomething(string memory something) public pure returns(string memory){
+    return(something);
+}
+```
+
+#### 2. 库合约
+
+高级语言都会有的东西。solidity的库合约看起来是已经部署在线上的，可以直接引用。
+
+特点：
+
+1. 不能存在状态变量
+2. 不能够继承或被继承
+3. 不能接收以太币
+4. 不可以被销毁
+
+使用方式：
+
+1. using for语法
+
+```solidty 
+//library
+library Strings {
+    
+}
+
+// 利用using for指令
+using Strings for uint256;
+
+function getString1(uint256 _number) public pure returns(string memory){
+    // 库合约中的函数会自动添加为uint256型变量的成员
+    return _number.toHexString();
+}
+```
+
+2. 直接库合约名称调用
+
+这个有点像静态对象函数直接调用
+
+```solidity
+// 直接通过库合约名调用
+function getString2(uint256 _number) public pure returns(string memory){
+    return Strings.toHexString(_number);
+}
+```
+
+###
+
 <!-- Content_END -->
