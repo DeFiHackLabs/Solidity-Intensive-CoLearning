@@ -191,4 +191,18 @@ function reset() external {
 
 `immutable` 可以在聲明時，或是 `constructor` 中初始化，若 `immutable` 已在聲明中初始化，又再 `constructor` 中初始化，則會使用 `constructor` 初始化的值
 
+### 2024.09.27
+
+#### 13. Inheritance
+
+多重繼承：
+
+`solidity` 的合約可以繼承多個合約，規則如下：
+
+1. 繼承要按照輩分，從最高的到最低的照順序排。比如我寫一個 `A` 合約，它繼承 `B` 和 `C` 合約，那麼就要寫成
+
+```solidity
+contract A is B, C
+```
+
 <!-- Content_END -->

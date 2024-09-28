@@ -47,5 +47,8 @@ function returnNamed2() public pure returns(uint256 _number, bool _bool, uint256
 array和 struct 需要的儲存空間比較大故需指定類型, storage在鏈上, memory和 calldata在 local，比較省gas.
 今天首次操作debug, 原來要是live debug,要按 forward才會變動
 
+### 2024.09.28
+array和struct的使用，先看快速掃過。
+array型態在第一個元素宣告即可。如果使用memory則是固定長度。
 
 <!-- Content_END -->

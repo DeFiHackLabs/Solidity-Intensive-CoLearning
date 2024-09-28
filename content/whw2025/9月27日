@@ -1,0 +1,31 @@
+第七节映射类型 mapping（哈希表）
+
+
+1、在映射中，人们可以通过键（Key）来查询对应的值（Value）
+
+2、映射规则：
+1）映射的_KeyType只能选择Solidity内置的值类型，比如uint，address等，不能用自定义的结构体。而_ValueType可以使用自定义的类型。
+2）映射的存储位置必须是storage，因此可以用于合约的状态变量，函数中的storage变量和library函数的参数；
+3）为了保持映射数据的持久性和一致性，mapping 只能存储在合约的持久存储区，即 storage 中。
+4）如果映射声明为public，那么Solidity会自动给你创建一个getter函数，可以通过Key来查询对应的Value。自动生成的 getter 函数只提供查询功能，而不能修改映射中的数据。
+
+示例：
+contract MyContract {
+    mapping(address => uint256) public balances;
+}
+
+自动生成
+
+function balances(address _addr) public view returns (uint256) {
+    return balances[_addr];
+}
+
+
+5）给映射新增的键值对的语法为_Var[_Key] = _Value，其中_Var是映射变量名，_Key和_Value对应新增的键值对。
+6）映射中的每个键都是唯一的，不能重复。当给一个键赋值时，如果键已经存在，则新值会覆盖旧值。
+7）映射的值是可修改的，并且映射可以动态地增长（不需要提前定义映射的长度）。
+
+3、映射的原理​
+1）原理1: 映射不储存任何键（Key）的资讯，也没有length的资讯。
+2）原理2: 映射使用keccak256(abi.encodePacked(key, slot))当成offset存取value，其中slot是映射变量定义所在的插槽位置。
+3）原理3: 因为Ethereum会定义所有未使用的空间为0，所以未赋值（Value）的键（Key）初始值都是各个type的默认值，如uint的默认值是0。
