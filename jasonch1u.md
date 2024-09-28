@@ -647,7 +647,7 @@ contract DefiHackLabsToken is ERC20 { //繼承ERC20
 
 ```
 
-### 20204.09.28
+### 2024.09.28
 * BootCamp作業：ERC20發幣合約、測試合約
 ```solidity
 vm.prank() //模擬用戶操作，Forge 標準庫中的 vm.prank() 函數來模擬不同用戶的操作。
