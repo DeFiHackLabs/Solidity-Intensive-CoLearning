@@ -563,13 +563,14 @@ emit Transfer(from, to, amount);
 EVM日志 Log (etherscan)
 topic
 * 除了事件哈希，主题还可以包含至多3个indexed参数，也就是Transfer事件中的from和to。總共四個東西
+
 * 關於 indexed 關鍵字： 主要用於優化事件的過濾和搜索。
 * 作用：
-*    允許外部應用程序（如 dApps 或區塊鏈瀏覽器）更高效地過濾和查詢特定事件。
-*    被標記為 indexed 的參數會被存儲在事件的 topics 中，而不是data部分。
+   * 允許外部應用程序（如 dApps 或區塊鏈瀏覽器）更高效地過濾和查詢特定事件。
+   * 被標記為 indexed 的參數會被存儲在事件的 topics 中，而不是data部分。
 * 限制：
-*    每個事件最多可以有 3 個 indexed 參數。
-*    address 和 uint 類型特別有用，因為它們可以直接被搜索。
+   * 每個事件最多可以有 3 個 indexed 參數。
+   * address 和 uint 類型特別有用，因為它們可以直接被搜索。
 
 完全可以將 indexed 加在 amount 上。例如： 
 ```solidity
