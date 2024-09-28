@@ -292,7 +292,7 @@ contract array_struct {
 
 总结：对语法不熟悉，对数组修饰符之间的变量赋值影响理解不够深刻。
 
-### 2024/09/27
+### 2024.09.27
 
 学习了mapping的映射。
 // SPDX-License-Identifier: MIT
@@ -317,7 +317,7 @@ contract Map{
 
 }
 
-### 2024/09/28
+### 2024.09.28
 学习了变量初始值的，以及如何使用delete方法恢复变量的初始值。
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.21;
