@@ -327,5 +327,31 @@ function getString2(uint256 _number) public pure returns(string memory){
 2. 通過全局符號, 引用指定的合約
 3. 通過網址引用
 4. 引用 OpenZeppelin 合約
+
+2024.09.28
+學習內容 
+筆記:  
+#### receive, fallback
+- 目的, 1.接收 ETH 2.處理合約中不存在的函數調用
+- 觸發規則 
+![image](https://github.com/user-attachments/assets/3dbf8f0a-2f3b-413f-b5e2-b9d0c437964d)
+
+
+receive
+- 當合約收到 ETH 轉帳時, receive() 會被觸發
+- 一個合約最多只有一個 receive()
+- receive() external payable{}, receive() 不能有參數, 不能返回值, 要包含 external 和 payable
+
+```Solidity
+// 定義事件
+event Received(address sender, uint Value);
+// 接收 ETH 時釋放 Received 事件
+receive() external payable{
+   emit Received(msg.semder, msg.value);
+}
+```
+fallback
+- 調用不存在的函數時會被觸發, 可用於接收 ETH, 也可用於代理合約 proxy contract
+- fallback() external payable{}
    
 <!-- Content_END -->
