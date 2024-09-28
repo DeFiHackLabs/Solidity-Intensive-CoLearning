@@ -216,6 +216,106 @@ contract solidity_start5{
    ![image](https://github.com/user-attachments/assets/21b0875e-a9a1-4aed-9bb8-432f39e46b70)
    ![image](https://github.com/user-attachments/assets/09ea5ed9-caf9-4ae5-bb91-021e782ee68f)
 
+### 2024.09.26
+1.学习了数组的声明以及赋值方式。
+2.学习了struct的声明以及4种赋值方式。和JAVA中的POJO 类很像。
+3.如下是做的练习。
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+contract array_struct {
+
+//结构体
+    struct Student{
+    uint256 id;
+    uint256 score; 
+    }
+    
+    // 初始一个student结构体
+    Student public  student;
+
+    //固定长数组
+    uint[3] _array1;
+    //不固定数组
+    uint[] _array2;
+    //不固定数组
+    uint [] _array3 = new uint[](3);
+     //固定长数组
+    bytes1[2] _byte1;
+     //固定长数组
+    address[10] _address;
+    bytes array;
+
+    function memory_array() external pure {
+        uint[] memory _array4 = new uint[](3);
+        _array4[0] = 3;
+        _array4[1] = 4;
+        _array4[2] = 3;
+    
+    }
+
+    function callG() public  {
+        g([uint(3),3,5]);
+    }
+    
+    
+    function g(uint[3] memory _as) public  returns (uint[] memory  ) {
+        _array3 = _as;
+        _array3.push(3);
+        return _array3;
+    }
+    
+
+    function initStudent1() external  {
+        Student storage _student = student;
+        _student.id = 11;
+        _student.score = 100;
+    }
+
+    //直接引用strut。
+    function initStudent2() external  {
+        student.id = 3;
+        student.score = 90;
+    }
+
+    //构造函数
+    function initStudent3() external  {
+        student = Student(3,90);
+    }
+    
+    //key-value形式
+    function initStudent4() external   {
+        student = Student({id:3,score:40});
+    }
+
+}
+![image](https://github.com/user-attachments/assets/73680974-14b3-471a-858b-278fc538c978)
+
+总结：对语法不熟悉，对数组修饰符之间的变量赋值影响理解不够深刻。
+
+##2024/09/27
+学习了mapping的映射。
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract Map{
+
+    mapping (uint => address) public idAddress;
+    mapping (address => address) public swaPair;
+
+    // struct Student{
+    // uint256 id;
+    // uint256 score; 
+    // }
+
+    mapping (address => address) public student;
+
+    function writeMap (uint _Key, address _Value) public {
+        idAddress[_Key] = _Value;
+    }
+
+
+}
+
 
 
 <!-- Content_END -->

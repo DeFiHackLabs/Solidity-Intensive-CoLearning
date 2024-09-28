@@ -146,6 +146,224 @@ function addPure(uint256 _number) external pure returns(uint256 new_number){
  }
 ```
 
+### 2024.09.27
+1、修饰器 `modifier`是Solidity特有的语法，声明函数拥有的特性，用在函数上
+
+```solidity
+contract Owner {
+   address public owner; // 定义owner变量
+
+   // 构造函数
+   // constructor(address initialOwner) {
+   //    owner = initialOwner; // 在部署合约的时候，将owner设置为传入的initialOwner地址
+   // }
+
+      // 构造函数
+   constructor() {
+      owner = msg.sender;
+   }
+
+   // 定义modifier
+   modifier onlyOwner {
+      require(msg.sender == owner); // 检查调用者是否为owner地址
+      _; // 如果是的话，继续运行函数主体；否则报错并revert交易
+   }
+
+   // 定义一个带onlyOwner修饰符的函数
+   function changeOwner(address _newOwner) external onlyOwner{
+      owner = _newOwner; // 只有owner地址运行这个函数，并改变owner
+   }
+}
+```
+
+2、事件 `event`
+
+```solidity
+contract EventTest {
+    // 定义_balances映射变量，记录每个地址的持币数量
+    mapping(address => uint256) public _balances;
+
+    // 定义Transfer event，记录transfer交易的转账地址，接收地址和转账数量
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+
+    // 定义_transfer函数，执行转账逻辑
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) external {
+
+        _balances[from] = 10000000; // 给转账地址一些初始代币
+
+        _balances[from] -=  amount; // from地址减去转账数量
+        _balances[to] += amount; // to地址加上转账数量
+
+        // 释放事件
+        emit Transfer(from, to, amount);
+    }
+}
+```
+以太坊虚拟机（EVM）用日志 Log 来存储 Solidity 事件，每条日志记录都包含主题 topics 和数据 data 两部分，topics 数组第一个元素是事件的签名（哈希）
+```solidity
+keccak256("Transfer(address,address,uint256)")
+
+//0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+```
+`indexed` 关键字标记的参数可以理解为检索事件的索引“键”，方便之后搜索。主题中可以包含至多 3 个 `indexed` 参数
+
+3、继承，用 `is` 关键词
+
+- `virtual`: 父合约中的函数，如果希望子合约重写，需要加上 `virtual` 关键字
+- `override`: 子合约重写了父合约中的函数，需要加上 `override`关键字
+
+```solidity
+// 合约继承
+contract Yeye {
+    event Log(string msg);
+
+    // 定义3个function: hip(), pop(), man()，Log值为Yeye。
+    function hip() public virtual{
+        emit Log("Yeye");
+    }
+
+    function pop() public virtual{
+        emit Log("Yeye");
+    }
+
+    function yeye() public virtual {
+        emit Log("Yeye");
+    }
+}
+
+contract Baba is Yeye{
+    // 继承两个function: hip()和pop()，输出改为Baba。
+    function hip() public virtual override{
+        emit Log("Baba");
+    }
+
+    function pop() public virtual override{
+        emit Log("Baba");
+    }
+
+    function baba() public virtual{
+        emit Log("Baba");
+    }
+}
+
+contract Son is Yeye, Baba{
+    // 继承两个function: hip()和pop()，输出改为Son。
+    function hip() public virtual override(Yeye, Baba){
+        emit Log("Son");
+    }
+
+    function pop() public virtual override(Yeye, Baba) {
+        emit Log("Son");
+    }
+
+    function callParent() public{
+        Yeye.pop();
+    }
+
+    function callParentSuper() public{
+        super.pop();
+    }
+}
+```
+4、构造函数继承的两种方式
+
+```solidity
+abstract contract A {
+    uint public a;
+
+    constructor(uint _a) {
+        a = _a;
+    }
+}
+// 第一种：在继承时声明父构造函数的参数
+contract B is A(1) {
+}
+
+// 第二种：在子合约的构造函数中声明构造函数的参数
+contract C is A {
+    constructor(uint _c) A(_c * _c) {}
+}
+```
+
+5、`Modifier` 修饰器也能被继承
+
+```solidity
+contract A {
+    modifier exactDividedBy2And3(uint _a) virtual {
+        require(_a % 2 == 0 && _a % 3 == 0);
+        _;
+    }
+}
+contract B is A {
+   modifier exactDividedBy2And3(uint _a) override {
+      require(_a % 2 == 0 && _a % 3 == 0);
+      _;
+   }
+}
+```
+
+### 2024.09.28
+1、如果一个智能合约里至少有一个未实现的函数，则必须用 `abstract` 标明为抽象合约，没有函数体的函数也需要加 `virtual` 标明
+
+2、接口类似于抽象合约，但它不实现任何功能，参考 NFT 常用的 [IERC721](https://eips.ethereum.org/EIPS/eip-721)
+
+- 不能包含状态变量
+- 不能包含构造函数
+- 不能继承除接口外的其他合约
+- 所有函数都必须是 `external` 且不能有函数体
+- 继承接口的非抽象合约必须实现接口定义的所有功能
+
+3、三种抛出异常方法
+
+```solidity
+// 自定义error
+error TransferNotOwner();
+
+// error TransferNotOwner(address sender);
+
+contract Errors {
+    // 一组映射，记录每个TokenId的Owner
+    mapping(uint256 => address) private _owners;
+
+    // Error方法: gas cost 24457
+    // Error with parameter: gas cost 24660
+    function transferOwner1(uint256 tokenId, address newOwner) public {
+        if (_owners[tokenId] != msg.sender) {
+            revert TransferNotOwner();
+            // revert TransferNotOwner(msg.sender);
+        }
+        _owners[tokenId] = newOwner;
+    }
+
+    // require方法: gas cost 24755
+    function transferOwner2(uint256 tokenId, address newOwner) public {
+        require(_owners[tokenId] == msg.sender, "Transfer Not Owner");
+        _owners[tokenId] = newOwner;
+    }
+
+    // assert方法: gas cost 24473
+    function transferOwner3(uint256 tokenId, address newOwner) public {
+        assert(_owners[tokenId] == msg.sender);
+        _owners[tokenId] = newOwner;
+    }
+}
+```
+4、`Solidity` 中允许函数进行重载（overloading），即名字相同但输入参数类型不同的函数可以同时存在，他们被视为不同的函数。注意，`Solidity` 不允许修饰器（`modifier`）重载。
+
+```solidity
+function saySomething() public pure returns(string memory){
+    return("Nothing");
+}
+
+function saySomething(string memory something) public pure returns(string memory){
+    return(something);
+}
+```
 
 ### 
 

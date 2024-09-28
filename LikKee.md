@@ -379,7 +379,198 @@ function test() public pure returns (uint256) {
 
 ### 2024.09.27
 
+#### Chapter 12: Events
+
+- `event`
+  - Transaction logs stored by EVM
+  ```
+  event Transfer(address indexed from, address indexed to, uint256 amount);
+  ```
+  - Characteristics:
+    - Responsive: Applications can subscribe and listen to events through `RPC` and take action accordingly
+    - Economical: Store data in events is cheap (2,000 gas) each, store a new variable on-chain cost 20,000 gas
+  - `indexed` keyword marked to be stored at a special data structure known as `topics` and can easily queried by application
+  - Non-indexed parameters will be stored in the data section of the log, can be larger size and more complex data structures
+  - How to `emit` events
+  ```
+  function transfer(address _from, address _to, uint256 _amount) external {
+   ...
+   emit Transfer(_from, _to, _amount);
+  }
+  ```
+  - Topics
+    - Used to describe events
+    - Each event contains a maximum of 4 `topics`
+    - The first topic is the event hash, calculated as follows:
+    ```
+    keccak256("Transfer(address,address,uint256)")
+    // 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+    ```
+
 ### 2024.09.28
+
+#### Chapter 13: Inheritance
+
+- Rules
+
+  - `virtual`: Added if the functions of parent contract are expected/required to be overridden by children contract
+  - `override`: Added if the function of children contract wanted to override parent's function
+  - `virtual override`: Added if the function is overriding it parent's function and expect to be overriden by child contract
+  - `public` variable with `override` will also override it's `getter` function
+
+  ```
+  mapping(address => uint256) public override balanceOf;
+  ```
+
+**Simple inheritance**
+
+```
+contract Bird {
+  event Log(string action);
+
+  function fly() public virtual {
+    emit Log("Fly");
+  }
+
+  function bird() public virtual {
+    emit Log("Bird");
+  }
+}
+
+contract Rooster is Bird {
+  function fly() public virtual override {
+    emit Log("Jump");
+  }
+
+  function attack() public virtual {
+    emit Log("Attack");
+  }
+}
+```
+
+- `Bird` contract have 2 functions, `fly` and `bird` and 1 event `Log`
+- Although `Rooster` only have 2 function written `fly` and `attack`, due to inherit of `Bird`, `Rooster` have also `bird` function, and override the `fly` function which logging `"Jump"`.
+
+**Multiple inheritance**
+
+- Rules:
+  - Parent contract should be ordered by seniority, eg: `contract Chick is Bird, Rooster`
+  - If a function existed in multiple parent contracts, child contract required to override it too
+  ```
+  function fly() public virtual override(Bird, Rooster) // Chick contract
+  ```
+
+**Inheritance of modifiers**
+
+```
+contract Bird {
+  modifier onlyOwner() virtual {
+    require(msg.sender == owner);
+    _;
+  }
+  ...
+}
+
+contract Rooster is Bird{
+  function feed() public onlyOwner() pure {
+    ...
+  }
+}
+```
+
+- `Rooster` can use `onlyOwner` modifier because it inherit of `Bird`
+
+```
+modifier onlyOwner() override {
+ require(msg.sender != owner);
+ _;
+}
+```
+
+- `Rooster` override the `onlyOwner` modifier
+
+**Inheritance of constructors**
+
+```
+abstract contract Bird {
+  uint256 public height;
+
+  constructor(uint256 _height) {
+    height = _height;
+  }
+}
+```
+
+- Child contract to inherit the `constructor` of parent contract
+
+```
+contract Rooster is Bird {
+  constructor(uint256 \_height) Bird(\_height){}
+}
+```
+
+**Calling parent's function**
+
+- Direct calling
+
+```
+function attack() public virtual {
+  Bird.fly();
+}
+```
+
+- With `super` keyword
+
+```
+function attack() public virtual {
+  super.fly();
+}
+```
+
+- Using `super` will call the nearest inheritance function. If `super.fly()` call in `Chick` contract, due to the nature of order, it will call `Rooster`'s `fly` function but not `Bird`
+
+**Diamond inheritance**
+
+- A contract inheriting two or more parent contracts
+- Using `super` keyword on diamond inheritance chain, it will call the relevant function of each contract in the inheritance chain, not just nearest parent contract
+
+```
+/*
+     Bird
+     /  \
+Rooster Hen
+     \  /
+     Chick
+*/
+
+contract Bird {
+  event Log(string action);
+
+  function fly() public virtual {
+    emit Log("Bird is flying");
+  }
+}
+
+contract Rooster is Bird {
+  function fly() public virtual override {
+    emit Log("Rooster is flying");
+  }
+}
+
+contract Hen is Bird {
+  function fly() public virtual override {
+    emit Log("Hen is flying");
+  }
+}
+
+contract Chick is Rooster, Hen {
+  function fly() public virtual override {
+    super.fly();
+  }
+}
+```
+
+- Calling the `fly` function in `Chick` will also trigger `Hen`, `Rooster` and `Bird`'s `fly()`
 
 ### 2024.09.29
 
@@ -406,3 +597,7 @@ function test() public pure returns (uint256) {
 ### 2024.10.10
 
 <!-- Content_END -->
+
+```
+
+```

@@ -130,6 +130,51 @@ most of these are composed of definition, events, state variables, and functions
 
 We learn them together can promote the understanding of framework, also, the differences and connections between them.
 
+### 2024.09.27
 
+1. Looking through 7 chapters of Solidity 103 and complete the text.
+
+2. 
+<img width="819" alt="image" src="https://github.com/user-attachments/assets/432267d9-df22-4a54-8cfd-702d84fb053e">
+
+3. Difficulties
+
+In the fifth learning day, as the last step1 day, we have learned overall 50 chapters. 
+
+However, it’s just a new beginning of Step2, there is still lots of room for development. 
+
+We need more enough time and space to promote coding and English terminology skills. 
+
+Fortunately,the second part, can be modularized according to the relationship between chapters in the tutorials,
+
+which is not only more convenient for memory and understanding, but also more convenient for logical sorting.
+
+Just Like:
+
+45 Time lock —— 22 Call
+
+46 Proxy Contract —— 22 Call —— 23 Delegatecall —— Lesson 27: ABI encoding 
+
+47 Upgradeable Contract —— 46  Proxy Contract
+
+48 Transparent Proxy ——29 Function Selectors
+
+49 UUPS  —— 23 Delegatecall
+
+50 Multisignature Wallet —— 27 ABI encoding 
+
+### 2024.09.28
+
+Actually, the function of Language is for communication, no matter the natural language or programming language. In other words, a technology is just a solution, and a solution is only as good as the problems, so we need to make sure we know the problem really well, so we know how to attack it with this smart contract technology.
+
+By the way, It’s a person who gives me huge passions to challenge solidity this time , she is a female security auditor. I remember what she said in a interview that before she intended the ZK audit competition she even never learn ZK language, she just use few days to familiar with ZK language, but she got the champion, soooo fantastic.
+
+I try to find the crucial reason in Step 2 which confusing me for a long time that why and how she could make done it. So it must be something beyond language itself, language is just a language. And also，no one knows whether I will be a solidity auditor or not in the future. This is a black box, which is very interesting. But I‘m sure that is not the most important thing.
+
+I know what I’m appreciate and chase for, learning solidity is just a experience to figure out and understand something to serve my life goals. Solidity Language itself is not my goal.
+
+Q1:
+
+Q2：
 
 <!-- Content_END -->

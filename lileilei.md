@@ -394,4 +394,127 @@ assert gas最多，返回的错误信息未知
 上边mapping没初始化，所以都会报错
 
 
+### 2024.09.27
+
+pragma solidity ~0.8.21;
+contract overrideTest{
+
+    function getString() public pure returns(string memory){
+        return "hello";
+    }
+    function getString(string memory msg) public pure returns(string memory){
+        
+        return string.concat("hello",msg); 
+    }
+    function f(uint8 _in) public pure returns(uint8 out){
+        out=_in;
+    }
+    function f(uint256 _in) public pure returns(uint256 out){
+        out=_in;
+    }
+}
+
+重载就是可以声明多个相同名字不同参数类型的方法
+
+### 2024.09.28
+import "./Strings.sol";
+using Strings for uint256;
+contract LibraryTest{
+    function getString(uint256 number)  public pure returns(string memory){
+        return number.toHexString();
+    }
+
+    function getString2(uint256 number) public pure returns(string memory){
+        return Strings.toHexString(number);
+    }
+}
+使用库合约跟java的工具类一样，可以直接使用已经定义好的方法
+将library导入，在通过using A for B 将A的函数赋予B
+
+// SPDX-License-Identifier: MIT
+pragma solidity ~0.8.21;
+
+contract otherContract{
+  
+    uint256 private x=0;
+    event log(uint amount,uint gas);
+    function setx(uint256 amount) public payable {
+        x = amount;
+        if(amount>0){
+            emit log(msg.value,gasleft());
+        }
+    }
+
+    function getx() public view returns(uint256){
+        return x;
+    }
+
+    function getBalance() public view returns(uint256){
+        return address(this).balance;
+    }
+}
+
+contract callother{
+    function callSetx(address addr,uint x)external {
+       // otherContract con = otherContract(addr); 
+      // con.setx(x);
+       otherContract(addr).setx(x);
+    }
+    function callGetx(otherContract addr) public view returns(uint){
+        return addr.getx();
+    }
+}
+调用其他的合约，跟上边的库合约类似
+
+
+contract receiveEth{
+    event recEth(address from,uint256 value);
+    event fallbackEth(address,uint256 value,bytes data);
+    //因为有gas限制，receive和fallback逻辑不能太复杂
+    receive() external payable { 
+        emit recEth(msg.sender,msg.value);
+    }
+    fallback() external payable{
+        emit fallbackEth(msg.sender, msg.value, msg.data);
+    }
+
+    function getBalance() public view returns(uint) {
+        return address(this).balance;
+    }
+
+
+}
+
+
+contract callEth{
+    error sendfailed(); //搭配revert使用
+    error callfailed();
+    //三种发送eth的方法：call,transfer,send
+    constructor() payable {}
+    receive() external payable { }
+     
+    function transferEth(address payable  to,uint amount) external {
+        to.transfer(amount);
+    }
+
+    function sendEht(address payable to ,uint amount) external {
+        bool success = to.send(amount);
+        if(!success){
+            revert sendfailed();
+        }
+    }
+
+    function callerEth(address payable to,uint amount)external {
+        (bool success, )= to.call{value: amount}("");
+        if(!success){
+            revert callfailed();
+        }
+    }
+}
+发送eth和接收eth，地址和结构体需要用payable修饰
+发送可以用transfer,call,send
+transfer 有gas限制2300，失败后会revert
+send 有gas限制，失败后不会自动revert，一般不会用
+call 没有gas限制，常用
+
 <!-- Content_END -->

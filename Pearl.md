@@ -468,4 +468,184 @@ contract structType{
    * 事件中不带`indexed`的参数会被存储在`data`部分中，可以理解为事件的“值”。
    * `data`部分的变量不能被直接检索，但可以存储任意大小的数据。因此一般`data`部分可以用来存储复杂的数据结构，例如数组和字符串等等。
    * `data`部分的变量在存储上消耗的gas相比于`topics`更少。
+
+###  2024.09.27
+**继承**
+   * 规则:
+      1. `virtual`: 父合约中的函数，如果希望子合约重写，需要加上`virtual`关键字。
+      2. `override`：子合约重写了父合约中的函数，需要加上`override`关键字。
+         * 注意：用`override`修饰`public`变量，会重写与变量同名的`getter`函数
+   * 简单继承:
+   ```Solidity
+   contract Yeye {
+       event Log(string msg);
+   
+       // 定义3个function: hip(), pop(), man()，Log值为Yeye。
+       function hip() public virtual{
+           emit Log("Yeye");
+       }
+   
+       function pop() public virtual{
+           emit Log("Yeye");
+       }
+   
+       function yeye() public virtual {
+           emit Log("Yeye");
+       }
+   }
+   contract Baba is Yeye{
+       // 继承两个function: hip()和pop()，输出改为Baba。
+       function hip() public virtual override{
+           emit Log("Baba");
+       }
+   
+       function pop() public virtual override{
+           emit Log("Baba");
+       }
+   
+       function baba() public virtual{
+           emit Log("Baba");
+       }
+   }
+   ```
+   * 多重继承:
+      * 规则:
+         1. 继承时要按辈分最高到最低的顺序排。
+         2. 如果某一个函数在多个继承的合约里都存在，比如例子中的hip()和pop()，在子合约里必须重写，不然会报错。
+         3. 重写在多个父合约中都重名的函数时，override关键字后面要加上所有父合约名字，例如`override(Yeye, Baba)`。
+      ```Solidity
+      contract Erzi is Yeye, Baba{
+          // 继承两个function: hip()和pop()，输出值为Erzi。
+          function hip() public virtual override(Yeye, Baba){
+              emit Log("Erzi");
+          }
+      
+          function pop() public virtual override(Yeye, Baba) {
+              emit Log("Erzi");
+          }
+      }
+      ```
+   * 修饰器的继承:
+   ```Solidity
+   contract Base1 {
+       modifier exactDividedBy2And3(uint _a) virtual {
+           require(_a % 2 == 0 && _a % 3 == 0);
+           _;
+       }
+   }
+   
+   contract Identifier is Base1 {
+   
+       //计算一个数分别被2除和被3除的值，但是传入的参数必须是2和3的倍数
+       function getExactDividedBy2And3(uint _dividend) public exactDividedBy2And3(_dividend) pure returns(uint, uint) {
+           return getExactDividedBy2And3WithoutModifier(_dividend);
+       }
+   
+       //计算一个数分别被2除和被3除的值
+       function getExactDividedBy2And3WithoutModifier(uint _dividend) public pure returns(uint, uint){
+           uint div2 = _dividend / 2;
+           uint div3 = _dividend / 3;
+           return (div2, div3);
+       }
+   }
+   ```
+   * 也可以利用`override`关键字重写修饰器
+   ```Solidity
+   modifier exactDividedBy2And3(uint _a) override {
+       _;
+       require(_a % 2 == 0 && _a % 3 == 0);
+   }
+   ```
+   * 构造函数的继承:
+     1. 在继承时声明父构造函数的参数
+     2. 在子合约的构造函数中声明构造函数的参数
+      ```Solidity
+      // 构造函数的继承
+      abstract contract A {
+          uint public a;
+      
+          constructor(uint _a) {
+              a = _a;
+          }
+      }
+      contract C is A {
+          constructor(uint _c) A(_c * _c) {}
+      }
+      ```
+   * 调用父合约的函数:
+     1. 直接调用：子合约可以直接用`父合约名.函数名()`的方式来调用父合约函数
+     ```Solidity
+     function callParentSuper() public{
+        // 将调用最近的父合约函数，Baba.pop()
+        super.pop();
+     }
+     ```
+     2. `super`关键字：子合约可以利用`super.函数名()`来调用最近的父合约函数。
+        * Solidity继承关系按声明时从右到左的顺序是：`contract Erzi is Yeye, Baba`，`super.pop()`将调用`Baba.pop()`而不是`Yeye.pop()`
+      ```Solidity
+      function callParentSuper() public{
+          // 将调用最近的父合约函数，Baba.pop()
+          super.pop();
+      }
+      ```
+   * 钻石继承: 在面向对象编程中，钻石继承（菱形继承）指一个派生类同时有两个或两个以上的基类。
+      * 在多重+菱形继承链条上使用`super`关键字时，需要注意的是使用`super`会调用继承链条上的每一个合约的相关函数，而不是只调用最近的父合约。
+   ```Solidity
+   // SPDX-License-Identifier: MIT
+   pragma solidity ^0.8.13;
+   
+   /* 继承树：
+     God
+    /  \
+   Adam Eve
+    \  /
+   people
+   */
+   
+   contract God {
+       event Log(string message);
+   
+       function foo() public virtual {
+           emit Log("God.foo called");
+       }
+   
+       function bar() public virtual {
+           emit Log("God.bar called");
+       }
+   }
+   
+   contract Adam is God {
+       function foo() public virtual override {
+           emit Log("Adam.foo called");
+           super.foo();
+       }
+   
+       function bar() public virtual override {
+           emit Log("Adam.bar called");
+           super.bar();
+       }
+   }
+   
+   contract Eve is God {
+       function foo() public virtual override {
+           emit Log("Eve.foo called");
+           super.foo();
+       }
+   
+       function bar() public virtual override {
+           emit Log("Eve.bar called");
+           super.bar();
+       }
+   }
+   
+   contract people is Adam, Eve {
+       function foo() public override(Adam, Eve) {
+           super.foo();
+       }
+   
+       function bar() public override(Adam, Eve) {
+           super.bar();
+       }
+   }
+   ```
 <!-- Content_END -->

@@ -442,4 +442,72 @@ mapping(address wallet => string name) students;
 - 如果映射为 public，那么 solidity 会给你创建一个 getter 函数，可以通过 key 来查询对应的 value。
 - 给映射新增的键值对的语法是`var[key]=value`。其中 var 是一个映射变量。
 
+#### 变量初始值
+
+- solidity 中， 声明但没有赋值的变量都有一个默认的初始值。
+
+  - boolean: false
+  - string: ""
+  - int: 0
+  - uint: 0
+  - enum: 枚举中的第一个元素
+  - address: 0x0000000000000000000000000000000000000000 (或 address(0))
+  - function
+
+    - internal: 空白函数
+    - external: 空白函数
+
+- mapping：初始值都是所有元素的默认值
+- 结构体 struct：所有元素的默认值
+- 数组 array：所有元素的默认值
+
+我们来验证初始值是否正确：
+
+```solidity
+// Reference Types
+uint[8] public _staticArray; // 所有成员设为其默认值的静态数组[0,0,0,0,0,0,0,0]
+uint[] public _dynamicArray; // `[]`
+mapping(uint => address) public _mapping; // 所有元素都为其默认值的mapping
+// 所有成员设为其默认值的结构体 0, 0
+struct Student{
+    uint256 id;
+    uint256 score;
+}
+Student public student;
+```
+
+delete 操作符会让这个变量变为初始值。
+
+```solidity
+// delete操作符
+bool public _bool2 = true;
+function d() external {
+    delete _bool2; // delete 会让_bool2变为默认值，false
+}
+```
+
+#### 常数
+
+solidity 的合约之中，通常有两个关键字：constant 和 immutable。
+
+- constant
+
+  - 常数在合约编译时就确定了，不能修改。
+  - 常数必须被初始化，不能在函数中初始化。
+  - 常数可以被声明为 public，solidity 会自动创建一个 getter 函数，可以通过 key 来查询对应的 value。
+
+- immutable
+
+  - immutable 是不可变的，在合约编译时就确定了，不能修改。
+  - immutable 可以被声明为 public，solidity 会自动创建一个 getter 函数，可以通过 key 来查询对应的 value。
+  - 如果一个变量在声明时初始化，又在 constructor 之中初始化，那么会优先 constructor 的初始化。
+
+- constant 和 immutable 的区别
+
+  - constant 在合约写下来的时候就确定了，不能修改。
+  - immutable 在合约部署时的构造函数之中初始化，之后不能修改，更加的灵活。
+
+- constant 变量初始化之后，尝试改变它的值，会编译不通过并抛出 TypeError: Cannot assign to a constant variable.的错误。
+- immutable 变量初始化之后，尝试改变它的值，会编译不通过并抛出 TypeError: Immutable state variable already initialized.的错误。
+
 <!-- Content_END -->

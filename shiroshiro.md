@@ -34,6 +34,57 @@ timezone: Asia/Dubai
 7. payable function for transferring eth
 8. finished 03 quiz
 
+### 2024.09.26
+
+#### 04 function output
+##### return
+decalre return types => returns
+normal return => return
+returns can be named at the beginning of function => no return keyword needs at the end, still supports normal return tho
+
+##### tuples
+can contain different types of elements and be returned
+syntax => (a,"b", [c,d,e])
+
+#### 05 data storage and scope
+
+##### reference type 
+like pointers/address
+can access same underlying data with different var like array/struct/mapping
+##### data location
+3 types: storage/memory/calldata, gas cost r different
+storage: on chain like HDD/ high fee
+memory: in mem
+calldata: in mem but cant modify, usually used in param
+##### modifying reference data
+pointing uint[] x = [1,2,3]; // state variable: array x
+then assign uint[] storage xStorage = x; xStorage[0] = 100; 
+will modify x => [100,2,3]
+
+##### variable scope
+state var: on chain/ high gas, declared outside of the function
+    can change state var in functions
+local var: only avalible in func like normal, low gas
+global var: reserved keywords for solidity　like blcok hash etc.
+    
+
+### 2024.09.27
+
+#### 06 array and struct
+fixed or dynamic size array
+fixed decalre: type[length] name
+dynamic decalre: type[] name / bytes name
+bytes is cheaper than bytes1[]
+
+#### array
+memory dynamic array:  uint[] memory array8 = new uint[](5);
+    bytes memory array9 = new bytes(9);
+array literals first element must hv type/ type with the smallest storage space is used by default
+
+array methods length/push()/push(x)/pop()
+
+#### struct
+just like normal old structnorhting special
 
 
 

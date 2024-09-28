@@ -53,9 +53,80 @@ Mapping，就相當於給每個value 一個 key
 每個Array都有對應的從0開始的Index. 
 以上。
 
+### 2024.09.27
+昨天忘記更新，今天補上，今天嘗試理解了以下的代碼:
+```
+// SPDX-License-Identifier: GPL-3.0
 
+pragma solidity >=0.8.2 <0.9.0;
 
+contract Twitter {
 
+    //mapping address to string and call it tweets
+    mapping(address => string[]) public tweets;
 
+    function createTwitter (string memory _tweet) public {
+    // memory means store as temporary memory
+        tweets[msg.sender].push(_tweet);
+    }
+    // mapping is both key and value, could be addresses to names. So you can find name by address 
+
+    function getTweet(address _owner, uint _i) public view returns (string memory){
+        return tweets[_owner][_i];
+        // view is more gas efficient
+    }
+
+    function getAllTweets(address _owner) public view returns (string[] memory){
+        return tweets[_owner];
+    }
+
+}
+
+```
+
+試圖了解create function 時整個代碼的結構，這樣寫起來更知道，下一個單詞是為什麼存在的:
+總共有九個部分:
+1. function keyword
+2. function name
+3. parameters
+4. visibility specifier
+5. state mutability keyword
+6. return type
+7. function body
+8. local variable declaration
+9. return statement
+
+然後了解了struct，知道怎麼寫，什麼時候用:
+
+When to Use a Struct
+- When You Have Multiple Related Data Fields
+- When You Want to Improve Code Readability
+ -When You Need to Reuse a Logical Grouping of Data
+ -When You Need a Data Model in a Mapping or Array
+
+When Not to Use a Struct:
+
+- For Simple Data: If your data is very simple (e.g., just a `uint` or a `string`), using a struct may be overkill. Structs are useful when there are multiple related fields.
+- When Performance Is a Concern: Structs in Solidity are stored in memory or storage, which might consume more gas compared to simpler types, especially if the struct is large and complex. Use them wisely, considering the gas cost.
+
+了解MAPPING的結構:
+This line of code declares a public mapping in Solidity:
+
+```solidity
+mapping(address => string[]) public tweets;
+
+```
+
+Here's what it does:
+
+- It creates a mapping called "tweets"
+- The key of this mapping is an Ethereum address
+- The value associated with each address is an array of strings
+- Each address can have multiple tweets (stored as strings in the array)
+- The 'public' keyword automatically creates a getter function for this mapping
+
+In the context of a Twitter-like contract, this mapping allows each Ethereum address (user) to have an array of tweets associated with it. Users can add tweets to their array, and anyone can retrieve tweets for a specific address.
+
+以上。
 
 <!-- Content_END -->

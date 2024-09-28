@@ -542,6 +542,154 @@ owner = _newOwner; // 只有owner地址运行这个函数，并改变owner
 }
 ```
 #### 12_Event
+* 監聽事件，方便被找出來
+* 省gas fee，用事件儲存資料，比直接存鍊上數據，gas fee便宜10倍
+
+聲明事件
+```solidity
+event Transfer(address indexed from, address indexed to, uint256 value); //正確通用
+
+keccak256("Transfer(address,address,uint256)") //事件簽名要這樣寫
+//0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+
+keccak256("Transfer(address,address,uint)") //uint不寫256，事件簽名hashed會跟上面不一樣
+```
+釋放事件：
+```solidity
+// 释放事件
+emit Transfer(from, to, amount);
+```
+
+EVM日志 Log (etherscan)
+topic
+* 除了事件哈希，主题还可以包含至多3个indexed参数，也就是Transfer事件中的from和to。總共四個東西
+
+* 關於 indexed 關鍵字： 主要用於優化事件的過濾和搜索。
+* 作用：
+   * 允許外部應用程序（如 dApps 或區塊鏈瀏覽器）更高效地過濾和查詢特定事件。
+   * 被標記為 indexed 的參數會被存儲在事件的 topics 中，而不是data部分。
+* 限制：
+   * 每個事件最多可以有 3 個 indexed 參數。
+   * address 和 uint 類型特別有用，因為它們可以直接被搜索。
+
+完全可以將 indexed 加在 amount 上。例如： 
+```solidity
+event Transfer(address indexed from, address indexed to, uint256 indexed amount);
+```
+但是通常不會這麼做，因為一點都不實用
+原因如下： 
+* 搜索模式：大多數情況下，用戶和應用程序更傾向於搜索特定地址的轉賬記錄（發送或接收），而不是特定金額的轉賬。
+* 數據類型考慮：address 類型特別適合用 indexed，因為它們可以直接被搜索和過濾。而 uint256 類型（如 amount）在作為 indexed 參數時，實際上是將其哈希值存儲在 topic 中，這可能不如直接存儲在數據部分有用。
+* 靈活性：不將 amount 標記為 indexed 允許更靈活的金額查詢。例如，您可以很容易地在鏈下計算總轉賬金額或查找特定範圍內的轉賬。
+* 三個 indexed 參數的限制： 雖然技術上可以有三個 indexed 參數，但通常保留一個非 indexed 參數可以提供更多的靈活性，特別是對於可能需要存儲更複雜或大量數據的事件。
+* 效率和成本考慮： indexed 參數會增加燃氣成本，因為它們被單獨存儲為日誌主題。對於頻繁發生的事件（如代幣轉賬），保持合理的燃氣成本很重要。
+
+data
+* 事件中不带 indexed的参数会被存储在 data 部分中。
+* data 部分的变量在存储上消耗的gas相比于 topics 更少。
+
+完整程式碼
+關於 _balances[from] 的語法：
+_balances 是一個映射（mapping）。
+_balances[from] 表示訪問以 from 地址為鍵的映射元素。
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+contract Events {
+    // 定义_balances映射变量，记录每个地址的持币数量
+    mapping(address => uint256) public _balances;
+
+    // 定义Transfer event，记录transfer交易的转账地址，接收地址和转账数量
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+
+    // 定义_transfer函数，执行转账逻辑
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) external {
+
+        _balances[from] = 10000000; // 给转账地址一些初始代币
+
+        _balances[from] -=  amount; // from地址减去转账数量
+        _balances[to] += amount; // to地址加上转账数量
+
+        // 释放事件
+        emit Transfer(from, to, amount);
+    }
+}
+```
+
+### 2024.09.27
+* 複習12_Event並更新筆記
+* BootCamp任務：建立ERC20合約
+
+```solidity
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol"; //import
+
+contract DefiHackLabsToken is ERC20 { //繼承ERC20
+
+   //設定初始發行量的變數
+   uint256 public initialSupply = 1000; 
+
+    //constructor() 後面接 ERC20("代幣名稱","代幣符號")
+   constructor() ERC20("DefiHackLabs", "HACK") { 
+
+         // 合約部屬後，鑄造給 "地址" 多少的 "代幣量"，通常寫法是_mint(地址,代幣量)
+         _mint(msg.sender, initialSupply * 10**decimals()); //合約部屬後，鑄造給部屬者的地址，發幣自爽 (?
+    }
+}
+
+```
+
+### 2024.09.28
+* BootCamp作業：ERC20發幣合約、測試合約
+```solidity
+vm.prank() //模擬用戶操作，Forge 標準庫中的 vm.prank() 函數來模擬不同用戶的操作。
+```
+* 以下幾個是源自 ERC20 標準函數，在 OpenZeppelin 的 ERC20 實現中定義。同時附上在 OpenZeppelin ERC20 中的寫法
+
+* token.transfer (接收的地址, 數量); 
+   * 功能：從調用者的賬戶向指定的接收地址轉移指定數量的代幣。
+```solidity
+function transfer(address to, uint256 amount) public virtual returns (bool) {
+    address owner = _msgSender();
+    _transfer(owner, to, amount);
+    return true;
+}
+```
+
+* token.approve (被授權地址B, 數量); 這是授權者（調用者，通常稱為A）
+   * 功能：授權另一個地址可以從調用者賬戶轉出特定數量的代幣。給予B地址權限，允許B最多可以從A的賬戶中轉走指定數量的代幣。
+```solidity
+function approve(address spender, uint256 amount) public virtual returns (bool) {
+    address owner = _msgSender();
+    _approve(owner, spender, amount);
+    return true;
+}
+```
+* token.transferFrom (發送地址, 接收地址, 數量); 
+   * 功能：這是由被授權的地址B調用的函數。B可以將指定數量的代幣從發送地址（通常是之前授權的A）轉移到接收地址。轉移的數量不能超過之前通過 approve 設置的限額。前提是轉移者有足夠的授權
+```solidity
+function transferFrom(address from, address to, uint256 amount) public virtual returns (bool) {
+    address spender = _msgSender();
+    _spendAllowance(from, spender, amount);
+    _transfer(from, to, amount);
+    return true;
+}
+```
+* token.allowance (授權地址A, 被授權地址B); 
+   * 功能：查詢一個地址授權給另一個地址的代幣數量。這個函數返回的是B還被允許從A那裡轉走的剩餘數量。它不會顯示B已經轉走了多少，只顯示還剩下多少可以轉。例如，如果A最初授權B 100 個代幣，B已經轉走了 30 個，那麼 allowance 會返回 70。
+```solidity
+function allowance(address owner, address spender) public view virtual returns (uint256) {
+    return _allowances[owner][spender];
+}
+```
 
 #### 13_Inheritance
 

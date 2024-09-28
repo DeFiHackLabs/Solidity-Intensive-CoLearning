@@ -269,4 +269,92 @@ error必须搭配revert
 
 准备明天的预推免摸了
 
+### 2024.09.27
+
+**`Solidity`支持两种特殊的回调函数**，`receive()`和`fallback()`
+
+1.接收ETH
+
+2.处理合约中不存在的函数调用（代理合约proxy contract）
+
+接收ETH函数 receive
+
+`receive()`函数是在合约收到`ETH`转账时被调用的函数。一个合约最多有一个`receive()`函数
+
+回退函数 fallback
+
+`fallback()`函数会在调用合约不存在的函数时被触发。可用于接收ETH，也可以用于代理合约`proxy contract`
+
+receive和fallback的区别
+
+合约接收`ETH`时，`msg.data`为空且存在`receive()`时，会触发`receive()`；`msg.data`不为空或不存在`receive()`时，会触发`fallback()`，此时`fallback()`必须为`payable`。均不存在报错
+
+**`Solidity`有三种方法向其他合约发送`ETH`**，他们是：`transfer()`，`send()`和`call()`，其中`call()`是被鼓励的用法。
+
+**transfer：**
+
+1.用法是`接收方地址.transfer(发送ETH数额)`。
+
+2.`transfer()`的`gas`限制是`2300`，足够用于转账，但对方合约的`fallback()`或`receive()`函数不能实现太复杂的逻辑。
+
+3.`transfer()`如果转账失败，会自动`revert`（回滚交易）。
+
+**send：**
+
+1.用法是`接收方地址.send(发送ETH数额)`。
+
+2.`send()`的`gas`限制是`2300`，足够用于转账，但对方合约的`fallback()`或`receive()`函数不能实现太复杂的逻辑。
+
+3.`send()`如果转账失败，不会`revert`。
+
+4.`send()`的返回值是`bool`，代表着转账成功或失败，需要额外代码处理一下。
+
+**call：**
+
+1.用法是`接收方地址.call{value: 发送ETH数额}("")`。
+
+2.`call()`没有`gas`限制，可以支持对方合约`fallback()`或`receive()`函数实现复杂逻辑。
+
+3.`call()`如果转账失败，不会`revert`。
+
+4.`call()`的返回值是`(bool, bytes)`，其中`bool`代表着转账成功或失败，需要额外代码处理一下。
+
+调用已部署合约
+
+在`Solidity`中，一个合约可以调用另一个合约的函数，这在构建复杂的DApps时非常有用。
+
+1.传入合约地址
+
+2.传入合约变量
+
+3.创建合约变量
+
+4.调用合约并发送ETH
+
+### 2024.09.28
+
+**call：**
+
+`call` 是`address`类型的低级成员函数，它用来与其他合约交互。它的返回值为`(bool, bytes memory)`，分别对应`call`是否成功以及目标函数的返回值。
+
+`call`是`Solidity`官方推荐的通过触发`fallback`或`receive`函数发送`ETH`的方法。
+
+**delegatecall：**
+
+`delegatecall`与`call`类似，是`Solidity`中地址类型的低级成员函数。
+
+一个投资者（用户`A`）把他的资产（`B`合约的`状态变量`）都交给一个风险投资代理（`C`合约）来打理。执行的是风险投资代理的函数，但是改变的是资产的状态。
+
+目前`delegatecall`主要有两个应用场景：
+
+1.代理合约（`Proxy Contract`）：**将智能合约的存储合约和逻辑合约分开**：代理合约（`Proxy Contract`）存储所有相关的变量，并且保存逻辑合约的地址；所有函数存在逻辑合约（`Logic Contract`）里，通过`delegatecall`执行。当升级时，只需要将代理合约指向新的逻辑合约即可。
+
+2.EIP-2535 Diamonds（钻石）：钻石是一个支持构建可在生产中扩展的模块化智能合约系统的标准。钻石是具有多个实施合约的代理合约。
+
+两个合约变量存储布局必须相同
+
+B通过call来调用C的setVars()函数，将改变合约C里的状态变量
+
+B通过delegatecall来调用C的setVars()函数，将改变合约B里的状态变量
+
 <!-- Content_END -->

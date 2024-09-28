@@ -243,13 +243,88 @@ OpenZeppelin是一个维护Solidity标准化代码库的组织，他的Ownable�
    7. 在Etherscan上查询事件:Etherscan
 
 
+### 2024.09.27
+
+學習內容：WTF #13
+
+# 13:繼承  （contract Erzi is Yeye）
+
+![image](https://github.com/user-attachments/assets/a0cb4b70-bcb9-4caa-8a88-15545372adb4)
+
+
+   1. virtual: 父合约中的函数，如果希望子合约重写，需要加上virtual关键字。
+
+   2. override：子合约重写了父合约中的函数（与变量同名的getter函数），需要加上override关键字。
+
+      mapping(address => uint256) public override balanceOf;   
+
+   3. 多重继承：高～低排(contract Erzi is Yeye, Baba)、多重需重寫、父在需冠父親名
+   4. Modifier 同样可以继承
+         构造函数继承:in 聲明or 子構造函數中
+   5. 调用父合约的函数:1)直接调用(Yeye.pop())和2)利用super关键字調用最近父合約函數(super.pop();)
+   6. 钻石继承（菱形继承）指一个派生类同时有两个或两个以上的基类
+
+   7. https://www.wtf.academy/docs/solidity-101/Inheritance/
+        
+### 2024.09.28
+
+學習內容：WTF #14~15
+![image](https://github.com/user-attachments/assets/e9b7b53f-4878-4748-9793-f8229a0101c9)
+
+
+# 14:抽象合约和接口
+
+1. 抽象合約：至少有一个未实现的函数，即某个函数缺少主体{}中的内容，必须将该合约标为abstract。未实现的函数需要加virtual，以便子合约重写。不能被部署
+
+abstract contract InsertionSort{
+    function insertionSort(uint[] memory a) public pure virtual returns(uint[] memory);
+}
+
+2. 接口类似于抽象合约，但它不实现任何功能。接口的规则：
+
+   1. 不能包含状态变量
+   2. 不能包含构造函数
+   3. 不能继承除接口外的其他合约
+   4. 所有函数都必须是external且不能有函数体
+   5. 继承接口的非抽象合约必须实现接口定义的所有功能
+
+接口是智能合约的骨架，定义了合约的功能以及如何触发它们：如果智能合约实现了某种接口（比如ERC20或ERC721），其他Dapps和智能合约就知道如何与它交互。因为接口提供了两个重要的信息：
+
+   1. 合约里每个函数的bytes4选择器，以及函数签名函数名(每个参数类型）。
+   2. 接口id（更多信息见EIP165）
+
+另外，接口与合约ABI（Application Binary Interface）等价，可以相互转换：编译接口可以得到合约的ABI，利用abi-to-sol工具，也可以将ABI json文件转换为接口sol文件。
+
+- 接口和常规合约的区别在于每个函数都以;代替函数体{ }结尾。
+
+- 如果我们知道一个合约实现了IERC721接口，我们不需要知道它具体代码实现，就可以与它交互
+
+IERC721:https://www.wtf.academy/docs/solidity-101/Interface/
+
+// 利用BAYC地址创建接口合约变量（ETH主网）
+    IERC721 BAYC = IERC721(0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D);
+// 通过接口调用BAYC的balanceOf()查询持仓量
+    function balanceOfBAYC(address owner) external view returns (uint256 balance){
+        return BAYC.balanceOf(owner);
+    }
+
+
+# 15:異常：debug
+
+Solidity三种抛出异常的方法：error，require和assert
+
+   1. error:solidity 0.8.4版本新加的内容，方便且高效（省gas）地向用户解释操作失败的原因，同时还可以在抛出异常的同时携带参数，帮助开发者更好地调试。人们可以在contract之外定义异常，必须搭配revert（回退）命令使用。
+
+      error TransferNotOwner(address sender); // 自定义的带参数的error
+      revert TransferNotOwner(); //in function
+   2. require:缺点就是gas随着描述异常的字符串长度增加，比error命令要高。使用方法：require(检查条件，"异常的描述"),条件不成立的时候，就会抛出异常。
+   3. assert(检查条件），当检查条件不成立的时候，就会抛出异常。
+   4. error方法gas最少，其次是assert，require方法消耗gas最多！因此，error既可以告知用户抛出异常的原因，又能省gas
+
 ### 2024.09.
 
-學習內容：WTF #13~
+學習內容：WTF #16
 
-
-
-
-
+# 16:
 
 <!-- Content_END -->

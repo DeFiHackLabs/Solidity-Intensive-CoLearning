@@ -55,4 +55,31 @@ timezone: Asia/Shanghai
 7. immutable变量可以在声明时或构造函数中初始化
 8. Solidity中最常用的变量类型是uint，也就是正整数，取到负值的话，会报underflow错误。而在插入算法中，变量j有可能会取到-1，引起报错。这里，我们需要把j加1，让它无法取到负值。
 
+### 2024.09.26
+1. 注意：构造函数在不同的Solidity版本中的语法并不一致，在Solidity 0.4.22之前，构造函数不使用 constructor 而是使用与合约名同名的函数作为构造函数而使用，由于这种旧写法容易使开发者在书写时发生疏漏（例如合约名叫 Parents，构造函数名写成 parents），使得构造函数变成普通函数，引发漏洞，所以0.4.22版本及之后，采用了全新的 constructor 写法。
+2. event Transfer(address indexed from, address indexed to, uint256 value);
+3. 每条日志记录都包含主题topics和数据data两部分
+4. 可以在测试网sepolia发event，在etherscan看到
+
+### 2024.09.27
+1. virtual: 父合约中的函数，如果希望子合约重写，需要加上virtual关键字。override：子合约重写了父合约中的函数，需要加上override关键字。
+2. 继承时要按辈分最高到最低的顺序排，contract Erzi is Yeye, Baba
+3. 修饰器（Modifier）同样可以继承，用法与函数继承类似，在相应的地方加virtual和override关键字即可。
+4. 在这个例子中，调用合约people中的super.bar()会依次调用Eve、Adam，最后是God合约。虽然Eve、Adam都是God的子合约，但整个过程中God合约只会被调用一次。
+
+
+### 2024.09.28
+接口类似于抽象合约，但它不实现任何功能。接口的规则：  
+- 不能包含状态变量  
+- 不能包含构造函数  
+- 不能继承除接口外的其他合约  
+- 所有函数都必须是external且不能有函数体  
+- 继承接口的非抽象合约必须实现接口定义的所有功能
+  
+如果我们知道一个合约实现了IERC721接口，我们不需要知道它具体代码实现，就可以与它交互。  
+
+1. error必须搭配revert（回退）命令使用。
+2. gas随着描述异常的字符串长度增加，比error命令要高。使用方法：require(检查条件，"异常的描述")
+3. 我们可以看到，error方法gas最少，其次是assert，require方法消耗gas最多！因此，error既可以告知用户抛出异常的原因，又能省gas，大家要多用！
+
 <!-- Content_END -->

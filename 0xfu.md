@@ -158,4 +158,122 @@ NFT 合约时可以通过继承 ERC721 合约从而快速高效的进行业务�
 
 ### 
 
+
+
+### 2024.09.27
+
+#### 荷兰拍
+
+荷兰拍卖（Dutch Auction）是一种特殊的拍卖形式, 指拍卖标的的竞价由高到低依次递减，参与者在看到当前价格后，可以选
+择立即购买（出价）或等待进一步降价, 最先出价的买家将获得商品。
+
+
+特点：
+- 透明性：价格逐渐降低，所有参与者可以看到当前价格，有助于形成公平竞争环境。
+- 效率：通过时间限制和逐步降价，能够快速达成交易，减少了漫长的谈判过程。
+- 真实需求反映：买家可以根据自己的需求决定出价，有助于更好地反映市场需求。
+- 减少库存风险：对于卖家来说，荷兰拍可以帮助更快地清理库存，降低持有成本。
+- 吸引竞争：可以通过逐步降价吸引更多买家参与，增加成交的可能性。
+
+
+web3荷兰拍的案例：
+
+- Azuki(Azuki通过荷兰拍卖筹集了超过8000枚ETH)
+- World of Women
+
+
+
+#### BeraAl 荷兰拍合约
+
+```Solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+
+contract BeraApDutchAuction is Ownable, ERC721 {
+    uint256 public constant COLLECTION_SIZE = 10000; // NFT总数
+    uint256 public constant AUCTION_START_PRICE = 1 ether; // 起拍价
+    uint256 public constant AUCTION_END_PRICE = 0.1 ether; // 结束价（最低价）
+    uint256 public constant AUCTION_TIME = 10 minutes; // 拍卖时间
+    uint256 public constant AUCTION_DROP_INTERVAL = 1 minutes; // 每过多久时间，价格衰减一次
+    uint256 public constant AUCTION_DROP_PER_STEP =
+        (AUCTION_START_PRICE - AUCTION_END_PRICE) /
+        (AUCTION_TIME / AUCTION_DROP_INTERVAL); // 每次价格衰减步长
+    
+    uint256 public auctionStartTime; // 拍卖开始时间戳
+    string private _baseTokenURI;   // metadata URI
+    uint256[] private _allTokens; // 记录所有存在的tokenId 
+
+    constructor() Ownable(msg.sender) ERC721("BeraAp Dutch Auction", "BERAAP") {
+        auctionStartTime = block.timestamp;
+    }
+
+
+    function totalSupply() public view virtual returns (uint256) {
+        return _allTokens.length;
+    }
+
+   
+    function _addTokenToAllTokensEnumeration(uint256 tokenId) private {
+        _allTokens.push(tokenId);
+    }
+
+    // 拍卖mint函数
+    function auctionMint(uint256 quantity) external payable{
+        uint256 _saleStartTime = uint256(auctionStartTime); // 建立local变量，减少gas花费
+        require(_saleStartTime != 0 && block.timestamp >= _saleStartTime, "sale has not started yet"); // 检查是否设置起拍时间，拍卖是否开始
+        require(totalSupply() + quantity <= COLLECTION_SIZE, "not enough remaining reserved for auction to support desired mint amount"); // 检查是否超过NFT上限
+
+        uint256 totalCost = getAuctionPrice() * quantity; // 计算mint成本
+        require(msg.value >= totalCost, "Need to send more ETH."); // 检查用户是否支付足够ETH
+        
+        // Mint NFT
+        for(uint256 i = 0; i < quantity; i++) {
+            uint256 mintIndex = totalSupply();
+            _mint(msg.sender, mintIndex);
+            _addTokenToAllTokensEnumeration(mintIndex);
+        }
+        // 多余ETH退款
+        if (msg.value > totalCost) {
+            payable(msg.sender).transfer(msg.value - totalCost); //注意一下这里是否有重入的风险
+        }
+    }
+
+    // 获取拍卖实时价格
+    function getAuctionPrice() public view returns (uint256) {
+        if (block.timestamp < auctionStartTime) {
+			return AUCTION_START_PRICE;
+        }else if (block.timestamp - auctionStartTime >= AUCTION_TIME) {
+			return AUCTION_END_PRICE;
+        } else {
+			uint256 steps = (block.timestamp - auctionStartTime) / AUCTION_DROP_INTERVAL;
+			return AUCTION_START_PRICE - (steps * AUCTION_DROP_PER_STEP);
+        }
+    }
+
+    function setAuctionStartTime(uint32 timestamp) external onlyOwner {
+        auctionStartTime = timestamp;
+    }
+
+    function _baseURI() internal view virtual override returns (string memory) {
+        return _baseTokenURI;
+    }
+
+    function setBaseURI(string calldata baseURI) external onlyOwner {
+        _baseTokenURI = baseURI;
+    }
+
+    function withdrawMoney() external onlyOwner {
+        (bool success, ) = msg.sender.call{value: address(this).balance}("");
+        require(success, "Transfer failed.");
+    }
+}
+
+
+```
+
+### 
+
 <!-- Content_END -->

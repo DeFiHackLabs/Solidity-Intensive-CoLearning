@@ -149,4 +149,60 @@ Array 和 Struct 都是引用類型，因此賦值給新的變量時，會創建
 
 結構體內不能包含其本身，但是可以包含數組和映射等複雜類型及原始類型。
 
+### 2024.09.26
+
+#### 7.Mapping
+
+Mapping 的規則：
+
+聲明 `Mapping` 的格式為 `mapping(_KeyType => _ValueType)`，其中的 `_KeyType` 僅能使用 `solidity` 內建的值類型，不能用自定義的結構體。
+
+而 `_ValueType` 可以使用自己定義的類型，例如下面的例子就會報錯
+
+```solidity
+struct car {
+   string color
+   string brand
+}
+mapping ( car => address ) testCarOwner;
+```
+
+因為 Ethereum 會定義所有未使用的空間為 0 ，所以未賦值(value)的鍵(key)的初始值都是各個 `type` 的默認值，如 `uint` 的為 0
+
+#### 8. InitialValue
+
+`delete`會將變數設為預設值
+
+例如：
+
+```solidity
+uint public a = 2;
+
+function reset() external {
+   delete a;
+}
+```
+
+#### 9. Constant
+
+只有數值變量可以聲明 `constant` 及 `immutable` ; `string`、`bytes` 可以聲明為 `constant`, 但不能為 `immutable`
+
+`constant` 變量必須在聲明的時候就初始化，之後就不能再變動，再變動的話會編譯錯誤。
+
+`immutable` 可以在聲明時，或是 `constructor` 中初始化，若 `immutable` 已在聲明中初始化，又再 `constructor` 中初始化，則會使用 `constructor` 初始化的值
+
+### 2024.09.27
+
+#### 13. Inheritance
+
+多重繼承：
+
+`solidity` 的合約可以繼承多個合約，規則如下：
+
+1. 繼承要按照輩分，從最高的到最低的照順序排。比如我寫一個 `A` 合約，它繼承 `B` 和 `C` 合約，那麼就要寫成
+
+```solidity
+contract A is B, C
+```
+
 <!-- Content_END -->

@@ -241,9 +241,79 @@ abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)
 ```
 23. Delegatecall
 ### 2024.09.27
+24. 在合约中创建新合约
+    在以太坊链上，用户（外部账户，EOA）可以创建智能合约，智能合约同样也可以创建新的智能合约。去中心化交易所uniswap就是利用工厂合约（PairFactory）创建了无数个币对合约（Pair）。
+Uniswap V2核心合约中包含两个合约：
+```
+UniswapV2Pair: 币对合约，用于管理币对地址、流动性、买卖。
+UniswapV2Factory: 工厂合约，用于创建新的币对，并管理币对地址。
+```
+下面我们用create方法实现一个极简版的Uniswap：Pair币对合约负责管理币对地址，PairFactory工厂合约用于创建新的币对，并管理币对地址。
+Pair合约
+```
+contract Pair{
+    address public factory; // 工厂合约地址
+    address public token0; // 代币1
+    address public token1; // 代币2
 
+    constructor() payable {
+        factory = msg.sender;
+    }
+
+    // called once by the factory at time of deployment
+    function initialize(address _token0, address _token1) external {
+        require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
+        token0 = _token0;
+        token1 = _token1;
+    }
+}
+```
+PairFactory
+```
+contract PairFactory{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair(address tokenA, address tokenB) external returns (address pairAddr) {
+        // 创建新合约
+        Pair pair = new Pair(); 
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+}
+```
+25. CREATE2
+CREATE2 操作码使我们在智能合约部署在以太坊网络之前就能预测合约的地址。Uniswap创建Pair合约用的就是CREATE2而不是CREATE。这一讲，我将介绍CREATE2的用法
+
+CREATE2如何计算地址
+CREATE2的目的是为了让合约地址独立于未来的事件。不管未来区块链上发生了什么，你都可以把合约部署在事先计算好的地址上。用CREATE2创建的合约地址由4个部分决定：
+
+0xFF：一个常数，避免和CREATE冲突
+CreatorAddress: 调用 CREATE2 的当前合约（创建合约）地址。
+salt（盐）：一个创建者指定的bytes32类型的值，它的主要目的是用来影响新创建的合约的地址。
+initcode: 新合约的初始字节码（合约的Creation Code和构造函数的参数）。
+新地址 = hash("0xFF",创建者地址, salt, initcode)
+Copy
+CREATE2 确保，如果创建者使用 CREATE2 和提供的 salt 部署给定的合约initcode，它将存储在 新地址 中。
+
+如何使用CREATE2
 ### 2024.09.28
+26. 删除合约
+    selfdestruct命令可以用来删除智能合约，并将该合约剩余ETH转到指定地址。selfdestruct是为了应对合约出错的极端情况而设计的。它最早被命名为suicide（自杀），但是这个词太敏感。为了保护抑郁的程序员，改名为selfdestruct；在 v0.8.18 版本中，selfdestruct 关键字被标记为「不再建议使用」，在一些情况下它会导致预期之外的合约语义，但由于目前还没有代替方案，目前只是对开发者做了编译阶段的警告，相关内容可以查看 EIP-6049。
 
+然而，在以太坊坎昆（Cancun）升级中，EIP-6780被纳入升级以实现对Verkle Tree更好的支持。EIP-6780减少了SELFDESTRUCT操作码的功能。根据提案描述，当前SELFDESTRUCT仅会被用来将合约中的ETH转移到指定地址，而原先的删除功能只有在合约创建-自毁这两个操作处在同一笔交易时才能生效。所以目前来说：
+
+已经部署的合约无法被SELFDESTRUCT了。
+如果要使用原先的SELFDESTRUCT功能，必须在同一笔交易中创建并SELFDESTRUCT。
+
+27. ABI编码解码
+    ABI (Application Binary Interface，应用二进制接口)是与以太坊智能合约交互的标准。数据基于他们的类型编码；并且由于编码后不包含类型信息，解码时需要注明它们的类型。
+    ABI编码有4个函数：abi.encode, abi.encodePacked, abi.encodeWithSignature, abi.encodeWithSelector。而ABI解码有1个函数：abi.decode
 ### 2024.09.29
 
 ### 2024.09.30
