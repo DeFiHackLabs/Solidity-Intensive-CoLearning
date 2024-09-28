@@ -38,4 +38,7 @@ timezone: Asia/Shanghai
 章節14學習到abstract和interface，抽象必須實作出來子函數但interface不用可用於規範介面有哪些
 當有合約要給其他人使用時可直接把interface給對方就好，可以很容易知道有哪些函數可直接使用
 
+### 2024.09.28
+章節14學習到可以透過error將一些例外狀況直接拋出且gas是最低的，require會隨著拋出的error長度gas也會增加
+
 <!-- Content_END -->
