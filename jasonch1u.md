@@ -690,6 +690,11 @@ function allowance(address owner, address spender) public view virtual returns (
     return _allowances[owner][spender];
 }
 ```
+###2024.09.29
+如何用foundryup做鍊上互動
+
+cast wallet import hw1 --interactive
+
 
 #### 13_Inheritance
 
