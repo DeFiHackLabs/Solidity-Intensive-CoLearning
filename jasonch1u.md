@@ -649,14 +649,13 @@ contract DefiHackLabsToken is ERC20 { //繼承ERC20
 ### 20204.09.28
 * BootCamp作業：ERC20發幣合約、測試合約
 ```solidity
-vm.prank() 模擬用戶操作
+vm.prank() //模擬用戶操作
 ```
-```solidity
-token.transfer(user3, 4 ether);
-```
-來源：這是 ERC20 標準函數，在 OpenZeppelin 的 ERC20 實現中定義。
-功能：將代幣從調用者轉移到指定地址。
-寫法（在 OpenZeppelin ERC20 中）：
+
+* token.transfer(user3, 4 ether);
+   * 來源：這是 ERC20 標準函數，在 OpenZeppelin 的 ERC20 實現中定義。
+   * 功能：將代幣從調用者轉移到指定地址。
+   * 寫法（在 OpenZeppelin ERC20 中）：
 ```solidity
 function transfer(address to, uint256 amount) public virtual returns (bool) {
     address owner = _msgSender();
@@ -664,12 +663,11 @@ function transfer(address to, uint256 amount) public virtual returns (bool) {
     return true;
 }
 ```
-```solidity
-token.approve(user2, 3 ether);
-```
-來源：同樣是 ERC20 標準函數，在 OpenZeppelin 的 ERC20 實現中定義。
-功能：授權另一個地址可以從調用者賬戶轉出特定數量的代幣。
-寫法（在 OpenZeppelin ERC20 中）：
+
+* token.approve(user2, 3 ether);
+*    來源：同樣是 ERC20 標準函數，在 OpenZeppelin 的 ERC20 實現中定義。
+*    功能：授權另一個地址可以從調用者賬戶轉出特定數量的代幣。
+*    寫法（在 OpenZeppelin ERC20 中）：
 ```solidity
 function approve(address spender, uint256 amount) public virtual returns (bool) {
     address owner = _msgSender();
@@ -677,12 +675,10 @@ function approve(address spender, uint256 amount) public virtual returns (bool) 
     return true;
 }
 ```
-```solidity
-token.transferFrom(user1, user3, 2 ether);
-```
-來源：ERC20 標準函數，在 OpenZeppelin 的 ERC20 實現中定義。
-功能：從一個地址向另一個地址轉移代幣，前提是轉移者有足夠的授權。
-寫法（在 OpenZeppelin ERC20 中）：
+* token.transferFrom(user1, user3, 2 ether);
+*    來源：ERC20 標準函數，在 OpenZeppelin 的 ERC20 實現中定義。
+*    功能：從一個地址向另一個地址轉移代幣，前提是轉移者有足夠的授權。
+*    寫法（在 OpenZeppelin ERC20 中）：
 ```solidity
 function transferFrom(address from, address to, uint256 amount) public virtual returns (bool) {
     address spender = _msgSender();
@@ -691,12 +687,10 @@ function transferFrom(address from, address to, uint256 amount) public virtual r
     return true;
 }
 ```
-```solidity
-token.allowance(user1, user2);
-```
-來源：ERC20 標準函數，在 OpenZeppelin 的 ERC20 實現中定義。
-功能：查詢一個地址授權給另一個地址的代幣數量。
-寫法（在 OpenZeppelin ERC20 中）：
+* token.allowance(user1, user2);
+*    來源：ERC20 標準函數，在 OpenZeppelin 的 ERC20 實現中定義。
+*    功能：查詢一個地址授權給另一個地址的代幣數量。
+*    寫法（在 OpenZeppelin ERC20 中）：
 ```solidity
 Copyfunction allowance(address owner, address spender) public view virtual returns (uint256) {
     return _allowances[owner][spender];
