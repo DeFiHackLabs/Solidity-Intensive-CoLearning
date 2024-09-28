@@ -185,6 +185,50 @@ student = Student({id: 4, score: 60});
 
 ### 2024.09.28
 
+#### 映射 (Mapping)
+
+在 Solidity 中，映射 (Mapping) 是一種資料結構，可以通過鍵（Key）查詢對應的值（Value）。例如，可以通過一個人的 ID 查詢他的钱包地址。
+
+## 映射聲明格式
+```solidity
+mapping(_KeyType => _ValueType)
+```
+_KeyType 和 _ValueType 分別代表鍵和值的變量類型。
+
+
+```solidity
+mapping(uint => address) public idToAddress; // ID 映射到地址
+mapping(address => address) public swapPair; // 幣對的映射，地址到地址
+```
+#### 映射的規則
+鍵類型限制：映射的 _KeyType 只能是 Solidity 內置的值類型，如 uint、address 等，不能使用自定義的結構體。
+
+- 錯誤範例：
+```solidity
+struct Student {
+    uint256 id;
+    uint256 score; 
+}
+mapping(Student => uint) public testVar; // 錯誤，因為 _KeyType 是自定義結構體
+```
+- 存儲位置限制：映射的存儲位置必須是 storage，因此可以用於合約的狀態變量、函數中的 storage 變量和 library 函數的參數中。
+- 自動生成 Getter 函數：如果映射聲明為 public，Solidity 會自動生成一個 getter 函數，可以通過鍵來查詢對應的值。
+
+#### 新增鍵值對的語法：
+```solidity
+_Var[_Key] = _Value;
+_Var 是映射變量名，_Key 和 _Value 對應新增的鍵值對。
+
+```solidity
+function writeMap(uint _Key, address _Value) public {
+    idToAddress[_Key] = _Value;
+}
+```
+#### 映射的原理
+- 不儲存鍵的資訊：映射不儲存任何鍵的資訊，也沒有長度資訊。
+- 存取方式：映射使用 keccak256(abi.encodePacked(key, slot)) 作為偏移量來存取值，其中 slot 是映射變量所在的插槽位置。
+- 默認值：未賦值的鍵初始值都是該類型的默認值，例如 uint 的默認值是 0。
+
 ### 2024.09.29
 
 ### 2024.09.30
