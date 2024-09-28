@@ -143,5 +143,82 @@ contract HelloFunction {
 ```
 ### 
 
+### 2024.09.27
+
+#### 变量数据存储和作用域
+
+- 引用类型 数组和结构体
+- 数据存储类型有三类: storage 、 memory、calldata 
+- storage存储在链上，gas高
+- memory、calldata存储在内存中gas低
+#### 用法
+- storage：合约里的状态变量默认都是storage，存储在链上。
+
+- memory：函数里的参数和临时变量一般用memory，存储在内存中，不上链。尤其是如果返回数据类型是变长的情况下，必须加memory修饰，例如：string, bytes, array和自定义结构。
+
+- calldata：和memory类似，存储在内存中，不上链。与memory的不同点在于calldata变量不能修改（immutable），一般用于函数的参数
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract VarTest{
+
+    function testCallData(int[] calldata a) public pure returns(int b){
+       return (a[0]);
+    }
+
+
+    uint[] public uArray = [1,2,3];
+
+    function testVar() public {
+        uint[] storage bArray = uArray;
+        bArray[0] = 6;
+    }
+
+    //状态变量
+    int a = -1;
+
+
+    //局部变量
+    function testVar22() external pure {
+        uint b = 2;
+    }
+
+    //全局变量
+    function testGlobal() public view{
+        address a = msg.sender;
+        uint blockId = block.number;
+    }
+
+    // 以太单位
+    //solidity 不包含小数，以0作为代替，方便计算
+    // wei:1
+    // gwei: 1e9 = 100000000
+    // ether: 1e18 = 100000000000000000
+
+    function weiUnit() external pure returns(uint) {
+        assert(1 wei == 1e0);
+        assert(1 wei == 1);
+        return 1 wei;
+    }
+
+    function gweiUnit() external pure returns (uint) {
+        assert(1 gwei == 1e9);
+        assert(1 gwei == 1000000000);
+        return 1 gwei;
+    }
+
+    function etherUnit() external pure  returns (uint) {
+        assert(1 ether == 1e18);
+        assert(1 ether == 1000000000000000000);
+        return 1 ether;
+    }
+
+}
+```
+
+
+### 
 
 <!-- Content_END -->

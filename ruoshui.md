@@ -307,6 +307,64 @@ contract B is A {
 }
 ```
 
+### 2024.09.28
+1、如果一个智能合约里至少有一个未实现的函数，则必须用 `abstract` 标明为抽象合约，没有函数体的函数也需要加 `virtual` 标明
+
+2、接口类似于抽象合约，但它不实现任何功能，参考 NFT 常用的 [IERC721](https://eips.ethereum.org/EIPS/eip-721)
+
+- 不能包含状态变量
+- 不能包含构造函数
+- 不能继承除接口外的其他合约
+- 所有函数都必须是 `external` 且不能有函数体
+- 继承接口的非抽象合约必须实现接口定义的所有功能
+
+3、三种抛出异常方法
+
+```solidity
+// 自定义error
+error TransferNotOwner();
+
+// error TransferNotOwner(address sender);
+
+contract Errors {
+    // 一组映射，记录每个TokenId的Owner
+    mapping(uint256 => address) private _owners;
+
+    // Error方法: gas cost 24457
+    // Error with parameter: gas cost 24660
+    function transferOwner1(uint256 tokenId, address newOwner) public {
+        if (_owners[tokenId] != msg.sender) {
+            revert TransferNotOwner();
+            // revert TransferNotOwner(msg.sender);
+        }
+        _owners[tokenId] = newOwner;
+    }
+
+    // require方法: gas cost 24755
+    function transferOwner2(uint256 tokenId, address newOwner) public {
+        require(_owners[tokenId] == msg.sender, "Transfer Not Owner");
+        _owners[tokenId] = newOwner;
+    }
+
+    // assert方法: gas cost 24473
+    function transferOwner3(uint256 tokenId, address newOwner) public {
+        assert(_owners[tokenId] == msg.sender);
+        _owners[tokenId] = newOwner;
+    }
+}
+```
+4、`Solidity` 中允许函数进行重载（overloading），即名字相同但输入参数类型不同的函数可以同时存在，他们被视为不同的函数。注意，`Solidity` 不允许修饰器（`modifier`）重载。
+
+```solidity
+function saySomething() public pure returns(string memory){
+    return("Nothing");
+}
+
+function saySomething(string memory something) public pure returns(string memory){
+    return(something);
+}
+```
+
 ### 
 
 <!-- Content_END -->

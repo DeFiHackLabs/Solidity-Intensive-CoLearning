@@ -1036,6 +1036,114 @@ timezone: Asia/Shanghai
             }
         }
         ```
+###
+
+#### 2024.09.28
+
+学习内容:
+1. 第二十三讲
+    - `delegatecall` - 委托调用
+    - 语法形式: 
+        - `目标合约地址.delegatecall(二进制编码);`
+        - 二进制编码利用结构化编码函数`abi.encodeWithSignature`获得
+        - `abi.encodeWithSignature("函数签名", 逗号分隔的具体参数`
+    - `delegatecall` - 应用场景
+        - 代理合约（`Proxy Contract`）：将智能合约的存储合约和逻辑合约分开：代理合约（`Proxy Contract`）存储所有相关的变量，并且保存逻辑合约的地址；所有函数存在逻辑合约（`Logic Contract`）里，通过`delegatecall`执行。当升级时，只需要将代理合约指向新的逻辑合约即可。
+            - 代理合约示例
+                ```Solidity
+
+                // LogicContract (逻辑合约)
+                pragma solidity ^0.8.0;
+
+                contract LogicContract {
+                    uint public number;
+
+                    // 修改number的值
+                    function setNumber(uint _number) public {
+                        number = _number;
+                    }
+                }
+                ```
+                ```Solidity
+
+                // ProxyContract (代理合约)
+                pragma solidity ^0.8.0;
+
+                contract ProxyContract {
+                    uint public number;
+
+                    function setLogicNumber(address _logicContract, uint _number) public {
+                        // delegatecall 执行逻辑合约中的 setNumber 函数
+                        (bool success, ) = _logicContract.delegatecall(
+                            abi.encodeWithSignature("setNumber(uint256)", _number)
+                        );
+                        require(success, "delegatecall failed");
+                    }
+                }
+                ```
+            - 可升级代理合约示例
+                ```Solidity
+
+                // LogicContractV1.sol 逻辑合约 v1
+                pragma solidity ^0.8.0;
+
+                contract LogicContractV1 {
+                    uint public number;
+
+                    // 设置 number 的值
+                    function setNumber(uint _number) public {
+                        number = _number;
+                    }
+
+                    // 获取 number 的值，v1版本逻辑中直接返回数值
+                    function getNumber() public view returns (uint) {
+                        return number;
+                    }
+                }
+                ```
+
+                ```Solidity
+
+                // ProxyContract.sol 代理合约
+                pragma solidity ^0.8.0;
+
+                contract ProxyContract {
+                    // 保存逻辑合约的地址
+                    address public logicContract;
+                    address public owner;
+
+                    constructor(address _logicContract) {
+                        logicContract = _logicContract;
+                        owner = msg.sender;
+                    }
+
+                    // 修改逻辑合约地址
+                    function upgradeTo(address _newLogicContract) public {
+                        require(msg.sender == owner, "Only owner can upgrade");
+                        logicContract = _newLogicContract;
+                    }
+
+                    // fallback 函数：捕捉所有调用并转发给逻辑合约
+                    fallback() external payable {
+                        _delegate(logicContract);
+                    }
+
+                    function _delegate(address _logicContract) internal {
+                        // 使用代理合约的上下文调用逻辑合约
+                        (bool success, bytes memory returnData) = _logicContract.delegatecall(msg.data);
+                        require(success, "Delegatecall failed");
+                        assembly {
+                            return(add(returnData, 32), mload(returnData))
+                        }
+                    }
+                }
+                ```
+        - EIP-2535 Diamonds（钻石）：钻石是一个支持构建可在生产中扩展的模块化智能合约系统的标准。钻石是具有多个实施合约的代理合约。
+
+    - `delegatecall`的风险
+        - 存储冲突：由于 `delegatecall` 修改的是调用者的存储，因此，如果目标合约和调用者合约的存储布局不同，可能会导致意外的存储冲突和数据破坏。
+            - 例如，目标合约的第一个状态变量会覆盖调用者合约的第一个状态变量，因此需要小心管理存储布局。
+        - 安全问题：`delegatecall` 可以将外部代码引入当前合约的上下文，因此在调用不受信任的合约时需要特别小心，可能会造成安全漏洞。
 
 ###
 <!-- Content_END -->

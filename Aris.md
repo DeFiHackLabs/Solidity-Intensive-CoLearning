@@ -237,4 +237,44 @@ timezone: Asia/Shanghai
     - ![image-20240927162026517](content/Aris/image-20240927162026517.png)
 5. 第 06 节测验得分: 100, 答案: BCCBCA
 
+---
+
+### 2024.09.28
+
+#### 学习内容 7. 映射类型 mapping
+
+1. 映射 Mapping
+
+    - solidity 中的存储键值对的数据结构(可以理解为哈希表)
+
+2. 映射规则
+
+    - 规则 1:映射的 key 的数据类型只能选择 solidity 内置的值类型,比如 uint, address,不能用结构体;value 的数据列席可以使用自定义类型
+
+        - ```solidity
+            struct Student {
+            	uint256 id;
+            	uint256 score;
+            }
+            mapping(Student => uint) public testVar; // 报错
+            ```
+
+    - 规则 2:映射的存储位置必须是storage,因此可以用于状态变量;不能用于 public 函数的参数或者返回结果中;因为映射记录的是一种键值对关系!!!一种键值对关系!!!一种键值对关系!!!
+
+    - 规则 3:如果映射声明为public,那么,solidity 会自动创建一个 getter 函数,可以通过 key 来查询对应的 value;
+
+    - 规则 4:给映射新增键值对的语法为 `_var[_key] = _val` _var:映射变量名;_key,_val 对应键值对;
+
+3. 映射的原理:
+
+    - 原理 1: 映射不存储任何键(key)的信息,也没有 length 信息;
+    - 原理 2: 映射使用 `keccak256(abi.encodePacked(key, slot))`当成 offset 存取 value,这里的 slot 是映射变量定义所在的插槽位置;
+    - 原理 3: 因为 Ethereum 会定义所有未使用的空间为 0,所以,未赋值的键初始值是对应数据类型的默认值(例如 uint 的默认值是 0)
+
+4. 合约部署
+
+    - ![image-20240928195920146](content/Aris/image-20240928195920146.png)
+
+5. 第 07 节测验得分: 100, 答案: BADABB
+
 <!-- Content_END -->

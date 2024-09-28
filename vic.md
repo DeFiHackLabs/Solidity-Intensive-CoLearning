@@ -258,6 +258,437 @@ contract functionReturn {
 }
 ```
 
+### 2024.09.27
+
+#### 变量数据存储和作用域
+
+---
+
+引用类型(Reference Type)：
+包括数组（array）和结构体（struct），由于这类变量比较复杂，占用存储空间大，我们在使用时必须要声明数据存储的位置。
+*****
+#### 数据位置
+
+Solidity 数据存储位置有三类：**storage**，**memory**和**calldata**。不同存储位置的 gas 成本不同。storage 类型的数据存在链上，类似计算机的硬盘，消耗 gas 多；memory 和 calldata 类型的临时存在内存里，消耗 gas 少。大致用法：
+
+**storage**：合约里的状态变量默认都是 storage，存储在链上。
+
+**memory**：函数里的参数和临时变量一般用 memory，存储在内存中，不上链。尤其是如果返回数据类型是变长的情况下，必须加 memory 修饰，例如：string, bytes, array 和自定义结构。
+
+**calldata**：和 memory 类似，存储在内存中，不上链。与 memory 的不同点在于 calldata 变量不能修改（immutable），一般用于函数的参数。
+*****
+#### 数据位置和赋值规则
+
+在不同存储类型相互赋值时候，有时会产生独立的副本（修改新变量不会影响原变量），有时会产生引用（修改新变量会影响原变量）。规则如下：
+赋值本质上是创建引用指向本体，因此修改本体或者是引用，变化可以被同步：
+storage（合约的状态变量）赋值给本地 storage（函数里的）时候，会创建引用，改变新变量会影响原变量。
+memory 赋值给 memory，会创建引用，改变新变量会影响原变量。
+其他情况下，赋值创建的是本体的副本，即对二者之一的修改，并不会同步到另一方。
+*****
+#### 变量的作用域
+
+Solidity 中变量按作用域划分有三种，分别是状态变量（state variable），局部变量（local variable）和全局变量(global variable)
+
+1. 状态变量
+   状态变量是数据存储在链上的变量，所有合约内函数都可以访问，gas 消耗高。状态变量在合约内、函数外声明。
+2. 局部变量
+   局部变量是仅在函数执行过程中有效的变量，函数退出后，变量无效。局部变量的数据存储在内存里，不上链，gas 低。局部变量在函数内声明。
+3. 全局变量
+   全局变量是全局范围工作的变量，都是 solidity 预留关键字。他们可以在函数内不声明直接使用。
+*****
+#### 常用的全局变量
+
+  [更完整的列表请看这个](https://learnblockchain.cn/docs/solidity/units-and-global-variables.html#special-variables-and-functions) 
+  blockhash(uint blockNumber): (bytes32) 给定区块的哈希值 – 只适用于 256 最近区块, 不包含当前区块。
+  block.coinbase: (address payable) 当前区块矿工的地址
+  block.gaslimit: (uint) 当前区块的 gaslimit
+  block.number: (uint) 当前区块的 number
+  block.timestamp: (uint) 当前区块的时间戳，为 unix 纪元以来的秒
+  gasleft(): (uint256) 剩余 gas
+  msg.data: (bytes calldata) 完整 call data
+  msg.sender: (address payable) 消息发送者 (当前 caller)
+  msg.sig: (bytes4) calldata 的前四个字节 (function identifier)
+  msg.value: (uint) 当前交易发送的 wei 值
+  block.blobbasefee: (uint) 当前区块的 blob 基础费用。这是 Cancun 升级新增的全局变量。
+  blobhash(uint index): (bytes32) 返回跟当前交易关联的第 index 个 blob 的版本化哈希（第一个字节为版本号，当前为 0x01，后面接 KZG 承诺的 SHA256 哈希的最后 31 个字节）。若当前交易不包含 blob，则返回空字节。这是 Cancun 升级新增的全局变量。
+
+---
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+// 变量数据存储和作用域
+contract varEnv {
+    uint[] public a = [5,6,7];
+
+    // 合约里的状态变量默认都是storage，存储在链上。
+    function myStorage() external {
+        uint[] storage xStorage = a;
+        xStorage[1] = 199;
+    }
+
+    // 函数里的参数和临时变量一般用memory，存储在内存中，不上链。尤其是如果返回数据类型是变长的情况下，必须加memory修饰
+    function myMemory() external view {
+        uint[] memory xMemory = a;
+        xMemory[0] = 99;
+    }
+
+    // 和memory类似，存储在内存中，不上链。与memory的不同点在于calldata变量不能修改（immutable），一般用于函数的参数
+    function myCalldata(uint[] calldata _x) external {
+        a = _x;
+    }
+
+    /*
+    变量按作用域划分有三种，分别是状态变量，局部变量 和 全局变量
+
+    状态变量
+    状态变量是数据存储在链上的变量，所有合约内函数都可以访问，gas消耗高。状态变量在合约内、函数外声明
+
+    局部变量
+    局部变量是仅在函数执行过程中有效的变量，函数退出后，变量无效。局部变量的数据存储在内存里，不上链，gas低。局部变量在函数内声明
+
+    全局变量
+    全局变量是全局范围工作的变量，都是solidity预留关键字。他们可以在函数内不声明直接使用
+    blockhash(uint blockNumber): (bytes32) 给定区块的哈希值 – 只适用于256最近区块, 不包含当前区块。
+    block.coinbase: (address payable) 当前区块矿工的地址
+    block.gaslimit: (uint) 当前区块的gaslimit
+    block.number: (uint) 当前区块的number
+    block.timestamp: (uint) 当前区块的时间戳，为unix纪元以来的秒
+    gasleft(): (uint256) 剩余 gas
+    msg.data: (bytes calldata) 完整call data
+    msg.sender: (address payable) 消息发送者 (当前 caller)
+    msg.sig: (bytes4) calldata的前四个字节 (function identifier)
+    msg.value: (uint) 当前交易发送的 wei 值
+    block.blobbasefee: (uint) 当前区块的blob基础费用。这是Cancun升级新增的全局变量。
+    blobhash(uint index): (bytes32) 返回跟当前交易关联的第 index 个blob的版本化哈希（第一个字节为版本号，当前为0x01，后面接KZG承诺的SHA256哈希的最后31个字节）。若当前交易不包含blob，则返回空字节。这是Cancun升级新增的全局变量
+    */
+
+    uint public num = 12;
+    string public str = "Hello";
+
+    function change() external {
+        num = 66;
+        str = "World";
+    }
+
+    function change1() external pure returns(uint result) {
+        uint num1 = 5;
+        uint num2 = 10;
+        result = num1 + num2;
+    }
+
+    function change2() external payable returns(uint amount, address sender, uint time) {
+        // 常用的三种变量
+        amount = msg.value;
+        sender = msg.sender;
+        time = block.timestamp;
+        /*
+            执行后输出：
+            {
+                "0": "uint256: amount 1000000000000000000",
+                "1": "address: sender 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4",
+                "2": "uint256: time 1727379969"
+            }
+        */
+    }
+
+    function change3() external  pure returns(uint amount, uint time) {
+        amount = 1 ether;
+        time = 1 hours;
+    }
+}
+
+```
+
+### 2024.09.28
+
+#### 引用类型 array，struct
+
+##### array
+
+数组（`Array`）是`Solidity`常用的一种变量类型，用来存储一组数据（整数，字节，地址等等）。数组分为固定长度数组和可变长度数组两种：
+
+- 固定长度数组：在声明时指定数组的长度。用`T[k]`的格式声明，其中`T`是元素的类型，`k`是长度，例如：
+
+  ```solidity
+  // 固定长度 Array
+  uint[8] array1;
+  bytes1[5] array2;
+  address[100] array3;
+  ```
+
+- 可变长度数组（动态数组）：在声明时不指定数组的长度。用`T[]`的格式声明，其中`T`是元素的类型，例如：
+
+  ```solidity
+  // 可变长度 Array
+  uint[] array4;
+  bytes1[] array5;
+  address[] array6;
+  bytes array7;
+  ```
+
+  **注意**：`bytes`比较特殊，是数组，但是不用加`[]`。另外，不能用`byte[]`声明单字节数组，可以使用`bytes`或`bytes1[]`。`bytes` 比 `bytes1[]` 省gas。
+
+在Solidity里，创建数组有一些规则：
+
+- 对于`memory`修饰的`动态数组`，可以用`new`操作符来创建，但是必须声明长度，并且声明后长度不能改变。例子：
+
+  ```solidity
+  // memory动态数组
+  uint[] memory array8 = new uint[](5);
+  bytes memory array9 = new bytes(9);
+  ```
+
+- 数组字面常数(Array Literals)是写作表达式形式的数组，用方括号包着来初始化array的一种方式，并且里面每一个元素的type是以第一个元素为准的，例如`[1,2,3]`里面所有的元素都是`uint8`类型，因为在Solidity中，如果一个值没有指定type的话，会根据上下文推断出元素的类型，默认就是最小单位的type，这里默认最小单位类型是`uint8`。而`[uint(1),2,3]`里面的元素都是`uint`类型，因为第一个元素指定了是`uint`类型了，里面每一个元素的type都以第一个元素为准。
+
+  下面的例子中，如果没有对传入 `g()` 函数的数组进行 `uint` 转换，是会报错的。
+
+  ```solidity
+  // SPDX-License-Identifier: GPL-3.0
+  pragma solidity >=0.4.16 <0.9.0;
+  
+  contract C {
+      function f() public pure {
+          g([uint(1), 2, 3]);
+      }
+      function g(uint[3] memory _data) public pure {
+          // ...
+      }
+  }
+  ```
+
+  
+
+- 如果创建的是动态数组，你需要一个一个元素的赋值。
+
+  ```solidity
+  uint[] memory x = new uint[](3);
+  x[0] = 1;
+  x[1] = 3;
+  x[2] = 4;
+  ```
+
+  
+
+数组成员[](https://www.wtf.academy/docs/solidity-101/ArrayAndStruct/#数组成员)
+
+- `length`: 数组有一个包含元素数量的`length`成员，`memory`数组的长度在创建后是固定的。
+- `push()`: `动态数组`拥有`push()`成员，可以在数组最后添加一个`0`元素，并返回该元素的引用。
+- `push(x)`: `动态数组`拥有`push(x)`成员，可以在数组最后添加一个`x`元素。
+- `pop()`: `动态数组`拥有`pop()`成员，可以移除数组最后一个元素。
+
+---
+
+##### 结构体 struct[](https://www.wtf.academy/docs/solidity-101/ArrayAndStruct/#结构体-struct)
+
+`Solidity`支持通过构造结构体的形式定义新的类型。结构体中的元素可以是原始类型，也可以是引用类型；结构体可以作为数组或映射的元素。创建结构体的方法：
+
+```solidity
+// 结构体
+struct Student{
+    uint256 id;
+    uint256 score; 
+}
+
+Student student; // 初始一个student结构体
+```
+
+给结构体赋值的四种方法：
+
+```solidity
+//  给结构体赋值
+// 方法1:在函数中创建一个storage的struct引用
+function initStudent1() external{
+    Student storage _student = student; // assign a copy of student
+    _student.id = 11;
+    _student.score = 100;
+}
+
+// 方法2:直接引用状态变量的struct
+function initStudent2() external{
+    student.id = 1;
+    student.score = 80;
+}
+
+// 方法3:构造函数式
+function initStudent3() external {
+    student = Student(3, 90);
+}
+
+// 方法4:key value
+function initStudent4() external {
+    student = Student({id: 4, score: 60});
+}
+```
+
+
+
+##### 代码块
+
+```solidity
+// SPDX License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+// 引用类型 array， struct
+contract referencetypes {
+
+    // 声明定长array
+    uint[3] numberArray;
+
+    // 声明可变array
+    uint[] numberArray2;
+
+    // 声明动态+可变array
+    uint[] numberArray3 = new uint[](2); // 初始化数组为两个长度
+
+
+    // 修改定长array内容
+    function change() external {
+        numberArray[0] = 1;
+        numberArray[1] = 2;
+        numberArray[2] = 3;
+    }
+
+    // 修改可变array内容
+    function change2() external {
+        numberArray2.push(11);
+        numberArray2.push(22);
+        numberArray2.push(33);
+        numberArray2.push(44);
+
+        // 移除array最后一个元素
+        numberArray2.pop();
+        // 获取array长度
+        numberArray2.length;
+    }
+
+    // 修改动态+可变array内容
+    function change3() external {
+        // 由于初始化长度为2，所以只可以是使用下标修改长度之内的数据
+        numberArray3[0] = 111;
+        numberArray3[1] = 222;
+        // 超出创建array长度的数据，需要使用push()进行添加
+        numberArray3.push(333);
+        // 创建新的长度后，可以再次进行修改
+        numberArray3[2] = 33333;
+    }
+    
+
+    function getArray1() external view returns(uint[3] memory) {
+        return numberArray;
+    }
+
+    function getArray2() external view returns(uint[] memory) {
+        return numberArray2;
+    }
+
+    function getArray3() external view returns(uint[] memory) {
+        return numberArray3;
+    }
+
+// ----------------------------------------------------------------- //
+
+    // 声明一个struct
+    struct Person {
+        uint height;
+        uint weight;
+        string name;
+    }
+
+    Person public p;
+
+    function changePerson() external {
+        Person storage _p = p;
+        _p.height = 180;
+        _p.weight = 120;
+        _p.name = "Vic";
+    }
+
+    function changePerson2() external {
+        p.height = 172;
+        p.weight = 103;
+        p.name = "Anna";
+    }
+
+    function changePerson3() external {
+        p = Person(168,96,"Vivian");
+    }
+
+    function changePerson4() external {
+        p = Person({
+            height: 163,
+            weight: 92,
+            name: "Lucy"
+        });
+    }
+}
+```
+
+#### 映射类型
+
+##### mapping
+
+可以通过键（`Key`）来查询对应的值（`Value`），比如：通过一个人的`id`来查询他的钱包地址。
+
+声明映射的格式为`mapping(_KeyType => _ValueType)`，其中`_KeyType`和`_ValueType`分别是`Key`和`Value`的变量类型。
+
+```solidity
+mapping(uint => address) public idToAddress; // id映射到地址
+mapping(address => address) public swapPair; // 币对的映射，地址到地址
+```
+
+##### 映射的规则[](https://www.wtf.academy/docs/solidity-101/Mapping/#映射的规则)
+
+- **规则1**：映射的`_KeyType`只能选择Solidity内置的值类型，比如`uint`，`address`等，不能用自定义的结构体。而`_ValueType`可以使用自定义的类型。下面这个例子会报错，因为`_KeyType`使用了我们自定义的结构体：
+
+  ```solidity
+  // 我们定义一个结构体 Struct
+  struct Student{
+      uint256 id;
+      uint256 score; 
+  }
+  mapping(Student => uint) public testVar;
+  ```
+
+- **规则2**：映射的存储位置必须是`storage`，因此可以用于合约的状态变量，函数中的`storage`变量和library函数的参数（见[例子](https://github.com/ethereum/solidity/issues/4635)）。不能用于`public`函数的参数或返回结果中，因为`mapping`记录的是一种关系 (key - value pair)。
+
+- **规则3**：如果映射声明为`public`，那么Solidity会自动给你创建一个`getter`函数，可以通过`Key`来查询对应的`Value`。
+
+- **规则4**：给映射新增的键值对的语法为`_Var[_Key] = _Value`，其中`_Var`是映射变量名，`_Key`和`_Value`对应新增的键值对。例子：
+
+  ```solidity
+  function writeMap (uint _Key, address _Value) public{
+      idToAddress[_Key] = _Value;
+  }
+  ```
+
+##### 映射的原理[](https://www.wtf.academy/docs/solidity-101/Mapping/#映射的原理)
+
+- **原理1**: 映射不储存任何键（`Key`）的资讯，也没有length的资讯。
+- **原理2**: 映射使用`keccak256(abi.encodePacked(key, slot))`当成offset存取value，其中`slot`是映射变量定义所在的插槽位置。
+- **原理3**: 因为Ethereum会定义所有未使用的空间为0，所以未赋值（`Value`）的键（`Key`）初始值都是各个type的默认值，如uint的默认值是0。
+
+```solidity
+// SPDX License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+contract mapTypes {
+		// 创建一个地址映射，类型是uint
+    mapping(address => uint) public balanceOf;
+
+    function mint() external {
+        balanceOf[msg.sender] = 50 ether;
+    }
+
+    function burn() external {
+        balanceOf[msg.sender] = 10 ether;
+    }
+}
+```
+
+
+
 
 
 <!-- Content_END -->
