@@ -651,7 +651,7 @@ contract DefiHackLabsToken is ERC20 { //繼承ERC20
 ```solidity
 vm.prank() //模擬用戶操作，Forge 標準庫中的 vm.prank() 函數來模擬不同用戶的操作。
 ```
-* 以下這是源自 ERC20 標準函數，在 OpenZeppelin 的 ERC20 實現中定義。附上在 OpenZeppelin ERC20 中的寫法
+* 以下幾個是源自 ERC20 標準函數，在 OpenZeppelin 的 ERC20 實現中定義。同時附上在 OpenZeppelin ERC20 中的寫法
 
 * token.transfer (接收的地址, 數量); 
    * 功能：從調用者的賬戶向指定的接收地址轉移指定數量的代幣。
