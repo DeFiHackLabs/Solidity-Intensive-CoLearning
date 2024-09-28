@@ -64,4 +64,8 @@ array 中第一個元素 type 決定
 Key -> Value (Key 規定)
 storage \ public -> getter
 
+### 2024.09.27
+#### Event
+把紀錄寫上鏈，減少 gas 使用 (像 database)
+
 <!-- Content_END -->

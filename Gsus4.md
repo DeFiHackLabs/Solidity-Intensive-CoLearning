@@ -85,6 +85,27 @@ contract HelloWeb3{                 // 合約部分
 * 接收 ETH：receive & fallback
 * 發送 ETH：transfer & send & call
 
+---
+
+### 2024.09.27
+#### 學習內容：Solidity 進階 21 - 25
+* 調用其他合約
+* Call
+* Delegatecall
+* 在合約中創建新合約
+* CREATE2
+
+---
+
+### 2024.09.28
+#### 學習內容：Solidity 進階 26 - 30
+* 刪除合約 selfdestruct
+* ABI 編碼 & 解碼
+* Hash
+* 選擇器 Selector
+* try-catch
+
+
 ### 
 
 <!-- Content_END -->

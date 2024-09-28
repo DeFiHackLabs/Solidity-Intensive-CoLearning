@@ -546,41 +546,92 @@ owner = _newOwner; // 只有owner地址运行这个函数，并改变owner
 * 省gas fee
 
 聲明事件
-```solidity
-event Transfer(address indexed from, address indexed to, uint256 value);
-```
+12_Event
 
-釋放事件
-```solidity
-// 定义_transfer函数，执行转账逻辑
-function _transfer(
-    address from,
-    address to,
-    uint256 amount
-) external {
-    _balances[from] = 10000000; // 给转账地址一些初始代币
-    _balances[from] -=  amount; // from地址减去转账数量
-    _balances[to] += amount; // to地址加上转账数量
+* 監聽事件，方便被找出來
+* 省gas fee，用事件儲存資料，比直接存鍊上數據，gas fee便宜10倍
 
-    // 释放事件
-    emit Transfer(from, to, amount);
-}
-```
-EVM日志 Log (etherscan)
+聲明事件
 
-topic
 ```solidity
+event Transfer(address indexed from, address indexed to, uint256 value); //正確通用
+
 keccak256("Transfer(address,address,uint256)") //事件簽名要這樣寫
 //0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
 
 keccak256("Transfer(address,address,uint)") //uint不寫256，事件簽名hashed會跟上面不一樣
 ```
-除了事件哈希，主题还可以包含至多3个indexed参数，也就是Transfer事件中的from和to。總共四個東西
+釋放事件：
+```solidity
+// 释放事件
+emit Transfer(from, to, amount);
+```
+
+EVM日志 Log (etherscan)
+topic
+* 除了事件哈希，主题还可以包含至多3个indexed参数，也就是Transfer事件中的from和to。總共四個東西
+* 關於 indexed 關鍵字： 主要用於優化事件的過濾和搜索。
+* 作用：
+*    允許外部應用程序（如 dApps 或區塊鏈瀏覽器）更高效地過濾和查詢特定事件。
+*    被標記為 indexed 的參數會被存儲在事件的 topics 中，而不是data部分。
+* 限制：
+*    每個事件最多可以有 3 個 indexed 參數。
+*    address 和 uint 類型特別有用，因為它們可以直接被搜索。
+
+完全可以將 indexed 加在 amount 上。例如： 
+```solidity
+event Transfer(address indexed from, address indexed to, uint256 indexed amount);
+```
+但是通常不會這麼做，因為一點都不實用
+原因如下： 
+* 搜索模式：大多數情況下，用戶和應用程序更傾向於搜索特定地址的轉賬記錄（發送或接收），而不是特定金額的轉賬。
+* 數據類型考慮：address 類型特別適合用 indexed，因為它們可以直接被搜索和過濾。而 uint256 類型（如 amount）在作為 indexed 參數時，實際上是將其哈希值存儲在 topic 中，這可能不如直接存儲在數據部分有用。
+* 靈活性：不將 amount 標記為 indexed 允許更靈活的金額查詢。例如，您可以很容易地在鏈下計算總轉賬金額或查找特定範圍內的轉賬。
+* 三個 indexed 參數的限制： 雖然技術上可以有三個 indexed 參數，但通常保留一個非 indexed 參數可以提供更多的靈活性，特別是對於可能需要存儲更複雜或大量數據的事件。
+* 效率和成本考慮： indexed 參數會增加燃氣成本，因為它們被單獨存儲為日誌主題。對於頻繁發生的事件（如代幣轉賬），保持合理的燃氣成本很重要。
 
 data
 * 事件中不带 indexed的参数会被存储在 data 部分中。
 * data 部分的变量在存储上消耗的gas相比于 topics 更少。
 
+完整程式碼
+關於 _balances[from] 的語法：
+_balances 是一個映射（mapping）。
+_balances[from] 表示訪問以 from 地址為鍵的映射元素。
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+contract Events {
+    // 定义_balances映射变量，记录每个地址的持币数量
+    mapping(address => uint256) public _balances;
+
+    // 定义Transfer event，记录transfer交易的转账地址，接收地址和转账数量
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+
+    // 定义_transfer函数，执行转账逻辑
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) external {
+
+        _balances[from] = 10000000; // 给转账地址一些初始代币
+
+        _balances[from] -=  amount; // from地址减去转账数量
+        _balances[to] += amount; // to地址加上转账数量
+
+        // 释放事件
+        emit Transfer(from, to, amount);
+    }
+}
+```
+
+### 2024.09.27
+DeFiHackLabs-BootCamp
+
+### 20204.09.28
+DeFiHackLabs-BootCamp
 #### 13_Inheritance
 
 #### 14_Interface

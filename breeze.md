@@ -22,5 +22,7 @@ I studied lessons 01-03 of the Solidity 101 course from WTF Academy and complete
 completed lessons 04-06
 ### 2024.09.26
 completed lessons 07-09
+### 20204.09.27
+completed lessons 10-12
 
 <!-- Content_END -->
