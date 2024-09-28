@@ -649,12 +649,12 @@ contract DefiHackLabsToken is ERC20 { //繼承ERC20
 ### 20204.09.28
 * BootCamp作業：ERC20發幣合約、測試合約
 ```solidity
-vm.prank() //模擬用戶操作
+vm.prank() //模擬用戶操作，Forge 標準庫中的 vm.prank() 函數來模擬不同用戶的操作。
 ```
-* token.transfer (接收的地址, 數量); 這是直接從調用者的賬戶向指定的接收地址轉移指定數量的代幣。
-   * 來源：這是 ERC20 標準函數，在 OpenZeppelin 的 ERC20 實現中定義。
-   * 功能：將代幣從調用者轉移到指定地址。
-   * 寫法（在 OpenZeppelin ERC20 中）：
+* 以下這是源自 ERC20 標準函數，在 OpenZeppelin 的 ERC20 實現中定義。附上在 OpenZeppelin ERC20 中的寫法
+
+* token.transfer (接收的地址, 數量); 
+   * 功能：從調用者的賬戶向指定的接收地址轉移指定數量的代幣。
 ```solidity
 function transfer(address to, uint256 amount) public virtual returns (bool) {
     address owner = _msgSender();
@@ -663,10 +663,8 @@ function transfer(address to, uint256 amount) public virtual returns (bool) {
 }
 ```
 
-* token.approve (被授權地址B, 數量); 這是授權者（調用者，通常稱為A）給予B地址權限，允許B最多可以從A的賬戶中轉走指定數量的代幣。
-   * 來源：同樣是 ERC20 標準函數，在 OpenZeppelin 的 ERC20 實現中定義。
-   * 功能：授權另一個地址可以從調用者賬戶轉出特定數量的代幣。
-   * 寫法（在 OpenZeppelin ERC20 中）：
+* token.approve (被授權地址B, 數量); 這是授權者（調用者，通常稱為A）
+   * 功能：授權另一個地址可以從調用者賬戶轉出特定數量的代幣。給予B地址權限，允許B最多可以從A的賬戶中轉走指定數量的代幣。
 ```solidity
 function approve(address spender, uint256 amount) public virtual returns (bool) {
     address owner = _msgSender();
@@ -674,10 +672,8 @@ function approve(address spender, uint256 amount) public virtual returns (bool) 
     return true;
 }
 ```
-* token.transferFrom (發送地址, 接收地址, 數量); 這是由被授權的地址B調用的函數。B可以將指定數量的代幣從發送地址（通常是之前授權的A）轉移到接收地址。轉移的數量不能超過之前通過 approve 設置的限額。
-   * 來源：ERC20 標準函數，在 OpenZeppelin 的 ERC20 實現中定義。
-   * 功能：從一個地址向另一個地址轉移代幣，前提是轉移者有足夠的授權。
-   * 寫法（在 OpenZeppelin ERC20 中）：
+* token.transferFrom (發送地址, 接收地址, 數量); 
+   * 功能：這是由被授權的地址B調用的函數。B可以將指定數量的代幣從發送地址（通常是之前授權的A）轉移到接收地址。轉移的數量不能超過之前通過 approve 設置的限額。前提是轉移者有足夠的授權
 ```solidity
 function transferFrom(address from, address to, uint256 amount) public virtual returns (bool) {
     address spender = _msgSender();
@@ -686,12 +682,10 @@ function transferFrom(address from, address to, uint256 amount) public virtual r
     return true;
 }
 ```
-* token.allowance (授權地址A, 被授權地址B); 這個函數返回的是B還被允許從A那裡轉走的剩餘數量。它不會顯示B已經轉走了多少，只顯示還剩下多少可以轉。例如，如果A最初授權B 100 個代幣，B已經轉走了 30 個，那麼 allowance 會返回 70。
-   * 來源：ERC20 標準函數，在 OpenZeppelin 的 ERC20 實現中定義。
-   * 功能：查詢一個地址授權給另一個地址的代幣數量。
-   * 寫法（在 OpenZeppelin ERC20 中）：
+* token.allowance (授權地址A, 被授權地址B); 
+   * 功能：查詢一個地址授權給另一個地址的代幣數量。這個函數返回的是B還被允許從A那裡轉走的剩餘數量。它不會顯示B已經轉走了多少，只顯示還剩下多少可以轉。例如，如果A最初授權B 100 個代幣，B已經轉走了 30 個，那麼 allowance 會返回 70。
 ```solidity
-Copyfunction allowance(address owner, address spender) public view virtual returns (uint256) {
+function allowance(address owner, address spender) public view virtual returns (uint256) {
     return _allowances[owner][spender];
 }
 ```
