@@ -247,4 +247,46 @@ uint256[3] memory _array;
 ##### 测验结果
 - 100/100
 
+
+### 2024.09.27
+#### WTF Academy Solidity 101.5 变量数据存储和作用域 storage/memory/calldata
+
+##### 引用类型(Reference Type)
+- 包括数组（array）和结构体（struct），由于这类变量比较复杂，占用存储空间大，我们在使用时必须要**声明数据存储的位置**。
+
+##### 数据位置
+- 不同存储位置的`gas`成本不同。
+  - `storage`类型的数据存在链上，类似计算机的硬盘，消耗`gas`多；
+  - `memory`和`calldata`类型的临时存在内存里，消耗`gas`少。
+1. `storage`：合约里的状态变量默认都是`storage`，存储在链上。
+
+1. `memory`：函数里的参数和临时变量一般用`memory`，存储在内存中，不上链。尤其是如果返回数据类型是变长的情况下，**必须加memory修饰**，例如：string, bytes, array和自定义结构。
+
+2. `calldata`：和`memory`类似，存储在内存中，不上链。与`memory`的不同点在于`calldata`变量不能修改（`immutable`），一般用于函数的参数。
+
+##### 赋值规则
+| 赋值类型 | 是否为引用 | 备注 |
+| --- | --- | --- |
+| **Storage** ↔ **Storage** | 引用 | 除非赋值给状态变量或存储结构体成员，创建副本 |
+| **Memory** ↔ **Memory** | 引用 | Memory 变量共享同一数据，修改会互相影响 |
+| **Storage** → **Memory** | 独立副本 | 从 `storage` 到 `memory` 创建副本，修改 memory 变量不会影响 `storage` 数据。 |
+| **Memory** → **Storage** | 独立副本 | 从 `memory` 到 `storage` 创建副本 |
+| **Calldata** → **Memory** | 独立副本 | `calldata` 到 `memory` 创建副本 |
+| **Calldata** → **Storage** | 独立副本 | `calldata` 到 `storage` 创建副本 |
+
+##### 变量的作用域
+1. 状态变量（state variable）
+     - 状态变量是数据存储在链上的变量，所有合约内函数都可以访问，gas消耗高。
+2. 局部变量（local variable）
+     - 局部变量是仅在函数执行过程中有效的变量，函数退出后，变量无效。局部变量的数据存储在内存里，不上链，gas低。
+3. 全局变量（global variable）
+     - 全局变量是全局范围工作的变量，都是solidity预留关键字。他们可以在函数内不声明直接使用
+     - 时间单位
+
+##### 测验结果
+- 100/100
+
+### 2024.09.28
+#### WTF Academy Solidity 101.6 引用类型, array, struct
+
 <!-- Content_END -->

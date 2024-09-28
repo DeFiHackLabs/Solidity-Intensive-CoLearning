@@ -50,4 +50,11 @@ timezone: Asia/Shanghai
 [WTF Academy Solidity 101 Note 13-15](/content/JakeDu/05.md)
 <br>
 
+### 2024.09.28
+
+学习101的第十六课和第十七课
+
+[WTF Academy Solidity 101 Note 16-17](/content/JakeDu/06.md)
+<br>
+
 <!-- Content_END -->

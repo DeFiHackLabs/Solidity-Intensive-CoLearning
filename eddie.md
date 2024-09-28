@@ -6,7 +6,7 @@ timezone: Asia/Shanghai
 
 1. 自我介绍
 
-大家好，我是eddie，智能合约初学者，希望和大家共同进步，WGMI
+大家好，我是eddie，智能合约初学者，希望和大家共同进步，WAGMI
 
 2. 你认为你会完成本次残酷学习吗？
 
@@ -14,6 +14,43 @@ timezone: Asia/Shanghai
    
 ## Notes
 <!-- Content_START -->
+### 2024.09.28
+
+- WTF102章节内容：在合约中创建新合约、Create2、删除合约、ABI编码解码
+
+#### 笔记
+
+- 使用CREATE创建合约
+
+新地址 = hash(创建者地址，nonce)
+- 使用CREATE2创建合约
+
+新地址 = hash(常数，创建者地址，salt，initcode)
+    
+    ```solidity
+    predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+                bytes1(0xff),
+                address(this),
+                salt,
+                keccak256(type(Pair).creationCode)
+                )))));
+    bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+    // 用create2部署新合约
+    Pair pair = new Pair{salt: salt}(); 
+    ```
+    
+- ABI
+应用二进制接口，是与以太坊智能合约交互的标准。数据基于他们的类型编码；并且由于编码后不包含类型信息，解码时需要注明它们的类型。
+
+	```solidity
+	abi.encode()//为每个参数填充32字节的数据来并拼接
+	abi.encodePacked()//和encode相比，将填充的很多0省略，节省空间，但无法和合约交互
+	abi.encodeWithSignature()//第一个参数为函数签名FunctionName
+	//函数选择器：就是通过函数名和参数进行签名处理(Keccak–Sha3)来标识函数，可以用于不同合约之间的函数调用
+	abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array);//第一个参数为函数选择器
+	abi.decode()
+	```
+
 ### 2024.09.27
 
 - WTF102章节内容：Call、Delegatecall

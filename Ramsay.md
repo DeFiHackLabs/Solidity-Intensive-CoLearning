@@ -428,7 +428,7 @@ contract Register is priced, owned {
 - address: 合约地址
 - topics 数组:
   - topics[0]: 第一个元素的值是 "anonymous" 或者 `keccak(EVENT_NAME+"("+EVENT_ARGS.map(canonical_type_of).join(",")+")")`, `canonical_type_of` 是用来获取参数类型的函数
-  - topics[1-n]: 保存被声明成 `indexed` 类型的参数，最多3个参数
+  - topics[1-3]: 保存被声明成 `indexed` 类型的参数，最多3个参数
   - 所以 topics 数组的长度最大为4，最多包含3个参数，因为第1个参数被用来标识事件了
 - data: 就是存储的数据，对应的就是没有被声明成 `indexed` 的参数
 
@@ -453,5 +453,140 @@ web3.eth.subscribe('logs', options, function (error, result) {
 });
 
 ```
+
+### 2024.09.28
+
+#### 13 Inheritance
+
+Solidity 的继承基本就是借鉴 C++的，无论是 `virtual`, `override` 关键字，还是构造函数的继承，又或者是多继承。
+
+虽然Solidity 的继承是借鉴 C++ 的, 但是 C++ 继承的问题， Solidity 也加以限制了。如C++中的多继承，函数名冲突问题:
+
+```c++
+class A{
+public:
+    void func();
+};
+class B{
+private:
+    bool func() const;
+};
+class C: public A, public B{ ... };
+
+C c;
+c.func();           // 歧义！
+```
+
+虽然`B::func`是私有的，但仍然会编译错, 编译器不知道 `c.func()` 指的是哪个类的`func`。而在 Solidity 中，如果继承的父类有重名函数， `Solidity` 编译器会要求重新，无论这个函数是否有声明成 `virtual`：
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract A {
+    uint data = 2;
+    function func() public {
+
+    }
+}
+
+contract B {
+
+    function func() public  {
+
+    }
+}
+
+contract C is A, B {} // => 编译器报错, TypeError: Derived contract must override function "func". Two or more base classes define function with same name and parameter types.
+```
+
+另外，如果`A`, `B` 中有相同的状态变量，如 `data`, `C` 继承自 A,B 的话，也会报错: `DeclarationError: Identifier already declared.`, 从而规避掉 C++ 多继承情况下，同名函数或者同名变量的歧义问题。
+
+C++的菱形继承是多继承的特例，因为存在类成员变量和函数，变成一个更复杂的问题了，而 Solidity 通过禁止在继承链上出现同名的变量和函数，规避掉这个问题。
+
+Effective C++ 和 More Effective C++ 作者 Scott Meyers对于多继承的建议是
+1. 如果能不使用多继承，就不用他；
+2. 如果一定要多继承，尽量不在里面放数据
+
+Java 就吸取了第二条建议，然后设计了 `Interface`, 不允许定义状态变量。
+
+使用 Solidity 的时候，我也是同样的观点，如果能不使用多继承，就不用; 如果一定要多继承，就不要定义数据变量。
+
+其实我是不理解 `Solidity` 都支持 `Interface`了，为什么还需要学C++的多继承呢，直接借鉴Java的单继承 + 多接口组合不是更清晰嘛？
+
+C++的多继承是因为它是面向对象的先驱, 历史悠久, Python 搞多继承是因为没有 `Interface` 的概念，现在是 C++ 和 Java 的特点都拿过来了, 反而是复杂化了。
+
+在面向对象中，继承通常是和多态组合发挥作用的，而 Solidity 也是支持多态的，如：
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+// Base contract
+contract Animal {
+    function speak() public virtual returns (string memory) {
+        return "Animal sound";
+    }
+}
+
+// Derived contract 1
+contract Dog is Animal {
+    function speak() public virtual override returns (string memory) {
+        return "Woof";
+    }
+}
+
+// Derived contract 2
+contract Cat is Animal {
+    function speak() public override returns (string memory) {
+        return "Meow";
+    }
+}
+
+// Test contract
+contract TestPolymorphism {
+    function getAnimalSound(Animal animal) public returns (string memory) {
+        return animal.speak();
+    }
+}
+```
+
+### 14 Interface
+
+Solidity 的 Interface 和 abstract contract 基本就是参照 Java的 Interface 和 abstract class 了(准确来说，应该是Java8之前的Interface, Java8 之后, interface 也可以有默认函数实现了).
+
+Java Interface中所有的函数默认是 public 的, Solidity Interface 中的函数默认是 external； Solidity Interface 不允许定义任何变量, 但是可以定义事件，Java Interface 允许定义常量 `public static final` 
+
+使用 Interface 在 Solidity 中实现多态:
+
+```solidity
+interface Animal {
+    function makeSound() external view returns (string memory);
+}
+// Contract Dog implementing the Animal interface
+contract Dog is Animal {
+    function makeSound() external pure override returns (string memory) {
+        return "Woof";
+    }
+}
+
+// Contract Cat implementing the Animal interface
+contract Cat is Animal {
+    function makeSound() external pure override returns (string memory) {
+        return "Meow";
+    }
+}
+contract AnimalShelter {
+    function getAnimalSound(Animal animal) public view returns (string memory) {
+        // Polymorphic behavior: Treats both Dog and Cat as an Animal
+        return animal.makeSound();
+    }
+}
+
+```
+
+课程中无聊猿(BAYC)的交互, 其实就是多态的一种应用，`BAYC` 就是若干个实现了代币 `IERC721` 接口的代币之一. 
+
+另外一个非常关键的知识点就是合约的ABI 与接口等价，RPC 接口调用的ABI，背后实际调用的是定义的各式接口。
 
 <!-- Content_END -->
