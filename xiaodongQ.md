@@ -37,4 +37,8 @@ timezone: Asia/Shanghai
 
 * 重新做了部分题目
 
+### 2024.09.27
+
+* 歪个楼，最近在学习实践rust，跟solidity结合学习再上手项目：[minigrep main](https://github.com/xiaodongQ/rust_learning/tree/master/minigrep/src/main.rs) 和 [minigrep lib](https://github.com/xiaodongQ/rust_learning/tree/master/minigrep/src/lib.rs)
+
 <!-- Content_END -->

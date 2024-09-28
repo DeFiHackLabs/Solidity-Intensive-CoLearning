@@ -379,6 +379,34 @@ function test() public pure returns (uint256) {
 
 ### 2024.09.27
 
+#### Chapter 12: Events
+
+- `event`
+  - Transaction logs stored by EVM
+  ```
+  event Transfer(address indexed from, address indexed to, uint256 amount);
+  ```
+  - Characteristics:
+    - Responsive: Applications can subscribe and listen to events through `RPC` and take action accordingly
+    - Economical: Store data in events is cheap (2,000 gas) each, store a new variable on-chain cost 20,000 gas
+  - `indexed` keyword marked to be stored at a special data structure known as `topics` and can easily queried by application
+  - Non-indexed parameters will be stored in the data section of the log, can be larger size and more complex data structures
+  - How to `emit` events
+  ```
+  function transfer(address _from, address _to, uint256 _amount) external {
+   ...
+   emit Transfer(_from, _to, _amount);
+  }
+  ```
+  - Topics
+    - Used to describe events
+    - Each event contains a maximum of 4 `topics`
+    - The first topic is the event hash, calculated as follows:
+    ```
+    keccak256("Transfer(address,address,uint256)")
+    // 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+    ```
+
 ### 2024.09.28
 
 ### 2024.09.29

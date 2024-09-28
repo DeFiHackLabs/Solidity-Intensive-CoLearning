@@ -57,26 +57,26 @@ Solidity 提供了四種函數可見性修飾符，來控制函數的訪問範�
 
 #### 3. pure 和 view
 Solidity 引入 `pure` 和 `view` 關鍵字來控制函數是否改變區塊鏈上的狀態，這是因為以太坊的交易需要支付 gas 費用：
-- pure：不能讀取也不能修改合約中的狀態變量。它僅僅執行不依賴合約狀態的邏輯運算，因為不需要讀取或改變鏈上的數據，所以不需要支付 gas
-- view：僅能讀取合約的狀態變量，但不能修改狀態。這種函數的運行也不會花費 gas，除非是合約內部調用時
+- **pure**：不能讀取也不能修改合約中的狀態變量。它僅僅執行不依賴合約狀態的邏輯運算，因為不需要讀取或改變鏈上的數據，所以不需要支付 gas
+- **view**：僅能讀取合約的狀態變量，但不能修改狀態。這種函數的運行也不會花費 gas，除非是合約內部調用時
 
 #### 4. internal 和 external 函數
-- internal：只能在合約內部或者繼承的合約中被調用，這在需要隱藏某些內部邏輯時非常有用
-- external：只能從合約外部訪問，但可以在合約內部通過 `this.functionName()` 調用
+- **internal**：只能在合約內部或者繼承的合約中被調用，這在需要隱藏某些內部邏輯時非常有用
+- **external**：只能從合約外部訪問，但可以在合約內部通過 `this.functionName()` 調用
 
 #### 5. payable 函數
-- payable：允許合約接收 ETH，帶有這個關鍵字的函數在執行時可以接收以太幣並更新合約的餘額
+- **payable**：允許合約接收 ETH，帶有這個關鍵字的函數在執行時可以接收以太幣並更新合約的餘額
 
 #### 6. 實例代碼
 教程中提供了數個簡單的實例來展示如何使用 `pure`、`view`、`internal`、`external` 以及 `payable` 等關鍵字修飾函數：
-- `add()` 函數展示了如何操作狀態變量並引入 `pure` 和 `view` 的用法
-- `minus()` 函數展示了 `internal` 函數的使用
-- `minusPayable()` 函數展示了 `payable` 函數如何接收 ETH 並更新合約餘額
+- **`add()`** 函數展示了如何操作狀態變量並引入 `pure` 和 `view` 的用法
+- **`minus()`** 函數展示了 `internal` 函數的使用
+- **`minusPayable()`** 函數展示了 `payable` 函數如何接收 ETH 並更新合約餘額
 
 ### 2024.09.25
 ## 04_Return
-- returns 這個關鍵字用在函數名稱後面，用來告訴大家這個函數會返回什麼樣的數據，比如返回什麼類型的數字、陣列或布林值（true 或 false），就像你在函數開始之前，先跟大家說：「這個函數會給你什麼東西」
-- return 這個關鍵字用在函數的主體裡面，用來實際把數據返回出去。就像是函數結束時，你用 return 把事先說好的東西交給大家
+- **returns** 這個關鍵字用在函數名稱後面，用來告訴大家這個函數會返回什麼樣的數據，比如返回什麼類型的數字、陣列或布林值（true 或 false），就像你在函數開始之前，先跟大家說：「這個函數會給你什麼東西」
+- **return** 這個關鍵字用在函數的主體裡面，用來實際把數據返回出去。就像是函數結束時，你用 return 把事先說好的東西交給大家
 
 #### 命名式返回
 - 在 Solidity 中，你可以在 returns 這裡直接給返回的值取名字，這樣你在函數裡面只要把這些變數賦值，系統會自動把這些值返回，不用再手動用 return
@@ -111,24 +111,24 @@ uint256[3] memory _array;
 #### 數據存儲位置
 Solidity 中的數據存儲位置有三類：storage、memory 和 calldata，每種位置的 gas 消耗不同：
 
-- storage：合約中的狀態變數默認存儲在 storage，數據存在鏈上，消耗較多 gas，類似電腦的硬碟。
-- memory：函數中的參數和臨時變數通常用 memory，數據存在內存中，不上鏈，消耗較少 gas，適用於返回變長數據類型。
-- calldata：類似於 memory，但數據不可修改，用於函數參數。
+- **storage**：合約中的狀態變數默認存儲在 storage，數據存在鏈上，消耗較多 gas，類似電腦的硬碟。
+- **memory**：函數中的參數和臨時變數通常用 memory，數據存在內存中，不上鏈，消耗較少 gas，適用於返回變長數據類型。
+- **calldata**：類似於 memory，但數據不可修改，用於函數參數。
 
 #### 數據位置與賦值規則
-- 引用：當 storage 賦值給另一個 storage 或 memory 賦值給另一個 memory 時，會創建引用，修改一方會影響另一方
-- 副本：其他情況下賦值會創建副本，修改其中一方不會影響另一方
+- **引用**：當 storage 賦值給另一個 storage 或 memory 賦值給另一個 memory 時，會創建引用，修改一方會影響另一方
+- **副本**：其他情況下賦值會創建副本，修改其中一方不會影響另一方
 
 #### 變數的作用域
-- 狀態變數：存儲在鏈上，合約內所有函數可訪問，gas 消耗高，合約內、函數外聲明
-- 局部變數：僅在函數執行過程中有效，存儲在內存中，不上鏈，gas 消耗低，函數內聲明
-- 全局變數：Solidity 預留的關鍵字，在函數內可直接使用，如 msg.sender、block.number 等
+- **狀態變數**：存儲在鏈上，合約內所有函數可訪問，gas 消耗高，合約內、函數外聲明
+- **局部變數**：僅在函數執行過程中有效，存儲在內存中，不上鏈，gas 消耗低，函數內聲明
+- **全局變數**：Solidity 預留的關鍵字，在函數內可直接使用，如 msg.sender、block.number 等
 
 #### 以太單位與時間單位
 ##### 以太單位：Solidity 中無法使用小數點，使用 wei、gwei、ether 等單位來表示不同的以太值，確保交易的精確性。
-- wei: 1
-- gwei: 1e9
-- ether: 1e18
+- **wei**: 1
+- **gwei**: 1e9
+- **ether**: 1e18
 
 #### 時間單位：可使用 seconds、minutes、hours 等來設置合約中的時間，確保操作的準確性。
 - seconds: 1
@@ -142,9 +142,9 @@ Solidity 中的數據存儲位置有三類：storage、memory 和 calldata，每
 #### 數組（Array）
 
 ##### 數組是用來存儲一組數據的變量類型，可分為固定長度數組和可變長度數組兩種：
-- 固定長度數組：
+- **固定長度數組**：
 在聲明時指定長度，格式為 T[k]，其中 T 是元素類型，k 是長度，例如：uint[8] array1;
-- 可變長度數組：
+- **可變長度數組**：
 在聲明時不指定長度，格式為 T[]，例如：uint[] array4;
 
 #### 創建數組的規則：
@@ -152,9 +152,9 @@ Solidity 中的數據存儲位置有三類：storage、memory 和 calldata，每
 數組字面常數用來初始化數組，例如 [uint(1), 2, 3]，元素類型以第一個元素為準
 
 #### 數組成員：
-- length: 表示數組的長度
-- push(): 在動態數組末尾添加一個元素
-- pop(): 移除數組末尾的元素
+- **length**: 表示數組的長度
+- **push()**: 在動態數組末尾添加一個元素
+- **pop()**: 移除數組末尾的元素
 
 #### 結構體（Struct）
 結構體允許自定義類型，其元素可以是原始類型或引用類型。結構體可以作為數組或映射的元素
@@ -184,6 +184,49 @@ student = Student({id: 4, score: 60});
 ```
 
 ### 2024.09.28
+
+#### 映射 (Mapping)
+在 Solidity 中，映射 (Mapping) 是一種資料結構，可以通過鍵（Key）查詢對應的值（Value）。例如，可以通過一個人的 ID 查詢他的钱包地址。
+
+#### 映射聲明格式
+```solidity
+mapping(_KeyType => _ValueType)
+```
+_KeyType 和 _ValueType 分別代表鍵和值的變量類型。
+
+```solidity
+mapping(uint => address) public idToAddress; // ID 映射到地址
+mapping(address => address) public swapPair; // 幣對的映射，地址到地址
+```
+#### 映射的規則
+- 鍵類型限制：映射的 _KeyType 只能是 Solidity 內置的值類型，如 uint、address 等，不能使用自定義的結構體。
+
+- 錯誤範例：
+```solidity
+struct Student {
+    uint256 id;
+    uint256 score; 
+}
+mapping(Student => uint) public testVar; // 錯誤，因為 _KeyType 是自定義結構體
+```
+- 存儲位置限制：映射的存儲位置必須是 storage，因此可以用於合約的狀態變量、函數中的 storage 變量和 library 函數的參數中。
+- 自動生成 Getter 函數：如果映射聲明為 public，Solidity 會自動生成一個 getter 函數，可以通過鍵來查詢對應的值。
+
+#### 新增鍵值對的語法：
+```solidity
+_Var[_Key] = _Value;
+```
+_Var 是映射變量名，_Key 和 _Value 對應新增的鍵值對。
+
+```solidity
+function writeMap(uint _Key, address _Value) public {
+    idToAddress[_Key] = _Value;
+}
+```
+#### 映射的原理
+- 不儲存鍵的資訊：映射不儲存任何鍵的資訊，也沒有長度資訊。
+- 存取方式：映射使用 keccak256(abi.encodePacked(key, slot)) 作為偏移量來存取值，其中 slot 是映射變量所在的插槽位置。
+- 默認值：未賦值的鍵初始值都是該類型的默認值，例如 uint 的默認值是 0。
 
 ### 2024.09.29
 
