@@ -2,8 +2,6 @@
 timezone: Asia/Taipei
 ---
 
----
-
 # Haoder
 
 1. 自我介绍  
