@@ -292,4 +292,30 @@ contract array_struct {
 
 总结：对语法不熟悉，对数组修饰符之间的变量赋值影响理解不够深刻。
 
+##2024/09/27
+学习了mapping的映射。
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract Map{
+
+    mapping (uint => address) public idAddress;
+    mapping (address => address) public swaPair;
+
+    // struct Student{
+    // uint256 id;
+    // uint256 score; 
+    // }
+
+    mapping (address => address) public student;
+
+    function writeMap (uint _Key, address _Value) public {
+        idAddress[_Key] = _Value;
+    }
+
+
+}
+
+
+
 <!-- Content_END -->

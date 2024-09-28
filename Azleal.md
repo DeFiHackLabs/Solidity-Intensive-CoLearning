@@ -76,7 +76,68 @@ function fe() external{} // external空白函数
    - `while`循环
    - `do-while`循环
    - `三元运算`: `条件` ? `条件为真的表达式` : `条件为假的表达式`
-   
 
+### 2024.09.28
+1. `constructor`
+   - `0.4.22`之前的版本构造函数是合约的同名方法。之后是由`constructor`定义的构造函数
+   - 继承了父合约的自合约构造函数的定义
+   ```solidity
+      // SPDX-License-Identifier: MIT
+      pragma solidity ^0.8.0;
+      
+      contract Parent {
+          uint256 childId;
+          constructor(uint256 _childId) {
+              childId = _childId;
+          }
+      }
+      
+      contract Child1 is Parent(1) {
+      }
+      
+      
+      contract Child2 is Parent {
+          constructor() Parent(2){}
+      }
+   ```
+   - 父合约的构造函数没有参数时可省略。
+2. 修饰器(`modifier`)
+   - 作用：声明函数拥有的特性，并减少代码冗余
+   - 示例`onlyOwner`，仅允许合约的`owner`调用
+   ```solidity
+      // SPDX-License-Identifier: MIT
+      pragma solidity ^0.8.0;
+      
+      contract MyContract {
+          address owner;
+      
+          // onlyOwner的定义
+          modifier onlyOwner(){
+              require(owner == msg.sender, "only owner is allowed");
+              _;
+          }
+      
+          constructor(){
+              owner = msg.sender;
+          }
+      
+          // onlyOwner的用法
+          function withdraw() public onlyOwner{
+              payable(owner).transfer(address(this).balance);
+          }
+   
+          receive() external payable { }
+      }
+
+   ```
+3. 事件(`event`)
+   - 作用：链下应用的响应，即可以通过节点的rpc监听事件；比链上存储更经济的存储方式。
+   - 声明：`event Transfer(address indexed from, address indexed to, uint256 value);`
+   - 释放：`emit Transfer(from, to, amount);`
+   - 组成部分：
+      - topics:
+         - 第一部分是事件的签名
+         - 之后的部分(如果存在)，对应事件中定义的`indexed`变量的值，注意最多有3个`indexed`变量。
+      - data: 其余的非`indexed`变量的值。     
 
 <!-- Content_END -->

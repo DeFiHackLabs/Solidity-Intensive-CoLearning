@@ -541,6 +541,89 @@ function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
     return(a);
 }
 ```
+### 2024.09.28
+
+#### 構造函數和修飾器
+以合約權限(`Ownable`)的例子介紹。  
+* `constructor`構造函數：每個合約可以定義一個，在部屬合約後會自動運行一次，可以用來初始化合約的參數。  
+```Solidity
+address owner; // 定义owner变量
+// 构造函数
+constructor(address initialOwner) {
+    owner = initialOwner; // 在部署合约的时候，将owner设置为传入的initialOwner地址
+}
+```
+※在0.4.22前，構造函數命名為與合約同名。
+
+
+* `modifier`修飾器：Solidity特有的語法，主要使用在運行函數前的檢查，ex.地址、變量、餘額等...。  
+```Solidity
+// 定义modifier
+modifier onlyOwner {
+   require(msg.sender == owner); // 检查调用者是否为owner地址
+   _; // 如果是的话，继续运行函数主体；否则报错并revert交易
+}
+```  
+圖中示意：以 owner 地址的身分呼叫`changeOwner`，交易成功。  
+<img src="https://github.com/user-attachments/assets/7e3ba257-9ff7-47a6-ba99-5880982bd550" height="380px" width="640px" />  
+
+※[OpenZeppelin](<https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/Ownable.sol>)是維護標準化程式庫的組織。
+
+#### 事件
+Solidity 的事件是`EVM`(乙太坊虛擬機)上的日誌抽象
+以轉帳ERC20為例。  
+
+* 特點：
+    * 響應：應用程式`ether.js`可以通過`RPC`接口訂閱及監聽事件，而實現與區塊鏈的互動。當合約觸發事件時，前端應用程式可以根據事件的數據做出相應的響應。  
+    ex.觸發轉帳成功，前端捕捉到此事件後，告知用戶已轉帳成功。
+    * 經濟：`event`是`EVM`上相對經濟的存儲方式。觸發一個事件大概消耗2000 gas，而在區塊鏈上儲存一個新的變量至少需要20000 gas，因此`event`可以有效節省資源。
+        * 事件的數據會存儲在 交易日誌 中，這些日誌儲存在區塊鏈上，但不會被合約內部直接存取，只能通過外部工具查詢和訂閱。
+        * 日誌存儲在區塊鏈的交易日誌部分，而不是持久化存儲中，這使得它的操作更經濟。
+* 宣告方式：用`event`宣告，接者加上事件名稱。
+ex.  
+    ```Solidity
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    ```  
+    以上程式中，共紀錄了3個變量`from`、`to`、`value`，分別對應代幣的轉帳地址、接收地址、轉帳數量...  
+此外，`from`、`to`前面帶有`indexed`關鍵字，會保存到虛擬日誌的`topics`中，以便日後檢索。
+
+* 釋放事件：在函數中釋放事件。  
+以下例子中，每次用`_transfer()`函數轉帳時都會釋放`Transfer`事件，並記錄相應變量。  
+    ```Solidity
+    // 定义_transfer函数，执行转账逻辑
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) external {
+
+        _balances[from] = 10000000; // 给转账地址一些初始代币
+
+        _balances[from] -=  amount; // from地址减去转账数量
+        _balances[to] += amount; // to地址加上转账数量
+
+        // 释放事件
+        emit Transfer(from, to, amount);
+    }
+    ```
+
+#### `EVM`日誌(log)：
+`EVM`使用`log`儲存Solidity事件，每條日誌都包含主題`topics`與數據`data`兩部分。  
+* `topics`：log的第一部分是主題數組，用於標識事件類型，長度不能超過`4`，第一個元素是事件的hash，對於上例的`Transfer`事件：
+    ```Solidity
+    keccak256("Transfer(address,address,uint256)")
+
+    //0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+    ```
+
+    除了hash主題還可以包含最多3個`indexed`參數，也是`Transfer`事件中的`from`和`to`。 
+    * 檢索效率：indexed 參數用作主題的索引，方便區塊鏈上的事件查詢。通過將參數標記為 `indexed`，可以將其設置為檢索鍵，這樣可以過濾事件，只返回指定參數值的事件。
+    *  固定大小限制：每個 `indexed` 參數的大小固定為 256 bytes。如果參數過大，例如字符串或數組，Solidity 會自動將它們哈希化後存儲在主題中。
+   
+* `data`：這是事件觸發時記錄的具體數據，包括事件的非索引參數。這些數據可以在交易日誌中找到。  
+    * 事件中不帶`indexed`的參數會被存在`data`中，這部分的變量不能被直接檢索但可以儲存任意大小的數據。
+    * `data`這部分的變量在儲存上消耗的`gas`比`topics`更少。
+
 
 
 <!-- Content_END -->

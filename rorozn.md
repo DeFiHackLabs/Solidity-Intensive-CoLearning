@@ -681,7 +681,104 @@ receive()   fallback()
   如果转账失败，不会 revert  
   返回值是(bool, bytes)，其中 bool 代表着转账成功或失败，需要额外代码处理一下
 
-  ### 2024.09.27
+### 2024.09.27
+
+21. 调用其他合约  
+    接口的调用实际上也是一种调用其他合约：InterfaceContractName other = InterfaceContractName(\_ContractAddress)
+
+```solidity
+//方法1：通过合约地址，合约名(合约地址).函数名()
+function callSetX(address _Address, uint256 x) external{
+    OtherContract(_Address).setX(x);
+}
+
+//方法2：通过合约变量
+function callGetX(OtherContract _Address) external view returns(uint x){
+    x = _Address.getX();
+}
+
+//方法3：创建合约变量，然后调用
+function callGetX2(address _Address) external view returns(uint x){
+    OtherContract oc = OtherContract(_Address);
+    x = oc.getX();
+}
+
+//方法4：目标合约的函数是payable的，可以调用它来给合约转账
+function setXTransferETH(address otherContract, uint256 x) payable external{
+    OtherContract(otherContract).setX{value: msg.value}(x);
+}
+```
+
+### 2024.09.28
+
+22. call
+
+- call 是 address 类型的低级成员函数,它的返回值为(bool, bytes memory)，分别对应 call 是否成功、及目标函数的返回值。  
+  call 不是调用合约的推荐方法，因为**不安全**。但他能让我们在不知道源代码和 ABI 的情况下调用目标合约
+  - call 是 Solidity 官方推荐的通过触发 fallback 或 receive 函数发送 ETH 的方法。
+  - 不推荐用 call 来调用另一个合约，避免合约漏洞。应该**先声明合约变量后调用函数**。
+  - 当我们不知道对方合约的源代码或 ABI，就没法生成合约变量；这时，我们仍可以通过 call 调用对方合约的函数。
+- 使用
+  - 字节码：abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)
+  - 目标合约地址.call( abi.encodeWithSignature("函数签名", 逗号分隔的具体参数) );
+  - call 在调用合约时可以指定交易发送的 ETH 数额和 gas 数额：目标合约地址.call{value:发送数额, gas:gas 数额}(abi.encodeWithSignature("函数签名", 逗号分隔的具体参数));
+- 举例
+
+```solidity
+//目标合约
+contract OtherContract {
+    uint256 private _x = 0; // 状态变量x
+    // 收到eth的事件，记录amount和gas
+    event Log(uint amount, uint gas);
+
+    fallback() external payable{}
+
+    // 返回合约ETH余额
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+
+    // 可以调整状态变量_x的函数，并且可以往合约转ETH (payable)
+    function setX(uint256 x) external payable{
+        _x = x;
+        // 如果转入ETH，则释放Log事件
+        if(msg.value > 0){
+            emit Log(msg.value, gasleft());
+        }
+    }
+
+    // 读取x
+    function getX() external view returns(uint x){
+        x = _x;
+    }
+}
+```
+
+```solidity
+//调用setX
+function callSetX(address payable _addr, uint256 x) public payable {
+    // call setX()，同时可以发送ETH
+    (bool success, bytes memory data) = _addr.call{value: msg.value}(
+        abi.encodeWithSignature("setX(uint256)", x)
+    );
+
+    emit Response(success, data); //释放事件
+}
+
+//调用不存在的函数，相当于fallback
+function callNonExist(address _addr) external{
+    // call 不存在的函数
+    (bool success, bytes memory data) = _addr.call(
+        abi.encodeWithSignature("foo(uint256)")
+    );
+
+    emit Response(success, data); //释放事件
+}
+```
+
+### 2024.09.29
+
+### 2024.09.30
 
 <!-- Content_END -->
 
