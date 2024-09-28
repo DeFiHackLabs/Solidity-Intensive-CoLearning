@@ -641,11 +641,14 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol"; //import
 
 contract DefiHackLabsToken is ERC20 { //繼承ERC20
 
-    uint256 public initialSupply = 1000; //設定初始發行量
+   //設定初始發行量的變數
+   uint256 public initialSupply = 1000; 
 
-    constructor() ERC20("DefiHackLabs", "HACK") { //constructor() 後面接 ERC20("代幣名稱","代幣符號")
-        _mint(msg.sender, initialSupply * 10**decimals()); // _mint(地址,代幣量)，通常這邊都是用_mint
+    //constructor() 後面接 ERC20("代幣名稱","代幣符號")
+   constructor() ERC20("DefiHackLabs", "HACK") { 
 
+         // 合約部屬後，鑄造給 "地址" 多少的 "代幣量"，通常寫法是_mint(地址,代幣量)
+         _mint(msg.sender, initialSupply * 10**decimals()); //合約部屬後，鑄造給部屬者的地址，發幣自爽 (?
     }
 }
 
