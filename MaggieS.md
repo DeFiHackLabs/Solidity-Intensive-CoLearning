@@ -169,7 +169,7 @@ Actually, the function of Language is for communication, no matter the natural l
 
 By the way, It’s a person who gives me huge passions to challenge solidity this time , she is a female security auditor. I remember what she said in a interview that before she intended the ZK audit competition she even never learn ZK language, she just use few days to familiar with ZK language, but she got the champion, soooo fantastic.
 
-I try to find the crucial reason in Step 2 which confusing me for a long time that why and how she could make done it. So it must be something beyond language itself, language is just a language. Actually,I wouldn’t be a security auditor in a 21day solidity learning. It’s doesn’t matter. 
+I try to find the crucial reason in Step 2 which confusing me for a long time that why and how she could make done it. So it must be something beyond language itself, language is just a language. And also，no one knows whether I will be a solidity auditor or not in the future. This is a black box, which is very interesting. But I‘m sure that is not the most important thing.
 
 I know what I’m appreciate and chase for, learning solidity is just a experience to figure out and understand something to serve my life goals. Solidity Language itself is not my goal.
 
