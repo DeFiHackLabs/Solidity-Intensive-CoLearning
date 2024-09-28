@@ -67,4 +67,12 @@ timezone: Asia/Taipei
     另外，只有数值变量可以声明constant和immutable；string和bytes可以声明为constant，但不能为immutable。
 
 
+### 2024.09.27
+1. 完成了第九章的測驗
+2. 了解控制流的功能，跟一其他程式語言差不多，但是在insertiinsort的部分比較苦手，因為要看很久才能懂
+3. 完成了第十章的測驗
+4. 完成第十一章的測驗
+
+
+### 2024.09.27
 <!-- Content_END -->

@@ -32,4 +32,8 @@ LFG～～～～～ 會完成的
 
 [**WTF Solidity 極簡入門：4. 函數輸出**](<content/Haoder/md/104.md>)
 
+### 2024.09.27
+
+[**WTF Solidity 極簡入門：5. 變量數據儲存和作用域**](<content/Haoder/md/105.md>)
+
 <!-- Content_END -->
