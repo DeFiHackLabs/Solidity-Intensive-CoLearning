@@ -292,7 +292,8 @@ contract array_struct {
 
 总结：对语法不熟悉，对数组修饰符之间的变量赋值影响理解不够深刻。
 
-##2024/09/27
+### 2024/09/27
+
 学习了mapping的映射。
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.21;
