@@ -334,7 +334,7 @@ function getString2(uint256 _number) public pure returns(string memory){
 
 #### receive, fallback
 - 目的, 1.接收 ETH 2.處理合約中不存在的函數調用
-- 觸發規則 
+- 觸發規則   
 ![image](https://github.com/user-attachments/assets/3dbf8f0a-2f3b-413f-b5e2-b9d0c437964d)
 
 
