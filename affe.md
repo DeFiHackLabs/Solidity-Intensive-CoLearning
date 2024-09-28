@@ -59,4 +59,20 @@ d) Execute the contract code
 ### 2024.09.26
 - 今天对着 WTF 34 写 ERC721 的实现，总算搞懂了 NFT 是如何被实现的。
 - 说一个我觉得有意思的点：NFT 就是通过合约内的 tokenUri() 以及 tokenId 指向IPFS上的一个数据文件。所有的交易部分都是在合约里。看懂了这一点就觉得很神奇。
+
+
+### 2024.09.28
+
+- a lot of the restrictions in smart contract is around :  Contracts are immutable after deployment
+- 在看 OZ Upgradable
+- Hardhat 的 Upgradable 的这个工具，确实会检查是否已经有部署的 Implementation Contract，并且除非impl contract 有改变，否则不会部署新的impl contract。是不是这就是导致了不同的proxy contract 都指向了同一个 impl contract
+- Beacon Proxy 是做什么的 ？有点不太理解具体的场景。
+- Etherscan 上的源代码不是天生就现实出来，需要人为Verify And Publish.
+- The Hardhat plugin keeps track of all the implementation contracts you have deployed in an `.openzeppelin` folder in the project root. You will find one file per network there. It is advised that you commit to source control the files for all networks except the development ones
+- So basically the deployed contracts is in the .openzeppelin folder. Maybe when I delete them it will deploy new contracts for me.
+- 合约的验证需要指定 Compiler 以及 Compiler 参数，许可证版本，以及源代码。
+- 下一步是继续看 Proxy 合约的一些知识，以及一些常见的 Proxy 合约。
+    - UUPS 代理
+    - Transparent 代理
+    - Beacon 代理
 <!-- Content_END -->
