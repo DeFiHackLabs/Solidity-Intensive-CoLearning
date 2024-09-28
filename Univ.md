@@ -186,22 +186,20 @@ student = Student({id: 4, score: 60});
 ### 2024.09.28
 
 #### 映射 (Mapping)
-
 在 Solidity 中，映射 (Mapping) 是一種資料結構，可以通過鍵（Key）查詢對應的值（Value）。例如，可以通過一個人的 ID 查詢他的钱包地址。
 
-## 映射聲明格式
+#### 映射聲明格式
 ```solidity
 mapping(_KeyType => _ValueType)
 ```
 _KeyType 和 _ValueType 分別代表鍵和值的變量類型。
-
 
 ```solidity
 mapping(uint => address) public idToAddress; // ID 映射到地址
 mapping(address => address) public swapPair; // 幣對的映射，地址到地址
 ```
 #### 映射的規則
-鍵類型限制：映射的 _KeyType 只能是 Solidity 內置的值類型，如 uint、address 等，不能使用自定義的結構體。
+- 鍵類型限制：映射的 _KeyType 只能是 Solidity 內置的值類型，如 uint、address 等，不能使用自定義的結構體。
 
 - 錯誤範例：
 ```solidity
@@ -217,6 +215,7 @@ mapping(Student => uint) public testVar; // 錯誤，因為 _KeyType 是自定�
 #### 新增鍵值對的語法：
 ```solidity
 _Var[_Key] = _Value;
+```
 _Var 是映射變量名，_Key 和 _Value 對應新增的鍵值對。
 
 ```solidity
