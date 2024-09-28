@@ -86,4 +86,20 @@ ETH 交易的签名使用 ECDSA 签名算法，但与标准的 ECDSA 有一点�
 - 内部函数调用 (Internal Function Calls)：对于在同一个合约内直接通过函数名进行的调用，会被编译为 EVM 的跳转指令。因此这样的调用不会创建新的 context 环境，也不会改变 `msg.sender` (`caller()`) 的值。但依然会进行压栈操作，从而只能进行非常有限的递归。
 - 外部函数调用 (External Function Calls)：对于使用 `<contract instance>.<function>` 进行的调用，会被编译为 EVM 的 `call` 指令。这样的调用会创建新的 context 环境，也会改变 `msg.sender` (`caller()`) 的值。
 
+### 2024.09.27
+
+了解了一下合约中存储的实现。
+
+声明在合约中的变量，通常被称为状态变量，保存在存储区 (storage)。由于存储区变量是保存在区块链上的，因此相比其他存储区域，它的读取和修改都非常昂贵，需要消耗更多的 gas。因此在设计上存储区的内存布局会较为紧凑。
+
+> State variables of contracts are stored in storage in a compact way such that multiple values sometimes use the same storage slot. Except for dynamically-sized arrays and mappings (see below), data is stored contiguously item after item starting with the first state variable, which is stored in slot `0`. For each variable, a size in bytes is determined according to its type. Multiple, contiguous items that need less than 32 bytes are packed into a single storage slot if possible, according to the following rules:
+>
+> - The first item in a storage slot is stored lower-order aligned.
+> - Value types use only as many bytes as are necessary to store them.
+> - If a value type does not fit the remaining part of a storage slot, it is stored in the next storage slot.
+> - Structs and array data always start a new slot and their items are packed tightly according to these rules.
+> - Items following struct or array data always start a new storage slot.
+
+mapping、array 等变长数据结构会使用 hash 确定真实的存储位置。
+
 <!-- Content_END -->
