@@ -134,5 +134,33 @@ We learn them together can promote the understanding of framework, also, the dif
 
 1. Looking through 7 chapters of Solidity 103 and complete the text.
 
+2. 
+<img width="819" alt="image" src="https://github.com/user-attachments/assets/432267d9-df22-4a54-8cfd-702d84fb053e">
+
+3. Difficulties
+
+In the fifth learning day, as the last step1 day, we have learned overall 50 chapters. 
+
+However, it’s just a new beginning of Step2, there is still lots of room for development. 
+
+We need more enough time and space to promote coding and English terminology skills. 
+
+Fortunately,the second part, can be modularized according to the relationship between chapters in the tutorials,
+
+which is not only more convenient for memory and understanding, but also more convenient for logical sorting.
+
+Just Like:
+
+45 Time lock —— 22 Call
+
+46 Proxy Contract —— 22 Call —— 23 Delegatecall —— Lesson 27: ABI encoding 
+
+47 Upgradeable Contract —— 46  Proxy Contract
+
+48 Transparent Proxy ——29 Function Selectors
+
+49 UUPS  —— 23 Delegatecall
+
+50 Multisignature Wallet —— 27 ABI encoding 
 
 <!-- Content_END -->

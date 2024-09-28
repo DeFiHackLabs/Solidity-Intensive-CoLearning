@@ -359,10 +359,142 @@ There are three types of variables in Solidity according to their scope: state v
   - `msg.value`: (`bytes4`) number of wei sent with the message
 
 #### Summary
-In this chapter, we learned reference types, data storage locations and variable scopes in Solidity. There are three types of data storage locations: `storage`, `memory` and `calldata`. Gas costs are different for different storage locations. The variable scope include state variables, local variables and global variables.
+In this chapter, I learned reference types, data storage locations and variable scopes in Solidity. There are three types of data storage locations: `storage`, `memory` and `calldata`. Gas costs are different for different storage locations. The variable scope include state variables, local variables and global variables.
 
 </details>
 
+
+### 2024.09.28
+<details>
+<summary>6. Array & Struct</summary>
+
+#### (1) Array (ref: 2024.09.24)
+An `array` is a variable type commonly used in Solidity to store a set of data (integers, bytes, addresses, etc.).
+
+There are two types of arrays: fixed-sized and dynamically-sized arrays.：
+- fixed-sized arrays: The length of the array is specified at the time of declaration. An `array` is declared in the format `T[k]`, where `T` is the element type and `k` is the length.
+```solidity
+    // fixed-length array
+    uint[8] array1;
+    byte[5] array2;
+    address[100] array3;
+```
+- Dynamically-sized array（dynamic array）：Length of the array is not specified during declaration. It uses the format of `T[]`, where `T` is the element type. 
+```solidity
+    // variable-length array
+    uint[] array4;
+    byte[] array5;
+    address[] array6;
+    bytes array7;
+```
+**Notice**: `bytes` is special case, it is a dynamic array, but you don't need to add `[]` to it. You can use either `bytes` or `bytes1[]` to declare byte array, but not `byte[]`. `bytes` is recommended and consumes less gas than `bytes1[]`.
+
+#### Rules for creating arrays
+- For a `memory` dynamic array, it can be created with the `new` operator, but the length must be declared, and the length cannot be changed after the declaration. For example：
+```solidity
+    // memory dynamic array
+    uint[] memory array8 = new uint[](5);
+    bytes memory array9 = new bytes(9);
+```
+- Array literal are arrays in the form of one or more expressions, and are not immediately assigned to variables; such as `[uint(1),2,3]` (the type of the first element needs to be declared, otherwise the type with the smallest storage space is used by default).
+- When creating a dynamic array, you need an element-by-element assignment.
+```solidity
+    uint[] memory x = new uint[](3);
+    x[0] = 1;
+    x[1] = 3;
+    x[2] = 4;
+```
+
+#### Members of Array
+- `length`: Arrays have a `length` member containing the number of elements, and the length of a `memory` array is fixed after creation.
+- `push()`: Dynamic arrays have a `push()` member function that adds a `0` element at the end of the array.
+- `push(x)`: Dynamic arrays have a `push(x)` member function, which can add an `x` element at the end of the array.
+- `pop()`: Dynamic arrays have a `pop()` member that removes the last element of the array.
+
+#### (2) Struct
+You can define new types in the form of `struct` in Solidity. Elements of `struct` can be primitive types or reference types. And `struct` can be the element for `array` or `mapping`.
+```solidity
+    // struct
+    struct Student{
+        uint256 id;
+        uint256 score; 
+    }
+
+    Student student; // Initially a student structure
+```
+There are 4 ways to assign values to `struct`:
+```solidity
+     // Method 1: Directly refer to the struct of the state variable
+    function initStudent1() external{
+        student.id = 1;
+        student.score = 80;
+    }
+```
+```solidity
+    // Method 2: struct constructor
+    function initStudent2() external {
+        student = Student(3, 90);
+    }
+    
+    // Method 3: key value
+    function initStudent3() external {
+        student = Student({id: 4, score: 60});
+    }
+```
+```solidity
+    // assign value to structure
+    // Method 4: Create a storage struct reference in the function
+    function initStudent4() external{
+        Student storage _student = student; // assign a copy of student
+        _student.id = 11;
+        _student.score = 100;
+    }
+```
+
+#### Summary
+In this lecture, I learned the basic usage of `array` and `struct` in Solidity.
+
+</details>
+
+<details>
+<summary>7. Mapping</summary>
+
+#### Mapping (ref: 2024.09.24)
+With `mapping` type, people can query the corresponding `Value` by using a `Key`. For example, a person's wallet address can be queried by their `id`.
+
+The format of declaring the `mapping` is `mapping(_KeyType => _ValueType)`, where `_KeyType` and `_ValueType` are the variable types of `Key` and `Value` respectively. For example:
+```solidity
+    mapping(uint => address) public idToAddress; // id maps to address
+    mapping(address => address) public swapPair; // mapping of token pairs, from address to address
+```
+
+#### Rules of `mapping`
+- **Rule 1**: The `_KeyType` should be selected among default types in solidity such as `uint`, `address`, etc. **No custom `struct` can be used**. However, `_ValueType` can be any custom types. The following example will throw an **error**, because `_KeyType` uses a custom struct:
+```solidity
+      // define a struct
+      struct Student {
+          uint256 id;
+          uint256 score;
+      }
+      mapping(Student => uint) public testVar;
+```
+- **Rule 2**: The storage location of the mapping must be `storage`: it can serve as the state variable or the `storage` variable inside function. But it can't be used in arguments or return results of `public` function.
+- **Rule 3**: If the mapping is declared as `public` then Solidity will automatically create a `getter` function for you to query for the `Value` by the `Key`.
+- **Rule 4**： The syntax of adding a key-value pair to a mapping is `_Var[_Key] = _Value`, where `_Var` is the name of the mapping variable, and `_Key` and `_Value` correspond to the new key-value pair. For example:
+```solidity
+    function writeMap(uint _Key, address _Value) public {
+        idToAddress[_Key] = _Value;
+    }
+```
+#### Principle of `mapping`
+- Principle 1: The mapping does not store any `key` information or length information.
+- Principle 2: Mapping use `keccak256(key)` as offset to access value.
+- Principle 3: Since Ethereum defines all unused space as `0`, all `key` that are not assigned a value will have an initial value of `0`.
+
+#### Summary
+In this section，I learned the `mapping` type in Solidity. So far, we've learned all kinds of common variables.
+
+</details>
 
 ###
 

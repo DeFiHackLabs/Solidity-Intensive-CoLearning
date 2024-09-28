@@ -331,4 +331,30 @@ receive和fallback的区别
 
 4.调用合约并发送ETH
 
+### 2024.09.28
+
+**call：**
+
+`call` 是`address`类型的低级成员函数，它用来与其他合约交互。它的返回值为`(bool, bytes memory)`，分别对应`call`是否成功以及目标函数的返回值。
+
+`call`是`Solidity`官方推荐的通过触发`fallback`或`receive`函数发送`ETH`的方法。
+
+**delegatecall：**
+
+`delegatecall`与`call`类似，是`Solidity`中地址类型的低级成员函数。
+
+一个投资者（用户`A`）把他的资产（`B`合约的`状态变量`）都交给一个风险投资代理（`C`合约）来打理。执行的是风险投资代理的函数，但是改变的是资产的状态。
+
+目前`delegatecall`主要有两个应用场景：
+
+1.代理合约（`Proxy Contract`）：**将智能合约的存储合约和逻辑合约分开**：代理合约（`Proxy Contract`）存储所有相关的变量，并且保存逻辑合约的地址；所有函数存在逻辑合约（`Logic Contract`）里，通过`delegatecall`执行。当升级时，只需要将代理合约指向新的逻辑合约即可。
+
+2.EIP-2535 Diamonds（钻石）：钻石是一个支持构建可在生产中扩展的模块化智能合约系统的标准。钻石是具有多个实施合约的代理合约。
+
+两个合约变量存储布局必须相同
+
+B通过call来调用C的setVars()函数，将改变合约C里的状态变量
+
+B通过delegatecall来调用C的setVars()函数，将改变合约B里的状态变量
+
 <!-- Content_END -->
