@@ -196,3 +196,32 @@ Solidity 101-13 继承inheritance
 7 调用父合约函数-super关键字：子合约可以利用super.函数名()来调用最近的父合约函数
 8 is关键字：表示继承（Child is Parent意思是Child合约继承了Parent合约的功能）
 <!-- Content_END -->
+<!-- Content_START -->
+### 2024.09.28
+Day6
+Solidity 101-14 抽象合约和接口
+1 如果一个智能合约里至少有一个未实现的函数，即某个函数缺少主体{}中的内容，则必须将该合约标为abstract，不然编译会报错
+2 未实现的函数需要加virtual，以便子合约重写
+3 接口是智能合约的骨架，定义了合约的功能以及如何触发
+4 接口提供每个函数的 bytes4 选择器和函数
+签名
+5 接口ID 是一种通过接口中的函数来唯一标识接口的万式
+6 IERC721是一个标准的ERC-721接口，它规定了 NFT 合约必须实现的函数
+7 查询持仓量 （balanceOf）
+8 安全转账（safeTransferFrom）
+9 抽象合约abstract contract必须通过一个具体实现的子合约来补全所有未实现的函数后，才能进行部署
+10 return Azuki.ownerOf(id); 	ownerOf 是 ERC-721 标准的一部分，用于查询特定 tokenId 的拥有者
+11 Azuki.approve(to, id)：函数调用方式，approve 是 ERC-721 中的标准函数之一，用于批准某个地址对特定 tokenId 的控制权限
+
+Solidity 101-15 异常
+1 三种抛出异常的方法：error，require和assert
+2 error必须搭配revert（回退）命令一起使用
+3 require唯一的缺点就是gas会随着描述异常的字符串长度增加
+4 error，require检查条件不成立，会抛出异常
+5 assert不能解释抛出异常原因
+6 assert主要是内部错误检查 
+
+Solidity 102-16 函数重载
+1 函数重载function overloading（名字相同但输入参数类型不同的函数可以同时存在，被看作不同的函数，不同的function selector函数选择器）
+2 solidity不允许修饰器modifier重载
+<!-- Content_END -->
