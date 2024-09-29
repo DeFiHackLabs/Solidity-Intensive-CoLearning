@@ -620,13 +620,14 @@ contract Events {
     }
 }
 ```
-
 ### 2024.09.27
-* 複習12_Event並更新筆記
-* BootCamp任務：建立ERC20合約
+### 2024.09.28
+### 2024.09.29
 
+* BootCamp副本：建立ERC20合約、測試合約、鍊上互動
+
+ERC20合約
 ```solidity
-
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
@@ -644,11 +645,25 @@ contract DefiHackLabsToken is ERC20 { //繼承ERC20
          _mint(msg.sender, initialSupply * 10**decimals()); //合約部屬後，鑄造給部屬者的地址，發幣自爽 (?
     }
 }
-
 ```
 
-### 2024.09.28
-* BootCamp作業：ERC20發幣合約、測試合約
+測試合約
+終端機測試指令
+```
+forge test --match-contract 合約名稱 -vvvvv
+forge test --match-test 測試函數名稱 -vvvvv
+forge test --match-test testIsResister -f https://ethereum-sepolia-rpc.publicnode.com
+```
+-v 是 --verbosity 的簡寫。每多加一個 v，輸出的詳細程度就會增加。級別：
+   * -v：基本詳細信息
+   * -vv：更多詳細信息
+   * -vvv：非常詳細
+   * -vvvv：超級詳細
+   * -vvvvv：最高詳細度
+
+-f 後面貼上 sepolia 的 rpc url，這樣 foundry 就會去抓到 sepolia 鏈的狀態
+
+測試假扮
 ```solidity
 vm.prank() //模擬用戶操作，Forge 標準庫中的 vm.prank() 函數來模擬不同用戶的操作。
 ```
@@ -690,14 +705,34 @@ function allowance(address owner, address spender) public view virtual returns (
     return _allowances[owner][spender];
 }
 ```
-###2024.09.29
-如何用foundryup做鍊上互動
 
-cast wallet import hw1 --interactive
-還有接口也要看懂
-
+如何用foundryup做鍊上互動 終端機測試指令
+```
+cast wallet import 自定義錢包名稱 --interactive //需要輸入私鑰跟密碼
 forge script script/DeFiHackLabsBootcamp.s.sol:DeFiHackLabsBootcampScript --rpc-url $SEPOLIA_RPC_URL --broadcast -vvvvv
 
+forge script:
+這是 Forge 工具的子命令，用於執行 Solidity 腳本。
+
+script/DeFiHackLabsBootcamp.s.sol:DeFiHackLabsBootcampScript:
+指定要執行的腳本文件路徑和腳本名稱。
+文件位於 script/DeFiHackLabsBootcamp.s.sol。
+要執行的具體腳本是 DeFiHackLabsBootcampScript。
+
+--rpc-url $SEPOLIA_RPC_URL:
+指定要連接的以太坊網絡 RPC URL。
+$SEPOLIA_RPC_URL 是一個環境變量，存儲了 Sepolia 測試網的 RPC URL。
+
+--broadcast:
+指示 Forge 實際廣播交易到指定的網絡。
+如果沒有這個選項，Forge 只會模擬交易而不實際發送。
+
+--account hw1:
+指定用於簽署和發送交易的賬戶。
+hw1 是一個預先配置的賬戶別名。
+```
+
+還有接口也要看懂
 
 #### 13_Inheritance
 
