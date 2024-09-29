@@ -289,4 +289,118 @@ uint256[3] memory _array;
 ### 2024.09.28
 #### WTF Academy Solidity 101.6 引用类型, array, struct
 
+##### 数组 Array
+- 存储在 `storage` 的数组：
+    - **可变长度数组**（即未指定固定长度的 `T[]`）是可以动态扩展和缩减的，例如通过 `push()` 和 `pop()` 操作。
+    - **固定长度数组**（如 `uint[8]`）在 `storage` 中长度是固定的，初始化后不能改变其长度。
+- 存储在 `memory` 的数组：
+    - **可变长度数组**在 `memory` 中一旦初始化，**长度是固定的**，不能在运行时再改变长度。因此，`memory` 数组在初始化时必须指定其长度，之后无法扩展或缩减。
+
+**数组成员**
+- `length`: 可以读取数组的长度。`memory`数组的长度在创建后是固定的，`storage` 数组可以通过直接赋值来修改数组长度。
+- `push()`: 向 `storage` 中的可变长度数组添加一个`0`元素，并返回该元素的引用。
+- `push(x)`: 向 `storage` 中的可变长度数组添加一个`x`元素，并自动增加数组的长度。
+- `pop()`: 删除 `storage` 数组的最后一个元素，并减少数组的长度。
+
+- 注意事项
+  - `storage` 数组：支持 `.push()`、`.pop()` 和 `.length` 成员，可以动态增加和减少长度。
+  - `memory` 数组的操作相对简单，因为它们的长度一旦初始化后无法改变。因此，只有读取和修改数组元素的功能，没有 `push` 和 `pop` 操作。
+  - 对于固定长度的数组（无论在 `storage` 还是 `memory`），它们的长度在编译时就确定了，因此无法使用 `.push()` 或 `.pop()` 操作。
+
+```Solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract StorageArrayLength {
+    uint[] public array;
+
+    // 获取数组长度
+    function getLength() public view returns (uint) {
+        return array.length;
+    }
+
+    // 修改数组长度
+    function setLength(uint newLength) public {
+        array.length = newLength;
+    }
+}
+
+contract StorageArrayPush {
+    uint[] public array;
+
+    // 向数组中添加元素
+    function addElement(uint _value) public {
+        array.push(_value);
+    }
+
+    uint[] public numbers;
+
+    function addElement() public {
+        uint storageElement = numbers.push(); // 添加一个0元素并返回其引用
+        numbers[numbers.length - 1] = 42;     // 可以通过引用直接修改最后一个元素
+      }
+}
+```
+
+##### 结构体 struct
+`struct` 是 Solidity 中用于定义自定义类型的关键字。每个结构体可以包含不同类型的变量，称为字段（fields），它们可以是基本类型（如 `uint`、`bool` 等）或引用类型（如数组、映射等）。
+1. **定义结构体**
+     - 这是为了创建一种新的数据类型，类似于定义一个模版。定义结构体是告诉 Solidity，接下来可以使用这种新的自定义类型，类似于在其他编程语言中定义一个类（class）或数据类型。
+    ```solidity
+    // 定义一个名为 Student 的结构体
+    struct Student {
+        uint256 id;     // 学生ID
+        uint256 score;  // 学生分数
+    }
+    ```
+
+2. **声明结构体变量**
+    - 这是在定义的结构体类型基础上创建一个实际的变量，并分配内存。声明结构体变量后，可以使用它来存储和操作数据。
+      ```solidity
+      Student student; // 声明一个 `Student` 结构体变量
+      ```
+
+3. **赋值方式**
+    - `storage` 引用：在函数中创建一个指向状态变量的 `storage` 引用，可以直接修改该结构体。
+      ```solidity
+      function initStudent1() external {
+          Student storage _student = student; // 指向 `student` 结构体的引用
+          _student.id = 11;                   // 修改 `student` 的 id
+          _student.score = 100;               // 修改 `student` 的 score
+      }
+      ```
+
+      在这个例子中，`_student` 是对状态变量 `student` 的引用。通过修改 `_student`，你实际上是在修改原始 `student` 结构体。
+
+    - 直接修改结构体字段：直接引用结构体变量并为其字段赋值。
+      ```solidity
+      function initStudent2() external {
+          student.id = 1;        // 直接修改 `student` 的 id
+          student.score = 80;     // 直接修改 `student` 的 score
+      }
+      ```
+      在这种方法中，直接操作状态变量 `student`，而不需要创建中间的引用。
+    - 构造函数式：利用构造函数风格的赋值方法为结构体赋值。
+      ```solidity
+      function initStudent3() external {
+          student = Student(3, 90);  // 使用构造函数语法为 `student` 赋值
+      }
+      ```
+      这种方法类似于函数调用，通过提供参数来一次性赋值结构体的所有字段。
+    - `key-value` 形式赋值：这种方式允许通过 `key-value` 的形式为结构体赋值，特别适用于具有很多字段的结构体。
+      ```solidity
+      function initStudent4() external {
+          student = Student({id: 4, score: 60});  // 通过键值对形式赋值
+      }
+      ```
+      `key-value` 方式在参数顺序不重要或者字段较多时，能提高代码的可读性。
+
+##### 测验结果
+- 100/100
+
+
+### 2024.09.29
+#### WTF Academy Solidity 101.7 映射类型 mapping
+
+
 <!-- Content_END -->
