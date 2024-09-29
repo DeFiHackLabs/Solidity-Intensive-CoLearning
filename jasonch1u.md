@@ -649,7 +649,7 @@ contract DefiHackLabsToken is ERC20 { //繼承ERC20
 
 測試合約
 終端機測試指令
-```foundryup
+```terminal
 forge test --match-contract 合約名稱 -vvvvv
 forge test --match-test 測試函數名稱 -vvvvv
 forge test --match-test testIsResister -f https://ethereum-sepolia-rpc.publicnode.com
@@ -661,8 +661,9 @@ forge test --match-test testIsResister -f https://ethereum-sepolia-rpc.publicnod
    * -vvvv：超級詳細
    * -vvvvv：最高詳細度
 
- -f 後面貼上 sepolia 的 rpc url，這樣 foundry 就會去抓到 sepolia 鏈的狀態
- 
+-f 後面貼上 sepolia 的 rpc url，這樣 foundry 就會去抓到 sepolia 鏈的狀態
+
+測試假扮
 ```solidity
 vm.prank() //模擬用戶操作，Forge 標準庫中的 vm.prank() 函數來模擬不同用戶的操作。
 ```
@@ -705,9 +706,8 @@ function allowance(address owner, address spender) public view virtual returns (
 }
 ```
 
-如何用foundryup做鍊上互動
-終端機測試指令
-```foundryup
+如何用foundryup做鍊上互動 終端機測試指令
+```solidity
 cast wallet import 自定義錢包名稱 --interactive //需要輸入私鑰跟密碼
 forge script script/DeFiHackLabsBootcamp.s.sol:DeFiHackLabsBootcampScript --rpc-url $SEPOLIA_RPC_URL --broadcast -vvvvv
 
