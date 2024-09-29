@@ -667,6 +667,123 @@ abstract contract InsertionSort{
     function insertionSort(uint[] memory a) public pure virtual returns(uint[] memory);
 }
 ```
+### 2024.09.30
+
+#### 接口(interface)
+類似抽象合約，但不實現任何功能。  
+* 規則：
+    1. 不能包含狀態變量
+    2. 不能包含構造函數
+    3. 不能繼承接口以外的其他合約
+    4. 所有函數都必須是external且不能有函數體
+    5. 繼承 interface 的非抽象合約必須實現 interface 定義的所有功能  
+
+interface 是智能合約的骨架，定義了合約的功能及如何觸發，若合約實現了某種接口，ex.`ERC20`、`ERC721`，其他`Dapps`和合約就知道該如何與此智能合約交互。  
+* 作用：
+    1. 標準化交互：  
+    如果某個智能合約實現了一個通用的接口（如 ERC20 或 ERC721），那麼其他合約或應用程序就能根據這個接口來與其互動，有助於跨平台、跨合約之間的兼容性。
+    2. 定義合約中的功能：  
+    接口會定義每個函數的名稱和參數類型，以及這些函數如何被調用，這相當於描述了合約的公共 API。
+    3. 定義每個函數哈希(`bytes4`選擇器)、函數簽名(`函數名(每個參數類型)`)，以通過對函數的簽名進行哈希後得到獨特的4字節哈希。  
+        ```Solidity
+        keccak256("transfer(address,uint256)").slice(0, 4)
+        ```
+    4. 接口 ID：  
+    接口 ID 是一個唯一的標識符，用來表示某個合約是否實現了某個接口。
+
+
+```Solidity
+interface IERC721 is IERC165 {
+    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+    event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
+    event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
+    
+    function balanceOf(address owner) external view returns (uint256 balance);
+
+    function ownerOf(uint256 tokenId) external view returns (address owner);
+
+    function safeTransferFrom(address from, address to, uint256 tokenId) external;
+
+    function transferFrom(address from, address to, uint256 tokenId) external;
+
+    function approve(address to, uint256 tokenId) external;
+
+    function getApproved(uint256 tokenId) external view returns (address operator);
+
+    function setApprovalForAll(address operator, bool _approved) external;
+
+    function isApprovedForAll(address owner, address operator) external view returns (bool);
+
+    function safeTransferFrom( address from, address to, uint256 tokenId, bytes calldata data) external;
+}
+```
+
+#### 什麼時候使用interface?
+若知道一個合約實現了`IERC721`，不需要知道他的具體程式實現就可以與之交互。  
+ex.  
+```Solidity
+contract interactBAYC {
+    // 利用BAYC地址创建接口合约变量（ETH主网）
+    IERC721 BAYC = IERC721(0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D);
+
+    // 通过接口调用BAYC的balanceOf()查询持仓量
+    function balanceOfBAYC(address owner) external view returns (uint256 balance){
+        return BAYC.balanceOf(owner);
+    }
+
+    // 通过接口调用BAYC的safeTransferFrom()安全转账
+    function safeTransferFromBAYC(address from, address to, uint256 tokenId) external{
+        BAYC.safeTransferFrom(from, to, tokenId);
+    }
+}
+```
+
+#### 異常
+異常命令可以幫助尋找錯誤。  
+* `error`：可以在`contract`之外拋出異常，高效且方便的向用戶解釋操作失敗的原因，且在拋出異常時可攜帶參數。  
+ex.定義`TransferNotOwner`異常，當用戶不是貨幣`owner`時轉帳會拋出錯誤。  
+    ```Solidity
+    error TransferNotOwner(); // 自定义error
+
+    // 攜帶參數的異常，以提示轉帳的帳戶地址
+    error TransferNotOwner(address sender); // 自定义的带参数的error
+    ```
+    `error`需搭配`revert`命令使用：  
+    當用戶不是貨幣`owner`時轉帳會拋出錯誤，否則成功轉帳。  
+    ```Solidity
+    function transferOwner1(uint256 tokenId, address newOwner) public {
+        if(_owners[tokenId] != msg.sender){
+            revert TransferNotOwner();
+            // revert TransferNotOwner(msg.sender);
+        }
+        _owners[tokenId] = newOwner;
+    }
+    ```
+* `require`：消耗的gas比`error`高，且會隨著描述異常的字符串長度增加，gas也隨之增加。  
+    * 使用方法：`require(檢查條件，"異常的描述")`，檢查條件不成立時，拋出異常。  
+    ```Solidity
+    function transferOwner2(uint256 tokenId, address newOwner) public {
+        require(_owners[tokenId] == msg.sender, "Transfer Not Owner");
+        _owners[tokenId] = newOwner;
+    }
+    ```
+* `assert`：不能解釋拋出異常的原因(相較`require`少了字符串)，但仍會在檢查條件不成立時拋出異常。
+    ```Solidity
+    function transferOwner3(uint256 tokenId, address newOwner) public {
+        assert(_owners[tokenId] == msg.sender);
+        _owners[tokenId] = newOwner;
+    }
+    ```
+#### 驗證
+輸入任意數字、非0地址，呼叫以各種語法寫的異常訊息。  
+<img src="https://github.com/user-attachments/assets/eb044a25-9abd-401b-9fa1-3ecaf76f8d55" height="160px" width="640px" />  
+<img src="https://github.com/user-attachments/assets/fe715ee9-c9be-4db7-ae31-168af6192a1e" height="155px" width="640px" />  
+<img src="https://github.com/user-attachments/assets/5c7d044b-ac35-48b5-afe6-62e615b4a2ce" height="115px" width="640px" />  
+
+* `error`方法`gas`消耗：24457(加入參數後`gas`消耗：24660)
+* `require`方法`gas`消耗：24755
+* `assert`方法`gas`消耗：24473  
+`error`方法`gas`消耗最少，`require`方法消耗最多，因此在求最小`gas`消耗下可以多加使用`error`。
 
 
 <!-- Content_END -->

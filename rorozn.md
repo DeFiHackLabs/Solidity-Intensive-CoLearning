@@ -778,6 +778,56 @@ function callNonExist(address _addr) external{
 
 ### 2024.09.29
 
+23. Delegatecall
+
+- 用途：
+  - 合约代理  
+    用户 A 通过合约 B 调用合约 C 里的函数，改变合约 B 里的变量
+  - [EIP-2535 Diamonds](https://eip2535diamonds.substack.com/p/introduction-to-the-diamond-standard)
+- delegatecall 在调用合约时可以指定交易发送的 gas，但不能指定发送的 ETH 数额
+- delegatecall 有**安全隐患**，使用时要保证当前合约和目标合约的状态变量存储结构相同，并且目标合约安全，不然会造成资产损失。
+- 举例：
+
+```solidity
+// 被调用的合约C,使用这个合约里的函数功能
+contract C {
+    uint public num;
+    address public sender;
+    function setVars(uint _num) public payable {
+        num = _num;
+        sender = msg.sender;
+    }
+}
+
+//发起调用的合约B
+//合约B必须和目标合约C的变量存储布局必须相同，两个变量（可以不同名，类型和顺序必须相同），并且顺序为num和sender
+contract B {
+    uint public num;
+    address public sender;
+
+    // 通过call来调用C的setVars()函数，将改变合约C里的状态变量
+    function callSetVars(address _addr, uint _num) external payable{
+        // call setVars()
+        (bool success, bytes memory data) = _addr.call(
+            abi.encodeWithSignature("setVars(uint256)", _num)
+        );
+    }
+
+    // 通过delegatecall来调用C的setVars()函数，将改变合约B里的状态变量
+    function delegatecallSetVars(address _addr, uint _num) external payable{
+        // delegatecall setVars()
+        (bool success, bytes memory data) = _addr.delegatecall(
+            abi.encodeWithSignature("setVars(uint256)", _num) //注意是uint256
+        );
+    }
+}
+```
+
+部署好合约 B,C；  
+用户钱包地址 A；  
+使用 B 的 callSetVars,传入 C 合约地址，num=10：C 合约变量 num 改成 10，sender 为 B 的地址；  
+使用 B 的 delegatecallSetValues，传入 C 的合约地址，num=100: B 的合约变量 num 改为 100，sender 地址为 A 的钱包地址，C 合约变量没变；
+
 ### 2024.09.30
 
 <!-- Content_END -->

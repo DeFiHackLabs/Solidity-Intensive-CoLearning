@@ -15,6 +15,7 @@ timezone: Asia/Shanghai
 ## Notes
 
 <!-- Content_START -->
+
 ### 2024.09.29
 ## 2. 整型
 
@@ -69,6 +70,7 @@ XXX `condition`
  
 註：`&&` 是邏輯與運算符，當`兩個`操作數都為 `true` 時，結果才是 `true`。如果任一操作數為 `false`，結果就為 `false`。
  
+
 ```
 bool condition = false && expensiveFunction();
 // `expensiveFunction()` 不會被執行
@@ -76,11 +78,14 @@ bool condition = false && expensiveFunction();
 例2：
 對於 `||`（邏輯或），當左邊的條件為 true 時，右邊的條件不會再被計算，因為結果已經是 true。
 (|| 是邏輯或運算符，只要任一操作數為 true，結果就是 true。)
+
 ```
 bool condition = true || expensiveFunction();
 // `expensiveFunction()` 不會被執行
 ```
+
 這種短路行為可以避免不必要的計算，特別是在運算代價高昂的情況下，降低多於運算可減少成本並提高效率。
+
 
 ### 2024.09.26
 進度：值类型

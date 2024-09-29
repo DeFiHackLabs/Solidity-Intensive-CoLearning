@@ -465,6 +465,48 @@ struct Student {
 
 选择哪种方法取决于具体需求、代码可读性和 gas 优化考虑。
 
+
+
+### 2024.09.28
+
+學習內容: 
+
+- [solidity-101 第七课 映射类型 mapping](https://www.wtf.academy/docs/solidity-101/Mapping/)
+
+笔记
+
+
+#### 映射（Mapping）的基本概念
+- 通过键（`Key`）查询对应的值（`Value`）
+- 声明格式：`mapping(_KeyType => _ValueType)`
+- 示例：
+  ```solidity
+  mapping(uint => address) public idToAddress; // id映射到地址
+  mapping(address => address) public swapPair; // 币对的映射，地址到地址
+  ```
+
+#### 映射的规则
+1. `_KeyType` 只能是 Solidity 内置的值类型（如 `uint`、`address`），不能用自定义结构体
+2. 映射的存储位置必须是 `storage`
+3. 声明为 `public` 时，Solidity 自动创建 getter 函数
+4. 新增键值对语法：`_Var[_Key] = _Value`
+
+#### 映射的原理
+1. 不储存键（`Key`）的信息，没有 length 信息
+2. 使用 `keccak256(abi.encodePacked(key, slot))` 作为 offset 存取 value
+3. 未赋值的键初始值为该类型的默认值（如 uint 默认为 0）
+
+#### 思考与解答
+1. 为什么映射的 `_KeyType` 不能使用自定义结构体？
+   - 这可能是为了确保键的唯一性和哈希计算的效率。内置类型有固定的大小和明确的哈希方法，而自定义结构体可能导致复杂性和不确定性。
+
+2. 映射为什么必须存储在 `storage` 中？
+   - 映射通常用于存储大量数据和持久化信息。`storage` 是区块链上的永久存储空间，适合存储这种需要长期保存的数据结构。
+
+3. 映射不存储键信息会有什么影响？
+   - 这意味着我们无法直接获取所有的键或遍历映射。如果需要这些功能，通常需要额外维护一个数组来存储所有的键。
+
+
 ### 2024.09.28
 
 學習內容: 
