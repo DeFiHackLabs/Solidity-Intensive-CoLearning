@@ -15,6 +15,73 @@ timezone: Asia/Shanghai
 ## Notes
 
 <!-- Content_START -->
+### 2024.09.29
+## 2. 整型
+
+在 Solidity 中，整型（Integer）表示的是整數，最常用的整型類型包括：
+- `int`：可以儲存`正數`與`負數的`整數。
+- `uint`：`僅`儲存正整數。
+- `uint256`：最大可以儲存 256 位元的正整數。
+
+```solidity
+// 整型示範
+int public _int = -1;         // 整數，包含負數
+uint public _uint = 1;        // 正整數
+uint256 public _number = 20220330;  // 256 位正整數
+```
+### 常用整型運算符
+[1].比較運算符（返回Boolean-二值變量）：
+
+`<=`：小於等於
+`<`：小於
+`==`：等於
+`!=`：不等於
+`>=`：大於等於
+`>`：大於
+
+[2].算術運算符：
+
+`+`：加法
+`-`：減法
+`*`：乘法
+`/`：除法
+`%`：取餘數
+`**`：幂次方（指數運算）
+
+// 整數運算範例
+```solidity
+uint256 public _number1 = _number + 1;   // 加法，_number1 為 20220331
+uint256 public _number2 = 2**2;          // 指數，2 的 2 次方，結果為 4
+uint256 public _number3 = 7 % 2;         // 餘數運算，7 除以 2 餘數為 1
+bool public _numberbool = _number2 > _number3;  // 比較，_number2 是否大於 _number3，結果為 true
+```
+
+
+### 2024.09.28
+進度：短路規則（Short-Circuiting）
+
+Short-Circuiting在邏輯運算中可優化計算效率，對於已知的事實，直接產出結果：
+
+XXX `condition`
+
+例1：
+ `&&`（邏輯與），當左邊的條件為 false 時，`右邊的條件不再被計算`，因為無論右邊的條件是什麼，結果`必然`是 `false`。
+ 
+註：`&&` 是邏輯與運算符，當`兩個`操作數都為 `true` 時，結果才是 `true`。如果任一操作數為 `false`，結果就為 `false`。
+ 
+```
+bool condition = false && expensiveFunction();
+// `expensiveFunction()` 不會被執行
+```
+例2：
+對於 `||`（邏輯或），當左邊的條件為 true 時，右邊的條件不會再被計算，因為結果已經是 true。
+(|| 是邏輯或運算符，只要任一操作數為 true，結果就是 true。)
+```
+bool condition = true || expensiveFunction();
+// `expensiveFunction()` 不會被執行
+```
+這種短路行為可以避免不必要的計算，特別是在運算代價高昂的情況下，降低多於運算可減少成本並提高效率。
+
 ### 2024.09.26
 進度：值类型
 
@@ -42,7 +109,7 @@ bool public _bool5 = _bool != _bool1;  // _bool5 為 true
 
 ### 2024.09.25
 進度：值类型 & 熟悉Github 語言
-# 布林型（二值變量）與邏輯運算
+## 1. 布林型（二值變量）與邏輯運算
 
 布林型（Boolean）是編程語言中的基本資料類型之一，只有兩個可能的取值：`true`（真）或`false`（假）。布林型主要用於條件判斷和控制流程中，通過邏輯運算符進行操作。
 
