@@ -306,6 +306,22 @@ timezone: Asia/Shanghai
     - ![image-20240929101542907](content/Aris/image-20240929101542907.png)
 5. 第 08 节测验得分: 100, 答案: CBDDA
 
+#### 学习内容 9. 常数 constant和immutable
+
+1. constant(常量),immutable(不变量)
+    - 状态变量声明这两个变量以后,不能在初始化之后再更改;
+    - 提升合约安全性
+    - 节省 gas 费用
+    - 只有数值变量可以声明为 constant 和 immutable
+    - string 和 bytes 可以声明为 constant,不能为 immutable
+2. constant
+    - constant 必须在声明的时候初始化,之后不可变
+3. immutable
+    - immutable 变量可在声明时或者构造函数中初始化
+4. 合约部署
+    - ![image-20240929104513664](content/Aris/image-20240929104513664.png)
+5. 第 09 节测验得分: 100, 答案:ACDDC
+
 ---
 
 
