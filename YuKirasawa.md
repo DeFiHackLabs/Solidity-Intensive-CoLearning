@@ -86,8 +86,6 @@ ETH 交易的签名使用 ECDSA 签名算法，但与标准的 ECDSA 有一点�
 - 内部函数调用 (Internal Function Calls)：对于在同一个合约内直接通过函数名进行的调用，会被编译为 EVM 的跳转指令。因此这样的调用不会创建新的 context 环境，也不会改变 `msg.sender` (`caller()`) 的值。但依然会进行压栈操作，从而只能进行非常有限的递归。
 - 外部函数调用 (External Function Calls)：对于使用 `<contract instance>.<function>` 进行的调用，会被编译为 EVM 的 `call` 指令。这样的调用会创建新的 context 环境，也会改变 `msg.sender` (`caller()`) 的值。
 
-<<<<<<< HEAD
-=======
 ### 2024.09.28
 
 了解了一下合约中存储的实现。
@@ -110,5 +108,4 @@ mapping、array 等变长数据结构会使用 hash 确定真实的存储位置�
 
 > For library `view` functions `DELEGATECALL` is used, because there is no combined `DELEGATECALL` and `STATICCALL`. This means library `view` functions do not have run-time checks that prevent state modifications. This should not impact security negatively because library code is usually known at compile-time and the static checker performs compile-time checks.
 
->>>>>>> e174eb6 (Add YuKirasawa 09.29 notes)
 <!-- Content_END -->
