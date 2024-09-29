@@ -517,4 +517,40 @@ transfer 有gas限制2300，失败后会revert
 send 有gas限制，失败后不会自动revert，一般不会用
 call 没有gas限制，常用
 
+
+### 2024.09.27
+import "./other.sol";
+contract callOther{
+    event log(string message);
+
+    function callSetx(address payable addr,uint amount) public payable {
+          (bool success,bytes memory data) = addr.call{value:msg.value}(abi.encodeWithSignature("setx(uint256)", amount));
+          if(success){
+            emit log("success");
+          }
+    }
+    function callGetx(address payable addr) public returns(uint256){
+        (bool success,bytes memory data) = addr.call(abi.encodeWithSignature("getx()"));
+        if(success){
+            emit log(string(abi.encodePacked(abi.decode(data, (uint256)))));
+        }
+        return abi.decode(data, (uint256));
+    }
+    function callnotexist(address payable addr)public{
+        (bool success,bytes memory data) = addr.call(abi.encodeWithSignature("selects()"));
+        if(!success){
+            emit log("the method is not exist");
+        }
+    }
+}
+使用call调用其他的合约方法，abi.encodeWithSignature("setx(uint256)")会找到对应的方法，如果有入参的话在后边指定
+call还可以发送eth，addr.call(value:msg.value) 这个value指的是当前合约拥有的eth,也可以手动指定数值
+调用不存在的方法时，会自动fallback()
+
+
+
+
+
+
+
 <!-- Content_END -->
