@@ -589,4 +589,64 @@ contract AnimalShelter {
 
 另外一个非常关键的知识点就是合约的ABI 与接口等价，RPC 接口调用的ABI，背后实际调用的是定义的各式接口。
 
+### 2024.09.29
+
+#### Error handling
+
+按照官方文档的说明，Solidity使用的是 state-reverting exception，我是第一次了解 state-reverting 的异常。
+
+它的大概含义是，如果出现异常，那么函数调用及其子函数调用导致的所有的状态变更，都需要回滚(reverted, undone), 概念理解起来和数据库的异常处理很类似，只是成功和失败两个状态，没有中间态，失败就回滚所有操作，保证原子性。
+
+Solidity 内置的错误类型有两种 `Error(string)` 和 `Panic(uint256)`. `Error` 就类似 Java 中的常规错误(`CheckedException`), 可以预期会发生的; Panic 就类似 Java 中的`UncheckedException`, 就是通常来表示在没有 bug 代码中就不应该出现的错误，比如数组越界，除0等等。
+
+文档提及的 `state-reverting` 是通过 `revert` 函数来实现的，它接受一个 `Error` 类型作为参数，`revert` 回滚状态，并将传入的错误向调用方抛出，调用方也会自动向它的调用方抛出，直到遇到 `try/catch` 语句捕获异常。
+（原来还一个 `throw` 的关键字，具有同样的功能，不过在 0.4.13 被废弃，后面就被移除了，估计是只强调了「向上抛出」的语义，没有强制「回滚」）
+
+而 `assert` 和 `require` 就是两个在预期条件不满足时，分别用来抛出 `Panic` 和 `Error` 的函数，差别就是 `require` 还可以指定一下错误信息, 两个函数内部都会调用 `revert` 来回滚状态，并将异常向上抛出。
+
+Solidity 的 try/catch 和 Java 也很类似:
+
+```solidity
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.8.1;
+
+interface DataFeed { function getData(address token) external returns (uint value); }
+
+contract FeedConsumer {
+    DataFeed feed;
+    uint errorCount;
+    function rate(address token) public returns (uint value, bool success) {
+        // Permanently disable the mechanism if there are
+        // more than 10 errors.
+        require(errorCount < 10);
+        try feed.getData(token) returns (uint v) {
+            return (v, true);
+        } catch Error(string memory /*reason*/) {
+            // This is executed in case
+            // revert was called inside getData
+            // and a reason string was provided.
+            errorCount++;
+            return (0, false);
+        } catch Panic(uint /*errorCode*/) {
+            // This is executed in case of a panic,
+            // i.e. a serious error like division by zero
+            // or overflow. The error code can be used
+            // to determine the kind of error.
+            errorCount++;
+            return (0, false);
+        } catch (bytes memory /*lowLevelData*/) {
+            // This is executed in case revert() was used.
+            errorCount++;
+            return (0, false);
+        }
+    }
+}
+```
+
+catch 语句可以用来匹配不同的错误类型，优先级从上到下，就是如果匹配到某个 catch 语句，就不会向下继续走了。
+
+前面两个 catch 语句就是用来捕获 Solidity 内置的 `Error` 和 `Panic` 类型，而 `catch(bytes memory lowLevelData)` 就比较有趣，有错误数据它能 catch 到，没有错误数据它也能 catch 到， `bytes memory` 就是用来获取底层错误信息，相当于是用来兜底的。
+
+所以想要 catch 住所有的错误，要不用 `catch {...}` (不指定错误类型)，要不用 `catch (byte memory lowLevelData) {...}` catch 底层错误信息.
+
 <!-- Content_END -->
