@@ -398,4 +398,34 @@ function getString2(uint256 _number) public pure returns(string memory){
 
 ###
 
+### 2024.09.28
+
+#### 导入
+
+关键词 <strong>import</strong>
+
+导入方式：
+
+1. 通过文件的相对位置导入
+2. 通过全局符号，导入合约特定的全局符号
+3. 通过网址引入
+4. 通过npm的目录导入
+
+```solidity
+
+//1
+import './3_Ballot.sol';
+//2
+import {Ballot} from  './3_Ballot.sol';
+//3
+import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+//4
+import '@openzeppelin/contracts/access/Ownable.sol';
+
+```
+
+接下来就可以很简单的像使用库一样，通过using for语句或者直接静态函数引用的方式来使用。
+
+###
+
 <!-- Content_END -->
