@@ -182,6 +182,20 @@ I have written and commit the learning articles.
 The Github had bugs? So sad.
 
 ------------------------------------------------------------------------------------------------------------------------------------------
+Q1: 
+<img width="777" alt="image" src="https://github.com/user-attachments/assets/c0655440-5342-4d36-b991-33f635506990">
+
+Where is the bug of this picture in coding Hello Web3 ?
+
+Though it said there are some bugs here, but I believe that "Code is law". 
+
+A bug is just a bug, it will not exist forever. 
+
+If the bug is fixed today, it will only affect yesterday.
+
+I believe very strongly, someday, the web3 will change the world. 
+
+At that time, I will smile and say "hello web3",welcome to our world.
 
 
 <!-- Content_END -->
