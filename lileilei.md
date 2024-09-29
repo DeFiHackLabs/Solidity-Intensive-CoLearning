@@ -547,8 +547,28 @@ contract callOther{
 call还可以发送eth，addr.call(value:msg.value) 这个value指的是当前合约拥有的eth,也可以手动指定数值
 调用不存在的方法时，会自动fallback()
 
+pragma solidity ~0.8.21;
 
-
+contract c{
+    uint256 public number;
+    address public addr;
+   function setVars(uint256 num) external{
+     number = num;
+     addr = msg.sender;
+   }
+}
+contract B{
+    uint public number;
+    address public addr;
+    function callSetVars(address _addr,uint amount) public {
+        (bool success,bytes memory data) = _addr.call(abi.encodeWithSignature("setVars(uint256)", amount));
+    }
+    function callVars(uint amount,address _addr) public{
+        (bool success,bytes memory data) = _addr.delegatecall(abi.encodeWithSignature("setVars(uint256)", amount));
+    }
+}
+call调用目标方法直接修改目标的方法的属性
+delegatecall 是A调用B资产执行c的代理方法，修改的B的属性值，这会B相当于目标方法，c成了代理方法。
 
 
 
