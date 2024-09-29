@@ -473,7 +473,77 @@ function f(uint256 _in) public pure returns (uint256 out) {
 3.不能接收以太币
 4.不可以被销毁
 
-库合约可见性被设置为public或者external,在调用函数时会触发一次delegatecall。
+库合约可见性被设置为public或者external,在调用函数时会触发一次delegatecall。设置为internal，则不会引起。
+
+使用库合约的方法：
+
+1.利用using for指令：指令using A for B;可用于附加库合约（从库 A）到任何类型（B）。添加完指令后，库A中的函数会自动添加为B类型变量的成员，可以直接调用。注意：在调用的时候，这个变量会被当作第一个参数传递给函数：
+```
+// 利用using for指令
+using Strings for uint256;
+function getString1(uint256 _number) public pure returns(string memory){
+    // 库合约中的函数会自动添加为uint256型变量的成员
+    return _number.toHexString();
+}
+```
+2.通过库合约名称调用函数:
+```
+// 直接通过库合约名调用
+function getString2(uint256 _number) public pure returns(string memory){
+    return Strings.toHexString(_number);
+}
+```
+常用的有：
+
+1.Strings：将uint256转换为String
+2.Address：判断某个地址是否为合约地址
+3.Create2：更安全的使用Create2 EVM opcode
+4.Arrays：跟数组相关的库合约
+
+import用法:
+```
+// 通过源文件相对位置导入
+import './Yeye.sol';
+// 通过网址引用
+import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+// 通过npm的目录导入
+import '@openzeppelin/contracts/access/Ownable.sol';
+// 通过指定全局符号导入合约特定的全局符号
+import {Yeye} from './Yeye.sol';
+```
+引用(import)在代码中的位置为：在声明版本号之后，在其余代码之前。
+
+答案：
+
+PART 16
+1.	什么是函数重载（Overloading）? 名字相同但输入参数类型不同的函数可以同时存在，他们被视为不同的函数。
+2.	Solidity中是否允许修饰器（modifier）重载？不允许
+3.	下面两个函数的函数选择器是否相同？不相同
+4.	使用上一题代码，如果我们调用 saySomething("WTF")，返回值为：”WTF”
+5.	下面两个函数的函数选择器是否相同？不相同
+
+PART 17
+1.	以下，通过库合约名称调用toHexString()，返回值return出正确的写法为：
+Strings.toHexString(_number);
+2.	关于库函数的描述，下列描述错误的是：库函数一般需要你自己实现
+3.	库合约和普通合约的区别，下列描述错误的是：库合约可以被继承
+4.	以下属于常用库函数的有：String、Address、Create2、Arrays
+5.	String库合约是将uint256类型转换为相应的string类型的代码库，toHexString()为其中将uint256转换为16进制，再转换为string。
+_number.toHexString();
+
+PART 18
+1.	Solidity中import的作用是：导入其他合约中的全局符号
+2.	import导入文件的来源可以是：源文件网址、npm的目录、本地文件
+3.	以下import写法错误的是：import from "./Yeye.sol";
+4.	import导入文件中的全局符号可以单独指定其中的：合约、函数、结构体类型
+5.	被导入文件中的全局符号想要被其他合约单独导入，应该怎么编写？与合约并列在文件结构中
+
+### 2024.09.29
+
+```
+完成课程19-20
+```
+
 
 
 
