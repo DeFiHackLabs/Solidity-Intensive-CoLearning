@@ -189,7 +189,7 @@ Where is the bug of this picture in coding Hello Web3 ?
 
 Though it said there are some bugs here, but I believe that "Code is law". 
 
-A bug is just a bug, it will not exist forever. 
+A bug is just a bug, it will not exist forever,be relaxed. 
 
 If the bug is fixed today, it will only affect yesterday.
 
