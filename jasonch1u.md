@@ -621,10 +621,7 @@ contract Events {
 }
 ```
 ### 2024.09.27
-### 2024.09.28
-### 2020.09.29
 * BootCamp作業(09.27~29)：建立ERC20合約、測試合約、鍊上互動
-
 * 建立ERC20合約
 ```solidity
 // SPDX-License-Identifier: MIT
@@ -645,7 +642,7 @@ contract DefiHackLabsToken is ERC20 { //繼承ERC20
     }
 }
 ```
-
+### 2024.09.28
 * 測試合約
 終端機指令
 ```
@@ -703,7 +700,7 @@ function allowance(address owner, address spender) public view virtual returns (
     return _allowances[owner][spender];
 }
 ```
-
+### 2020.09.29
 * 如何用foundryup在鍊上互動
 
 設定私鑰方式
