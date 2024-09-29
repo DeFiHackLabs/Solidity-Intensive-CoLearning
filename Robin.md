@@ -410,6 +410,28 @@ contract MyContract{
 
 ```
 
+### 2024.09.28
+
+學習內容:
+
+- [x] 事件
+   - event 关键字申明事件  emit关键字发送事件
+   - EVM使用Log来存储事件。
+       - 每条日志包含 topics和data两部分。topics是一个最大长度为4的数组，第一个元素存储事件签名，后面三个可用于存储indexed索引。所以事件的索引最多三个
+       - data存储复杂数据，消耗的gas比topics小。
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract eventContract{
+    event CustomerEvent(address indexed from,string message);
+
+    function emitEventFunction(string memory message) external {
+        emit CustomerEvent(msg.sender, message);
+    }
+}
+```
 
 
 <!-- Content_END -->

@@ -360,5 +360,7 @@ uint256[3] memory _array;
 
 (, _bool2, ) = returnNamed();
 
+### 2024.09.27
 
+//忘了做筆記，明天補
 <!-- Content_END -->

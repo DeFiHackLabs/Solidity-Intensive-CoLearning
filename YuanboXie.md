@@ -44,7 +44,7 @@ function <function name>(<parameter types>) {internal|external|public|private} [
     - external：只能从合约外部访问（但内部可以通过 this.f() 来调用，f是函数名）。
     - internal: 只能从合约内部访问，继承的合约可以用。
 - [pure|view|payable]：决定函数权限/功能的关键字。
-    - pure: 既不能读取也不能写入链上的状态变量;
+    - pure: 既不能读取也不能写入链上的状态变量;【这个一定要记住，这个容易记错！】
     - view: 能读取但也不能写入状态变量;
     - payable: 带 payable 的 function 可以存 ether;
 
@@ -166,6 +166,134 @@ function fStorage() public{
         - 日志的第一部分是主题数组，用于描述事件，长度不能超过4。它的第一个元素是事件的签名（哈希）。对于上面的Transfer事件，它的事件哈希就是：keccak256("Transfer(address,address,uint256)")
         - 除了事件哈希，主题还可以包含至多3个indexed参数，也就是Transfer事件中的from和to。indexed标记的参数可以理解为检索事件的索引“键”，方便之后搜索。每个 indexed 参数的大小为固定的256比特，如果参数太大了（比如字符串），就会自动计算哈希存储在主题中。
 
+### 2024.09.27
 
+- [101-13] 继承：Solidity中的修饰器（Modifier）同样可以继承，用法与函数继承类似，在相应的地方加virtual和override关键字即可。
+    - virtual: 父合约中的函数，如果希望子合约重写，需要加上virtual关键字。
+    - override：子合约重写了父合约中的函数，需要加上override关键字。用override修饰public变量，会重写与变量同名的getter函数。
+    - 多重继承
+        - Solidity的合约可以继承多个合约。继承时要按辈分最高到最低的顺序排。
+        - 如果某一个函数在多个继承的合约里都存在，在子合约里必须重写，不然会报错。
+        - 重写在多个父合约中都重名的函数时，override 关键字后面要加上所有父合约名字。
+    - 构造函数的继承
+        - 方法一：在继承时声明父构造函数的参数，例如：contract B is A(1)
+        - 在子合约的构造函数中声明构造函数的参数，例如：
+        ```solidity
+        contract C is A {
+            constructor(uint _c) A(_c * _c) {}
+        }
+        ```
+    - 调用父合约的函数
+        - 直接调用：子合约可以直接用父合约名.函数名()的方式来调用父合约函数;
+        - super.函数名():
+        - 钻石继承/菱形继承：一个派生类同时有两个或两个以上的基类。
+        ```solidity
+        /* 继承树：
+        God
+        /  \
+        Adam Eve
+        \  /
+        people
+        */
+        contract people is Adam, Eve{}
+        // 调用合约people中的super.func()会依次调用Eve、Adam，最后是God合约。
+        ```
+- [101-14] 抽象合约和接口
+    - 如果一个智能合约里至少有一个未实现的函数，即某个函数缺少主体{}中的内容，则必须将该合约标为abstract，不然编译会报错；另外，未实现的函数需要加virtual，以便子合约重写。
+    - 接口类似于抽象合约，但它不实现任何功能。接口的规则：
+        - 不能包含状态变量、不能包含构造函数、不能继承除接口外的其他合约、所有函数都必须是external且不能有函数体、继承接口的非抽象合约必须实现接口定义的所有功能。
+    - 接口提供了两个重要的信息：
+        - 合约里每个函数的bytes4选择器，以及函数签名函数名（每个参数类型）;
+        - 接口id [eip-165](https://eips.ethereum.org/EIPS/eip-165);
+        - 接口与合约ABI（Application Binary Interface）等价，可以相互转换：编译接口可以得到合约的ABI，利用[abi-to-sol](https://gnidan.github.io/abi-to-sol/)工具，也可以将ABI json文件转换为接口sol文件。接口和常规合约的区别在于每个函数都以;代替函数体{ }结尾。
+        ```solidity
+        interface IERC721 is IERC165 {
+            event Transfer(address indexed from, address indexed to, uint256 indexed tokenId); // 在转账时被释放，记录代币的发出地址from，接收地址to和tokenId。
+            event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId); // 在授权时被释放，记录授权地址owner，被授权地址approved和tokenId。
+            event ApprovalForAll(address indexed owner, address indexed operator, bool approved); // 在批量授权时被释放，记录批量授权的发出地址owner，被授权地址operator和授权与否的approved。
+            function balanceOf(address owner) external view returns (uint256 balance); // 返回某地址的NFT持有量balance。
+            function ownerOf(uint256 tokenId) external view returns (address owner); // 返回某tokenId的主人owner。
+            function safeTransferFrom(address from, address to, uint256 tokenId) external; // 安全转账（如果接收方是合约地址，会要求实现ERC721Receiver接口）。参数为转出地址from，接收地址to和tokenId。
+            function transferFrom(address from, address to, uint256 tokenId) external; // 普通转账，参数为转出地址from，接收地址to和tokenId。
+            function approve(address to, uint256 tokenId) external; // 授权另一个地址使用你的NFT。参数为被授权地址approve和tokenId。
+            function getApproved(uint256 tokenId) external view returns (address operator); // 查询tokenId被批准给了哪个地址。
+            function setApprovalForAll(address operator, bool _approved) external; // 将自己持有的该系列NFT批量授权给某个地址operator。
+            function isApprovedForAll(address owner, address operator) external view returns (bool); // 查询某地址的NFT是否批量授权给了另一个operator地址。
+            function safeTransferFrom( address from, address to, uint256 tokenId, bytes calldata data) external; // 安全转账的重载函数，参数里面包含了data。
+        }
+        ```
+        - 如果我们知道一个合约实现了IERC721接口，我们不需要知道它具体代码实现，就可以与它交互。
+- [101-15] 异常：error，require和assert
+    - Error: solidity 0.8.4版本新加的内容，方便且高效（省gas）地向用户解释操作失败的原因，同时还可以在抛出异常的同时携带参数，帮助开发者更好地调试。人们可以在contract之外定义异常。
+    ```solidity
+    error TransferNotOwner(address sender); // 自定义的带参数的error
+    function transferOwner1(uint256 tokenId, address newOwner) public {
+        if(_owners[tokenId] != msg.sender){
+            revert TransferNotOwner(msg.sender);
+        }
+        _owners[tokenId] = newOwner;
+    }
+    ```
+    - Require: solidity 0.8版本之前抛出异常的常用方法，目前很多主流合约仍然还在使用它。它很好用，唯一的缺点就是gas随着描述异常的字符串长度增加，比error命令要高
+    - assert命令一般用于程序员写程序debug，因为它不能解释抛出异常的原因（比require少个字符串）。它的用法很简单，assert(检查条件），当检查条件不成立的时候，就会抛出异常。
+    - 三种方法的gas比较:error方法gas最少，其次是assert，require方法消耗gas最多！因此，error既可以告知用户抛出异常的原因，又能省gas。
+
+### 2024.09.28
+
+- [102-16] 函数重载: Solidity中允许函数进行重载（overloading），即名字相同但输入参数类型不同的函数可以同时存在，他们被视为不同的函数。注意，Solidity不允许修饰器（modifier）重载。
+    - 重载函数在经过编译器编译后，由于不同的参数类型，都变成了不同的函数选择器（selector）
+    - 实参匹配（Argument Matching）：在调用重载函数时，会把输入的实际参数和函数参数的变量类型做匹配。 如果出现多个匹配的重载函数，则会报错。
+    ```solidity
+    // f(50)，因为50既可以被转换为uint8，也可以被转换为uint256，因此会报错。
+    function f(uint8 _in) public pure returns (uint8 out) {
+        out = _in;
+    }
+
+    function f(uint256 _in) public pure returns (uint256 out) {
+        out = _in;
+    }
+    ```
+- [102-17] 库合约
+    - 和普通合约主要有以下几点不同：
+        - 不能存在状态变量、不能够继承或被继承、不能接收以太币、不可以被销毁
+    - 库合约中的函数可见性如果被设置为 public 或者 external，则在调用函数时会触发一次 delegatecall。而如果被设置为 internal，则不会引起。对于设置为 private 可见性的函数来说，其仅能在库合约中可见，在其他合约中不可用。
+    - 如何使用库合约：
+        - using for：用于附加库合约（从库 A）到任何类型（B）。添加完指令后，库A中的函数会自动添加为B类型变量的成员，可以直接调用。注意：在调用的时候，这个变量会被当作第一个参数传递给函数;
+        ```solidity
+        // 利用using for指令
+        using Strings for uint256;
+        function getString1(uint256 _number) public pure returns(string memory){
+            // 库合约中的函数会自动添加为uint256型变量的成员
+            return _number.toHexString();
+        }
+        ```
+        - 通过库合约名称调用函数
+        ```solidity
+        // 直接通过库合约名调用
+        function getString2(uint256 _number) public pure returns(string memory){
+            return Strings.toHexString(_number);
+        }
+        ```
+    - 常用库：
+        - [Strings](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Strings.sol)
+        - [Address](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Address.sol)
+        - [Create2](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Create2.sol)
+        - [Arrays](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Arrays.sol)
+- [102-18] Import
+```solidity
+文件结构
+├── Import.sol
+└── Yeye.sol
+
+// 通过文件相对位置import
+import './Yeye.sol';
+import {Yeye} from './Yeye.sol';
+
+// 通过网址引用
+import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+
+// 通过npm的目录导入
+import '@openzeppelin/contracts/access/Ownable.sol';
+```
 
 <!-- Content_END -->

@@ -66,9 +66,26 @@ state var: on chain/ high gas, declared outside of the function
     can change state var in functions
 local var: only avalible in func like normal, low gas
 global var: reserved keywords for solidity　like blcok hash etc.
-
-
     
+
+### 2024.09.27
+
+#### 06 array and struct
+fixed or dynamic size array
+fixed decalre: type[length] name
+dynamic decalre: type[] name / bytes name
+bytes is cheaper than bytes1[]
+
+#### array
+memory dynamic array:  uint[] memory array8 = new uint[](5);
+    bytes memory array9 = new bytes(9);
+array literals first element must hv type/ type with the smallest storage space is used by default
+
+array methods length/push()/push(x)/pop()
+
+#### struct
+just like normal old structnorhting special
+
 
 
 <!-- Content_END -->

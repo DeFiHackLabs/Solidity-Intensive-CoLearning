@@ -256,4 +256,146 @@ contract people is Adam, Eve {
 ###
 
 
+### 2024.09.27
+
+#### 1.抽象合约
+
+合约中存在未实现的函数。
+
+抽象合约中，是可以存在已经实现的函数的,且不需要子合约实现。如果没有被virtual修饰，子合约实现会编译报错。如Hi()。
+
+在solidity中，如果要对abstract合约的部分function进行实现，必须要预先设为virtual，且自合约必须要经过override的修饰。
+
+```solidity
+abstract contract Father {
+    function Say() public pure virtual returns(uint res){
+        res = 1;
+    }
+
+    function Hi() public pure returns(uint){
+        return 1;
+    }
+
+    function Ha() public pure virtual returns(uint);
+}
+
+contract Test is Father{
+    function Say() public pure  override  returns(uint res){
+        res = 2;
+    }
+
+    function Ha() public pure override  returns(uint){
+        return 0;
+    }
+
+}
+```
+
+#### 2. 接口
+
+规则：
+
+1. 不能包含状态变量
+2. 不能包含构造函数
+3. 不能继承除接口外的其他合约
+4. 所有函数都必须是external且不能有函数体
+5. 继承接口的非抽象合约必须实现接口定义的所有功能
+
+观察erc20的接口，发现事件的定义也是在接口的书写范围内的。
+
+#### 2. 异常
+
+抛出异常的三种方式： error require assert
+
+1. error
+
+需要配合revert(回退)使用。
+
+```solidity
+error TransferNotOwner(address sender);//自定义error
+
+function TransferOwner(uint256 tokenId,address newOwner) public {
+    if(owners[tokenId]!= msg.sender){
+        revert TransferNotOwner(msg.sender);
+    }
+    owners[tokenId] = newOwner;
+}
+```
+
+2. require 
+
+缺点是errormessage的长度会影响gas
+
+```solidity
+require(condition,"error messager");
+```
+
+3. assert
+
+开发人员测试使用。不会记录errormessage。
+
+
+> gas消耗: error < assert < require
+
+###
+
+### 2024.09.28
+
+#### 1. 重载
+
+函数重载，即函数名称相同，但是入参不同的
+
+```solidity
+function saySomething() public pure returns(string memory){
+    return("Nothing");
+}
+
+function saySomething(string memory something) public pure returns(string memory){
+    return(something);
+}
+```
+
+#### 2. 库合约
+
+高级语言都会有的东西。solidity的库合约看起来是已经部署在线上的，可以直接引用。
+
+特点：
+
+1. 不能存在状态变量
+2. 不能够继承或被继承
+3. 不能接收以太币
+4. 不可以被销毁
+
+使用方式：
+
+1. using for语法
+
+```solidty 
+//library
+library Strings {
+    
+}
+
+// 利用using for指令
+using Strings for uint256;
+
+function getString1(uint256 _number) public pure returns(string memory){
+    // 库合约中的函数会自动添加为uint256型变量的成员
+    return _number.toHexString();
+}
+```
+
+2. 直接库合约名称调用
+
+这个有点像静态对象函数直接调用
+
+```solidity
+// 直接通过库合约名调用
+function getString2(uint256 _number) public pure returns(string memory){
+    return Strings.toHexString(_number);
+}
+```
+
+###
+
 <!-- Content_END -->

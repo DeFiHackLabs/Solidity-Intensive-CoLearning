@@ -231,4 +231,52 @@ Solidity支持通过构造结构体的形式定义新的类型。结构体中的
       ● array (dynamic): [] (an empty array)
       ● array (static/fixed-length): All members are set to their respective default values.
 
+### 2024.09.28
+## Solidity中的常量和不變量
+
+Solidity提供了兩個關鍵字來處理不可變的數值：constant（常量）和immutable（不變量）。這兩種類型的變量一旦初始化後就不能更改，有助於提高合約安全性並節省gas費用。
+
+### 常量（constant）
+
+常量必須在聲明時立即初始化，之後無法修改。適用於數值變量、字符串和位元組。
+
+```solidity
+uint256 constant CONSTANT_NUM = 10;
+string constant CONSTANT_STRING = "0xAA";
+```
+
+### 不變量（immutable）
+
+不變量更為靈活，可以在聲明時或構造函數中初始化。僅適用於數值變量。
+
+```solidity
+uint256 public immutable IMMUTABLE_NUM = 9999999999;
+address public immutable IMMUTABLE_ADDRESS;
+
+constructor() {
+    IMMUTABLE_ADDRESS = address(this);
+}
+```
+
+### 主要區別
+
+1. 初始化時機：constant必須在聲明時初始化，immutable可在構造函數中初始化。
+2. 適用類型：constant可用於更多數據類型。
+3. 靈活性：immutable允許使用全局變量或自定義函數進行初始化。
+
+### 補充說明
+
+1. 版本要求：在Solidity v8.0.21之後，immutable變量不需要顯式初始化。
+2. 優先級：如果immutable變量在聲明和構造函數中都被初始化，將使用構造函數中的值。
+3. 錯誤處理：嘗試修改這些變量會導致編譯錯誤。
+4. 選擇使用constant還是immutable主要取決於是否需要在部署時動態設置值。如果值在編譯時就已知,使用constant;如果需要在部署時根據參數或環境設置,則使用immutable。
+
+### 使用建議
+
+- 對於在合約生命週期內永不改變的值，使用constant或immutable。
+- 當需要在部署時動態設置不變值時，選擇immutable。
+- 謹慎使用這些關鍵字，確保變量確實不需要在未來更改。
+
+通過合理使用constant和immutable，開發者可以創建更安全、更高效的智能合約。
+
 <!-- Content_END -->
