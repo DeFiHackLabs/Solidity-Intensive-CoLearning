@@ -37,4 +37,4 @@ timezone: Asia/Shanghai
 [WTF Academy Solidity 101 08 Note](content/CraigC/08.md)
 
 
-
+<!-- Content_END -->
