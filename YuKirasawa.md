@@ -102,4 +102,13 @@ ETH 交易的签名使用 ECDSA 签名算法，但与标准的 ECDSA 有一点�
 
 mapping、array 等变长数据结构会使用 hash 确定真实的存储位置。
 
+<<<<<<< HEAD
+=======
+### 2024.09.29
+
+在 Byzantium 升级之后，函数调用时的 `view` 修饰是由 evm 机制保证的，`STATICCALL` opcode 会将 evm 设置为 storage 只读状态。对于库函数，依然使用 `DELEGATECALL`。
+
+> For library `view` functions `DELEGATECALL` is used, because there is no combined `DELEGATECALL` and `STATICCALL`. This means library `view` functions do not have run-time checks that prevent state modifications. This should not impact security negatively because library code is usually known at compile-time and the static checker performs compile-time checks.
+
+>>>>>>> dfbdbdbf911ccc1a9ff6eb1a9bc5c00266912f29
 <!-- Content_END -->

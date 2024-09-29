@@ -102,4 +102,16 @@ Solidity 102
 
 的学习
 
+### 2024.09.29
+
+完成了 Solidity 102
+
+    28. Hash
+
+    29. 函数选择器Selector
+
+    30. Try Catch
+
+的学习
+
 <!-- Content_END -->
