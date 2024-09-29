@@ -277,4 +277,37 @@ timezone: Asia/Shanghai
 
 5. 第 07 节测验得分: 100, 答案: BADABB
 
+---
+
+### 2024.09.29
+
+#### 学习内容 8. 变量初始值
+
+在 solidity 中,声明但是没复制的变量都有默认值(初始值)
+
+1. 值类型:
+    - boolean: fasle
+    - string: ""
+    - int: 0
+    - uint: 0
+    - enum: 第一个元素
+    - addres: 0x000000000000000000000000000000 (addres(0))
+    - function: 
+        - internal: 空白函数
+        - external: 空白函数
+2. 引用类型:
+    - 映射 mapping:其value值数据类型的默认值
+    - 结构体 struct:其成员值数据类型的默认值
+    - 静态数组: 定长,其成员值数据类型的默认值
+    - 动态数组: []
+3. delete 操作符
+    - delete 操作符会让变量值变为其默认值
+4. 合约部署
+    - ![image-20240929101542907](content/Aris/image-20240929101542907.png)
+5. 第 08 节测验得分: 100, 答案: CBDDA
+
+---
+
+
+
 <!-- Content_END -->
