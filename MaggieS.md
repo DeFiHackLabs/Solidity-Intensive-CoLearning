@@ -198,4 +198,8 @@ I believe very strongly, someday, the web3 will change the world.
 At that time, I will smile and say "hello web3",welcome to our world.
 
 
+This answer will be written again later after this bug has fixed.
+The most easist coding maybe not so easy, When I copied tutorial's example,it's correct,
+When I wrote by myself, it said there are errors, but I couldn't find they have any diffenence.
+
 <!-- Content_END -->
