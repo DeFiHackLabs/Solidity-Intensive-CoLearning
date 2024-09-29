@@ -26,5 +26,7 @@ completed lessons 07-09
 completed lessons 10-12
 ### 20204.09.28
 completed lessons 12-15
+### 20204.09.29
+completed lessons 16-18
 
 <!-- Content_END -->

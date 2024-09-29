@@ -624,6 +624,49 @@ ex.
     * 事件中不帶`indexed`的參數會被存在`data`中，這部分的變量不能被直接檢索但可以儲存任意大小的數據。
     * `data`這部分的變量在儲存上消耗的`gas`比`topics`更少。
 
+### 2024.09.29
+
+#### 繼承
+* 規則：
+    * `virtual`：父合約中的函數，在子合約中若需要重寫，要加上`virtual`關鍵字。
+    * `override`：若在子合約中重寫了父合約中的函數，則需要加上`override`關鍵字。
+    ※若`override`修飾`public`變量，則會重寫與變量同名的`getter`函數。
+        ```Solidity
+        mapping(address => uint256) public override balanceOf;
+        ```
+* 簡單繼承  
+* 多重繼承：  
+    <img src="https://github.com/user-attachments/assets/17214f31-0096-4916-a729-d7933688a3fc" height="360px" width="640px" />
+* 修飾器的繼承：  
+    <img src="https://github.com/user-attachments/assets/3be399d9-db0d-46cf-85ba-c2e14c635ed5" height="360px" width="640px" />
+* 構造函數的繼承：  
+    <img src="https://github.com/user-attachments/assets/41b6900f-810b-4372-90ce-bada2f1918af" height="360px" width="640px" />
+* 調用父合約：  
+    1. 直接調用：直接用`父合約名.函數名()`的方式調用父合約函數。
+    2. `super`關鍵字：子合約可以利用`super.函數名()`調用最近的父合約函數。  
+    以多重繼承下方的圖片為例，`super.pop()`將呼叫`Baba.pop()`。
+
+* 鑽石(菱形)繼承：  
+    ```
+    /* 继承树：
+    God
+    /  \
+    Adam Eve
+    \  /
+    people
+    */
+    ```
+    <img src="https://github.com/user-attachments/assets/3e33e3ea-c1fb-4a69-8812-2c726a37b267" height="360px" width="640px" />
+
+
+#### 抽象(abstract)合約
+合約中若至少有一個未實現的函數，即某個函數缺少主體`{}`中的內容，則此合約必須標為`abstract`，且未實現的函數須加上`virtual`，以便子合約重寫。  
+ex.
+```Solidity
+abstract contract InsertionSort{
+    function insertionSort(uint[] memory a) public pure virtual returns(uint[] memory);
+}
+```
 
 
 <!-- Content_END -->

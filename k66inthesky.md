@@ -78,4 +78,13 @@ function initStu() external {
 }
 ```
 
+### 2024.09.29
+學習內容: `7.Mapping`
++ key-value寫法
+```
+mapping(uint => address) public i2addr;
+```
++ 心得: 這章有講到mapping規則和原理但我對其沒感覺，之後再回頭看。
+
+
 <!-- Content_END -->

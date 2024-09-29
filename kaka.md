@@ -145,7 +145,60 @@ interfaces中声明的所有函数都是隐式虚拟(`virtual`)的，并且任�
 - storage和memory（或来自 calldata）之间的赋值总是创建一个独立的副本。
 - 从memory到memory的赋值仅创建引用。
 - 从storage到本地存储变量(**local**)的赋值也仅分配一个引用。
-- 对存储的所有其他分配始终进行复制。这种情况的示例是对状态变量或存储结构类型的局部变量的成员的赋值，即使局部变量本身只是一个引用。???
+- 对存储的所有其他分配始终进行复制。这种情况的示例是对状态变量或存储结构类型的局部变量的成员的赋值，即使局部变量本身只是一个引用。
+
+### 2024.09.29
+**学习内容：**<br>
+在以太坊链上，除了外部账户外，智能合约也可以创建合约。有两种方法：`create`和`create2`。
+
+对于create：
+
+```
+new_address = keccak256(sender, nonce);
+```
+
+对于create2：
+
+```
+new_address = keccak256(0xFF, sender, salt, bytecode);
+```
+
+
+
+create用法就是new一个合约，并传入新合约构造函数所需的参数：
+
+```
+Contract x = new Contract{value: _value}(params)
+```
+
+
+
+create2的内联汇编方式：
+
+```
+function deploy(
+        bytes memory bytecode,
+        uint _salt
+    ) public payable returns (address) {
+        address addr;
+
+        assembly {
+            addr := create2(
+                callvalue(), // wei sent with current call
+                // Actual code starts after skipping the first 32 bytes
+                add(bytecode, 0x20),
+                mload(bytecode), // Load the size of code contained in the first 32 bytes
+                _salt // Salt from function arguments
+            )
+
+            if iszero(extcodesize(addr)) {
+                revert(0, 0)
+            }
+        }
+
+        return addr;
+    }
+```
 
 
 <!-- Content_END -->
