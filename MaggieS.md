@@ -163,6 +163,7 @@ Just Like:
 
 50 Multisignature Wallet —— 27 ABI encoding 
 
+
 ### 2024.09.28
 
 Actually, the function of Language is for communication, no matter the natural language or programming language. In other words, a technology is just a solution, and a solution is only as good as the problems, so we need to make sure we know the problem really well, so we know how to attack it with this smart contract technology.
@@ -181,5 +182,6 @@ I have written and commit the learning articles.
 The Github had bugs? So sad.
 
 ------------------------------------------------------------------------------------------------------------------------------------------
+
 
 <!-- Content_END -->
