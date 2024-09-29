@@ -719,4 +719,76 @@ function insertSort(uint[] memory a) public pure returns(uint[] memory) {
 ```
 ### 運行結果
 ![](https://i.imgur.com/Ecr9Ybw.png)
+
+### 2024.09.29
+今天的主題是前天提過的建構子（Constructor），Solidity 獨有的修飾器（Modifier）。我們可以透過這建構子與修飾器來實現智能合約的權限控制。
+# 建構子
+每個合約可以定義一個建構子，它會在部署時自動運行一次，可以拿來完成初始化合約的參數（賦值）。
+```
+address owner;
+constructor(address initialOwner){
+    owner = initialOwner;
+}
+```
+註：0.4.21 以前的 Solidity 版本使用與合約名稱同名的函數當作合約建構子使用，開發者如果寫錯建構子名稱，建構子就會變成一般函數，導致參數未正確初始化而引發漏洞。
+# 修飾器
+修飾器（Modifier）是 Solidity 特有的語法，類似於物件導向程式設計中的裝飾器（decorator），宣告函數擁有的特性，並減少冗餘的程式碼，帶有裝飾器的函數會有某些特定的行為。主要使用場域是執行函數前檢查地址、變數、餘額等。
+## Modifier 語法
+```
+modifier <modifierName>() {
+    // 前置檢查或操作
+    // require(<condition>,<errorMessage>)
+    _; // 這個佔位符表示原函數的邏輯
+    // 後置檢查或操作
+}
+```
+* `<modifierName>` 是修飾器的名稱。
+* `<condition>` 檢查是否符合條件。
+* `<errorMessage>` 是錯誤訊息字串，當 `<condition>` 為 false 時，這個訊息會被作為錯誤信息回傳，也可以不寫。
+### 修飾器例子
+首先，定義一個叫做 `onlyOwner` 的 modifier：
+```
+modifier onlyOwner {
+    require(msg.sender == owner, "Only the owner can call this function."); // 檢查合約發起者是否為 owner 的地址
+    _; 如果是的話，就繼續運行函數；否則報 error 並 revert 交易
+}
+```
+帶有 `onlyOwner` 修飾符的函數只能被 `owner` 地址調用：
+```
+function changeOwner(address _newOwner) external onlyOwner{ // 這邊調用 onlyOwner 確認此請求是由 Owner 發出的，只有符合條件這個函數才會繼續被執行
+    owner = _newOwner;
+}
+藉此可以達到控制智能合約的權限。
+```
+### 多個修飾器
+Solidity 支援多個修飾器的組合使用，這些修飾器會按順序執行。
+```
+modifier onlyOwner() {
+    require(msg.sender == owner, "Only the owner can call this function.");
+    _;
+}
+modifier validAddress(address _address) {
+    require(_address != address(0), "Invalid address.");
+    _;
+}
+function transferOwnership(address newOwner) public onlyOwner validAddress(newOwner) {
+    owner = newOwner;
+}
+```
+`transferOwnership` 函數同時使用了 `onlyOwner` 和 `validAddress` 修飾器，這樣可以在函數執行前同時檢查兩個條件。
+
+補充：`OpenZeppelin` 是一個維護 Solidity 標準化程式碼庫的組織，有一套 [Ownable 的合約模組](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/Ownable.sol)，用於實現基本的權限控制，允許合約擁有者對合約進行管理，所以這個模組可以作為其他合約的基礎合約，也提供合約所有者授權的功能。
+# Remix 操作
+可以先去複製 Owner 的 address。
+![](https://i.imgur.com/9xZVV1C.png)
+Constructor 需要先給定參數（這邊是地址 `initialOwner`），才能開始初始化、部署合約。
+![](https://i.imgur.com/0z51WF4.png) 
+部署成功後，調用 owner 可以看到 owner 的地址。
+![](https://i.imgur.com/6Ezdx6R.png)
+以 owner 位址的使用者身份，呼叫 changeOwner 函數改變 owner，交易成功。
+![](https://i.imgur.com/HGkNg8e.png)
+點擊藍色 owner 查看地址，msg.sender 仍是 `0x5B38...`，但 owner 地址被改變了。
+![](https://i.imgur.com/IX2MZNE.png)
+因為 msg.sender（`0x5B38...`） 和 owner（`0x4B20...`）不符合 Modifier 的 condition，所以 `changeOwner` 未成功執行，交易被 revert 了。
+![](https://i.imgur.com/jA4ejMe.png)
 <!-- Content_END -->
