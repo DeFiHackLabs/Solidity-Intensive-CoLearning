@@ -129,4 +129,13 @@ timezone: Asia/Shanghai
 
 - Only applicable to Reference variable types: `array`, `struct` and `mapping`
 
+### 2024.09.28
+
+| Assignment type | Value change together? | 
+|---|---|
+| storage = storage | Y | 
+| storage = memory | N |
+| memory = storage | N | 
+| memory = memory | N |
+
 <!-- Content_END -->

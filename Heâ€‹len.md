@@ -15,6 +15,28 @@ timezone: Asia/Shanghai
 ## Notes
 
 <!-- Content_START -->
+### 2024.09.28
+進度：短路規則（Short-Circuiting）
+
+1. 短路規則（Short-Circuiting）在邏輯運算中為`優化`作用， `condition`。
+例：
+對於 `&&`（邏輯與），當左邊的條件為 `false` 時，右邊的條件不再被計算，因為無論右邊的條件是什麼，結果必然是 `false`。
+
+範例：
+```
+bool condition = false && expensiveFunction();
+// `expensiveFunction()` 不會被執行
+```
+2. 對於 ||（邏輯或），當左邊的條件為 true 時，右邊的條件不會再被計算，因為結果已經是 true
+
+範例：
+```
+bool condition = true || expensiveFunction();
+// `expensiveFunction()` 不會被執行
+```
+`Sum`
+這種短路行為可以避免不必要的計算，特別是在運算代價`高`的情況下（例如調用一個耗時的函數時），提高效率。
+
 ### 2024.09.26
 進度：值类型
 

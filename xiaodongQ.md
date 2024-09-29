@@ -41,4 +41,12 @@ timezone: Asia/Shanghai
 
 * 歪个楼，最近在学习实践rust，跟solidity结合学习再上手项目：[minigrep main](https://github.com/xiaodongQ/rust_learning/tree/master/minigrep/src/main.rs) 和 [minigrep lib](https://github.com/xiaodongQ/rust_learning/tree/master/minigrep/src/lib.rs)
 
+### 2024.09.28
+
+solidity-102内容重新过一遍，[solidity_note.md](https://github.com/xiaodongQ/devNoteBackup/blob/master/%E5%90%84%E5%88%86%E7%B1%BB%E8%AE%B0%E5%BD%95/blockchain/solidity_note.md)
+
+### 2024.09.29
+
+solidity-102学习：delegateCall、删除合约、ABI编码解码
+
 <!-- Content_END -->

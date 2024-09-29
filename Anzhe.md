@@ -623,5 +623,172 @@ function test() public pure returns(uint256){
     return(what);
 }
 ```
+### 2024.09.28
+# 控制流
+程式的控制流常見的條件控制、迴圈控制在 Solidity 中也有，注意在使用迴圈時，要確保有適當的結束條件，避免潛在的資源浪費和 gas 消耗。另外迴圈也可以使用 `continue` （進入下一個迴圈）和 `break`（跳出目前的迴圈）。
+```
+function ifElseTest(uint256 _number) public pure returns(string memory){
+    if (_number > 0) {
+        return "The number is positive.";
+    } else if (_number < 0) {
+        return "The number is negative.";
+    } else {
+        return "The number is zero.";
+    }
+}
+```
+## 2. `for` 迴圈
+```
+function sumFor(uint n) public pure returns (uint) {
+    uint total = 0;
+    for (uint i = 1; i <= n; i++) {
+        total += i;
+    }
+    return total;
+}
+```
+## 3. `while` 迴圈
+```
+function sumWhile(uint n) public pure returns (uint) {
+    uint total = 0;
+    uint i = 1;
+    while (i <= n) {
+        total += i;
+        i++;
+    }
+    return total;
+}
+```
+## 4. `do-while` 迴圈
+```
+function sumDoWhile(uint n) public pure returns (uint) {
+    uint total = 0;
+    uint i = 1;
+    do {
+        total += i;
+        i++;
+    } while (i <= n); 
+    return total;
+}
+```
+## 5. 三元運算子
+三元運算子 `?:` 是 Solidity 中唯一接受三個運算元的運算子。
+語法：`<condition>?<expression1>:<expression2>`。如果 `<condition>` 的判斷為 true，結果就是 `<expression1>`，如果 `<condition>` 的判斷為 false，結果就是 `<expression2>`。`?:` 經常作為簡化的 `if` 條件語句使用。
+```
+function ternaryTest(uint256 x, uint256 y) public pure returns(uint256){
+    return x >= y ? x: y; 
+}
+```
+# 插入排序
+插入排序是將一組無序的數列由小到大排好，它會從頭開始將每一個數字與前面的數字比較，如果找到比自己大的數字中最小的，插入到它的前一個。
+假設數列是 `[2, 5, 3, 1]`。
+## 用 python 怎麼寫插入排序
+![](https://i.imgur.com/rg4W9k6.png)
+i = 1，第 1 圈時，跟 0 比
+i = 2，第 2 圈時，跟 1~0 比
+i = 3，第 3 圈時，跟 2~0 比
+i = 4，第 4 圈時，跟 3~0 比
+```
+arr = [2,5,3,1]
+def insertSort(arr):
+    for i in range(1, len(arr)):
+        key = arr[i] # 把 i 的元素暫存到 key
+        j = i - 1
+        while j >= 0 and arr[j] > key: # 當 j 還沒找完且 key 的前面有更大的數
+            arr[j+1] = arr[j] # 第 j 個元素往後 1 個
+            j -= 1
+        arr[j+1] = key # 把 key 替換到前面
+    return arr
+```
+## 用 Solidity 寫插入排序
+因為 `uint` 不可以存到負數，否則運行過程會有 underflow Error，而 `j` 變數如果按上面的邏輯寫可能會存到負數，所以把 j 加一讓它在計索引過程中最小是 0 就不會引起 Error。
+![](https://i.imgur.com/8EI6bC0.png)
+```
+function insertSort(uint[] memory a) public pure returns(uint[] memory) {
+    for(uint i = 1; i < a.length; i++){
+        uint temp = a[i];
+        uint j = i;
+        while((j >= 1) && (a[j-1] > temp)){ // 當 j 還沒找完且 temp 的前面有更大的數
+            a[j] = a[j-1]; // 第 j-1 個元素往後 1 個
+            j--;
+        }
+        a[j] = temp; // 把 temp 替換到前面
+    }
+    return(a);
+}
+```
+### 運行結果
+![](https://i.imgur.com/Ecr9Ybw.png)
 
+### 2024.09.29
+今天的主題是前天提過的建構子（Constructor），Solidity 獨有的修飾器（Modifier）。我們可以透過這建構子與修飾器來實現智能合約的權限控制。
+# 建構子
+每個合約可以定義一個建構子，它會在部署時自動運行一次，可以拿來完成初始化合約的參數（賦值）。
+```
+address owner;
+constructor(address initialOwner){
+    owner = initialOwner;
+}
+```
+註：0.4.21 以前的 Solidity 版本使用與合約名稱同名的函數當作合約建構子使用，開發者如果寫錯建構子名稱，建構子就會變成一般函數，導致參數未正確初始化而引發漏洞。
+# 修飾器
+修飾器（Modifier）是 Solidity 特有的語法，類似於物件導向程式設計中的裝飾器（decorator），宣告函數擁有的特性，並減少冗餘的程式碼，帶有裝飾器的函數會有某些特定的行為。主要使用場域是執行函數前檢查地址、變數、餘額等。
+## Modifier 語法
+```
+modifier <modifierName>() {
+    // 前置檢查或操作
+    // require(<condition>,<errorMessage>)
+    _; // 這個佔位符表示原函數的邏輯
+    // 後置檢查或操作
+}
+```
+* `<modifierName>` 是修飾器的名稱。
+* `<condition>` 檢查是否符合條件。
+* `<errorMessage>` 是錯誤訊息字串，當 `<condition>` 為 false 時，這個訊息會被作為錯誤信息回傳，也可以不寫。
+### 修飾器例子
+首先，定義一個叫做 `onlyOwner` 的 modifier：
+```
+modifier onlyOwner {
+    require(msg.sender == owner, "Only the owner can call this function."); // 檢查合約發起者是否為 owner 的地址
+    _; 如果是的話，就繼續運行函數；否則報 error 並 revert 交易
+}
+```
+帶有 `onlyOwner` 修飾符的函數只能被 `owner` 地址調用：
+```
+function changeOwner(address _newOwner) external onlyOwner{ // 這邊調用 onlyOwner 確認此請求是由 Owner 發出的，只有符合條件這個函數才會繼續被執行
+    owner = _newOwner;
+}
+藉此可以達到控制智能合約的權限。
+```
+### 多個修飾器
+Solidity 支援多個修飾器的組合使用，這些修飾器會按順序執行。
+```
+modifier onlyOwner() {
+    require(msg.sender == owner, "Only the owner can call this function.");
+    _;
+}
+modifier validAddress(address _address) {
+    require(_address != address(0), "Invalid address.");
+    _;
+}
+function transferOwnership(address newOwner) public onlyOwner validAddress(newOwner) {
+    owner = newOwner;
+}
+```
+`transferOwnership` 函數同時使用了 `onlyOwner` 和 `validAddress` 修飾器，這樣可以在函數執行前同時檢查兩個條件。
+
+補充：`OpenZeppelin` 是一個維護 Solidity 標準化程式碼庫的組織，有一套 [Ownable 的合約模組](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/Ownable.sol)，用於實現基本的權限控制，允許合約擁有者對合約進行管理，所以這個模組可以作為其他合約的基礎合約，也提供合約所有者授權的功能。
+# Remix 操作
+可以先去複製 Owner 的 address。
+![](https://i.imgur.com/9xZVV1C.png)
+Constructor 需要先給定參數（這邊是地址 `initialOwner`），才能開始初始化、部署合約。
+![](https://i.imgur.com/0z51WF4.png) 
+部署成功後，調用 owner 可以看到 owner 的地址。
+![](https://i.imgur.com/6Ezdx6R.png)
+以 owner 位址的使用者身份，呼叫 changeOwner 函數改變 owner，交易成功。
+![](https://i.imgur.com/HGkNg8e.png)
+點擊藍色 owner 查看地址，msg.sender 仍是 `0x5B38...`，但 owner 地址被改變了。
+![](https://i.imgur.com/IX2MZNE.png)
+因為 msg.sender（`0x5B38...`） 和 owner（`0x4B20...`）不符合 Modifier 的 condition，所以 `changeOwner` 未成功執行，交易被 revert 了。
+![](https://i.imgur.com/jA4ejMe.png)
 <!-- Content_END -->

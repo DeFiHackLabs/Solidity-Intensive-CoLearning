@@ -542,17 +542,10 @@ owner = _newOwner; // 只有owner地址运行这个函数，并改变owner
 }
 ```
 #### 12_Event
-* 監聽事件
-* 省gas fee
-
-聲明事件
-12_Event
-
 * 監聽事件，方便被找出來
 * 省gas fee，用事件儲存資料，比直接存鍊上數據，gas fee便宜10倍
 
 聲明事件
-
 ```solidity
 event Transfer(address indexed from, address indexed to, uint256 value); //正確通用
 
@@ -570,13 +563,14 @@ emit Transfer(from, to, amount);
 EVM日志 Log (etherscan)
 topic
 * 除了事件哈希，主题还可以包含至多3个indexed参数，也就是Transfer事件中的from和to。總共四個東西
+
 * 關於 indexed 關鍵字： 主要用於優化事件的過濾和搜索。
 * 作用：
-*    允許外部應用程序（如 dApps 或區塊鏈瀏覽器）更高效地過濾和查詢特定事件。
-*    被標記為 indexed 的參數會被存儲在事件的 topics 中，而不是data部分。
+   * 允許外部應用程序（如 dApps 或區塊鏈瀏覽器）更高效地過濾和查詢特定事件。
+   * 被標記為 indexed 的參數會被存儲在事件的 topics 中，而不是data部分。
 * 限制：
-*    每個事件最多可以有 3 個 indexed 參數。
-*    address 和 uint 類型特別有用，因為它們可以直接被搜索。
+   * 每個事件最多可以有 3 個 indexed 參數。
+   * address 和 uint 類型特別有用，因為它們可以直接被搜索。
 
 完全可以將 indexed 加在 amount 上。例如： 
 ```solidity
@@ -626,8 +620,182 @@ contract Events {
     }
 }
 ```
-
 ### 2024.09.27
+### 2024.09.28
+### 2024.09.29
+
+* BootCamp副本：建立ERC20合約、測試合約、鍊上互動
+
+ERC20合約
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol"; //import
+
+contract DefiHackLabsToken is ERC20 { //繼承ERC20
+
+   //設定初始發行量的變數
+   uint256 public initialSupply = 1000; 
+
+    //constructor() 後面接 ERC20("代幣名稱","代幣符號")
+   constructor() ERC20("DefiHackLabs", "HACK") { 
+
+         // 合約部屬後，鑄造給 "地址" 多少的 "代幣量"，通常寫法是_mint(地址,代幣量)
+         _mint(msg.sender, initialSupply * 10**decimals()); //合約部屬後，鑄造給部屬者的地址，發幣自爽 (?
+    }
+}
+```
+
+測試合約
+終端機測試指令
+```
+forge test --match-contract 合約名稱 -vvvvv
+forge test --match-test 測試函數名稱 -vvvvv
+forge test --match-test testIsResister -f https://ethereum-sepolia-rpc.publicnode.com
+```
+-v 是 --verbosity 的簡寫。每多加一個 v，輸出的詳細程度就會增加。級別：
+   * -v：基本詳細信息
+   * -vv：更多詳細信息
+   * -vvv：非常詳細
+   * -vvvv：超級詳細
+   * -vvvvv：最高詳細度
+
+-f 後面貼上 sepolia 的 rpc url，這樣 foundry 就會去抓到 sepolia 鏈的狀態
+
+測試假扮
+```solidity
+vm.prank() //模擬用戶操作，Forge 標準庫中的 vm.prank() 函數來模擬不同用戶的操作。
+```
+* 以下幾個是源自 ERC20 標準函數，在 OpenZeppelin 的 ERC20 實現中定義。同時附上在 OpenZeppelin ERC20 中的寫法
+
+* token.transfer (接收的地址, 數量); 
+   * 功能：從調用者的賬戶向指定的接收地址轉移指定數量的代幣。
+```solidity
+function transfer(address to, uint256 amount) public virtual returns (bool) {
+    address owner = _msgSender();
+    _transfer(owner, to, amount);
+    return true;
+}
+```
+
+* token.approve (被授權地址B, 數量); 這是授權者（調用者，通常稱為A）
+   * 功能：授權另一個地址可以從調用者賬戶轉出特定數量的代幣。給予B地址權限，允許B最多可以從A的賬戶中轉走指定數量的代幣。
+```solidity
+function approve(address spender, uint256 amount) public virtual returns (bool) {
+    address owner = _msgSender();
+    _approve(owner, spender, amount);
+    return true;
+}
+```
+* token.transferFrom (發送地址, 接收地址, 數量); 
+   * 功能：這是由被授權的地址B調用的函數。B可以將指定數量的代幣從發送地址（通常是之前授權的A）轉移到接收地址。轉移的數量不能超過之前通過 approve 設置的限額。前提是轉移者有足夠的授權
+```solidity
+function transferFrom(address from, address to, uint256 amount) public virtual returns (bool) {
+    address spender = _msgSender();
+    _spendAllowance(from, spender, amount);
+    _transfer(from, to, amount);
+    return true;
+}
+```
+* token.allowance (授權地址A, 被授權地址B); 
+   * 功能：查詢一個地址授權給另一個地址的代幣數量。這個函數返回的是B還被允許從A那裡轉走的剩餘數量。它不會顯示B已經轉走了多少，只顯示還剩下多少可以轉。例如，如果A最初授權B 100 個代幣，B已經轉走了 30 個，那麼 allowance 會返回 70。
+```solidity
+function allowance(address owner, address spender) public view virtual returns (uint256) {
+    return _allowances[owner][spender];
+}
+```
+
+如何用foundryup做鍊上互動 終端機測試指令
+```
+cast wallet import 自定義錢包名稱 --interactive //需要輸入私鑰跟密碼
+forge script script/DeFiHackLabsBootcamp.s.sol:DeFiHackLabsBootcampScript --rpc-url $SEPOLIA_RPC_URL --broadcast -vvvvv
+
+forge script:
+這是 Forge 工具的子命令，用於執行 Solidity 腳本。
+
+script/DeFiHackLabsBootcamp.s.sol:DeFiHackLabsBootcampScript:
+指定要執行的腳本文件路徑和腳本名稱。
+文件位於 script/DeFiHackLabsBootcamp.s.sol。
+要執行的具體腳本是 DeFiHackLabsBootcampScript。
+
+--rpc-url $SEPOLIA_RPC_URL:
+指定要連接的以太坊網絡 RPC URL。
+$SEPOLIA_RPC_URL 是一個環境變量，存儲了 Sepolia 測試網的 RPC URL。
+
+--broadcast:
+指示 Forge 實際廣播交易到指定的網絡。
+如果沒有這個選項，Forge 只會模擬交易而不實際發送。
+
+--account hw1:
+指定用於簽署和發送交易的賬戶。
+hw1 是一個預先配置的賬戶別名。
+```
+```
+ecrecover 是什麼？
+ecrecover 是 Ethereum 虛擬機（EVM）提供的一個內置函數。
+它的目的是從給定的消息哈希和簽名中恢復出簽名者的地址。
+函數名 "ecrecover" 代表 "elliptic curve recover"，意味著它使用橢圓曲線加密技術。
+
+ecrecover 的工作原理：
+它接受四個參數：消息哈希（32字節）和簽名的三個組成部分 v（1字節）、r（32字節）和 s（32字節）。
+使用這些參數，ecrecover 能夠計算出用於創建簽名的公鑰。
+從公鑰，它進一步導出相應的 Ethereum 地址。
+
+為什麼它能恢復簽名者地址？
+在橢圓曲線加密中，簽名本質上是一個數學問題的解。
+給定消息哈希和簽名，可以通過複雜的數學運算逆向計算出公鑰。
+Ethereum 地址是公鑰的最後20字節的 Keccak-256 哈希。
+
+v, r, s 的作用：
+r 和 s 是簽名的主要組成部分，由私鑰和消息哈希生成。
+v 是一個恢復標識符，用於確定使用哪個候選公鑰（因為橢圓曲線加密可能產生兩個有效的公鑰）。
+
+在 Script 中：(uint8 v, bytes32 r, bytes32 s) = vm.sign(messageHash);
+vm.sign 模擬了使用私鑰對消息進行簽名的過程。
+它生成了 v, r, s，這些值隨後被傳遞給 signIn 函數。
+
+在合約中：
+address signer = ecrecover(hash, v, r, s);
+使用相同的哈希和接收到的 v, r, s，ecrecover 能夠恢復出簽名者的地址。
+
+安全性考慮：
+這個過程的安全性基於橢圓曲線加密的數學特性。
+知道公鑰（或地址）無法反推出私鑰，這就是為什麼數字簽名是安全的。
+
+總結：
+ecrecover 利用橢圓曲線加密的數學特性，從簽名和消息哈希中恢復出簽名者的公鑰，進而得到地址。這個過程允許智能合約驗證一個簽名確實來自特定的地址，而無需知道該地址的私鑰。這是實現鏈下簽名和鏈上驗證的關鍵機制，廣泛用於各種需要身份驗證的智能合約場景。
+```
+```
+ecrecover 函數只需要這四個參數：hash, v, r, s，就可以恢復出簽名者的地址。這是 Ethereum 中一個非常強大的內建函數。
+關於 hash：
+您說得對。在這個例子中，hash 確實是通過以下方式生成的：
+solidityCopybytes32 hash = keccak256(abi.encode(number, name, time));
+這個哈希代表了被簽名的原始消息。
+關於 v, r, s：
+您的理解也是正確的。在 DeFiHackLabsBootcampScript 中，v, r, s 是通過以下方式得到的：
+solidityCopy(uint8 v, bytes32 r, bytes32 s) = vm.sign(keccak256(abi.encode(number, name, time)));
+這裡 vm.sign 函數模擬了使用私鑰對消息哈希進行簽名的過程。
+
+讓我進一步解釋整個流程：
+
+在 Script 中：
+創建消息哈希：keccak256(abi.encode(number, name, time))
+使用 vm.sign 對這個哈希進行簽名，得到 v, r, s
+將 number, name, time, v, r, s 傳給合約的 signIn 函數
+
+在合約中：
+重新創建相同的消息哈希
+使用 ecrecover(hash, v, r, s) 恢復簽名者地址
+驗證恢復的地址是否與調用者地址匹配
+
+這個設計的巧妙之處在於：
+
+合約可以獨立驗證簽名，而不需要存儲任何額外的數據。
+它允許離線簽名，增加了靈活性和安全性。
+通過包含 number, name, time 在簽名中，防止了重放攻擊。
+```
+還有接口也要看懂
 
 #### 13_Inheritance
 

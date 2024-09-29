@@ -510,4 +510,154 @@ solidity 的合约之中，通常有两个关键字：constant 和 immutable。
 - constant 变量初始化之后，尝试改变它的值，会编译不通过并抛出 TypeError: Cannot assign to a constant variable.的错误。
 - immutable 变量初始化之后，尝试改变它的值，会编译不通过并抛出 TypeError: Immutable state variable already initialized.的错误。
 
+### 2024.09.28
+
+Holiday
+
+### 2024.09.29
+
+(Day 6)
+
+学习笔记
+
+#### 控制流
+
+Solidity的控制流和其他语言类似。主要包含以下几种。
+
+1. if else 语句
+
+```solidity
+if (condition) {
+    // 执行代码
+} else if (condition) {
+    // 执行代码
+} else {
+    // 执行代码
+}
+```
+
+2. for 循环
+
+```solidity
+for (uint i = 0; i < 10; i++) {
+    // 执行代码
+}
+```
+
+3. while 循环
+
+```solidity
+while (condition) {
+    // 执行代码
+}
+```
+
+4. do while 循环
+
+```solidity
+do {
+    // 执行代码
+} while (condition);
+```
+
+5. 三元运算符
+
+```solidity
+condition ? expression1 : expression2
+```
+
+6. break 和 continue也可以使用。
+
+
+创建一个排序的算法在soliidty之中的时候，会碰到一个坑。这个坑就是
+
+问题的代码：
+
+```solidity
+    // 插入排序 错误版
+function insertionSortWrong(uint[] memory a) public pure returns(uint[] memory) {    
+    for (uint i = 1;i < a.length;i++){
+        uint temp = a[i];
+        uint j=i-1;
+        while( (j >= 0) && (temp < a[j])){
+            a[j+1] = a[j];
+            j--;
+        }
+        a[j+1] = temp;
+    }
+    return(a);
+}
+```
+
+正确的代码：
+
+```solidity
+// 插入排序 正确版
+function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
+    // note that uint can not take negative value
+    for (uint i = 1;i < a.length;i++){
+        uint temp = a[i];
+        uint j=i; // use `i` not `i-1`
+        while( (j >= 1) && (temp < a[j-1])){
+            a[j] = a[j-1];
+            j--;
+        }
+        a[j] = temp;
+    }
+    return(a);
+}
+```
+
+这里的错误主要是：
+
+- j的值可能会取到赋值，而这里的j是uint类型的，就会出现一个underflow的错误。所以必须要按照正确的代码的样式来写代码才能正常运行。
+
+
+#### 构造函数和修饰器
+
+- 构造函数
+  - 构造函数是一个特殊的函数，他只会在被部署的时候运行一次。用来初始化我们的函数。
+  - 注意，构造函数在不同的solidity的版本之中有不同的运行规则的。语法也不太一样的。
+-> 构造函数在不同的Solidity版本中的语法并不一致，在Solidity 0.4.22之前，构造函数不使用 constructor 而是使用与合约名同名的函数作为构造函数而使用，由于这种旧写法容易使开发者在书写时发生疏漏（例如合约名叫 Parents，构造函数名写成 parents），使得构造函数变成普通函数，引发漏洞，所以0.4.22版本及之后，采用了全新的 constructor 写法。
+
+构造函数的旧写法代码示例：
+```solidity
+pragma solidity =0.4.21;
+contract Parents {
+    // 与合约名Parents同名的函数就是构造函数
+    function Parents () public {
+    }
+}
+```
+
+构造函数的最新写法代码示例：
+
+```solidity
+pragma solidity >=0.4.22;
+contract Parents {
+    constructor() public {
+    }
+}
+```
+
+
+- 修饰器
+
+修饰器是一种特殊的函数，它可以在函数执行之前或之后执行一些额外的代码。修饰器通常用于验证函数调用者的权限、检查某些条件是否满足等。
+
+修饰器的语法如下：
+
+```solidity
+modifier onlyOwner() {
+    require(msg.sender == owner, "Only the owner can call this function");
+    _;
+}
+
+function someFunction() public onlyOwner {
+    // 只有所有者可以调用这个函数
+}
+```
+
+
+
 <!-- Content_END -->
