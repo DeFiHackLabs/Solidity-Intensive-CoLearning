@@ -51,4 +51,8 @@ array和 struct 需要的儲存空間比較大故需指定類型, storage在鏈�
 array和struct的使用，先看快速掃過。
 array型態在第一個元素宣告即可。如果使用memory則是固定長度。
 
+### 2024.09.29
+今日學習mapping的用法，key 需要基本型態，value可以是自定義的struct
+
+
 <!-- Content_END -->
