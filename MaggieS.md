@@ -174,14 +174,6 @@ I try to find the crucial reason in Step 2 which confusing me for a long time th
 
 I know what I’m appreciate and chase for, learning solidity is just a experience to understand something to serve my life goals. Solidity itself is not my goal.
 
--------------------------------------------------------------------------------------------------------------------------------------------
-
-Why I missed mark yesterday? 
-I have written and commit the learning articles. 
-
-The Github had bugs? So sad.
-
-------------------------------------------------------------------------------------------------------------------------------------------
 Q1: 
 <img width="777" alt="image" src="https://github.com/user-attachments/assets/c0655440-5342-4d36-b991-33f635506990">
 
