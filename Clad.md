@@ -364,8 +364,8 @@ fallback
 - transfer, 有 2300 gas 限制, 發送失敗會自動 revert 交易
 - send 最不推薦, 有 2300 gas 限制, 發送失敗時不會自動 revert 交易
 
+假設一個接收 ETH 合約
 ```Solidity
-// 接收 ETH 合約
 contract ReceiveETH{
    // 收到 eth 事件, 紀錄 amount, gas
    event Log(uint amount, uint gas);
@@ -382,14 +382,28 @@ contract ReceiveETH{
 }
 ```
 
+發送 eth 合約
 ```Solidity
-// 發送 eth合約
 contract snedETH{
+   // 構造函數, 部屬時候可以轉 eth 進去
    construct() payable{}
+   // receice, 接收 eth 時被觸發
    receive() external payable{}
 }
 ```
 
+transfer  
+- 接收方的地址.transfer(發送數量)
+```Solidity
+// 用 transfer 發送 eth
+function transferETH(address payable _to, uint256 amount) external payable{
+   _to.transfer(amount);
+}
+```
+
+call  
+- 接收方地址.call{value: 發送數量}("")
+- call() 會返回 (bool, bytes), 其中 bool 代表轉帳成功或失敗, 需要額外程式碼處理
 ```Solidity
 // 用 call 發送 eth 失敗 error
 error CallFailed();
@@ -401,12 +415,6 @@ function callETH(address payable _to, uint256 amount) external payable{
    }
 }
 ```
-```Solidity
-// 用 transfer 發送 eth
-function transferETH(address payable _to, uint256 amount) external payable{
-   _to.transfer(amount);
-}
 
-```
 
 <!-- Content_END -->
