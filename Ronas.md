@@ -319,4 +319,8 @@ timezone: Asia/Shanghai
     - `assert`: 確認某些已知條件, 常用於除錯 
         - e.g. `assert(檢查條件);`
 
+# 2024.09.29
+
+> 進度: 複習 Solidity 101, 完成 Bootcamp 作業
+
 <!-- Content_END -->
