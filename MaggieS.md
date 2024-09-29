@@ -225,13 +225,4 @@ Modifiers are like rules that we can apply to functions. They allow us to add ex
 8. Events
 Events allow contracts to communicate with external applications. They are like messages that can be logged on the blockchain and listened to by other programs.
 
-### 2024.09.29
-
-Q1:
-
-Q2:
-
-
-
-
 <!-- Content_END -->
