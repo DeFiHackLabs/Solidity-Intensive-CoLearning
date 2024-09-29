@@ -163,4 +163,11 @@ Just Like:
 
 50 Multisignature Wallet —— 27 ABI encoding 
 
+### 2024.09.28
+
+Why I missed mark yesterday? 
+I have written and commit the learning articles. 
+
+The Github had bugs? So sad.
+
 <!-- Content_END -->
