@@ -357,4 +357,40 @@ B通过call来调用C的setVars()函数，将改变合约C里的状态变量
 
 B通过delegatecall来调用C的setVars()函数，将改变合约B里的状态变量
 
+### 2024.09.29
+
+在以太坊链上，用户（外部账户，`EOA`）可以创建智能合约，智能合约同样也可以创建新的智能合约。
+
+有两种方法可以在合约中创建新合约，`create`和`create2`
+
+`create`的用法很简单，就是`new`一个合约，并传入新合约构造函数所需的参数
+
+`CREATE2` 操作码使我们在智能合约部署在以太坊网络之前就能预测合约的地址
+
+`CREATE2`的用法和之前讲的`CREATE`类似，同样是`new`一个合约，并传入新合约构造函数所需的参数，只不过要多传一个`salt`参数
+
+#### 如果部署合约构造函数中存在参数
+
+计算时，需要将参数和initcode一起进行打包
+
+**create2的实际应用场景**
+
+1.交易所为新用户预留创建钱包合约地址。
+
+2.由 `CREATE2` 驱动的 `factory` 合约，在`Uniswap V2`中交易对的创建是在 `Factory`中调用`CREATE2`完成。这样做的好处是: 它可以得到一个确定的`pair`地址, 使得 `Router`中就可以通过 `(tokenA, tokenB)` 计算出`pair`地址, 不再需要执行一次 `Factory.getPair(tokenA, tokenB)` 的跨合约调用。
+
+**selfdestruct**
+
+`selfdestruct`命令可以用来删除智能合约，并将该合约剩余`ETH`转到指定地址。`selfdestruct`是为了应对合约出错的极端情况而设计的
+
+1.已经部署的合约无法被`SELFDESTRUCT`了。
+
+2.如果要使用原先的`SELFDESTRUCT`功能，必须在同一笔交易中创建并`SELFDESTRUCT`。
+
+**注意**
+
+1.对外提供合约销毁接口时，最好设置为只有合约所有者可以调用，可以使用函数修饰符`onlyOwner`进行函数声明。
+
+2.当合约中有`selfdestruct`功能时常常会带来安全问题和信任问题，合约中的selfdestruct功能会为攻击者打开攻击向量(例如使用`selfdestruct`向一个合约频繁转入token进行攻击，这将大大节省了GAS的费用，虽然很少人这么做)，此外，此功能还会降低用户对合约的信心。
+
 <!-- Content_END -->
