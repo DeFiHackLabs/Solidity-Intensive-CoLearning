@@ -620,13 +620,10 @@ contract Events {
     }
 }
 ```
-
 ### 2024.09.27
-* 複習12_Event並更新筆記
-* BootCamp任務：建立ERC20合約
-
+* BootCamp作業(09.27~29)：建立ERC20合約、測試合約、鍊上互動
+* 建立ERC20合約
 ```solidity
-
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
@@ -644,29 +641,42 @@ contract DefiHackLabsToken is ERC20 { //繼承ERC20
          _mint(msg.sender, initialSupply * 10**decimals()); //合約部屬後，鑄造給部屬者的地址，發幣自爽 (?
     }
 }
-
 ```
-
 ### 2024.09.28
-* BootCamp作業：ERC20發幣合約、測試合約
+* 測試合約
+終端機指令
+```
+forge test --match-contract MyTokenTest -vvvvv //測試MyTokenTest這個合約，合約名稱可替換
+forge test --match-test testTransferAcrossMultipleEOA -vvvvv //測試testTransferAcrossMultipleEOA這個函數，函數名稱可替換
+forge test --match-test testIsResister -f https://ethereum-sepolia-rpc.publicnode.com //去抓Sepolia鏈上狀態
+```
+-v 是 --verbosity 的簡寫。每多加一個 v，輸出的詳細程度就會增加。級別：
+   * -v：基本詳細信息
+   * -vv：更多詳細信息
+   * -vvv：非常詳細
+   * -vvvv：超級詳細
+   * -vvvvv：最高詳細度
+
+-f 參數加上 sepolia 的 rpc url，這樣 foundry 會去抓 sepolia 鏈的狀態
+
+測試假裝用戶
 ```solidity
 vm.prank() //模擬用戶操作，Forge 標準庫中的 vm.prank() 函數來模擬不同用戶的操作。
 ```
-* 以下幾個是源自 ERC20 標準函數，在 OpenZeppelin 的 ERC20 實現中定義。同時附上在 OpenZeppelin ERC20 中的寫法
+以下幾個是源自 ERC20 標準函數，在 OpenZeppelin 的 ERC20 實現中定義。同時附上在 OpenZeppelin ERC20 中的寫法
 
 * token.transfer (接收的地址, 數量); 
-   * 功能：從調用者的賬戶向指定的接收地址轉移指定數量的代幣。
 ```solidity
+//從調用者的賬戶向指定的接收地址轉移指定數量的代幣。
 function transfer(address to, uint256 amount) public virtual returns (bool) {
     address owner = _msgSender();
     _transfer(owner, to, amount);
     return true;
 }
 ```
-
 * token.approve (被授權地址B, 數量); 這是授權者（調用者，通常稱為A）
-   * 功能：授權另一個地址可以從調用者賬戶轉出特定數量的代幣。給予B地址權限，允許B最多可以從A的賬戶中轉走指定數量的代幣。
 ```solidity
+//授權另一個地址可以從調用者賬戶轉出特定數量的代幣。給予B地址權限，允許B最多可以從A的賬戶中轉走指定數量的代幣。
 function approve(address spender, uint256 amount) public virtual returns (bool) {
     address owner = _msgSender();
     _approve(owner, spender, amount);
@@ -674,8 +684,8 @@ function approve(address spender, uint256 amount) public virtual returns (bool) 
 }
 ```
 * token.transferFrom (發送地址, 接收地址, 數量); 
-   * 功能：這是由被授權的地址B調用的函數。B可以將指定數量的代幣從發送地址（通常是之前授權的A）轉移到接收地址。轉移的數量不能超過之前通過 approve 設置的限額。前提是轉移者有足夠的授權
 ```solidity
+//這是由被授權的地址B調用的函數。B可以將指定數量的代幣從發送地址（通常是之前授權的A）轉移到接收地址。轉移的數量不能超過之前通過 approve 設置的限額。前提是轉移者有足夠的授權
 function transferFrom(address from, address to, uint256 amount) public virtual returns (bool) {
     address spender = _msgSender();
     _spendAllowance(from, spender, amount);
@@ -684,16 +694,186 @@ function transferFrom(address from, address to, uint256 amount) public virtual r
 }
 ```
 * token.allowance (授權地址A, 被授權地址B); 
-   * 功能：查詢一個地址授權給另一個地址的代幣數量。這個函數返回的是B還被允許從A那裡轉走的剩餘數量。它不會顯示B已經轉走了多少，只顯示還剩下多少可以轉。例如，如果A最初授權B 100 個代幣，B已經轉走了 30 個，那麼 allowance 會返回 70。
 ```solidity
+//查詢一個地址授權給另一個地址的代幣數量。這個函數返回的是B還被允許從A那裡轉走的剩餘數量。它不會顯示B已經轉走了多少，只顯示還剩下多少可以轉。例如，如果A最初授權B 100 個代幣，B已經轉走了 30 個，那麼 allowance 會返回 70。
 function allowance(address owner, address spender) public view virtual returns (uint256) {
     return _allowances[owner][spender];
 }
 ```
+### 2024.09.29
+* 如何用foundryup在鍊上互動
+
+設定私鑰方式
+1. 建立.env(如下) > source .env(套用環境變數)
+```
+PRIVATE_KEY=私鑰
+SEPOLIA_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
+```
+   srcipt中要寫
+```solidity
+uint256 PrivateKey = vm.envUint("PRIVATE_KEY"); //uint256 PrivateKey是變數名稱
+vm.startBroadcast(PrivateKey);
+```
+2. cast wallet import
+```
+cast wallet import 錢包名稱 --interactive //設定錢包、私鑰、自訂密碼
+//forge script的後面加上--account 錢包名稱，可以讀取私鑰
+
+//這種方式就不用寫vm.envUint這行
+uint256 PrivateKey = vm.envUint("PRIVATE_KEY"); //這行不用寫
+vm.startBroadcast(); //這行()內不用放
+```
+後續步驟：
+* 要跟鍊上互動的內容寫在srcipt中的
+* 終端機下broadcast指令進行鍊上互動
+```
+forge script script/DeFiHackLabsBootcamp.s.sol:DeFiHackLabsBootcampScript --rpc-url $SEPOLIA_RPC_URL --broadcast --account 錢包名稱
+
+forge script:這是 Forge 工具的子命令，用於執行 Solidity 腳本。
+script/xxx123.s.sol:xxx123Script:
+指定要執行的腳本文件路徑和腳本名稱。文件位於 script/xxx123.s.sol。要執行的具體腳本是 xxx123Script。
+
+--rpc-url $SEPOLIA_RPC_URL:指定要連接的以太坊網絡 RPC URL。
+$SEPOLIA_RPC_URL 是一個環境變量，存儲了 Sepolia 測試網的 RPC URL。
+
+--broadcast:指示 Forge 實際廣播交易到指定的網絡。
+如果沒有這個選項，Forge 只會模擬交易而不實際發送。
+
+--account hw1:指定用於簽署和發送交易的賬戶。
+hw1 是一個預先配置的賬戶別名。
+```
+延伸學習 ecrecover：Ethereum 虛擬機內建函數，用來從消息哈希和簽名恢復簽名者地址，使用橢圓曲線加密技術。
+* 工作原理：
+   * 接收四個參數：消息哈希 (32字節)、簽名的 v (1字節)、r (32字節)、s (32字節)。
+   * 從簽名導出公鑰，然後計算出 Ethereum 地址。
+* v, r, s 的作用：
+   * r、s 由私鑰和消息哈希生成，v 用來確定候選公鑰。
+* 合約中使用：
+   * 利用 ecrecover(hash, v, r, s) 恢復簽名者地址，驗證是否來自特定地址。
+   * 安全性：基於橢圓曲線加密，公鑰無法反推出私鑰，確保數字簽名的安全性。
+* 應用場景：
+   * 實現鏈下簽名、鏈上驗證，廣泛用於需要身份驗證的智能合約中。
+* 流程：
+   * 創建消息哈希：keccak256(abi.encode(number, name, time))
+   * 使用 vm.sign 簽名，得到 v, r, s
+   * 合約內使用相同哈希與簽名 (v, r, s) 驗證簽名者地址是否匹配
+
+生成指定錢包
+```
+cast wallet vanity --starts-with 1234
+```
 
 #### 13_Inheritance
+* 基本語法: contract 子合約 is 父合約
+* virtual: 父合約中可被重寫的函數
+* override: 子合約中重寫的函數
+* 多重繼承:順序: 最高輩分到最低
+* 函數調用:直接調用: 父合約名.函數名()
 
 #### 14_Interface
+接口（Interface）定義：接口是一種特殊的合約類型，只定義函數簽名，不包含實現。
+
+目的：
+   * 定義標準（如 ERC20、ERC721）
+   * 實現合約間的安全交互
+   * 提供類型檢查和編譯時錯誤捕捉
+
+使用方法：
+
+a. 定義接口：
+```solidity
+
+interface IERC20 { //聲明接口，聲明如何調用ERC20的transfer, balanceOf函數功能，要輸入什麼之類的
+    function transfer(address to, uint256 amount) external returns (bool);
+    function balanceOf(address account) external view returns (uint256);
+}
+```
+b. 使用接口與合約交互：
+
+```solidity
+contract MyContract {
+    IERC20 public token; //聲明一個變數叫token，他是的變數類型是ERC20
+    
+    constructor(address _tokenAddress) { //在建構子中一開始就聲明要輸入一個 _tokenAddress，這個地址應該要是ERC合約的地址
+        token = IERC20(_tokenAddress); //token可以看成是要去 _tokenAddress 地址調用ERC20合約的功能
+                                       //更精確的說是將 _tokenAddress 轉換為 IERC20 接口類型，使 token 可以通過接口與該地址的 ERC20 合約交互。
+    }
+    
+    function transferTokens(address to, uint256 amount) public {
+        token.transfer(to, amount); //token.transfer可以看成去_tokenAddress地址調用ERC20合約的transfer函數功能
+    }
+}
+```
+延伸寫法：
+
+a. 直接調用：
+```solidity
+IERC20(tokenAddress).transfer(to, amount); //一步寫法直接調用
+
+IERC20 token = IERC20(tokenAddress); //兩步寫法
+token.transfer(to, amount);
+```
+b. 接口繼承：(看起來很複雜，建議另外找說明)
+```solidity
+interface ICompound is IERC20 {
+    function mint(uint256 amount) external returns (uint256);
+}
+```
+接口的產生：
+* 由合約開發者或標準制定者創建、
+* 可以從現有合約中提取、
+* 可以根據需要自行定義
+
+如何產生接口：
+a. 從現有合約提取：識別所有 public 和 external 函數，創建只包含這些函數簽名的接口
+b. 根據需求自定義：定義您需要與之交互的函數，確保函數簽名正確匹配目標合約
+
+接口的特點：
+* 不能包含狀態變量
+* 不能包含構造函數
+* 所有函數必須是 external
+* 不能繼承其他合約（但可以繼承其他接口）
+
+實際應用示例：
+```solidity
+interface IUniswapV2Router {
+    function swapExactTokensForTokens(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external returns (uint256[] memory amounts);
+}
+
+contract MyDeFiProject {
+    IUniswapV2Router public uniswapRouter;
+
+    constructor(address _routerAddress) {
+        uniswapRouter = IUniswapV2Router(_routerAddress);
+    }
+
+    function performSwap(uint256 amount) public {
+        address[] memory path = new address[](2);
+        path[0] = address(tokenA);
+        path[1] = address(tokenB);
+
+        uniswapRouter.swapExactTokensForTokens(
+            amount,
+            0,
+            path,
+            msg.sender,
+            block.timestamp
+        );
+    }
+}
+```
+注意事項：
+* 確保接口與實際合約函數完全匹配
+* 接口可以提高代碼的模塊化和可維護性
+* 使用接口可以與未知實現的合約安全交互
+
+接口是智能合約開發中非常重要的工具，它允許不同合約之間進行標準化和類型安全的交互。通過接口，您可以與各種遵循特定標準的合約進行交互，而不需要了解這些合約的具體實現細節。
 
 #### 15_Errors
 

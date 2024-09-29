@@ -159,7 +159,6 @@ NFT 合约时可以通过继承 ERC721 合约从而快速高效的进行业务�
 ### 
 
 
-
 ### 2024.09.27
 
 #### 荷兰拍
@@ -275,5 +274,67 @@ contract BeraApDutchAuction is Ownable, ERC721 {
 ```
 
 ### 
+
+
+
+### 2024.09.28 
+
+提交被覆盖，待补充
+
+###
+
+
+### 2024.09.29
+
+#### 数字签名
+
+以太坊使用的数字签名算法叫双椭圆曲线数字签名算法（ECDSA），基于双椭圆曲线“私钥-公钥”对的数字签名算法。
+
+ECDSA:
+- 公钥
+- 私钥
+
+
+NFT项目方可以利用ECDSA的验证特性发放白名单，而且签名是线下的不需要Gas，经济又方便。
+
+```Solidity
+
+contract SignatureNFT is ERC721 {
+    address immutable public signer; // 签名地址
+    mapping(address => bool) public mintedAddress;   // 记录已经mint的地址
+
+    // 构造函数，初始化NFT合集的名称、代号、签名地址
+    constructor(string memory _name, string memory _symbol, address _signer)
+    ERC721(_name, _symbol)
+    {
+        signer = _signer;
+    }
+
+    // 利用ECDSA验证签名并mint
+    function mint(address _account, uint256 _tokenId, bytes memory _signature)
+    external
+    {
+        bytes32 _msgHash = getMessageHash(_account, _tokenId); // 将_account和_tokenId打包消息
+        bytes32 _ethSignedMessageHash = ECDSA.toEthSignedMessageHash(_msgHash); // 计算以太坊签名消息
+        require(verify(_ethSignedMessageHash, _signature), "Invalid signature"); // ECDSA检验通过
+        require(!mintedAddress[_account], "Already minted!"); // 地址没有mint过
+
+
+        mintedAddress[_account] = true; // 记录mint过的地址, 防止重入攻击
+        _mint(_account, _tokenId); // mint
+    }
+
+    function getMessageHash(address _account, uint256 _tokenId) public pure returns(bytes32){
+        return keccak256(abi.encodePacked(_account, _tokenId));
+    }
+
+    function verify(bytes32 _msgHash, bytes memory _signature) public view returns (bool) {
+        return ECDSA.verify(_msgHash, _signature, signer);
+    }
+}
+```
+
+###
+
 
 <!-- Content_END -->

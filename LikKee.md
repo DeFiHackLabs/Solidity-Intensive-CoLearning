@@ -574,6 +574,89 @@ contract Chick is Rooster, Hen {
 
 ### 2024.09.29
 
+#### Chapter 14: Abstract and Interface
+
+- Abstract Contract
+
+  - A special contract where it contain at least one unimplemented function, and the function must labeled with `virtual`
+
+  ```
+  abstract contract SomeIdea {
+   function someFeature(bytes calldata _data) public pure virtual returns (bool);
+  }
+  ```
+
+- Interface Contract
+
+  - Rules:
+    - Cannot contain state variables
+    - Cannot contain constructor
+    - Cannot inherit non-interface contracts
+    - All functions must be external and no content within it
+    - Contracts that inherit it must have all functions implemented
+  - Why implement interface?
+    - It provide `bytes4` selector for each function in the contract, and the function signatures (function `name` and `parameters`)
+    - It provide interface id
+  - Equivalent to contract `ABI` (Application Binary Interface), can be converted to each other
+
+  ```
+  interface IERC20 {
+   event Transfer(address indexed from, address indexed to, uint256 amount);
+
+   function balanceOf(address who) external view return (uint256);
+  }
+  ```
+
+  - Implementing `interface` can let contract interact with it without knowing it detail
+
+  ```
+  contract Staking {
+    IERC20 someToken = IERC20(0x1234....1234);
+    ...
+    function checkBalanceBeforeStake(uint256 _address) external {
+      if(someToken.balanceOf(_address) < minimumStake) {
+        // do something
+      }
+    }
+  }
+  ```
+
+#### Chapter 15: Errors
+
+- `error` & `revert`
+
+  - New feature introduce in Solidity `0.8`
+  - Recommended way to throw error
+
+  ```
+  error InsufficientBalance(address who);
+
+  function checkBalance(address _who) external {
+    if(balanceOf(_who) == 0) revert InsufficientBalance(_who);
+  }
+  ```
+
+- `require`
+
+  - Error handling prior to Solidity `0.8`
+  - Cost higher gas
+
+  ```
+  function checkBalance(address _who) external {
+    require(balanceOf(_who) == 0, "InsufficientBalance");
+  }
+  ```
+
+- `assert`
+  - Conditional statement, usually used for debugging purpose as it doesn't return error
+  ```
+  function checkBalance(address _who) external {
+    assert(balanceOf(_who) > 0);
+  }
+  ```
+
+End of WTF Solidity 101
+
 ### 2024.09.30
 
 ### 2024.10.01
