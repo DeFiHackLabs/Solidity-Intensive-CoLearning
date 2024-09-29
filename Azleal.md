@@ -65,4 +65,122 @@ function fi() internal{} // internal空白函数
 function fe() external{} // external空白函数 
 ```
 
+### 2024.09.27
+1. `constant`,`immutable`变量
+   - 基础类型可以定义为`constant`, `immutable`. `string`类型不能被定义为`immutable`
+   - `constant`变量必须在声明的时候初始化，之后再也不能改变。
+   - `immutable`变量可以在声明时或构造函数中初始化。
+2. 控制流
+   - `if-else`
+   - `for`循环
+   - `while`循环
+   - `do-while`循环
+   - `三元运算`: `条件` ? `条件为真的表达式` : `条件为假的表达式`
+
+### 2024.09.28
+1. `constructor`
+   - `0.4.22`之前的版本构造函数是合约的同名方法。之后是由`constructor`定义的构造函数
+   - 继承了父合约的自合约构造函数的定义
+   ```solidity
+      // SPDX-License-Identifier: MIT
+      pragma solidity ^0.8.0;
+      
+      contract Parent {
+          uint256 childId;
+          constructor(uint256 _childId) {
+              childId = _childId;
+          }
+      }
+      
+      contract Child1 is Parent(1) {
+      }
+      
+      
+      contract Child2 is Parent {
+          constructor() Parent(2){}
+      }
+   ```
+   - 父合约的构造函数没有参数时可省略。
+2. 修饰器(`modifier`)
+   - 作用：声明函数拥有的特性，并减少代码冗余
+   - 示例`onlyOwner`，仅允许合约的`owner`调用
+   ```solidity
+      // SPDX-License-Identifier: MIT
+      pragma solidity ^0.8.0;
+      
+      contract MyContract {
+          address owner;
+      
+          // onlyOwner的定义
+          modifier onlyOwner(){
+              require(owner == msg.sender, "only owner is allowed");
+              _;
+          }
+      
+          constructor(){
+              owner = msg.sender;
+          }
+      
+          // onlyOwner的用法
+          function withdraw() public onlyOwner{
+              payable(owner).transfer(address(this).balance);
+          }
+   
+          receive() external payable { }
+      }
+
+   ```
+3. 事件(`event`)
+   - 作用：链下应用的响应，即可以通过节点的rpc监听事件；比链上存储更经济的存储方式。
+   - 声明：`event Transfer(address indexed from, address indexed to, uint256 value);`
+   - 释放：`emit Transfer(from, to, amount);`
+   - 组成部分：
+      - topics:
+         - 第一部分是事件的签名
+         - 之后的部分(如果存在)，对应事件中定义的`indexed`变量的值，注意最多有3个`indexed`变量。
+      - data: 其余的非`indexed`变量的值。
+        
+
+### 2024.09.29
+1. 继承
+  - 规则:
+     - 父合约中的函数，如果希望子合约重写，需要加上`virtual`关键字
+     - 子合约重写了父合约中的函数，需要加上`override`关键字。`override`可以修饰函数或者变量。
+  - 多重继承:
+     - 顺序: 辈分越高越在前
+       ```
+       contract Erzi is Yeye, Baba{
+          // 继承两个function: hip()和pop()，输出值为Erzi。
+          function hip() public virtual override(Yeye, Baba){
+              emit Log("Erzi");
+          }
+      
+          function pop() public virtual override(Yeye, Baba) {
+              emit Log("Erzi");
+          }
+       }
+       ```
+    - `modifier`也可以被继承，需要继承的`modifier`在父类中用`virtual`标识，在子类中用`override`标识
+    - 钻石继承`super`的调用顺序
+
+
+2. 抽象合约和接口
+   - 抽象合约：合约用`abstract`标识，其中至少有一个`abstract`方法
+   - 接口：
+      - 不能包含状态变量
+      - 不能包含构造函数
+      - 不能继承除接口外的其他合约
+      - 所有函数都必须是external且不能有函数体
+      - 继承接口的非抽象合约必须实现接口定义的所有功能
+
+3. 异常
+   - `error`: 方便且高效（省gas）地向用户解释操作失败的原因.
+      - 定义：`error TransferNotOwner(address sender); // 自定义的带参数的error`
+      - 使用：`revert TransferNotOwner(msg.sender);`
+  
+   - `require`: 好用，缺点是gas随着描述异常的字符串长度增加，比error命令要高。
+     - 用法：`require(_owners[tokenId] == msg.sender, "Transfer Not Owner");`
+   - `assert`: 通常用于合约的执行结果的检查，确认结果是符合预期的。用法很简单，但不能解释抛出异常的原因
+      - 用法：`assert(_success);`
+
 <!-- Content_END -->

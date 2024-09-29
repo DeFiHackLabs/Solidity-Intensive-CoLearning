@@ -1,3 +1,4 @@
+
 ---
 timezone: Asia/Shanghai
 ---
@@ -104,5 +105,30 @@ storage（合约的状态变量）赋值给本地storage（函数里的）,memor
 - tansfer和send的区别在于，如果接收者合约没有receive函数，那么transfer会回滚交易，而send会返回一个布尔值，表示交易是否成功。
 - call和send的区别在于，call可以调用合约的任何函数，而send只能发送ETH。call可以返回一个布尔值，表示交易是否成功，也可以返回一个字节数组，表示函数的返回值。
 - (bool success,) = _to.call{value: amount}(""); // 使用call发送ETH, **("")为msg，如果receive()无法处理，就会调用fallback()**
-  
+### 2024.09.27
+- _Name(_Address).f()，其中f()是要调用的函数。
+-  如果能直接调用原合约的set() 是不安全的
+-  call
+   - 目标合约地址.call(字节码); abi.encodeWithSignature("函数签名", 逗号分隔的具体参数) 
+   - 返回 (bool, bytes memory) 需要通过abi.decode解码
+   - 失败会调用 fallback()函数
+-  Delegatecall
+     - 而当用户A通过合约B来delegatecall合约C的时候，执行的是合约C的函数，但是上下文仍是合约B的：msg.sender是A的地址，并且如果函数改变一些状态变量，产生的效果会作用于合约B的变量上。
+     - ![](https://images.mirror-media.xyz/publication-images/VgMR533pA8WYtE5Lr65mQ.png?height=698&width=1860) 
+ 
+     - ![](https://images.mirror-media.xyz/publication-images/JucQiWVixdlmJl6zHjCSI.png?height=702&width=1862)
+### 2024.09.29
+- create & create2
+  - Contract x = new Contract{value: _value}(params) 
+      - Contract是要创建的合约名，x是合约对象（地址），如果构造函数是payable，可以创建时转入_value数量的ETH，params是新合约构造函数的参数。
+      - 新地址 = hash(创建者地址, nonce)
+- create2 
+      - CREATE2的目的是为了让合约地址独立于未来的事件。不管未来区块链上发生了什么，你都可以把合约部署在事先计算好的地址上。用CREATE2创建的合约地址由4个部分决定：
+
+        0xFF：一个常数，避免和CREATE冲突
+        CreatorAddress: 调用 CREATE2 的当前合约（创建合约）地址。
+        salt（盐）：一个创建者指定的bytes32类型的值，它的主要目的是用来影响新创建的合约的地址。
+        initcode: 新合约的初始字节码（合约的Creation Code和构造函数的参数）。
+    - 新地址 = hash("0xFF",创建者地址, salt, initcode)
+    - Contract x = new Contract{salt: _salt, value: _value}(params)
 <!-- Content_END -->

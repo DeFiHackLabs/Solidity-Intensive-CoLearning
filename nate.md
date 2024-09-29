@@ -140,10 +140,23 @@ initcode: 新合约的初始字节码（合约的Creation Code和构造函数的
         emit PairCreated(token0, token1, pair, allPairs.length);
     }
 
+    // calculates the CREATE2 address for a pair without making any external calls
+    function pairFor(address factory, address tokenA, address tokenB) internal pure returns (address pair) {
+        (address token0, address token1) = sortTokens(tokenA, tokenB);
+        pair = address(uint(keccak256(abi.encodePacked(
+                hex'ff',
+                factory,
+                keccak256(abi.encodePacked(token0, token1)),
+                hex'96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f' // init code hash
+            ))));
+    }
+
      uniswap提供两种代币的交换，其工产合约核心函数createPair可创建代币对合约`UniswapV2Pair`实例通过内联汇编assembly中
    evm操作码create2创建实例，其中通过哈希token1和token2地址生成salt，bytecode为UniswapV2Pair的创建字节码。由于一对token
    的地址是可知的，UniswapV2Pair合约的地址也是不变的，所以较容易推出一对代币的UniswapV2Pair合约地址。而采用create创建合约
    的话，合约地址会随创建账户的状态而变化不好预测
    ```
-
+### 2024.09.27
+WTF solidity16-20
+### 2024.09.29
 <!-- Content_END -->

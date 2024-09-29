@@ -191,4 +191,41 @@ function reset() external {
 
 `immutable` 可以在聲明時，或是 `constructor` 中初始化，若 `immutable` 已在聲明中初始化，又再 `constructor` 中初始化，則會使用 `constructor` 初始化的值
 
+### 2024.09.27
+
+#### 13. Inheritance
+
+多重繼承：
+
+`solidity` 的合約可以繼承多個合約，規則如下：
+
+1. 繼承要按照輩分，從最高的到最低的照順序排。比如我寫一個 `A` 合約，它繼承 `B` 和 `C` 合約，那麼就要寫成
+
+```solidity
+contract A is B, C
+```
+
+### 2024.09.28
+
+#### 14. Interface
+
+`interface` 的規則如下：
+1. 不能包含狀態變量
+2. 不能包含構造函數
+3. 不能繼承除了接口之外的其他合約
+4. 所有函數必須是 `external` 且不能有函數體
+5. 繼承 `interface` 的非抽象（`abstract`）合約必須實現 `interface` 定義的所有功能
+
+`interface` 提供了兩個重要的訊息：
+
+合約中每個函數的 `bytes4` 選擇器，以及函數簽名 `函數名稱（參數類型）`
+
+例如：`function transfer(address recipient, uint256 amount) external returns (bool);`
+   
+其 `bytes4` 選擇器為 `bytes4 selector = bytes4(keccak256("transfer(address,uint256)"));`
+
+其函數簽名為 `transfer(address,uint256)`
+
+標記為 abstract 的合約可以被編譯，但是不能被部署，這是因為在部署時，必須實踐所有函數。
+
 <!-- Content_END -->

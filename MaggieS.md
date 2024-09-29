@@ -130,6 +130,105 @@ most of these are composed of definition, events, state variables, and functions
 
 We learn them together can promote the understanding of framework, also, the differences and connections between them.
 
+### 2024.09.27
 
+1. Looking through 7 chapters of Solidity 103 and complete the text.
+
+2. 
+<img width="819" alt="image" src="https://github.com/user-attachments/assets/432267d9-df22-4a54-8cfd-702d84fb053e">
+
+3. Difficulties
+
+In the fifth learning day, as the last step1 day, we have learned overall 50 chapters. 
+
+However, it’s just a new beginning of Step2, there is still lots of room for development. 
+
+We need more enough time and space to promote coding and English terminology skills. 
+
+Fortunately,the second part, can be modularized according to the relationship between chapters in the tutorials,
+
+which is not only more convenient for memory and understanding, but also more convenient for logical sorting.
+
+Just Like:
+
+45 Time lock —— 22 Call
+
+46 Proxy Contract —— 22 Call —— 23 Delegatecall —— Lesson 27: ABI encoding 
+
+47 Upgradeable Contract —— 46  Proxy Contract
+
+48 Transparent Proxy ——29 Function Selectors
+
+49 UUPS  —— 23 Delegatecall
+
+50 Multisignature Wallet —— 27 ABI encoding 
+
+
+### 2024.09.28
+
+Actually, the function of Language is for communication, no matter the natural language or programming language. In other words, a technology is just a solution, and a solution is only as good as the problems, so we need to make sure we know the problem really well, so we know how to attack it with this smart contract technology.
+
+By the way, It’s a person who gives me huge passions to challenge solidity this time , she is a female security auditor. I remember what she said in a interview that before she intended the ZK audit competition she even never learn ZK language, she just use few days to familiar with ZK language, but she got the champion, soooo fantastic.
+
+I try to find the crucial reason in Step 2 which confusing me for a long time that why and how she could make done it. So it must be something more important than language itself, language is just a language. No one knows whether I will be the solidity auditor in the future. It's a black box, which is interesting. But I'm sure this is not the most important thing.
+
+I know what I’m appreciate and chase for, learning solidity is just a experience to understand something to serve my life goals. Solidity itself is not my goal.
+
+Q1: 
+<img width="777" alt="image" src="https://github.com/user-attachments/assets/c0655440-5342-4d36-b991-33f635506990">
+
+Where is the bug of this picture in coding Hello Web3 ?
+
+Though it said there are some bugs here, but I believe that "Code is law". 
+
+A bug is just a bug, it will not exist forever,be relaxed. 
+
+If the bug is fixed today, it will only affect yesterday.
+
+I believe very strongly, someday, the web3 will change the world. 
+
+At that time, I will smile and say "hello web3",welcome to our world.
+
+
+This answer will be written again later after this bug has fixed.
+The most easist coding maybe not so easy, When I copied tutorial's example,it's correct,
+When I wrote by myself, it said there are errors, but I couldn't distinguish they have any diffenence.
+
+Q2:
+How Does Solidity Work?
+
+1. Public and Private Functions
+In Solidity, functions are the building blocks of smart contracts.
+Some functions can be accessed from outside the contract (public),
+while others are only available within the contract (private).
+
+2. Standard and Code Logic
+Solidity follows a set of rules and logic similar to other programming languages.
+The behavior of a smart contract is determined by the functions and conditions defined in the code.
+
+3. Immutability
+Once deployed on the Ethereum blockchain, a smart contract becomes immutable,meaning its code and behavior cannot be changed.
+This ensures the contract’s transparency and security, as participants can trust that the contract will always function as intended.
+
+4. Gas Costs
+When interacting with smart contracts on Ethereum, users must pay for the computational power used during the execution of functions. This payment is done using “gas.” Each operation within the contract consumes a specific amount of gas and users need to provide enough gas to complete the transaction.
+
+5. Data Types
+Solidity has different types of data that can be used, such as numbers, addresses, true/false values, text, arrays, and more.
+
+6. Control Structures
+Solidity provides tools to control how the program behaves, such as conditional statements (if-else), loops (for, while), and switches.
+
+7. Modifiers
+Modifiers are like rules that we can apply to functions. They allow us to add extra checks or behaviors to functions.
+
+8. Events
+Events allow contracts to communicate with external applications. They are like messages that can be logged on the blockchain and listened to by other programs.
+
+It's the first time to write Step2 QA,
+
+using too much time to choose questions,it's little hard.
+
+I need more time to oganize today's two questions' answer.
 
 <!-- Content_END -->

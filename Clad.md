@@ -15,7 +15,7 @@ timezone: Asia/Taipei
 <!-- Content_START -->
 
 ### 2024.09.23
-學習內容  
+學習內容 Solidity 101  
 筆記:  
 #### Mapping
 ###### 使用 mapping 的時機？
@@ -208,14 +208,14 @@ function callParent() public{
 學習內容  
 筆記:  
 
-抽象合約(abstract)
+#### 抽象合約(abstract)
 - 如果合約裡有一個未實現的函數, 則必須將該合約標示為 abstract, 且未實現的函數需要加上 virtual, 以便子合約重寫
 ```solidity
 abstract contract InsertionSort{
    function fun1(uint[] memory a) public pure virtual returns(uint[] memory);
 }
 ```
-接口(interface)
+#### 接口(interface)
 - 接口類似抽象合約, 但不實現任何功能
 - 定義了合約的功能及如何觸發接口
 - 接口提供 1.合約裡每個函數的 bytes4 選擇器及函數簽名 2.接口 id
@@ -244,7 +244,7 @@ contract interactBAYC {
     }
 }
 ```
-異常
+#### 異常
 - 三種方法 error, require, assert
 - gas 消耗程度 require > error > assert
 
@@ -278,6 +278,141 @@ assert
 function transferOwner3(uint256 tokedId, address newOwner) public{
    assert(_owner[tokenId] == msg.sender);
    _owners = newOwner;
+}
+```
+<hr>
+
+### 2024.09.27
+學習內容 Solidity 102    
+筆記:  
+
+#### 函數重載
+重載(overloading), 名字相同但輸入參數類型不同的函數可以同時存在, 被視為不同函數; 注意, 不允許 modifier 重載
+疑問: 什時間點會使用到重載函數, 基本上我用函數的習慣不會重複命名
+
+實參匹配
+調用重載函數時, 會把輸入的實際參數和函數參數的變數類型做匹配, 如果出現多個匹配的重載函數, 會報錯
+ex: 調用f(50), 50 可以被轉換成 uint8, 也可以轉換成 uint256
+```Solidity
+function f(uint8 _in) public pure returns(uint8 out){
+   out = _in;
+}
+
+function f(uint256 _in) public pure returns(uint256 out){
+   out = _in;
+}
+```
+#### 庫合約
+- 目的, 減少程式碼的重複性和減少 gas
+- 常用的庫合約有, Strings, Address, Create2, Arrays
+兩種方式  
+1. 利用 using for 指令
+```Solidity
+using Strings for uint256;
+function getString1(uint256 _number) public pure returns(string memory){
+   return _number.toHexString();
+}
+```
+2. 通過庫合約名稱調用函數
+```Solidity
+function getString2(uint256 _number) public pure returns(string memory){
+   returns Strings.toHexString(_number);
+}
+```
+#### Import
+- 目的, 利用 import 引入外部程式碼, ex: 引用我們或別人寫好的合約, 函數, 程式碼
+
+用法
+1. 通過文件相對位置引用
+2. 通過全局符號, 引用指定的合約
+3. 通過網址引用
+4. 引用 OpenZeppelin 合約
+
+### 2024.09.28
+學習內容  
+筆記:  
+
+#### 接收 ETH, receive, fallback
+- 目的, 1.接收 ETH 2.處理合約中不存在的函數調用
+- 觸發規則   
+![image](https://github.com/user-attachments/assets/3dbf8f0a-2f3b-413f-b5e2-b9d0c437964d)
+
+
+receive
+- 當合約收到 ETH 轉帳時, receive() 會被觸發
+- 一個合約最多只有一個 receive()
+- receive() external payable{}, receive() 不能有參數, 不能返回值, 要包含 external 和 payable
+
+```Solidity
+// 定義事件
+event Received(address sender, uint Value);
+// 接收 ETH 時釋放 Received 事件
+receive() external payable{
+   emit Received(msg.semder, msg.value);
+}
+```
+fallback
+- 調用不存在的函數時會被觸發, 可用於接收 ETH, 也可用於代理合約 proxy contract
+- fallback() external payable{}
+
+### 2024.09.29
+學習內容  
+筆記:  
+
+#### 發送 ETH, transfer(), send(), call()
+- call 推薦, 沒有 gas 限制
+- transfer, 有 2300 gas 限制, 發送失敗會自動 revert 交易
+- send 最不推薦, 有 2300 gas 限制, 發送失敗時不會自動 revert 交易
+
+假設一個接收 ETH 合約
+```Solidity
+contract ReceiveETH{
+   // 收到 eth 事件, 紀錄 amount, gas
+   event Log(uint amount, uint gas);
+
+   // 接收到 eth 時觸發
+   receive() external payable{
+      emit Log(msg.value, gasleft());
+   }
+
+   // return 合約的 eth 餘額
+   function getBalance() view public returns(uint){
+      return address(this).balance;
+   }
+}
+```
+
+發送 eth 合約
+```Solidity
+contract snedETH{
+   // 構造函數, 部屬時候可以轉 eth 進去
+   construct() payable{}
+   // receice, 接收 eth 時被觸發
+   receive() external payable{}
+}
+```
+
+transfer  
+- 接收方的地址.transfer(發送數量)
+```Solidity
+// 用 transfer 發送 eth
+function transferETH(address payable _to, uint256 amount) external payable{
+   _to.transfer(amount);
+}
+```
+
+call  
+- 接收方地址.call{value: 發送數量}("")
+- call() 會返回 (bool, bytes), 其中 bool 代表轉帳成功或失敗, 需要額外程式碼處理
+```Solidity
+// 用 call 發送 eth 失敗 error
+error CallFailed();
+
+function callETH(address payable _to, uint256 amount) external payable{
+   (bool success, ) = _to.call{value: amount}("");
+   if(!success){
+      revert CallFailed();
+   }
 }
 ```
 

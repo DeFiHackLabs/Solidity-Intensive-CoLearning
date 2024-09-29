@@ -183,3 +183,32 @@ Solidity 101-12 事件event
 12 主题topics包括：哈希keccak256（事件的签名），from，to（除了哈希，topics还可以包括最多3个indexed参数）
 13 数据data：事件event中不带indexed的参数会被储存在data中（可以理解成事件event的值value）
 <!-- Content_END -->
+<!-- Content_START -->
+### 2024.09.27
+Day5
+Solidity 101-13 继承inheritance
+1 virtual：父合约中的函数，如果希望子合约重写，需要加上virtual关键字
+2 override：子合约重写了父合约中的函数，需要加上override关键字
+3 继承时要按辈分最高到最低的顺序排
+4 如果某一个函数在多个继承的合约里都存在，在子合约里必须重写，不然会报错
+5 重写在多个父合约中都重名的函数时，override关键字后面要加上所有父合约名字，例如override(Yeye, Baba)
+6 调用父合约函数-直接调用：子合约可以直接用父合约名.函数名()的方式来调用父合约函数，如Yeye.pop()
+7 调用父合约函数-super关键字：子合约可以利用super.函数名()来调用最近的父合约函数
+8 is关键字：表示继承（Child is Parent意思是Child合约继承了Parent合约的功能）
+<!-- Content_END -->
+<!-- Content_START -->
+### 2024.09.29
+Day7
+Solidity 102-17库合约Library Contracts
+1 using A for B：使用库合约A的函数来扩展类型B的功能（B类型的变量可以直接调用库合约A的函数）
+
+Solidity 102-18 import
+1 import导入
+2 npm ：Node Package Manager，随Node.js 一起发布的包管理工具
+3 Solidity中import的作用是：导入其他合约中的全局符号
+4 import导入文件的来源可以是：源文件网址，npm的目录，本地文件
+5 import导入文件中的全局符号可以单独指定其中的：合约，纯函数，结构体类型
+6 被导入文件中的全局符号想要被其他合约单独导入，应该：与合约并列在文件结构中
+7 导入的本地文件会被编译成字节码部署到链上
+8 在import 语句中使用*是为了导入一个Solidity 文件中的所有内容，并通过一个命名空间来访问这些内容
+<!-- Content_END -->

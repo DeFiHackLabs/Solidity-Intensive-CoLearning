@@ -823,7 +823,7 @@ timezone: Asia/Shanghai
         | 推荐场景          | 简单的 ETH 发送             | 简单的 ETH 发送             | 复杂合约调用，推荐当前使用方式      |
 ###
 
-#### 2024.09.27
+### 2024.09.27
 
 学习内容:
 1. 第二十一
@@ -1036,6 +1036,274 @@ timezone: Asia/Shanghai
             }
         }
         ```
+###
 
+### 2024.09.28
+
+学习内容:
+1. 第二十三讲
+    - `delegatecall` - 委托调用
+    - 语法形式: 
+        - `目标合约地址.delegatecall(二进制编码);`
+        - 二进制编码利用结构化编码函数`abi.encodeWithSignature`获得
+        - `abi.encodeWithSignature("函数签名", 逗号分隔的具体参数`
+    - `delegatecall` - 应用场景
+        - 代理合约（`Proxy Contract`）：将智能合约的存储合约和逻辑合约分开：代理合约（`Proxy Contract`）存储所有相关的变量，并且保存逻辑合约的地址；所有函数存在逻辑合约（`Logic Contract`）里，通过`delegatecall`执行。当升级时，只需要将代理合约指向新的逻辑合约即可。
+            - 代理合约示例
+                ```Solidity
+
+                // LogicContract (逻辑合约)
+                pragma solidity ^0.8.0;
+
+                contract LogicContract {
+                    uint public number;
+
+                    // 修改number的值
+                    function setNumber(uint _number) public {
+                        number = _number;
+                    }
+                }
+                ```
+                ```Solidity
+
+                // ProxyContract (代理合约)
+                pragma solidity ^0.8.0;
+
+                contract ProxyContract {
+                    uint public number;
+
+                    function setLogicNumber(address _logicContract, uint _number) public {
+                        // delegatecall 执行逻辑合约中的 setNumber 函数
+                        (bool success, ) = _logicContract.delegatecall(
+                            abi.encodeWithSignature("setNumber(uint256)", _number)
+                        );
+                        require(success, "delegatecall failed");
+                    }
+                }
+                ```
+            - 可升级代理合约示例
+                ```Solidity
+
+                // LogicContractV1.sol 逻辑合约 v1
+                pragma solidity ^0.8.0;
+
+                contract LogicContractV1 {
+                    uint public number;
+
+                    // 设置 number 的值
+                    function setNumber(uint _number) public {
+                        number = _number;
+                    }
+
+                    // 获取 number 的值，v1版本逻辑中直接返回数值
+                    function getNumber() public view returns (uint) {
+                        return number;
+                    }
+                }
+                ```
+
+                ```Solidity
+
+                // ProxyContract.sol 代理合约
+                pragma solidity ^0.8.0;
+
+                contract ProxyContract {
+                    // 保存逻辑合约的地址
+                    address public logicContract;
+                    address public owner;
+
+                    constructor(address _logicContract) {
+                        logicContract = _logicContract;
+                        owner = msg.sender;
+                    }
+
+                    // 修改逻辑合约地址
+                    function upgradeTo(address _newLogicContract) public {
+                        require(msg.sender == owner, "Only owner can upgrade");
+                        logicContract = _newLogicContract;
+                    }
+
+                    // fallback 函数：捕捉所有调用并转发给逻辑合约
+                    fallback() external payable {
+                        _delegate(logicContract);
+                    }
+
+                    function _delegate(address _logicContract) internal {
+                        // 使用代理合约的上下文调用逻辑合约
+                        (bool success, bytes memory returnData) = _logicContract.delegatecall(msg.data);
+                        require(success, "Delegatecall failed");
+                        assembly {
+                            return(add(returnData, 32), mload(returnData))
+                        }
+                    }
+                }
+                ```
+        - EIP-2535 Diamonds（钻石）：钻石是一个支持构建可在生产中扩展的模块化智能合约系统的标准。钻石是具有多个实施合约的代理合约。
+
+    - `delegatecall`的风险
+        - 存储冲突：由于 `delegatecall` 修改的是调用者的存储，因此，如果目标合约和调用者合约的存储布局不同，可能会导致意外的存储冲突和数据破坏。
+            - 例如，目标合约的第一个状态变量会覆盖调用者合约的第一个状态变量，因此需要小心管理存储布局。
+        - 安全问题：`delegatecall` 可以将外部代码引入当前合约的上下文，因此在调用不受信任的合约时需要特别小心，可能会造成安全漏洞。
+###
+
+### 2024.09.29
+
+学习内容:
+1. 第二十四讲
+    - `create` - 在合约中创建新合约，合约地址不可预测。
+
+    - 语法: `Contract x = new Contract{value: _value}(params)`
+
+        - `Contract`是要创建的合约名，`x`是合约对象（地址），如果构造函数是`payable`，可以创建时转入`_value`数量的`ETH`，`params`是新合约构造函数的参数。
+
+    - 实例
+
+        ```Solidity
+        contract Factory {
+            function createContract() public returns (address) {
+                // 创建并部署新的合约实例
+                MyContract newContract = new MyContract();
+                return address(newContract);
+            }
+        }
+
+        contract MyContract {
+            // 合约代码
+        }
+        ```
+
+2. 第二十五讲
+    - `CREATE2` - 在合约中创建新合约，合约地址可预测。
+
+    - `CREATE2`如何计算地址
+
+        - `0xFF`：常数，避免和CREATE冲突
+
+        - `CreatorAddress`: 调用 `CREATE2` 的当前合约（创建合约）地址。
+
+        - `salt（盐`）：创建者指定的`bytes32`类型的值，它的主要目的是用来影响新创建合约的地址。
+
+        - `initcode`: 新合约的初始字节码（合约的`Creation Code`和构造函数的参数）。
+
+            ```Solidity
+            新地址 = hash("0xFF",创建者地址, salt, initcode)
+            ```
+
+    - 语法: `Contract x = new Contract{salt: _salt, value: _value}(params)`
+
+        - 其中`Contract`是要创建的合约名，`x`是合约对象（地址），`_salt`是指定的盐；如果构造函数是`payable`，可以创建时转入`_value`数量的`ETH`，`params`是新合约构造函数的参数。
+
+    - 实例
+
+        ```Solidity
+
+        // SPDX-License-Identifier: MIT
+        pragma solidity ^0.8.0;
+
+        contract Factory {
+            event Deployed(address addr, uint256 salt);
+
+            // 使用 CREATE2 部署合约
+            function deploy(bytes32 salt) public {
+                SimpleStorage newContract = new SimpleStorage{salt: salt}();
+                emit Deployed(address(newContract), uint256(salt));
+            }
+
+            // 计算 CREATE2 部署合约的地址
+            function getAddress(bytes32 salt) public view returns (address) {
+                bytes memory bytecode = type(SimpleStorage).creationCode;
+                bytes32 hash = keccak256(abi.encodePacked(
+                    bytes1(0xff),
+                    address(this),
+                    salt,
+                    keccak256(bytecode)
+                ));
+                return address(uint160(uint(hash)));
+            }
+        }
+
+        contract SimpleStorage {
+            uint public data;
+
+            function set(uint _data) public {
+                data = _data;
+            }
+        }
+        ```
+
+3. 第二十六讲
+    - `selfdestruct` - 删除合约，在不同时期作用不同
+
+    - 在 [v0.8.18](https://soliditylang.org/blog/2023/02/01/solidity-0.8.18-release-announcement/) 版本中, `selfdestruct` 关键字被标记为「不再建议使用」，但使用此关键词可以删除合约。
+
+    - 在以太坊坎昆（Cancun）升级后，使用`selfdestruct`就无法直接删除合约了，而是将目标合约的ETH转移到其他钱包地址中。如果非要删除合约，那合约的创建和销毁必须要在同一笔交易中才行。
+
+    - 语法: `selfdestruct(_addr);` `_addr`是接收合约中剩余`ETH`的地址。`_addr` 不需要有`receive()`或`fallback()`也能接收`ETH`。
+
+    - 示例
+
+        - 坎昆升级之前，完成自毁并转移ETH
+
+            ```Solidity
+
+            // DeleteContract.sol
+            contract DeleteContract {
+
+                uint public value = 10;
+
+                constructor() payable {}
+
+                receive() external payable {}
+
+                function deleteContract() external {
+                    // 调用selfdestruct销毁合约，并把剩余的ETH转给msg.sender
+                    selfdestruct(payable(msg.sender));
+                }
+
+                function getBalance() external view returns(uint balance){
+                    balance = address(this).balance;
+                }
+            }
+            ```
+
+        - 坎昆升级之后，同笔交易内实现合约创建-自毁
+
+            ```Solidity
+            // SPDX-License-Identifier: MIT
+            pragma solidity ^0.8.21;
+
+            import "./DeleteContract.sol";
+
+            contract DeployContract {
+
+                struct DemoResult {
+                    address addr;
+                    uint balance;
+                    uint value;
+                }
+
+                constructor() payable {}
+
+                function getBalance() external view returns(uint balance){
+                    balance = address(this).balance;
+                }
+
+                function demo() public payable returns (DemoResult memory){
+                    DeleteContract del = new DeleteContract{value:msg.value}();
+                    DemoResult memory res = DemoResult({
+                        addr: address(del),
+                        balance: del.getBalance(),
+                        value: del.value()
+                    });
+                    del.deleteContract();
+                    return res;
+                }
+            } 
+            ```
+    - 注意事项
+
+        - 对外提供合约销毁接口时，最好设置为只有合约所有者可以调用，可以使用函数修饰符onlyOwner进行函数声明。
+
+        - 当合约中有selfdestruct功能时常常会带来安全问题和信任问题，合约中的selfdestruct功能会为攻击者打开攻击向量(例如使用selfdestruct向一个合约频繁转入token进行攻击，这将大大节省了GAS的费用，虽然很少人这么做)，此外，此功能还会降低用户对合约的信心。
 ###
 <!-- Content_END -->

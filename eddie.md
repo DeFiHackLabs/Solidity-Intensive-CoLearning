@@ -15,6 +15,115 @@ timezone: Asia/Shanghai
 ## Notes
 <!-- Content_START -->
 
+### 2024.09.29
+
+WTF102章节内容：Hash、TryCatch
+
+#### 笔记
+
+- 选择器
+    
+    即为bytes4(keccak256("fixedSizeParamSelector(uint256[3])"))，可以理解作为函数的标识符；
+
+    此处需要注意空格，uint换为uint256；
+    
+    ```solidity
+    contract DemoContract {
+    }
+    
+    contract Selector{
+        struct User {
+            uint256 uid;
+            bytes name;
+        }
+        enum School { SCHOOL1, SCHOOL2, SCHOOL3 }
+        function mappingParamSelector(DemoContract demo, User memory user, uint256[] memory count, School mySchool) external returns(bytes4 selectorWithMappingParam){
+            emit SelectorEvent(this.mappingParamSelector.selector);
+            //mappingParamSelector中DemoContract需要转化为address
+            //结构体User需要转化为tuple类型(uint256,bytes)
+            //枚举类型School需要转化为uint8
+            return bytes4(keccak256("mappingParamSelector(address,(uint256,bytes),uint256[],uint8)"));
+        }
+        function callWithSignature() external{
+        //利用选择器来进行函数调用
+    	    (bool success1, bytes memory data1) = address(this).call(abi.encodeWithSelector(0x3ec37834, 1, 0));
+        }
+    }
+    ```
+    
+- 异常捕捉
+    
+    ```solidity
+    try externalContract.f() returns(returnType){
+    } catch Error(string memory /*reason*/) {
+        // revert和require→用Error(string memory)进行捕捉
+    } catch Panic(uint /*errorCode*/) {
+        // assert→用Panic()进行捕捉|
+    } catch (bytes memory) {
+        // 通用的，不考虑区分Error和Panic
+        // 例如revert() require(false) revert自定义类型的error
+    }
+    ```
+
+
+### 2024.09.28
+
+- WTF102章节内容：在合约中创建新合约、Create2、删除合约、ABI编码解码
+
+#### 笔记
+
+- 使用CREATE创建合约
+  
+新地址 = hash(创建者地址，nonce)
+
+- 使用CREATE2创建合约
+新地址 = hash(常数，创建者地址，salt，initcode)
+    ```
+    predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+    	    bytes1(0xff),
+    	    address(this),
+    	    salt,
+	    keccak256(type(Pair).creationCode)
+	    )))));
+    bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+    // 用create2部署新合约
+    Pair pair = new Pair{salt: salt}();
+    ```
+
+- ABI
+应用二进制接口，是与以太坊智能合约交互的标准。数据基于他们的类型编码；并且由于编码后不包含类型信息，解码时需要注明它们的类型。
+    ```solidity
+    abi.encode()//为每个参数填充32字节的数据来并拼接
+    abi.encodePacked()//和encode相比，将填充的很多0省略，节省空间，但无法和合约交互
+    abi.encodeWithSignature()//第一个参数为函数签名FunctionName
+    //函数选择器：就是通过函数名和参数进行签名处理(Keccak–Sha3)来标识函数，可以用于不同合约之间的函数调用
+    abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array);//第一个参数为函数选择器
+    abi.decode()
+    ```
+
+
+### 2024.09.27
+
+- WTF102章节内容：Call、Delegatecall
+
+#### 笔记
+
+- 通过call来进行调用某一个合约函数
+    
+    ```solidity
+    address.call(abi.encodeWithSignature(”function signature”,prop))
+    //当call 不存在的函数时，返回依然为success，但返回的data为0x0，实质调用了目标合约的fallback函数
+    ```
+    
+- delegatecall
+    
+    要求当前合约中的状态变量和被调用合约中的状态变量相同；
+    即为在调用过程中，delegatecall的执行结果可以修改当前合约的状态变量；
+    
+    **`要求变量类型和声明顺序必须相同，变量名可以不同；`**
+    
+    原因：变量名对于storage并不重要，storage是基于位置的；Solidity将状态变量以线性布局的方式存储在合约的storage slots中，如，第一个变量存在slot 0，第二个在slot1；
+
 ### 2024.09.26
 
 - WTF102章节内容：接收ETH、发送ETH、调用其他合约
