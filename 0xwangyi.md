@@ -196,3 +196,19 @@ Solidity 101-13 继承inheritance
 7 调用父合约函数-super关键字：子合约可以利用super.函数名()来调用最近的父合约函数
 8 is关键字：表示继承（Child is Parent意思是Child合约继承了Parent合约的功能）
 <!-- Content_END -->
+<!-- Content_START -->
+### 2024.09.29
+Day7
+Solidity 102-17库合约Library Contracts
+1 using A for B：使用库合约A的函数来扩展类型B的功能（B类型的变量可以直接调用库合约A的函数）
+
+Solidity 102-18 import
+1 import导入
+2 npm ：Node Package Manager，随Node.js 一起发布的包管理工具
+3 Solidity中import的作用是：导入其他合约中的全局符号
+4 import导入文件的来源可以是：源文件网址，npm的目录，本地文件
+5 import导入文件中的全局符号可以单独指定其中的：合约，纯函数，结构体类型
+6 被导入文件中的全局符号想要被其他合约单独导入，应该：与合约并列在文件结构中
+7 导入的本地文件会被编译成字节码部署到链上
+8 在import 语句中使用*是为了导入一个Solidity 文件中的所有内容，并通过一个命名空间来访问这些内容
+<!-- Content_END -->
