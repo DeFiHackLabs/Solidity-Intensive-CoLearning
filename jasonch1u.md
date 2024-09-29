@@ -694,6 +694,9 @@ function allowance(address owner, address spender) public view virtual returns (
 如何用foundryup做鍊上互動
 
 cast wallet import hw1 --interactive
+還有接口也要看懂
+
+forge script script/DeFiHackLabsBootcamp.s.sol:DeFiHackLabsBootcampScript --rpc-url $SEPOLIA_RPC_URL --broadcast -vvvvv
 
 
 #### 13_Inheritance
