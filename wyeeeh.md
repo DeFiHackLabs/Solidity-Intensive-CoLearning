@@ -402,5 +402,111 @@ contract StorageArrayPush {
 ### 2024.09.29
 #### WTF Academy Solidity 101.7 映射类型 mapping
 
+##### 映射的声明
+
+映射的基本格式为：
+
+```solidity
+mapping(_KeyType => _ValueType)
+```
+
+- **例子**：
+    
+    ```solidity
+    mapping(uint => address) public idToAddress; // 将 id 映射到地址
+    mapping(address => address) public swapPair; // 将一个地址映射到另一个地址
+    ```
+
+##### 映射的规则
+
+- **规则1**：`_KeyType` 只能是 Solidity 内置的值类型（如 `uint`、`address` 等），而 `_ValueType` 可以是自定义类型。
+    - **错误示例**：
+        
+        ```solidity
+        struct Student {
+            uint256 id;
+            uint256 score;
+        }
+        mapping(Student => uint) public testVar; // 这会报错，因为Student是自定义的struct
+        ```
+        
+- **规则2**：映射的存储位置必须是 `storage`，不能用作 `public` 函数的参数或返回值。
+  - **映射不能作为 `memory` 或 `calldata` 类型的变量**：因为映射的结构依赖于区块链的存储模型，它无法直接被赋值为临时变量（`memory`）或传递给函数作为参数（`calldata`）。例如，不能像这样做：
+
+    ```solidity
+    function test(mapping(uint => address) memory tempMap) public {} // 错误
+    ```
+  - **映射不能作为函数参数或返回类型**：映射不能直接作为 `public` 或 `external` 函数的参数或返回类型。这是因为映射的数据不是像普通变量那样存储在内存中或通过函数参数传递。下面这个代码会报错：
+
+    ```solidity
+    // 错误示例：试图将映射作为函数参数或返回类型
+    function returnMapping(mapping(uint => address) memory someMapping) public pure returns (mapping(uint => address) memory) {
+        return someMapping; // 这是不允许的
+    }
+    ```
+  - **为什么映射不能作为 `public` 函数的参数或返回类型？**
+    - **映射记录的是一种关系**（键-值对），而不是单纯的值。当你试图传递或返回映射时，Solidity 无法有效处理这些键-值对的传递，因为映射依赖于区块链的存储结构，而不是内存或临时存储区域（如 `memory` 或 `calldata`）。
+    - **映射在内部通过哈希函数处理**：每个键会通过 `keccak256` 函数生成一个存储位置，并且映射并不存储完整的键或值的列表。因此，映射无法像数组那样直接作为函数的参数或返回值。
+- **规则3**：如果映射被声明为 `public`，Solidity 会自动生成一个 `getter` 函数，可以通过键来查询对应的值。正确用法如下：
+    ```solidity
+      pragma solidity ^0.8.0;
+
+      contract MappingExample {
+          // 映射必须是状态变量，存储在 storage 中
+          mapping(uint => address) public idToAddress;
+
+          // 函数可以修改映射，映射存储在 storage
+          function setAddress(uint _id, address _addr) public {
+              idToAddress[_id] = _addr; // 将 _id 对应的地址设置为 _addr
+          }
+
+          // 通过自动生成的 getter 函数来查询映射
+          function getAddress(uint _id) public view returns (address) {
+              return idToAddress[_id]; // 返回存储在映射中的地址
+          }
+      }
+    ```
+- **规则4**：添加键值对的语法为 `_Var[_Key] = _Value`。
+    - **例子**：
+        
+        ```solidity
+        function writeMap(uint _Key, address _Value) public {
+            idToAddress[_Key] = _Value; // 将地址 _Value 存储在 idToAddress 映射中
+        }
+        
+        ```
+##### 原理
+- **原理1**: 映射不储存任何键（`Key`）的信息，也没有 `length` 信息
+  - **为什么不存储键？** 映射是通过哈希（hashing）的方式来定位和存取键对应的值。也就是说，它不直接存储键，而是通过计算哈希值来找到存储的值。因此，映射的本质是键和值的关系，而不是键的存储。
+  - **映射 vs 数组**：映射是无序的，没有“长度”概念，无法直接遍历；而数组是有序的，可以通过索引查找特定位置的元素。
+- **原理2**：映射使用 `keccak256(abi.encodePacked(key, slot))` 来计算值的偏移量，其中 `slot` 是映射变量定义时的插槽位置。
+  1. **`key`（键）**：这是映射中的某个键，比如 `uint` 类型的 `1`。
+  2. **`slot`（插槽）**：这是映射变量在 Solidity 合约中的位置，类似于它在合约中的地址或索引。插槽是 Solidity 合约的状态变量存储结构中的位置，它唯一标识每个映射或变量的存储地址。
+  3. 通过 `keccak256(abi.encodePacked(key, slot))` 来计算具体的存储位置。这个哈希值就是键值对中的 `value` 的存储位置。
+- **原理3**：所有未赋值的键的初始值都是各自类型的默认值（例如，`uint` 的默认值是 0）。
+##### 示例代码
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract MappingExample {
+    // 声明一个映射
+    mapping(uint => address) public idToAddress;
+
+    // 写入映射
+    function writeMap(uint _key, address _value) public {
+        idToAddress[_key] = _value; // 将地址存入映射
+    }
+
+    // 查询映射
+    function readMap(uint _key) public view returns (address) {
+        return idToAddress[_key]; // 返回对应的地址
+    }
+}
+
+```
+
+### 2024.09.30
+#### WTF Academy Solidity 101.8 变量初始值
 
 <!-- Content_END -->
