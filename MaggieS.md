@@ -200,6 +200,46 @@ At that time, I will smile and say "hello web3",welcome to our world.
 
 This answer will be written again later after this bug has fixed.
 The most easist coding maybe not so easy, When I copied tutorial's example,it's correct,
-When I wrote by myself, it said there are errors, but I couldn't find they have any diffenence.
+When I wrote by myself, it said there are errors, but I couldn't distinguish they have any diffenence.
+
+Q2:
+How Does Solidity Work?
+
+1. Public and Private Functions
+In Solidity, functions are the building blocks of smart contracts.
+Some functions can be accessed from outside the contract (public),
+while others are only available within the contract (private).
+
+2. Standard and Code Logic
+Solidity follows a set of rules and logic similar to other programming languages.
+The behavior of a smart contract is determined by the functions and conditions defined in the code.
+
+3. Immutability
+Once deployed on the Ethereum blockchain, a smart contract becomes immutable,meaning its code and behavior cannot be changed.
+This ensures the contract’s transparency and security, as participants can trust that the contract will always function as intended.
+
+4. Gas Costs
+When interacting with smart contracts on Ethereum, users must pay for the computational power used during the execution of functions. This payment is done using “gas.” Each operation within the contract consumes a specific amount of gas and users need to provide enough gas to complete the transaction.
+
+5. Data Types
+Solidity has different types of data that can be used, such as numbers, addresses, true/false values, text, arrays, and more.
+
+6. Control Structures
+Solidity provides tools to control how the program behaves, such as conditional statements (if-else), loops (for, while), and switches.
+
+7. Modifiers
+Modifiers are like rules that we can apply to functions. They allow us to add extra checks or behaviors to functions.
+
+8. Events
+Events allow contracts to communicate with external applications. They are like messages that can be logged on the blockchain and listened to by other programs.
+
+### 2024.09.29
+
+Q1:
+
+Q2:
+
+
+
 
 <!-- Content_END -->
