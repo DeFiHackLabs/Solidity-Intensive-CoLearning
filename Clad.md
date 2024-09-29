@@ -332,7 +332,7 @@ function getString2(uint256 _number) public pure returns(string memory){
 學習內容  
 筆記:  
 
-#### receive, fallback
+#### 接收 ETH, receive, fallback
 - 目的, 1.接收 ETH 2.處理合約中不存在的函數調用
 - 觸發規則   
 ![image](https://github.com/user-attachments/assets/3dbf8f0a-2f3b-413f-b5e2-b9d0c437964d)
@@ -354,5 +354,59 @@ receive() external payable{
 fallback
 - 調用不存在的函數時會被觸發, 可用於接收 ETH, 也可用於代理合約 proxy contract
 - fallback() external payable{}
-   
+
+### 2024.09.29
+學習內容  
+筆記:  
+
+#### 發送 ETH, transfer(), send(), call()
+- call 推薦, 沒有 gas 限制
+- transfer, 有 2300 gas 限制, 發送失敗會自動 revert 交易
+- send 最不推薦, 有 2300 gas 限制, 發送失敗時不會自動 revert 交易
+
+```Solidity
+// 接收 ETH 合約
+contract ReceiveETH{
+   // 收到 eth 事件, 紀錄 amount, gas
+   event Log(uint amount, uint gas);
+
+   // 接收到 eth 時觸發
+   receive() external payable{
+      emit Log(msg.value, gasleft());
+   }
+
+   // return 合約的 eth 餘額
+   function getBalance() view public returns(uint){
+      return address(this).balance;
+   }
+}
+```
+
+```Solidity
+// 發送 eth合約
+contract snedETH{
+   construct() payable{}
+   receive() external payable{}
+}
+```
+
+```Solidity
+// 用 call 發送 eth 失敗 error
+error CallFailed();
+
+function callETH(address payable _to, uint256 amount) external payable{
+   (bool success, ) = _to.call{value: amount}("");
+   if(!success){
+      revert CallFailed();
+   }
+}
+```
+```Solidity
+// 用 transfer 發送 eth
+function transferETH(address payable _to, uint256 amount) external payable{
+   _to.transfer(amount);
+}
+
+```
+
 <!-- Content_END -->
