@@ -165,9 +165,21 @@ Just Like:
 
 ### 2024.09.28
 
+Actually, the function of Language is for communication, no matter the natural language or programming language. In other words, a technology is just a solution, and a solution is only as good as the problems, so we need to make sure we know the problem really well, so we know how to attack it with this smart contract technology.
+
+By the way, It’s a person who gives me huge passions to challenge solidity this time , she is a female security auditor. I remember what she said in a interview that before she intended the ZK audit competition she even never learn ZK language, she just use few days to familiar with ZK language, but she got the champion, soooo fantastic.
+
+I try to find the crucial reason in Step 2 which confusing me for a long time that why and how she could make done it. So it must be something more important than language itself, language is just a language. No one knows whether I will be the solidity auditor in the future. It's a black box, which is interesting. But I'm sure this is not the most important thing.
+
+I know what I’m appreciate and chase for, learning solidity is just a experience to understand something to serve my life goals. Solidity itself is not my goal.
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
 Why I missed mark yesterday? 
 I have written and commit the learning articles. 
 
 The Github had bugs? So sad.
+
+------------------------------------------------------------------------------------------------------------------------------------------
 
 <!-- Content_END -->
