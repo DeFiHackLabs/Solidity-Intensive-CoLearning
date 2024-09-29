@@ -637,7 +637,7 @@ function weeksUnit() external pure returns(uint) {
 
 
 
-### 2027.09.28
+### 2024.09.28
 
 #### 引用类型,array,struct
 
@@ -742,7 +742,7 @@ function initStudent1() external{
 
 
 
-
+### 2024.09.29
 
 
 
