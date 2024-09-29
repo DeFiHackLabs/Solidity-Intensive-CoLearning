@@ -342,7 +342,7 @@ contract TwoSum {
 }
 ```
 
-`twosum` 非常简单，真正写起来的时候才意识到 Solidity 和其他编程语言的差别， Solidity 的 mapping 不像正常的 hashmap 那样，它是不支持 =contains= 函数的，所以我只好用另外一个 mapping 来模拟 contains 的函数，但是这样又会增加存储的开销。
+`twosum` 非常简单，真正写起来的时候才意识到 Solidity 和其他编程语言的差别， Solidity 的 mapping 不像正常的 hashmap 那样，它是不支持 `contains 函数的，所以我只好用另外一个 mapping 来模拟 contains 的函数，但是这样又会增加存储的开销。
 
 顺便推荐个 web3 的 Leetcode，用 Solidity 来解决编程题：https://dapp-world.com
 
@@ -648,5 +648,45 @@ catch 语句可以用来匹配不同的错误类型，优先级从上到下，�
 前面两个 catch 语句就是用来捕获 Solidity 内置的 `Error` 和 `Panic` 类型，而 `catch(bytes memory lowLevelData)` 就比较有趣，有错误数据它能 catch 到，没有错误数据它也能 catch 到， `bytes memory` 就是用来获取底层错误信息，相当于是用来兜底的。
 
 所以想要 catch 住所有的错误，要不用 `catch {...}` (不指定错误类型)，要不用 `catch (byte memory lowLevelData) {...}` catch 底层错误信息.
+
+Solidity 101 课程到此结束, 耶.
+
+### 2024.09.30
+
+#### 16 Overloading
+
+函数重载的概念在C++ 和 Java 中都是非常常见且有用的功能的，可以编写多个同名但是函数签名不一样的参数。
+
+对于课程提到的实参匹配问题：
+
+```solidity
+function f(uint8 _in) public pure returns (uint8 out) {
+    out = _in;
+}
+
+function f(uint256 _in) public pure returns (uint256 out) {
+    out = _in;
+}
+```
+
+调用 `f(50)` 的确会报错，因为 `50` 既可以转换成 `uint8` 也可以转换成 `uint256`，解决方法就是显式给出类型，如`uint8 number = 50;`. 
+
+但是调用 `f(256)` 却不会报错，因为 `256` 只能转换 `uint256`, `uint8` 的最大值为 `255`.
+
+#### 17 Library
+
+就像所有的库一样，Solidity的库目标也是为了复用，定义一个库合约，然后被多个合约调用，减少代码冗余。
+
+而在Solidity，库合约其实可以看作是所有合约隐式的基类，库合约不会出现在继承链里面，但是调用库合约就好像调用基类的函数一样, 通过`L.f()` 这样的语法, 我个人是不太喜欢用 `using for`指令，太隐式了，涉及到钱的东西，还是显式调用好。
+
+而关于库合约限制，不能存储状态变量，不能继承或者被继承，以及不能接收Ether等，都是为了可以让库合约成为纯粹的库，避免引入状态导致问题。
+
+关于合约调用合约，有三个关键的底层函数，`CALL`, `DELEGATECALL`, `CALLCODE`(已废弃).
+
+`CALL` 是最常用的，用来调用其他合约的或者发送Ether的函数，当调用`CALL`的时候，他会创建自己的上下文；而 `DELEGATECALL` 和 `CALL` 类似，最大的差别是它可以保存合约调用者的状态，意味着它会使用调用方的状态，而非被调用方的状态。
+
+而调用库合约，用的就是`DELEGATECALL`.
+
+谈到库，另外一个绕不开的话题就是怎么引用第三方现成的库合约，这就需要包管理器(package manager), Java有Maven, Javascript 有NPM, Solidity 用啥呢? 下节分解.
 
 <!-- Content_END -->
