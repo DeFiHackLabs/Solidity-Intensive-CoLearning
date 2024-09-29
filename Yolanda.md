@@ -77,4 +77,9 @@ timezone: Asia/Shanghai
 -用類似函數的方式初始化一個結構體，用於整體賦值
 -用鍵值對(key-value pair)的形式構造結構體，並整體賦值
 
+### 2024.09.29
+1.映射(mapping)：在映射中，透過鍵(key)，查詢對應的值(value)
+2._KeyType只能選擇Solidity內置的值類型，uint、address
+3. _ValueType可以使用自定義類型
+
 <!-- Content_END -->
