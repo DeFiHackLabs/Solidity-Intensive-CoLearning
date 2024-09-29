@@ -393,6 +393,31 @@ IERC721函数
 - `setApprovalForAll`：将自己持有的NFT批量授权给某个地址。
 - `isApprovedForAll`：查询某地址的NFT是否已批量授权给另一个地址。
 - `safeTransferFrom`：带有额外`data`参数的安全转账函数。
+  
+### 2024.09.30
+
+Error
+`error` 是 Solidity 0.8.4 版本新加的内容，方便且高效（省 gas）地向用户解释操作失败的原因，同时还可以在抛出异常的同时携带参数
+
+Require
+`require` 命令是 Solidity 0.8 版本之前抛出异常的常用方法，目前很多主流合约仍然还在使用它。它很好用，唯一的缺点就是 gas 随着描述异常的字符串长度增加，比 `error` 命令要高。使用方法：`require(检查条件, "异常的描述")`，当检查条件不成立的时候，就会抛出异常。
+
+Assert
+`assert` 命令一般用于程序员写程序 debug，因为它不能解释抛出异常的原因（比 `require` 少个字符串）。它的用法很简单，`assert(检查条件)`，当检查条件不成立的时候，就会抛出异常。
+
+
+三种方法的 gas 比较
+我们比较一下三种抛出异常的 gas 消耗，通过 remix 控制台的 Debug 按钮，能查到每次函数调用的 gas 消耗分别如下：（使用 0.8.17 版本编译）
+
+- `error` 方法 gas 消耗：24457 (加入参数后 gas 消耗：24660)
+- `require` 方法 gas 消耗：24755
+- `assert` 方法 gas 消耗：24473
+
+我们可以看到，`error` 方法 gas 最少，其次是 `assert`，`require` 方法消耗 gas 最多！因此，`error` 既可以告知用户抛出异常的原因，又能省 gas
+
+备注: Solidity 0.8.0 之前的版本，`assert` 抛出的是一个 panic exception，会把剩余的 gas 全部消耗，不会返还。更多细节见官方文档。
+
+
 
 
 
