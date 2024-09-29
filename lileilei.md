@@ -571,6 +571,57 @@ call调用目标方法直接修改目标的方法的属性
 delegatecall 是A调用B资产执行c的代理方法，修改的B的属性值，这会B相当于目标方法，c成了代理方法。
 
 
+// SPDX-License-Identifier: MIT
+pragma solidity ~0.8.21;
 
+contract Pair{
+    address public factory;
+    address public token1;
+    address public token2;
+
+    constructor(){
+        factory = msg.sender;
+    }
+
+    function init(address _token1,address _token2) public{
+        require(factory == msg.sender);
+        token1 = _token1;
+        token2 = _token2;
+    }
+}
+
+
+contract pairFactory{
+
+    mapping(address=>mapping(address=>address)) public getPair;
+    address[] public allPair;
+    function createPair(address tokenA,address tokenB)public returns(address addPair) {
+        Pair pp  = new Pair();
+        pp.init(tokenA, tokenB);
+        addPair = address(pp); //生成一个当前初始化的地址 
+        allPair.push(addPair);
+        getPair[tokenA][tokenB] =  addPair; //修改map的key,value
+        getPair[tokenB][tokenA] = addPair;
+    }
+}
+
+
+contract pairCreate2{ 
+    mapping(address=>mapping(address=>address)) public getPair;
+    address[] public allPair;
+
+    function createPair2(address tokenA,address tokenB) public returns(address pairAdd){
+        //create2跟create不一样的地方是多了salt参数
+        (address token1,address token2) = tokenA>tokenB?(tokenB,tokenA):(tokenA,tokenB);
+        bytes32 salt = keccak256(abi.encodePacked(token1,token2));
+        Pair pp = new Pair{salt:salt}();
+        pp.init(tokenA,tokenB);
+        pairAdd = address(pp);
+        allPair.push(pairAdd);
+        getPair[tokenA][tokenB] = pairAdd;
+        getPair[tokenB][tokenA] = pairAdd;
+    }
+}
+create跟create2的区别就是create2需要salt
 
 <!-- Content_END -->
