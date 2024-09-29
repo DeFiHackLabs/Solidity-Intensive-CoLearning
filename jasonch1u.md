@@ -700,7 +700,7 @@ function allowance(address owner, address spender) public view virtual returns (
     return _allowances[owner][spender];
 }
 ```
-### 2020.09.29
+### 2024.09.29
 * 如何用foundryup在鍊上互動
 
 設定私鑰方式
