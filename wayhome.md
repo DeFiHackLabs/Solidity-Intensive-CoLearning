@@ -18,6 +18,9 @@ timezone: Asia/Shanghai
 
 <!-- Content_START -->
 
+### 2024.09.30
+- 完成 Solidity 102 的第 1-3 节
+
 ### 2024.09.29
 - 完成 Solidity 101 的14-15最后两章
   
