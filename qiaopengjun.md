@@ -317,15 +317,136 @@ error既可以告知用户抛出异常的原因，又能省gas。
 
 ### 2024.09.28
 
-笔记内容
+重载
+Solidity中允许函数进行重载（overloading），即名字相同但输入参数类型不同的函数可以同时存在，他们被视为不同的函数。注意，Solidity不允许修饰器（modifier）重载。
+重载函数在经过编译器编译后，由于不同的参数类型，都变成了不同的函数选择器（selector）。
+在调用重载函数时，会把输入的实际参数和函数参数的变量类型做匹配。 如果出现多个匹配的重载函数，则会报错。
+
+库合约是一种特殊的合约，为了提升Solidity代码的复用性和减少gas而存在。库合约是一系列的函数合集，由大神或者项目方创作，咱们站在巨人的肩膀上，会用就行了。
+他和普通合约主要有以下几点不同：
+
+不能存在状态变量
+不能够继承或被继承
+不能接收以太币
+不可以被销毁
+库合约中的函数可见性如果被设置为public或者external，则在调用函数时会触发一次delegatecall。而如果被设置为internal，则不会引起。对于设置为private可见性的函数来说，其仅能在库合约中可见，在其他合约中不可用。
+如何使用库合约
+1 利用using for指令
+指令using A for B;可用于附加库合约（从库 A）到任何类型（B）。添加完指令后，库A中的函数会自动添加为B类型变量的成员，可以直接调用。注意：在调用的时候，这个变量会被当作第一个参数传递给函数
+2 通过库合约名称调用函数
+常用的有：
+
+Strings：将uint256转换为String
+Address：判断某个地址是否为合约地址
+Create2：更安全的使用Create2 EVM opcode
+Arrays：跟数组相关的库合约
+
+import用法
+
+- 通过源文件相对位置导入
+- 通过源文件网址导入网上的合约的全局符号
+- 通过npm的目录导入
+- 通过指定全局符号导入合约特定的全局符号
+引用(import)在代码中的位置为：在声明版本号之后，在其余代码之前
+通过import关键字，可以引用我们写的其他文件中的合约或者函数，也可以直接导入别人写好的代码，非常方便。
 
 ### 2024.09.29
 
-笔记内容
+Solidity支持两种特殊的回调函数，receive()和fallback()，他们主要在两种情况下被使用：
+
+- 接收ETH
+- 处理合约中不存在的函数调用（代理合约proxy contract）
+  
+receive()函数是在合约收到ETH转账时被调用的函数。一个合约最多有一个receive()函数，声明方式与一般函数不一样，不需要function关键字：receive() external payable { ... }。receive()函数不能有任何的参数，不能返回任何值，必须包含external和payable。
+
+当合约接收ETH的时候，receive()会被触发。receive()最好不要执行太多的逻辑因为如果别人用send和transfer方法发送ETH的话，gas会限制在2300，receive()太复杂可能会触发Out of Gas报错；如果用call就可以自定义gas执行更复杂的逻辑
+
+fallback()函数会在调用合约不存在的函数时被触发。可用于接收ETH，也可以用于代理合约proxy contract。fallback()声明时不需要function关键字，必须由external修饰，一般也会用payable修饰，用于接收ETH:fallback() external payable { ... }。
+
+receive和fallback的区别
+receive和fallback都能够用于接收ETH，他们触发的规则如下：
+
+```javascript
+触发fallback() 还是 receive()?
+           接收ETH
+              |
+         msg.data是空？
+            /  \
+          是    否
+          /      \
+receive()存在?   fallback()
+        / \
+       是  否
+      /     \
+receive()   fallback()
+```
+
+简单来说，合约接收ETH时，msg.data为空且存在receive()时，会触发receive()；msg.data不为空或不存在receive()时，会触发fallback()，此时fallback()必须为payable。
+
+receive()和payable fallback()均不存在的时候，向合约直接发送ETH将会报错（你仍可以通过带有payable的函数向合约发送ETH）。
+receive()和fallback()，他们主要在两种情况下被使用，处理接收ETH和代理合约proxy contract。
+
+transfer()，send()和call()
+transfer
+用法是接收方地址.transfer(发送ETH数额)。
+transfer()的gas限制是2300，足够用于转账，但对方合约的fallback()或receive()函数不能实现太复杂的逻辑。
+transfer()如果转账失败，会自动revert（回滚交易）。
+send
+用法是接收方地址.send(发送ETH数额)。
+send()的gas限制是2300，足够用于转账，但对方合约的fallback()或receive()函数不能实现太复杂的逻辑。
+send()如果转账失败，不会revert。
+send()的返回值是bool，代表着转账成功或失败，需要额外代码处理一下。
+call
+用法是接收方地址.call{value: 发送ETH数额}("")。
+call()没有gas限制，可以支持对方合约fallback()或receive()函数实现复杂逻辑。
+call()如果转账失败，不会revert。
+call()的返回值是(bool, bytes)，其中bool代表着转账成功或失败，需要额外代码处理一下。
+
+call没有gas限制，最为灵活，是最提倡的方法；
+transfer有2300 gas限制，但是发送失败会自动revert交易，是次优选择；
+send有2300 gas限制，而且发送失败不会自动revert交易，几乎没有人用它。
+
+调用已部署合约
+
+1. 传入合约地址 OtherContract(_Address).setX(x);
+2. 传入合约变量 function callGetX(OtherContract _Address) external view returns(uint x){
+3. 创建合约变量 OtherContract oc = OtherContract(_Address);
+4. 调用合约并发送ETH
+如果目标合约的函数是payable的，那么我们可以通过调用它来给合约转账：_Name(_Address).f{value: _Value}()，其中_Name是合约名，_Address是合约地址，f是目标函数名，_Value是要转的ETH数额（以wei为单位）。
 
 ### 2024.09.30
 
-笔记内容
+call 是address类型的低级成员函数，它用来与其他合约交互。它的返回值为(bool, bytes memory)，分别对应call是否成功以及目标函数的返回值。
+
+call是Solidity官方推荐的通过触发fallback或receive函数发送ETH的方法。
+不推荐用call来调用另一个合约，因为当你调用不安全合约的函数时，你就把主动权交给了它。推荐的方法仍是声明合约变量后调用函数
+当我们不知道对方合约的源代码或ABI，就没法生成合约变量；这时，我们仍可以通过call调用对方合约的函数。
+目标合约地址.call(字节码);
+其中字节码利用结构化编码函数abi.encodeWithSignature获得：
+abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)
+函数签名为"函数名（逗号分隔的参数类型）"。例如abi.encodeWithSignature("f(uint256,address)", _x,_addr)。
+call在调用合约时可以指定交易发送的ETH数额和gas数额：
+目标合约地址.call{value:发送数额, gas:gas数额}(字节码);
+call不是调用合约的推荐方法，因为不安全。但他能让我们在不知道源代码和ABI的情况下调用目标合约，很有用。
+
+delegatecall与call类似，是Solidity中地址类型的低级成员函数。delegate中是委托/代表的意思
+目标合约地址.delegatecall(二进制编码);
+abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)
+和call不一样，delegatecall在调用合约时可以指定交易发送的gas，但不能指定发送的ETH数额
+注意：delegatecall有安全隐患，使用时要保证当前合约和目标合约的状态变量存储结构相同，并且目标合约安全，不然会造成资产损失。
+目前delegatecall主要有两个应用场景：
+
+1. 代理合约（Proxy Contract）：将智能合约的存储合约和逻辑合约分开：代理合约（Proxy Contract）存储所有相关的变量，并且保存逻辑合约的地址；所有函数存在逻辑合约（Logic Contract）里，通过delegatecall执行。当升级时，只需要将代理合约指向新的逻辑合约即可。
+
+2. EIP-2535 Diamonds（钻石）：钻石是一个支持构建可在生产中扩展的模块化智能合约系统的标准。钻石是具有多个实施合约的代理合约
+Solidity中的另一个低级函数delegatecall。与call类似，它可以用来调用其他合约；不同点在于运行的上下文，B call C，上下文为C；而B delegatecall C，上下文为B。目前delegatecall最大的应用是代理合约和EIP-2535 Diamonds（钻石）。
+
+当用户A通过合约B来delegatecall合约C时，执行了C的函数，语境是B，msg.sender和msg.value来自 A， 并且如果函数改变一些状态变量，产生的效果会作用于B的变量上
+在合约中创建新合约
+在以太坊链上，用户（外部账户，EOA）可以创建智能合约，智能合约同样也可以创建新的智能合约。去中心化交易所uniswap就是利用工厂合约（PairFactory）创建了无数个币对合约（Pair）。
+有两种方法可以在合约中创建新合约，create和create2
+create的用法很简单，就是new一个合约，并传入新合约构造函数所需的参数
+Contract x = new Contract{value: _value}(params)
 
 ### 2024.10.01
 

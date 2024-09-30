@@ -823,7 +823,7 @@ timezone: Asia/Shanghai
         | 推荐场景          | 简单的 ETH 发送             | 简单的 ETH 发送             | 复杂合约调用，推荐当前使用方式      |
 ###
 
-#### 2024.09.27
+### 2024.09.27
 
 学习内容:
 1. 第二十一
@@ -1036,6 +1036,375 @@ timezone: Asia/Shanghai
             }
         }
         ```
-
 ###
+
+### 2024.09.28
+
+学习内容:
+1. 第二十三讲
+    - `delegatecall` - 委托调用
+    - 语法形式: 
+        - `目标合约地址.delegatecall(二进制编码);`
+        - 二进制编码利用结构化编码函数`abi.encodeWithSignature`获得
+        - `abi.encodeWithSignature("函数签名", 逗号分隔的具体参数`
+    - `delegatecall` - 应用场景
+        - 代理合约（`Proxy Contract`）：将智能合约的存储合约和逻辑合约分开：代理合约（`Proxy Contract`）存储所有相关的变量，并且保存逻辑合约的地址；所有函数存在逻辑合约（`Logic Contract`）里，通过`delegatecall`执行。当升级时，只需要将代理合约指向新的逻辑合约即可。
+            - 代理合约示例
+                ```Solidity
+
+                // LogicContract (逻辑合约)
+                pragma solidity ^0.8.0;
+
+                contract LogicContract {
+                    uint public number;
+
+                    // 修改number的值
+                    function setNumber(uint _number) public {
+                        number = _number;
+                    }
+                }
+                ```
+                ```Solidity
+
+                // ProxyContract (代理合约)
+                pragma solidity ^0.8.0;
+
+                contract ProxyContract {
+                    uint public number;
+
+                    function setLogicNumber(address _logicContract, uint _number) public {
+                        // delegatecall 执行逻辑合约中的 setNumber 函数
+                        (bool success, ) = _logicContract.delegatecall(
+                            abi.encodeWithSignature("setNumber(uint256)", _number)
+                        );
+                        require(success, "delegatecall failed");
+                    }
+                }
+                ```
+            - 可升级代理合约示例
+                ```Solidity
+
+                // LogicContractV1.sol 逻辑合约 v1
+                pragma solidity ^0.8.0;
+
+                contract LogicContractV1 {
+                    uint public number;
+
+                    // 设置 number 的值
+                    function setNumber(uint _number) public {
+                        number = _number;
+                    }
+
+                    // 获取 number 的值，v1版本逻辑中直接返回数值
+                    function getNumber() public view returns (uint) {
+                        return number;
+                    }
+                }
+                ```
+
+                ```Solidity
+
+                // ProxyContract.sol 代理合约
+                pragma solidity ^0.8.0;
+
+                contract ProxyContract {
+                    // 保存逻辑合约的地址
+                    address public logicContract;
+                    address public owner;
+
+                    constructor(address _logicContract) {
+                        logicContract = _logicContract;
+                        owner = msg.sender;
+                    }
+
+                    // 修改逻辑合约地址
+                    function upgradeTo(address _newLogicContract) public {
+                        require(msg.sender == owner, "Only owner can upgrade");
+                        logicContract = _newLogicContract;
+                    }
+
+                    // fallback 函数：捕捉所有调用并转发给逻辑合约
+                    fallback() external payable {
+                        _delegate(logicContract);
+                    }
+
+                    function _delegate(address _logicContract) internal {
+                        // 使用代理合约的上下文调用逻辑合约
+                        (bool success, bytes memory returnData) = _logicContract.delegatecall(msg.data);
+                        require(success, "Delegatecall failed");
+                        assembly {
+                            return(add(returnData, 32), mload(returnData))
+                        }
+                    }
+                }
+                ```
+        - EIP-2535 Diamonds（钻石）：钻石是一个支持构建可在生产中扩展的模块化智能合约系统的标准。钻石是具有多个实施合约的代理合约。
+
+    - `delegatecall`的风险
+        - 存储冲突：由于 `delegatecall` 修改的是调用者的存储，因此，如果目标合约和调用者合约的存储布局不同，可能会导致意外的存储冲突和数据破坏。
+            - 例如，目标合约的第一个状态变量会覆盖调用者合约的第一个状态变量，因此需要小心管理存储布局。
+        - 安全问题：`delegatecall` 可以将外部代码引入当前合约的上下文，因此在调用不受信任的合约时需要特别小心，可能会造成安全漏洞。
+###
+
+### 2024.09.29
+
+学习内容:
+1. 第二十四讲
+    - `create` - 在合约中创建新合约，合约地址不可预测。
+
+    - 语法: `Contract x = new Contract{value: _value}(params)`
+
+        - `Contract`是要创建的合约名，`x`是合约对象（地址），如果构造函数是`payable`，可以创建时转入`_value`数量的`ETH`，`params`是新合约构造函数的参数。
+
+    - 实例
+
+        ```Solidity
+        contract Factory {
+            function createContract() public returns (address) {
+                // 创建并部署新的合约实例
+                MyContract newContract = new MyContract();
+                return address(newContract);
+            }
+        }
+
+        contract MyContract {
+            // 合约代码
+        }
+        ```
+
+2. 第二十五讲
+    - `CREATE2` - 在合约中创建新合约，合约地址可预测。
+
+    - `CREATE2`如何计算地址
+
+        - `0xFF`：常数，避免和CREATE冲突
+
+        - `CreatorAddress`: 调用 `CREATE2` 的当前合约（创建合约）地址。
+
+        - `salt（盐`）：创建者指定的`bytes32`类型的值，它的主要目的是用来影响新创建合约的地址。
+
+        - `initcode`: 新合约的初始字节码（合约的`Creation Code`和构造函数的参数）。
+
+            ```Solidity
+            新地址 = hash("0xFF",创建者地址, salt, initcode)
+            ```
+
+    - 语法: `Contract x = new Contract{salt: _salt, value: _value}(params)`
+
+        - 其中`Contract`是要创建的合约名，`x`是合约对象（地址），`_salt`是指定的盐；如果构造函数是`payable`，可以创建时转入`_value`数量的`ETH`，`params`是新合约构造函数的参数。
+
+    - 实例
+
+        ```Solidity
+
+        // SPDX-License-Identifier: MIT
+        pragma solidity ^0.8.0;
+
+        contract Factory {
+            event Deployed(address addr, uint256 salt);
+
+            // 使用 CREATE2 部署合约
+            function deploy(bytes32 salt) public {
+                SimpleStorage newContract = new SimpleStorage{salt: salt}();
+                emit Deployed(address(newContract), uint256(salt));
+            }
+
+            // 计算 CREATE2 部署合约的地址
+            function getAddress(bytes32 salt) public view returns (address) {
+                bytes memory bytecode = type(SimpleStorage).creationCode;
+                bytes32 hash = keccak256(abi.encodePacked(
+                    bytes1(0xff),
+                    address(this),
+                    salt,
+                    keccak256(bytecode)
+                ));
+                return address(uint160(uint(hash)));
+            }
+        }
+
+        contract SimpleStorage {
+            uint public data;
+
+            function set(uint _data) public {
+                data = _data;
+            }
+        }
+        ```
+
+3. 第二十六讲
+    - `selfdestruct` - 删除合约，在不同时期作用不同
+
+    - 在 [v0.8.18](https://soliditylang.org/blog/2023/02/01/solidity-0.8.18-release-announcement/) 版本中, `selfdestruct` 关键字被标记为「不再建议使用」，但使用此关键词可以删除合约。
+
+    - 在以太坊坎昆（Cancun）升级后，使用`selfdestruct`就无法直接删除合约了，而是将目标合约的ETH转移到其他钱包地址中。如果非要删除合约，那合约的创建和销毁必须要在同一笔交易中才行。
+
+    - 语法: `selfdestruct(_addr);` `_addr`是接收合约中剩余`ETH`的地址。`_addr` 不需要有`receive()`或`fallback()`也能接收`ETH`。
+
+    - 示例
+
+        - 坎昆升级之前，完成自毁并转移ETH
+
+            ```Solidity
+
+            // DeleteContract.sol
+            contract DeleteContract {
+
+                uint public value = 10;
+
+                constructor() payable {}
+
+                receive() external payable {}
+
+                function deleteContract() external {
+                    // 调用selfdestruct销毁合约，并把剩余的ETH转给msg.sender
+                    selfdestruct(payable(msg.sender));
+                }
+
+                function getBalance() external view returns(uint balance){
+                    balance = address(this).balance;
+                }
+            }
+            ```
+
+        - 坎昆升级之后，同笔交易内实现合约创建-自毁
+
+            ```Solidity
+            // SPDX-License-Identifier: MIT
+            pragma solidity ^0.8.21;
+
+            import "./DeleteContract.sol";
+
+            contract DeployContract {
+
+                struct DemoResult {
+                    address addr;
+                    uint balance;
+                    uint value;
+                }
+
+                constructor() payable {}
+
+                function getBalance() external view returns(uint balance){
+                    balance = address(this).balance;
+                }
+
+                function demo() public payable returns (DemoResult memory){
+                    DeleteContract del = new DeleteContract{value:msg.value}();
+                    DemoResult memory res = DemoResult({
+                        addr: address(del),
+                        balance: del.getBalance(),
+                        value: del.value()
+                    });
+                    del.deleteContract();
+                    return res;
+                }
+            } 
+            ```
+    - 注意事项
+
+        - 对外提供合约销毁接口时，最好设置为只有合约所有者可以调用，可以使用函数修饰符onlyOwner进行函数声明。
+
+        - 当合约中有selfdestruct功能时常常会带来安全问题和信任问题，合约中的selfdestruct功能会为攻击者打开攻击向量(例如使用selfdestruct向一个合约频繁转入token进行攻击，这将大大节省了GAS的费用，虽然很少人这么做)，此外，此功能还会降低用户对合约的信心。
+###
+
+### 2024.09.30
+
+学习内容:
+1. 第二十七讲
+    
+    - `ABI` (Application Binary Interface，应用二进制接口)是与以太坊智能合约交互的标准。数据基于他们的类型编码；并且由于编码后不包含类型信息，解码时需要注明它们的类型。
+    
+    - `ABI编码`函数
+
+            ```Solidity
+
+            // 编码示例数据
+            uint x = 10;
+            address addr = 0x7A58c0Be72BE218B41C608b7Fe7C5bB630736C71;
+            string name = "0xAA";
+            uint[2] array = [5, 6]; 
+            ```
+
+        - `abi.encode` - 将每个参数填充为`32字节`的数据，并拼接在一起，常用于智能合约交互
+
+            ```Solidity
+
+            function encode() public view returns(bytes memory result) {
+                result = abi.encode(x, addr, name, array);
+            }
+            // 编码结果 由于abi.encode将每个数据都填充为32字节，中间有很多0
+            // 0x000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000043078414100000000000000000000000000000000000000000000000000000000
+            ```
+
+        - `abi.encodePacked` - 将给定参数根据其所需最低空间编码。它类似 `abi.encode`，但是会把其中填充的很多`0`省略。比如，只用`1字节`来编码`uint8`类型。当你想省空间，并且不与合约交互的时候，可以使用`abi.encodePacked`，例如算一些数据的`hash`时。
+
+            ```Solidity
+
+            function encodePacked() public view returns(bytes memory result) {
+                result = abi.encodePacked(x, addr, name, array);
+            }
+            // 编码结果 由于abi.encodePacked对编码进行了压缩，长度比abi.encode短很多。
+            // 0x000000000000000000000000000000000000000000000000000000000000000a7a58c0be72be218b41c608b7fe7c5bb630736c713078414100000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000006
+            ```
+
+        - `abi.encodeWithSignature` - 与`abi.encode`功能类似，只不过第一个参数为函数签名，比如`"foo(uint256,address,string,uint256[2])"`。当调用其他合约的时候可以使用。
+
+            ```Solidity
+
+            function encodeWithSignature() public view returns(bytes memory result) {
+                result = abi.encodeWithSignature("foo(uint256,address,string,uint256[2])", x, addr, name, array);
+            }
+            // 编码结果 等同于在abi.encode编码结果前加上了4字节的函数选择器1。
+            // 0xe87082f1000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000043078414100000000000000000000000000000000000000000000000000000000
+            ```
+
+        - `abi.encodeWithSelector` - 与`abi.encodeWithSignature`功能类似，只不过第一个参数为函数选择器，为`函数签名Keccak哈希`的前4个字节。
+
+            ```Solidity
+
+            function encodeWithSelector() public view returns(bytes memory result) {
+                result = abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array);
+            }
+            // 编码结果 与abi.encodeWithSignature结果一样。
+            // 0xe87082f1000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000043078414100000000000000000000000000000000000000000000000000000000
+            ```
+
+    - `ABI解码`函数
+
+        - `abi.decode` - 用于解码`abi.encode`生成的`二进制编码`，将它还原成原本的参数。
+
+            ```Solidity
+
+            function decode(bytes memory data) public pure returns(uint dx, address daddr, string memory dname, uint[2] memory darray) {
+                (dx, daddr, dname, darray) = abi.decode(data, (uint, address, string, uint[2]));
+            }
+            ```
+    
+    - `ABI`的使用场景
+
+        - 配合`call`来实现对合约的底层调用
+
+        - 对于未开源的合约使用`abi.encodeWithSelector`对合约进行调用
+
+2. 第二十八讲
+
+    - `哈希函数`（hash function）是一个密码学概念，它可以将任意长度的消息转换为一个固定长度的值，这个值也称作哈希`（hash）`。
+
+    - `哈希`在`Solidity`的应用
+
+        - 利用`keccak256`来生成一些数据的唯一标识
+
+    - `SHA3`由`keccak`标准化而来，在很多场合下`Keccak`和`SHA3`是同义词, 但在2015年8月SHA3最终完成标准化时，NIST调整了填充算法，`所以`SHA3`就和`keccak`计算的结果不一样`, 所以在实际开发中建议直接使用`keccak256`。
+
+    - `keccak256` hash示例
+
+        ```Solidity
+
+        function hash(uint _num, string memory _string, address _addr) public pure returns (bytes32) {
+            
+            // 在进行hash运算之前，一般先用abi.encodePacked将数据编码(省gas)，再使用keccak256进行hash
+            return keccak256(abi.encodePacked(_num, _string, _addr));
+        }
+        ```
+##
 <!-- Content_END -->

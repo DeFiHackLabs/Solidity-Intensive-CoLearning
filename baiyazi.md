@@ -331,4 +331,94 @@ receive和fallback的区别
 
 4.调用合约并发送ETH
 
+### 2024.09.28
+
+**call：**
+
+`call` 是`address`类型的低级成员函数，它用来与其他合约交互。它的返回值为`(bool, bytes memory)`，分别对应`call`是否成功以及目标函数的返回值。
+
+`call`是`Solidity`官方推荐的通过触发`fallback`或`receive`函数发送`ETH`的方法。
+
+**delegatecall：**
+
+`delegatecall`与`call`类似，是`Solidity`中地址类型的低级成员函数。
+
+一个投资者（用户`A`）把他的资产（`B`合约的`状态变量`）都交给一个风险投资代理（`C`合约）来打理。执行的是风险投资代理的函数，但是改变的是资产的状态。
+
+目前`delegatecall`主要有两个应用场景：
+
+1.代理合约（`Proxy Contract`）：**将智能合约的存储合约和逻辑合约分开**：代理合约（`Proxy Contract`）存储所有相关的变量，并且保存逻辑合约的地址；所有函数存在逻辑合约（`Logic Contract`）里，通过`delegatecall`执行。当升级时，只需要将代理合约指向新的逻辑合约即可。
+
+2.EIP-2535 Diamonds（钻石）：钻石是一个支持构建可在生产中扩展的模块化智能合约系统的标准。钻石是具有多个实施合约的代理合约。
+
+两个合约变量存储布局必须相同
+
+B通过call来调用C的setVars()函数，将改变合约C里的状态变量
+
+B通过delegatecall来调用C的setVars()函数，将改变合约B里的状态变量
+
+### 2024.09.29
+
+在以太坊链上，用户（外部账户，`EOA`）可以创建智能合约，智能合约同样也可以创建新的智能合约。
+
+有两种方法可以在合约中创建新合约，`create`和`create2`
+
+`create`的用法很简单，就是`new`一个合约，并传入新合约构造函数所需的参数
+
+`CREATE2` 操作码使我们在智能合约部署在以太坊网络之前就能预测合约的地址
+
+`CREATE2`的用法和之前讲的`CREATE`类似，同样是`new`一个合约，并传入新合约构造函数所需的参数，只不过要多传一个`salt`参数
+
+#### 如果部署合约构造函数中存在参数
+
+计算时，需要将参数和initcode一起进行打包
+
+**create2的实际应用场景**
+
+1.交易所为新用户预留创建钱包合约地址。
+
+2.由 `CREATE2` 驱动的 `factory` 合约，在`Uniswap V2`中交易对的创建是在 `Factory`中调用`CREATE2`完成。这样做的好处是: 它可以得到一个确定的`pair`地址, 使得 `Router`中就可以通过 `(tokenA, tokenB)` 计算出`pair`地址, 不再需要执行一次 `Factory.getPair(tokenA, tokenB)` 的跨合约调用。
+
+**selfdestruct**
+
+`selfdestruct`命令可以用来删除智能合约，并将该合约剩余`ETH`转到指定地址。`selfdestruct`是为了应对合约出错的极端情况而设计的
+
+1.已经部署的合约无法被`SELFDESTRUCT`了。
+
+2.如果要使用原先的`SELFDESTRUCT`功能，必须在同一笔交易中创建并`SELFDESTRUCT`。
+
+**注意**
+
+1.对外提供合约销毁接口时，最好设置为只有合约所有者可以调用，可以使用函数修饰符`onlyOwner`进行函数声明。
+
+2.当合约中有`selfdestruct`功能时常常会带来安全问题和信任问题，合约中的selfdestruct功能会为攻击者打开攻击向量(例如使用`selfdestruct`向一个合约频繁转入token进行攻击，这将大大节省了GAS的费用，虽然很少人这么做)，此外，此功能还会降低用户对合约的信心。
+
+### 2024.09.30
+
+**ABI**是与以太坊智能合约交互的标准。数据基于他们的类型编码；并且由于编码后不包含类型信息，解码时需要注明它们的类型.
+
+`Solidity`中，`ABI编码`有4个函数：`abi.encode`, `abi.encodePacked`, `abi.encodeWithSignature`, `abi.encodeWithSelector`。而`ABI解码`有1个函数：`abi.decode`，用于解码`abi.encode`的数据。
+
+abi.encode
+
+将给定参数利用ABI规则编码。`ABI`被设计出来跟智能合约交互，他将每个参数填充为32字节的数据，并拼接在一起。如果要和合约交互，要用的就是`abi.encode`
+
+abi.encodePacked
+
+将给定参数根据其所需最低空间编码。它类似 `abi.encode`，但是会把其中填充的很多`0`省略。比如，只用1字节来编码`uint8`类型。当想省空间，并且不与合约交互的时候，可以使用`abi.encodePacked`
+
+abi.encodeWithSignature
+
+与`abi.encode`功能类似，只不过第一个参数为`函数签名`。当调用其他合约的时候可以使用。
+
+abi.encodeWithSignature
+
+与`abi.encodeWithSignature`功能类似，只不过第一个参数为`函数选择器`，为`函数签名`Keccak哈希的前4个字节。
+
+abi.decode
+
+`abi.decode`用于解码`abi.encode`生成的二进制编码，将它还原成原本的参数。
+
+`Keccak256`函数是`Solidity`中最常用的哈希函数
+
 <!-- Content_END -->

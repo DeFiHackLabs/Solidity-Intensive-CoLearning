@@ -115,5 +115,20 @@ storage（合约的状态变量）赋值给本地storage（函数里的）,memor
 -  Delegatecall
      - 而当用户A通过合约B来delegatecall合约C的时候，执行的是合约C的函数，但是上下文仍是合约B的：msg.sender是A的地址，并且如果函数改变一些状态变量，产生的效果会作用于合约B的变量上。
      - ![](https://images.mirror-media.xyz/publication-images/VgMR533pA8WYtE5Lr65mQ.png?height=698&width=1860) 
+ 
      - ![](https://images.mirror-media.xyz/publication-images/JucQiWVixdlmJl6zHjCSI.png?height=702&width=1862)
+### 2024.09.29
+- create & create2
+  - Contract x = new Contract{value: _value}(params) 
+      - Contract是要创建的合约名，x是合约对象（地址），如果构造函数是payable，可以创建时转入_value数量的ETH，params是新合约构造函数的参数。
+      - 新地址 = hash(创建者地址, nonce)
+- create2 
+      - CREATE2的目的是为了让合约地址独立于未来的事件。不管未来区块链上发生了什么，你都可以把合约部署在事先计算好的地址上。用CREATE2创建的合约地址由4个部分决定：
+
+        0xFF：一个常数，避免和CREATE冲突
+        CreatorAddress: 调用 CREATE2 的当前合约（创建合约）地址。
+        salt（盐）：一个创建者指定的bytes32类型的值，它的主要目的是用来影响新创建的合约的地址。
+        initcode: 新合约的初始字节码（合约的Creation Code和构造函数的参数）。
+    - 新地址 = hash("0xFF",创建者地址, salt, initcode)
+    - Contract x = new Contract{salt: _salt, value: _value}(params)
 <!-- Content_END -->

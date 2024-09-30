@@ -1066,4 +1066,277 @@ bytes array7;
 - 可以與陣列或 `mapping` 結合來管理多個實體。
 - 透過 `struct`，可以有效提高代碼的結構性和可讀性，讓智能合約的邏輯更清晰、易於維護。
 
+### 2024.09.28
+#### 映射
+
+映射（mapping）就是`key - value` 概念
+
+在 Solidity 中，參考型別（Reference Types）包括 `struct`、`array` 和 `mapping`
+
+### 映射的語法
+
+映射的基本語法如下：
+
+```solidity
+mapping(keyType => valueType) public myMapping;
+```
+
+- `keyType`: 映射的鍵的類型
+    - 是一種偏移量，必須是 Solidity 中的基礎型別（自定義的話Solidity不知道）
+    - 合法的 `keyType` 包括以下基礎型別：
+        - `uint` / `uint256`
+        - `int`
+        - `address`
+        - `bool`
+        - `bytes1` 到 `bytes32` （定長字節數組）
+    - **不能**使用複雜型別如 `struct` 或動態陣列作為鍵類型。
+    - 如果需要使用陣列或結構體作為鍵，可以先將其哈希處理，然後使用哈希值作為鍵來存取對應的值。
+- `valueType`: 映射的值的類型
+    - 可以是任何類型，包含基礎型別、結構體、甚至另一個映射。
+- mapping 只能存在`storage`，所以通常是狀態變量，不能作為函數參數或返回值。
+- 如果是`public`，會自動創建 `getter`，可根據 key 查詢 value
+
+### 映射的特性
+
+1. **默認值**：
+映射中的每個鍵在初始化之前都有一個默認值。當你查詢一個從未設定過的鍵時，映射會返回該值類型的默認值。例如，`uint` 的默認值是 `0`，`bool` 的默認值是 `false`，`address` 的默認值是 `0x0000000000000000000000000000000000000000`。
+    
+    範例：
+    
+    ```solidity
+    function getBalance(address _addr) public view returns (uint) {
+        return balances[_addr]; // 如果這個地址未被設定過，返回 0
+    }
+    ```
+    
+2. **無法遍歷**：
+Solidity 中的映射無法被遍歷，這是因為映射不會儲存鍵的清單，也無法得知有哪些鍵存在。因此，你無法列舉映射中所有的鍵值對。如果需要遍歷資料，通常會與陣列一起使用來記錄所有鍵。
+3. **只支持基礎型別作為鍵**：
+映射的鍵只能是 Solidity 支援的基礎型別，如 `address`、`uint`、`bytes32` 等，不能是動態陣列或 `struct`。
+4. **動態大小**：
+映射的大小是動態的，可以根據需要添加新的鍵值對。無需在初始化時指定映射的大小。
+5. **值可以是任何類型**：
+映射的值類型可以是任何類型，包括基礎型別、陣列、結構體，甚至是其他映射。
+
+### 映射的應用場景
+
+1. **管理用戶餘額**：
+映射常用於管理帳戶餘額。例如，可以用映射來儲存每個地址對應的代幣或資金餘額。
+    
+    ```solidity
+    contract ExampleContract {
+        // 錢包地址對應多少錢
+        mapping(address => uint) public balanceOf;
+    
+        // 給他錢
+        function mint() external{
+            balanceOf[msg.sender] = 50 ether;
+        }
+    
+        // 燒毀
+        function burn() external{
+            balanceOf[msg.sender] = 10 ether;
+        }
+    }
+    ```
+    
+    - deploy 起始值
+        
+        ![image](https://github.com/user-attachments/assets/d3beddc7-70fc-4b67-904d-b1f9e87a997d)
+
+        
+    - mint() 之後
+        
+        ![image](https://github.com/user-attachments/assets/12dd3ffb-10c9-48e2-8744-f184d7785905)
+
+        
+    - burn() 之後
+        
+        ![image](https://github.com/user-attachments/assets/bfe53d46-2777-4b0d-9472-d12d4d7bfae8)
+
+        
+2. **白名單（Whitelist）或黑名單（Blacklist）**：
+映射可以用來跟蹤某個地址是否在白名單或黑名單中。可以用布林值（`bool`）來標記某個地址是否被允許或禁止。
+    
+    ```solidity
+    mapping(address => bool) public whitelist;
+    
+    function addToWhitelist(address _addr) public {
+        whitelist[_addr] = true;
+    }
+    
+    function isWhitelisted(address _addr) public view returns (bool) {
+        return whitelist[_addr];
+    }
+    ```
+    
+3. **管理多重資料結構**：
+映射可以與結構體（`struct`）結合使用，來管理更複雜的資料。例如，可以建立一個 `struct`，然後將每個地址與該結構體關聯。
+    
+    範例：
+    
+    ```solidity
+    struct User {
+        string name;
+        uint age;
+    }
+    
+    mapping(address => User) public users;
+    
+    function setUser(address _addr, string memory _name, uint _age) public {
+        users[_addr] = User(_name, _age);
+    }
+    
+    function getUser(address _addr) public view returns (string memory, uint) {
+        User memory user = users[_addr];
+        return (user.name, user.age);
+    }
+    ```
+    
+4. **允許或拒絕操作權限**：
+映射可以用來跟蹤某些地址是否有權限執行某些操作，例如在某個合約中授權特定地址進行操作。
+    
+    ```solidity
+    mapping(address => bool) public authorized;
+    
+    function authorize(address _addr) public {
+        authorized[_addr] = true;
+    }
+    
+    function revoke(address _addr) public {
+        authorized[_addr] = false;
+    }
+    
+    function isAuthorized(address _addr) public view returns (bool) {
+        return authorized[_addr];
+    }
+    ```
+    
+
+### 映射的限制
+
+1. **無法遍歷**：
+如前所述，映射中的鍵不能被遍歷。因此，如果需要檢查所有的鍵值對，需要自己維護一個鍵的陣列來實現遍歷。
+    
+    ```solidity
+    address[] public keys;
+    
+    function addKey(address _key) public {
+        keys.push(_key);
+    }
+    
+    function getAllKeys() public view returns (address[] memory) {
+        return keys;
+    }
+    ```
+    
+2. **無法確定鍵是否存在**：
+    
+    ```solidity
+    mapping(address => bool) public whitelist;
+    
+    function isWhitelisted(address _addr) public view returns (bool) {
+        return whitelist[_addr]; // 如果地址未被設定，默認為 false
+    }
+    
+    ```
+    
+    - Solidity 無法直接判斷某個鍵是否存在於映射中。
+    - 當查詢一個不存在的鍵時，映射會返回默認值，而不是告知該鍵不存在。
+    - 因此，當值類型有明確的默認值時（如 `uint` 的默認值為 `0`），可能需要額外的邏輯來判斷一個鍵是否實際存在。
+
+### 2024.09.30
+#### 變量初始值
+### 前言
+
+- 在 Solidity 中，所有變量在宣告後，若未經過初始化，都會自動設置為對應型別的**默認初始值**。
+- 默認初始值是基於變量的資料型別來決定的。
+- 了解這些默認值以及 `delete` 關鍵字的作用非常重要，可以幫助在管理智能合約中的狀態變量時避免意外行為。
+
+### 變量的初始值
+
+每種類型的默認初始值如下：
+
+- **`uint` 和 `int`**（無符號與有符號整數）：默認值為 `0`。
+- **`bool`**（布林型）：默認值為 `false`。
+- **`address`**（地址型）：默認值為 `0x0000000000000000000000000000000000000000` （0x + 40個0）。
+- **`bytes`（定長字節）**：默認為 `0x0000...`，填滿零。
+- **`mapping`**：映射中的每個鍵在初始時對應的值是其值類型的默認值（例如，`mapping(address => uint)` 中每個地址對應的值初始為 `0`）。
+- **`array`（陣列）**：動態陣列的長度默認為 `0`。定長陣列的每個元素為其類型的默認值。
+- **`struct`（結構體）**：結構體中的每個成員變數會被初始化為其型別的默認值。
+
+```solidity
+contract ExampleContract {
+    // Value Type
+    bool public _bool; // false
+    string public _string; // ""
+    int public _int; // 0
+    uint public _uint; // 0
+    address public _address; // 0x0000000000000000000000000000000000000000
+
+    enum ActionSet { Buy, Hold, Sell}
+    ActionSet public _enum; // 第1個Buy的索引0
+
+    function fi() internal{} // internal空白函数
+    function fe() external{} // external空白函数
+}
+```
+
+![image](https://github.com/user-attachments/assets/0f6fe1cb-3ee7-4b4c-9d94-7be40631fbd1)
+
+
+```solidity
+   	// Reference Types
+    uint[8] public _staticArray; // [0,0,0,0,0,0,0,0]
+    uint[] public _dynamicArray; // `[]`
+    mapping(uint => address) public _mapping; // 所有元素都為其默認值的mapping
+    
+    // 所有成員設為其默認值的結構體 0, 0
+    struct Student{
+        uint256 id;
+        uint256 score; 
+    }
+    Student public student;
+```
+
+![image](https://github.com/user-attachments/assets/98a38a9f-7498-47b0-8fde-319f7bf54983)
+
+
+### `delete` 關鍵字
+
+- 將變量重置為其默認初始值的操作。
+- 它可以用來重置任何變量，無論是基礎型別（例如 `uint`、`bool` 等），還是複合型別（例如陣列、結構體或映射中的特定鍵值）。
+- 範例：
+    
+    ```solidity
+    contract ExampleContract {
+        struct Person {
+            string name;
+            uint age;
+        }
+    
+        Person public person = Person("Alice", 30);
+    
+        function resetPerson() public {
+            delete person;  // 重置 person 的 name 為空字串，age 為 0
+        }
+    }
+    ```
+    
+    - deploy 起始值
+        
+        ![image](https://github.com/user-attachments/assets/7377d599-430a-439f-af0c-cb6d891b7303)
+
+        
+    - delete 後
+        
+        ![image](https://github.com/user-attachments/assets/95e42f8d-e735-4b43-aef1-2b7d70c05eeb)
+
+        
+
+### `delete` 的作用
+
+- **對基礎型別**：將變量設置為其型別的默認初始值。例如，對 `uint` 使用 `delete`，會將其重置為 `0`；對 `bool` 使用 `delete`，會將其設置為 `false`。
+- **對引用型別（陣列、映射等）**：`delete` 將引用型別的內容重置為初始狀態，例如清空陣列、刪除映射中的特定鍵值等。
+
 <!-- Content_END -->

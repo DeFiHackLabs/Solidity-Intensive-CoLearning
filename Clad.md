@@ -327,5 +327,94 @@ function getString2(uint256 _number) public pure returns(string memory){
 2. 通過全局符號, 引用指定的合約
 3. 通過網址引用
 4. 引用 OpenZeppelin 合約
-   
+
+### 2024.09.28
+學習內容  
+筆記:  
+
+#### 接收 ETH, receive, fallback
+- 目的, 1.接收 ETH 2.處理合約中不存在的函數調用
+- 觸發規則   
+![image](https://github.com/user-attachments/assets/3dbf8f0a-2f3b-413f-b5e2-b9d0c437964d)
+
+
+receive
+- 當合約收到 ETH 轉帳時, receive() 會被觸發
+- 一個合約最多只有一個 receive()
+- receive() external payable{}, receive() 不能有參數, 不能返回值, 要包含 external 和 payable
+
+```Solidity
+// 定義事件
+event Received(address sender, uint Value);
+// 接收 ETH 時釋放 Received 事件
+receive() external payable{
+   emit Received(msg.semder, msg.value);
+}
+```
+fallback
+- 調用不存在的函數時會被觸發, 可用於接收 ETH, 也可用於代理合約 proxy contract
+- fallback() external payable{}
+
+### 2024.09.29
+學習內容  
+筆記:  
+
+#### 發送 ETH, transfer(), send(), call()
+- call 推薦, 沒有 gas 限制
+- transfer, 有 2300 gas 限制, 發送失敗會自動 revert 交易
+- send 最不推薦, 有 2300 gas 限制, 發送失敗時不會自動 revert 交易
+
+假設一個接收 ETH 合約
+```Solidity
+contract ReceiveETH{
+   // 收到 eth 事件, 紀錄 amount, gas
+   event Log(uint amount, uint gas);
+
+   // 接收到 eth 時觸發
+   receive() external payable{
+      emit Log(msg.value, gasleft());
+   }
+
+   // return 合約的 eth 餘額
+   function getBalance() view public returns(uint){
+      return address(this).balance;
+   }
+}
+```
+
+發送 eth 合約
+```Solidity
+contract snedETH{
+   // 構造函數, 部屬時候可以轉 eth 進去
+   construct() payable{}
+   // receice, 接收 eth 時被觸發
+   receive() external payable{}
+}
+```
+
+transfer  
+- 接收方的地址.transfer(發送數量)
+```Solidity
+// 用 transfer 發送 eth
+function transferETH(address payable _to, uint256 amount) external payable{
+   _to.transfer(amount);
+}
+```
+
+call  
+- 接收方地址.call{value: 發送數量}("")
+- call() 會返回 (bool, bytes), 其中 bool 代表轉帳成功或失敗, 需要額外程式碼處理
+```Solidity
+// 用 call 發送 eth 失敗 error
+error CallFailed();
+
+function callETH(address payable _to, uint256 amount) external payable{
+   (bool success, ) = _to.call{value: amount}("");
+   if(!success){
+      revert CallFailed();
+   }
+}
+```
+
+
 <!-- Content_END -->

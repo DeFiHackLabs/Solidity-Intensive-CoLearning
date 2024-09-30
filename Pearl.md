@@ -648,4 +648,133 @@ contract structType{
        }
    }
    ```
+
+###  2024.09.29
+09.28內容不見了，重打一遍。
+
+**抽象合约**
+   * 如果一个智能合约里至少有一个未实现的函数，即某个函数缺少主体{}中的内容，则必须将该合约标为`abstract`。
+   * 未实现的函数需要加`virtual`，以便子合约重写。
+   ```Solidity
+   abstract contract InsertionSort{
+       function insertionSort(uint[] memory a) public pure virtual returns(uint[] memory);
+   }
+   ```
+
+**接口**
+   * 类似于抽象合约，但它不实现任何功能。
+   * 接口的规则：
+     1. 不能包含状态变量。
+     2. 不能包含构造函数。
+     3. 不能继承除接口外的其他合约。
+     4. 所有函数都必须是external且不能有函数体。
+     5. 继承接口的非抽象合约必须实现接口定义的所有功能。
+   * 接口是智能合约的骨架，定义了合约的功能以及如何触发它们。
+   * 如果智能合约实现了某种接口（比如`ERC20`或`ERC721`），其他Dapps和智能合约就知道如何与它交互。因为接口提供了两个重要的信息：
+     1. 合约里每个函数的`bytes4`选择器，以及函数签名`函数名(每个参数类型）`。
+     2. 接口id。
+   * 接口与合约`ABI`（Application Binary Interface）等价，可以相互转换。
+   * 编译接口可以得到合约的`ABI`，利用abi-to-sol工具，也可以将`ABI json`文件转换为接口`sol`文件。
+   ```Solidity
+   interface IERC721 is IERC165 {
+       event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+       event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
+       event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
+       
+       function balanceOf(address owner) external view returns (uint256 balance);
+   
+       function ownerOf(uint256 tokenId) external view returns (address owner);
+   
+       function safeTransferFrom(address from, address to, uint256 tokenId) external;
+   
+       function transferFrom(address from, address to, uint256 tokenId) external;
+   
+       function approve(address to, uint256 tokenId) external;
+   
+       function getApproved(uint256 tokenId) external view returns (address operator);
+   
+       function setApprovalForAll(address operator, bool _approved) external;
+   
+       function isApprovedForAll(address owner, address operator) external view returns (bool);
+   
+       function safeTransferFrom( address from, address to, uint256 tokenId, bytes calldata data) external;
+   }
+   ```
+   * 我们可以看到，接口和常规合约的区别在于每个函数都以`;`代替函数体`{ }`结尾。
+   
+**IERC721事件**
+   
+   `IERC721`包含3个事件，其中`Transfer`和`Approval`事件在`ERC20`中也有。
+   1. `Transfer`事件：在转账时被释放，记录代币的发出地址`from`，接收地址`to`和`tokenId`。
+   2. `Approval`事件：在授权时被释放，记录授权地址`owner`，被授权地址`approved`和`tokenId`。
+   3. `ApprovalForAll`事件：在批量授权时被释放，记录批量授权的发出地址`owner`，被授权地址`operator`和授权与否的`approved`。
+        
+**IERC721函数**
+   1. `balanceOf`：返回某地址的NFT持有量`balance`。
+   2. `ownerOf`：返回某`tokenId`的主人`owner`。
+   3. `transferFrom`：普通转账，参数为转出地址`from`，接收地址`to`和`tokenId`。
+   4. `safeTransferFrom`：安全转账（如果接收方是合约地址，会要求实现`ERC721Receiver`接口）。参数为转出地址`from`，接收地址`to`和`tokenId`。
+   5. `approve`：授权另一个地址使用你的NFT。参数为被授权地址`approve`和`tokenId`。
+   6. `getApproved`：查询`tokenId`被批准给了哪个地址。
+   7. `setApprovalForAll`：将自己持有的该系列NFT批量授权给某个地址`operator`。
+   8. `isApprovedForAll`：查询某地址的NFT是否批量授权给了另一个`operator`地址。
+   9. `safeTransferFrom`：安全转账的重载函数，参数里面包含了`data`。
+      
+**什么时候使用接口？**
+   * 一个合约实现了`IERC721`接口，我们不需要知道它具体代码实现，就可以与它交互。
+   ```Solidity
+    contract interactBAYC {
+       // 利用BAYC地址创建接口合约变量（ETH主网）
+       IERC721 BAYC = IERC721(0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D);
+   
+       // 通过接口调用BAYC的balanceOf()查询持仓量
+       function balanceOfBAYC(address owner) external view returns (uint256 balance){
+           return BAYC.balanceOf(owner);
+       }
+   
+       // 通过接口调用BAYC的safeTransferFrom()安全转账
+       function safeTransferFromBAYC(address from, address to, uint256 tokenId) external{
+           BAYC.safeTransferFrom(from, to, tokenId);
+       }
+   }
+   ```
+
+**异常**
+   * 检查条件不成立的时候，就会抛出异常。
+   * Error
+      *  方便且高效（省`gas`）地向用户解释操作失败的原因
+      *  抛出异常的同时可携带参数
+      *  可以在`contract`之外定义异常
+      ```Solidity
+        error TransferNotOwner(); // 自定义error
+        error TransferNotOwner(address sender); // 自定义的带参数的error
+     
+        function transferOwner1(uint256 tokenId, address newOwner) public {
+          if(_owners[tokenId] != msg.sender){
+              revert TransferNotOwner();
+              // revert TransferNotOwner(msg.sender);
+          }
+          _owners[tokenId] = newOwner;
+        }
+      ```
+      * `error`必须搭配`revert`（回退）命令使用。
+   * Require
+      * 唯一的缺点就是`gas`随着描述异常的字符串长度增加，比`error`命令要高。
+      * 使用方法：`require(检查条件，"异常的描述")`
+      ```Solidity
+      function transferOwner2(uint256 tokenId, address newOwner) public {
+          require(_owners[tokenId] == msg.sender, "Transfer Not Owner");
+          _owners[tokenId] = newOwner;
+      }
+      ```
+   * Assert
+      * 一般用于程序员写程序`debug`
+      * 不能解释抛出异常的原因（比`require`少个字符串）
+      * 使用方法：`assert(检查条件）`
+      ```Solidity
+      function transferOwner3(uint256 tokenId, address newOwner) public {
+          assert(_owners[tokenId] == msg.sender);
+          _owners[tokenId] = newOwner;
+      }
+      ```
 <!-- Content_END -->

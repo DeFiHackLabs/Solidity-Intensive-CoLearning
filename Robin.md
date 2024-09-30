@@ -409,7 +409,143 @@ contract MyContract{
 }
 
 ```
+### 2024.09.28
 
+學習內容:
+
+- [x] 事件
+    - event 关键字申明事件  emit关键字发送事件
+    - EVM使用Log来存储事件。
+        - 每条日志包含 topics和data两部分。topics是一个最大长度为4的数组，第一个元素存储事件签名，后面三个可用于存储indexed索引。所以事件的索引最多三个
+        - data存储复杂数据，消耗的gas比topics小。
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract eventContract{
+    event CustomerEvent(address indexed from,string message);
+
+    function emitEventFunction(string memory message) external {
+        emit CustomerEvent(msg.sender, message);
+    }
+}
+```
+
+### 2024.09.29
+
+學習內容:
+
+- [x] 继承
+    - 简单继承 is 关键字
+    - 多继承 逗号分隔多个父合约 顺序：辈分越高越靠前
+    - 修饰器也能继承
+    - 钻石继承中super调用函数顺序
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+// 声明一个动物合约，所有动物都应该有自己的名字，并且能发出声音
+contract Animal{
+
+    event SPEAK_EVENT(address indexed from, string message);
+
+    string public name;
+
+    constructor(string memory _name){
+        name = _name;
+    }
+
+    function speak(string calldata message) public  virtual {
+        emit SPEAK_EVENT(msg.sender, message);
+    }
+}
+
+// 声明一个人类合约，继承动物并能够跑步
+contract Human is Animal{
+
+    event RUN_EVENT(address indexed runner);
+
+    constructor(string memory _name) Animal(_name){
+
+    }
+
+    function speak(string calldata message) public virtual override {
+        emit SPEAK_EVENT(msg.sender, string(abi.encodePacked("my name is ",name," : ",message)));
+    }
+
+    function _run() internal virtual {
+        emit RUN_EVENT(msg.sender);
+    }
+
+    // 摸鱼
+    function _touchFish() internal virtual {
+
+    }
+}
+
+// 工作
+contract Work{
+    event WORK_EVENT(address from, string produce);
+    // 打黑工
+    function _workHard() internal virtual {
+        emit WORK_EVENT(msg.sender, "work work hard");
+    }
+
+    // 摸鱼
+    function _touchFish() internal virtual {
+
+    }
+}
+
+
+// 牛马
+contract Joker is Human,Work{
+    constructor(string  memory _name) Human(_name) Work(){
+
+    }
+
+    // 打黑工
+    function workHard() external {
+        super._workHard();
+        _touchFish();
+    }
+
+    function run() external   {
+        super._run();
+    }
+
+    // 摸鱼
+    function _touchFish() internal override(Human,Work)  {
+        emit WORK_EVENT(msg.sender, "lalalalalala...");
+    }
+}
+
+```
+
+### 2024.09.28
+
+學習內容:
+
+- [x] 事件
+   - event 关键字申明事件  emit关键字发送事件
+   - EVM使用Log来存储事件。
+       - 每条日志包含 topics和data两部分。topics是一个最大长度为4的数组，第一个元素存储事件签名，后面三个可用于存储indexed索引。所以事件的索引最多三个
+       - data存储复杂数据，消耗的gas比topics小。
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract eventContract{
+    event CustomerEvent(address indexed from,string message);
+
+    function emitEventFunction(string memory message) external {
+        emit CustomerEvent(msg.sender, message);
+    }
+}
+```
 
 
 <!-- Content_END -->

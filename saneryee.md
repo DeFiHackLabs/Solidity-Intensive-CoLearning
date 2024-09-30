@@ -50,6 +50,75 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 ## Notes
 
 <!-- Content_START -->
+### 2024.09.30
+
+Day 6
+
+WTF Academy Solidity 101 24-26
+
+- `Create2` is used more often than `Create`.
+
+Opinion of `SELFDESTRUCT` change after Cancun Update
+
+- `SELFDESTRUCT` was initially designed as a safety measure for emergency situations.
+- As the ecosystem evolved, `SELFDESTRUCT` began to pose potential systemic risks.
+- With increasing interdependence among contracts, the destruction of a single contract could potendially impact the entire eco.
+- In most emergency situations, the primary concern is fund security.
+- Simply transferring funds is often sufficient to mitigate risks, without the need to completely destroy the contract.
+- The recent update represents a refinement of the `SELFDESTRUCT` functionality, striking a balance between risk migitgation and practical utility.
+
+
+### 2024.09.28
+Day 5
+WTF Academy Solidity 101 20-23
+
+20. Sending ETH
+
+      Recommended:
+
+      - Usage: `receiverAddress.call{value: value in Wei}("")`.
+      
+      Other:
+
+      - Usage: `receiverAddress.send(value in Wei)`.
+      - Usage: `receiverAddress.transfer(value in Wei)`.
+
+21. Interact with other Contract
+    
+    ```solidity
+       // 1. Pass the contract address
+       function callSetX(address _Address, uint256 x) external {
+            OtherContract(_Address).setX(x);
+       }
+
+       // 2. Pass the contract variable
+       function callGetX(OtherContract _Address) external view returns(uint x){
+            x = Address.getX();
+       }
+
+       // 3. Creat contract variable
+       function callGetX2(address _Address) external view returns(uint x){
+            OtherContract oc = OtherContract(_Address);
+            x = oc.getX();
+       }
+
+       // 4. Interact with the contract and send `ETH`
+       function setXTransferETH(address otherContract, uint256 x) payable external{
+            OtherContract(otherContract).setX{value: msg.value}(x)
+       }
+    ```
+22. Call
+
+   - Recommend: Sending ETH  `receiverAddress.call{value: value in Wei}("")`. 
+   - Not Recommend: Call other contract.
+
+23. Delegatecall
+    
+    - Proxy Contract
+    - EIP-2535 Diamond
+
+---
+
 ### 2024.09.27
 Day 5
 WTF Academy Solidity 101 16-19

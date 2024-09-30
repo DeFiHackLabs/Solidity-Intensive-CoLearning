@@ -185,9 +185,157 @@ student = Student({id: 4, score: 60});
 
 ### 2024.09.28
 
+#### 映射 (Mapping)
+在 Solidity 中，映射 (Mapping) 是一種資料結構，可以通過鍵（Key）查詢對應的值（Value）。例如，可以通過一個人的 ID 查詢他的钱包地址。
+
+#### 映射聲明格式
+```solidity
+mapping(_KeyType => _ValueType)
+```
+_KeyType 和 _ValueType 分別代表鍵和值的變量類型。
+
+```solidity
+mapping(uint => address) public idToAddress; // ID 映射到地址
+mapping(address => address) public swapPair; // 幣對的映射，地址到地址
+```
+#### 映射的規則
+- 鍵類型限制：映射的 _KeyType 只能是 Solidity 內置的值類型，如 uint、address 等，不能使用自定義的結構體。
+
+- 錯誤範例：
+```solidity
+struct Student {
+    uint256 id;
+    uint256 score; 
+}
+mapping(Student => uint) public testVar; // 錯誤，因為 _KeyType 是自定義結構體
+```
+- 存儲位置限制：映射的存儲位置必須是 storage，因此可以用於合約的狀態變量、函數中的 storage 變量和 library 函數的參數中。
+- 自動生成 Getter 函數：如果映射聲明為 public，Solidity 會自動生成一個 getter 函數，可以通過鍵來查詢對應的值。
+
+#### 新增鍵值對的語法：
+```solidity
+_Var[_Key] = _Value;
+```
+_Var 是映射變量名，_Key 和 _Value 對應新增的鍵值對。
+
+```solidity
+function writeMap(uint _Key, address _Value) public {
+    idToAddress[_Key] = _Value;
+}
+```
+#### 映射的原理
+- 不儲存鍵的資訊：映射不儲存任何鍵的資訊，也沒有長度資訊。
+- 存取方式：映射使用 keccak256(abi.encodePacked(key, slot)) 作為偏移量來存取值，其中 slot 是映射變量所在的插槽位置。
+- 默認值：未賦值的鍵初始值都是該類型的默認值，例如 uint 的默認值是 0。
+
 ### 2024.09.29
 
+#### 08_InitialValue
+
+##### 變量初始值
+在 Solidity 中，宣告但未賦值的變量會有其初始值或預設值
+
+#### 值類型初始值
+- **boolean**: `false`
+- **string**: `""`
+- **int**: `0`
+- **uint**: `0`
+- **enum**: 枚舉中的第一個元素
+- **address**: `0x0000000000000000000000000000000000000000`（或 `address(0)`）
+- **function**
+  - **internal**: 空白函數
+  - **external**: 空白函數
+
+#### 範例驗證初始值：
+```solidity
+bool public _bool; // false
+string public _string; // ""
+int public _int; // 0
+uint public _uint; // 0
+address public _address; // 0x0000000000000000000000000000000000000000
+enum ActionSet { Buy, Hold, Sell }
+ActionSet public _enum; // 第1個內容Buy的索引0
+
+function fi() internal {} // internal空白函數
+function fe() external {} // external空白函數
+```
+#### 引用類型初始值
+- 映射 (mapping): 所有元素為其預設值的 mapping。
+- 結構體 (struct): 所有成員設為其預設值的結構體。
+- 數組 (array):
+- 動態數組: []
+- 靜態數組（定長）: 所有成員設為其預設值的靜態數組。
+
+#### 範例驗證初始值
+```solidity
+// Reference Types
+uint[8] public _staticArray; // 所有成員設為其預設值的靜態數組 [0,0,0,0,0,0,0,0]
+uint[] public _dynamicArray; // []
+mapping(uint => address) public _mapping; // 所有元素都為其預設值的 mapping
+// 結構體，所有成員設為預設值 0, 0
+struct Student {
+    uint256 id;
+    uint256 score;
+}
+Student public student;
+```
+
+- delete 操作符
+delete a 會將變量 a 的值重設為初始值。
+```solidity
+bool public _bool2 = true;
+function d() external {
+    delete _bool2; // delete 會將 _bool2 重設為預設值 false
+}
+```
+
 ### 2024.09.30
+
+#### 09_Constant
+
+- Solidity 中兩個與常量相關的關鍵字：`constant`（常量）和 `immutable`（不變量）
+- 當狀態變量聲明了這兩個關鍵字後，初始化後便不能更改數值，這樣可以提升合約的安全性並節省 gas。
+
+##### constant 和 immutable 的區別
+- **constant**：必須在聲明時初始化，之後無法再更改值。
+- **immutable**：可以在聲明時或透過構造函數（constructor）初始化，初始化後也不能更改值，比 `constant` 更靈活。
+
+##### constant
+- **constant** 變量需要在聲明的同時初始化，之後無法再更改。
+```solidity
+// constant 變量在聲明時初始化，之後不能更改
+uint256 constant CONSTANT_NUM = 10;
+string constant CONSTANT_STRING = "0xAA";
+bytes constant CONSTANT_BYTES = "WTF";
+address constant CONSTANT_ADDRESS = 0x0000000000000000000000000000000000000000;
+```
+##### immutable
+immutable 變量可以在聲明時或構造函數中初始化。
+自 Solidity v8.0.21 之後，immutable 變量不需要顯式初始化，未初始化的 immutable 變量將使用數值類型的初始值。
+若在聲明時和構造函數中都進行初始化，會以構造函數中的值為準。
+```solidity
+// immutable 變量可在構造函數中初始化，之後不能更改
+uint256 public immutable IMMUTABLE_NUM = 9999999999;
+address public immutable IMMUTABLE_ADDRESS;
+uint256 public immutable IMMUTABLE_BLOCK;
+uint256 public immutable IMMUTABLE_TEST;
+```
+```solidity
+constructor() {
+    IMMUTABLE_ADDRESS = address(this);
+    IMMUTABLE_NUM = 1118;
+    IMMUTABLE_TEST = test();
+}
+```
+```solidity
+function test() public pure returns (uint256) {
+    return 9;
+}
+```
+
+- 使用 Remix 上的 getter 函數檢視 constant 和 immutable 變量的初始化值。
+嘗試更改 constant 變量的值會導致編譯失敗，並拋出錯誤：TypeError: Cannot assign to a constant variable.
+嘗試更改 immutable 變量的值也會導致編譯失敗，並拋出錯誤：TypeError: Immutable state variable already initialized.
 
 ### 2024.10.01
 
