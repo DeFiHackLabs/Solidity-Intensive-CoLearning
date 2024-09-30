@@ -36,9 +36,9 @@ WTF103章节内容：ERC20、代币水龙头
     
 - 相关代码：
 
-    https://github.com/eddiehsu66/SolidityCase/tree/main/ERC20
+    [erc20](https://github.com/eddiehsu66/SolidityCase/tree/main/ERC20)
 
-    https://github.com/eddiehsu66/SolidityCase/tree/main/TokenFaucet
+    [tokenFaucet](https://github.com/eddiehsu66/SolidityCase/tree/main/TokenFaucet)
 
 ### 2024.09.29
 
