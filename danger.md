@@ -230,6 +230,36 @@ Solidity 支持使用解构式赋值规则来读取函数的全部或部分返�
 
 变量数据存储和作用域 storage/memory/calldata
 
+引用类型(Reference Type)：包括数组（array）和结构体（struct），由于这类变量比较复杂，占用存储空间大，我们在使用时必须要声明数据存储的位置。
+
+数据位置
+
+Solidity数据存储位置有三类：storage，memory和calldata。不同存储位置的gas成本不同。storage类型的数据存在链上，类似计算机的硬盘，消耗gas多；memory和calldata类型的临时存在内存里，消耗gas少
+
+大致用法：
+
+storage：合约里的状态变量默认都是storage，存储在链上。
+
+memory：函数里的参数和临时变量一般用memory，存储在内存中，不上链。尤其是如果返回数据类型是变长的情况下，必须加memory修饰，例如：string, bytes, array和自定义结构。
+
+calldata：和memory类似，存储在内存中，不上链
+
+与memory的不同点在于calldata变量不能修改（immutable），一般用于函数的参数。
+
+数据位置和赋值规则
+
+在不同存储类型相互赋值时候，有时会产生独立的副本（修改新变量不会影响原变量），有时会产生引用（修改新变量会影响原变量）。规则如下：
+
+赋值本质上是创建引用指向本体，因此修改本体或者是引用，变化可以被同步：
+
+memory赋值给memory，会创建引用，改变新变量会影响原变量。
+
+其他情况下，赋值创建的是本体的副本，即对二者之一的修改，并不会同步到另一方
+
+变量的作用域
+
+Solidity中变量按作用域划分有三种，分别是状态变量（state variable），局部变量（local variable）和全局变量(global variable)
+
 
 
 ###  2024.09.30
