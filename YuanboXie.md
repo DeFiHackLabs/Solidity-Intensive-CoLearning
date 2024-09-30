@@ -367,11 +367,15 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     - 使用场景：
         - 代理合约（Proxy Contract）：将智能合约的存储合约和逻辑合约分开：代理合约（Proxy Contract）存储所有相关的变量，并且保存逻辑合约的地址；所有函数存在逻辑合约（Logic Contract）里，通过delegatecall执行。当升级时，只需要将代理合约指向新的逻辑合约即可。
         - EIP-2535 Diamonds（钻石）：钻石是一个支持构建可在生产中扩展的模块化智能合约系统的标准。钻石是具有多个实施合约的代理合约。 [link](https://eip2535diamonds.substack.com/p/introduction-to-the-diamond-standard)
-- [102-24] 在合约中创建新合约
-
+- [102-24] 在合约中创建新合约：Create
+    - `Contract x = new Contract{value: _value}(params)`
+    - 使用场景：去中心化交易所 uniswap 利用工厂合约（PairFactory）创建了无数个币对合约（Pair）： [code](https://github.com/Uniswap/v2-core/tree/master/contracts)
+        - UniswapV2Pair: 币对合约，用于管理币对地址、流动性、买卖。
+        - UniswapV2Factory: 工厂合约，用于创建新的币对，并管理币对地址。
+    
 ### 2024.10.01
 
-- [102-25] Create2
+- [102-25] 在合约中创建新合约：Create2
 
 - [102-26] 删除合约
 
