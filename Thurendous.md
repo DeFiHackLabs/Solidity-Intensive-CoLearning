@@ -884,10 +884,110 @@ contract people is Adam, Eve {
 
 这个合约之中，如果呼叫bar函数的话，那么会先呼叫Eve合约的bar，然后是Adam合约的bar，最后是God合约的bar。
 
+### 2024.10.1
+
+(Day 8)
+
+学习笔记
+
 #### 抽象合约和接口
 
 - 抽象合约
 
-抽象合约里边有一个函数没有被实现。即这个函数缺少主体的{}内容。
+抽象合约里边有一个函数没有被实现。即这个函数缺少主体的{}内容。那么这个合约就应该被定义为抽象合约（abstract），否则编译器会报错。
+
+未实现的函数必须加上一个关键字：`virtual`。以便合约重写。比如以下的例子：
+
+```solidity
+abstract contract A {
+    function f() public virtual returns (string memory);
+}
+```
+
+- 接口
+
+接口和抽象合约很像，但是接口之中的函数都是没有实现的。接口之中的函数都是抽象的。接口之中的函数都是没有实现的。接口之中的函数都是没有实现的。
+
+- 不能有状态变量
+- 不能有构造函数
+- 不能继承除了接口之外的其他合约
+- 不能有函数实现
+- 所有函数都需要是external且不能有函数体
+- 继承接口的非抽象合约必须实现接口定义的所有的功能
+
+举例：
+```solidity
+interface I {
+    function f() external returns (string memory);
+}
+```
+
+接口合约虽然不能实现任何功能，但是他非常的重要。接口是智能合约的骨架，定义了合约的功能以及如何触发他们：如果合约实现了某接口，那么其他的Dapps和智能合约就知道该如何与之交互了。因为接口提供了两个重要的信息：
+
+1. 合约中每个函数的bytes4的函数选择器，以及函数签名`function(type argumentName)`.
+2. 接口的id
+
+另外，接口和ABI等价，可以互相转换：编译接口可以得到合约的ABI，ABI也可以转换为接口的sol文件。
+
+
+#### 异常
+这一讲我们讲3种solidity的抛出异常的方法：
+
+1. error
+2. require
+3. assert
+
+
+1. Error
+
+error是solidity 0.8.4引入的新的异常处理方式。方便高效，节省gas。可以给用户解释操作失败的原因。方便开发者调试。
+
+```solidity
+error NotEnoughBalance(uint256 balance, uint256 required);
+
+function withdraw(uint256 amount) public {
+    if (balance < amount) {
+        revert NotEnoughBalance({balance: balance, required: amount});
+    }
+}
+```
+
+
+2. Require
+
+require的命令是0.8.0之前的抛出异常的方式。目前很多的主流的合约仍然在使用它。很好用。
+唯一的缺点就是gas随着描述异常的字符串长度增加而增加。
+
+使用方法：require(检查条件，"异常的描述")，当检查条件不成立的时候，就会抛出异常。
+
+```solidity
+function transferOwner2(uint256 tokenId, address newOwner) public {
+    require(_owners[tokenId] == msg.sender, "Transfer Not Owner");
+    _owners[tokenId] = newOwner;
+}
+```
+
+3. Assert
+
+assert的命令是用于检查内部错误。比如，当一个变量应该总是为真的时候，就可以使用assert。
+
+assert命令一般用于程序员写程序debug，因为它不能解释抛出异常的原因（比require少个字符串）。它的用法很简单，assert(检查条件），当检查条件不成立的时候，就会抛出异常。
+
+
+```solidity
+function transferOwner3(uint256 tokenId, address newOwner) public {
+    assert(_owners[tokenId] == msg.sender);
+    _owners[tokenId] = newOwner;
+}
+```
+
+- 三种方法的gas比较
+
+1. error: 24457(加入参数后的gas消耗: 24660)
+2. require: 24755
+3. assert: 24473
+
+我们可以看到，这里的error方法的gas是最少的。其次是assert，require方法消耗的gas最多！
+assert在0.8.0之后的版本之中，不会消耗掉所有的剩余gas而是和revert一样，回滚然后返还gas给用户。
 
 <!-- Content_END -->
