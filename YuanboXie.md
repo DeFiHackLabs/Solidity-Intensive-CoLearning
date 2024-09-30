@@ -296,4 +296,40 @@ import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contr
 import '@openzeppelin/contracts/access/Ownable.sol';
 ```
 
+### 2024.09.29
+- [102-19] 接收 ETH
+    - Solidity支持两种特殊的回调函数，receive()和fallback(),主要用于两种场景：1）接收 ETH；2）处理合约中不存在的函数调用（代理合约 proxy contract）;
+    - 注意：在Solidity 0.6.x版本之前，语法上只有 fallback() 函数，用来接收用户发送的ETH时调用以及在被调用函数签名没有匹配到时，来调用。 0.6版本之后，Solidity才将 fallback() 函数拆分成 receive() 和 fallback() 两个函数。
+    - receive()
+        - 一个合约最多有一个receive()函数,receive() external payable { ... }。receive()函数不能有任何的参数，不能返回任何值，必须包含external和payable。
+        - receive()最好不要执行太多的逻辑因为如果别人用send和transfer方法发送ETH的话，gas会限制在2300，receive()太复杂可能会触发Out of Gas报错；如果用call就可以自定义gas执行更复杂的逻辑。
+    - fallback()
+        - fallback()函数会在调用合约不存在的函数时被触发。可用于接收ETH，也可以用于代理合约proxy contract。一般也会用payable修饰。
+    - 【提醒】有些恶意合约，会在receive()/fallback() 函数嵌入恶意消耗gas的内容或者使得执行故意失败的代码，导致一些包含退款和转账逻辑的合约不能正常工作，因此写包含退款等逻辑的合约时候，一定要注意这种情况。
+    - receive() vs fallback()
+        - receive和fallback都能够用于接收ETH，他们触发的规则如下：
+        ```
+        触发fallback() 还是 receive()?
+                接收ETH
+                    |
+                msg.data是空？
+                    /  \
+                是    否
+                /      \
+        receive()存在?   fallback()
+                / \
+            是  否
+            /     \
+        receive()   fallback()
+        ```
+        - receive()和payable fallback()均不存在的时候，向合约直接发送ETH将会报错（但可以通过合约里带有payable的其他函数发送ETH）。
+- [102-20] 
+- [102-21]
+
+### 2024.09.30
+
+- [102-22] 
+- [102-23]
+- [102-24] 
+
 <!-- Content_END -->
