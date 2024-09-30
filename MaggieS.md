@@ -230,13 +230,20 @@ Events allow contracts to communicate with external applications. They are like 
 
 One benefit of learning solidity is to be calm down. Rome was not built in a day.
 
-I am soooo lucky that someone is willing to love, protect and support me.  
+I am a soooo lucky girl that Web3 is willing to love, protect and support me.  
 
 But it is precisely because I cherish this luck that we should take our time.  
 
-I also need to improve my ability in all aspects if one day he needs it.  
+I also need to improve my ability in all aspects if one day Web3 needs me.  
 
-I can stand up and protect him. He may not need it, but I have to have this ability.
+
+What is there to be afraid of when I can survive in the hardest period?
+
+Someday he needs me, I can stand up and protect him. I know I can do it.
+
+But the premise is that I must go through enough tempering and growth.
+
+Maybe he would say he doesn't need it, but, I have to have this ability.
 
 
 <!-- Content_END -->
