@@ -324,6 +324,53 @@ timezone: Asia/Shanghai
 
 ---
 
+### 2024.09.30
 
+#### 学习内容 10. 控制流，用Solidity实现插入排序
+
+1. 控制流
+
+    - if-else
+
+    - for
+
+    - while
+
+    - do-while
+
+    - 三元运算符
+
+    - 循环中有 continue 和 break 关键字
+
+2. solidity 插入排序
+
+    - solidity 中 uint 是正整数,无法取到负值,否则报 underflow 错误
+
+    - ```solidity
+        function insertionSort(
+                uint[] memory a
+            ) public pure returns (uint[] memory) {
+                for (uint i = 1; i < a.length; i++) {
+                    uint temp = a[i];
+                    uint j = i;
+                    while ((j >= 1) && (temp < a[j - 1])) {
+                        a[j] = a[j - 1];
+                        j--;
+                    }
+                    a[j] = temp;
+                }
+                return (a);
+            }
+        ```
+
+    - 
+
+3. 合约部署
+
+    - ![image-20240930160402267](content/Aris/image-20240930160402267.png)
+
+4. 第 10 节测验得分: 100, 答案: CBAEDABC
+
+---
 
 <!-- Content_END -->
