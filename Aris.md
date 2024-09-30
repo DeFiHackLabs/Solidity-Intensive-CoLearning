@@ -237,4 +237,140 @@ timezone: Asia/Shanghai
     - ![image-20240927162026517](content/Aris/image-20240927162026517.png)
 5. 第 06 节测验得分: 100, 答案: BCCBCA
 
+---
+
+### 2024.09.28
+
+#### 学习内容 7. 映射类型 mapping
+
+1. 映射 Mapping
+
+    - solidity 中的存储键值对的数据结构(可以理解为哈希表)
+
+2. 映射规则
+
+    - 规则 1:映射的 key 的数据类型只能选择 solidity 内置的值类型,比如 uint, address,不能用结构体;value 的数据列席可以使用自定义类型
+
+        - ```solidity
+            struct Student {
+            	uint256 id;
+            	uint256 score;
+            }
+            mapping(Student => uint) public testVar; // 报错
+            ```
+
+    - 规则 2:映射的存储位置必须是storage,因此可以用于状态变量;不能用于 public 函数的参数或者返回结果中;因为映射记录的是一种键值对关系!!!一种键值对关系!!!一种键值对关系!!!
+
+    - 规则 3:如果映射声明为public,那么,solidity 会自动创建一个 getter 函数,可以通过 key 来查询对应的 value;
+
+    - 规则 4:给映射新增键值对的语法为 `_var[_key] = _val` _var:映射变量名;_key,_val 对应键值对;
+
+3. 映射的原理:
+
+    - 原理 1: 映射不存储任何键(key)的信息,也没有 length 信息;
+    - 原理 2: 映射使用 `keccak256(abi.encodePacked(key, slot))`当成 offset 存取 value,这里的 slot 是映射变量定义所在的插槽位置;
+    - 原理 3: 因为 Ethereum 会定义所有未使用的空间为 0,所以,未赋值的键初始值是对应数据类型的默认值(例如 uint 的默认值是 0)
+
+4. 合约部署
+
+    - ![image-20240928195920146](content/Aris/image-20240928195920146.png)
+
+5. 第 07 节测验得分: 100, 答案: BADABB
+
+---
+
+### 2024.09.29
+
+#### 学习内容 8. 变量初始值
+
+在 solidity 中,声明但是没复制的变量都有默认值(初始值)
+
+1. 值类型:
+    - boolean: fasle
+    - string: ""
+    - int: 0
+    - uint: 0
+    - enum: 第一个元素
+    - addres: 0x000000000000000000000000000000 (addres(0))
+    - function: 
+        - internal: 空白函数
+        - external: 空白函数
+2. 引用类型:
+    - 映射 mapping:其value值数据类型的默认值
+    - 结构体 struct:其成员值数据类型的默认值
+    - 静态数组: 定长,其成员值数据类型的默认值
+    - 动态数组: []
+3. delete 操作符
+    - delete 操作符会让变量值变为其默认值
+4. 合约部署
+    - ![image-20240929101542907](content/Aris/image-20240929101542907.png)
+5. 第 08 节测验得分: 100, 答案: CBDDA
+
+#### 学习内容 9. 常数 constant和immutable
+
+1. constant(常量),immutable(不变量)
+    - 状态变量声明这两个变量以后,不能在初始化之后再更改;
+    - 提升合约安全性
+    - 节省 gas 费用
+    - 只有数值变量可以声明为 constant 和 immutable
+    - string 和 bytes 可以声明为 constant,不能为 immutable
+2. constant
+    - constant 必须在声明的时候初始化,之后不可变
+3. immutable
+    - immutable 变量可在声明时或者构造函数中初始化
+4. 合约部署
+    - ![image-20240929104513664](content/Aris/image-20240929104513664.png)
+5. 第 09 节测验得分: 100, 答案:ACDDC
+
+---
+
+### 2024.09.30
+
+#### 学习内容 10. 控制流，用Solidity实现插入排序
+
+1. 控制流
+
+    - if-else
+
+    - for
+
+    - while
+
+    - do-while
+
+    - 三元运算符
+
+    - 循环中有 continue 和 break 关键字
+
+2. solidity 插入排序
+
+    - solidity 中 uint 是正整数,无法取到负值,否则报 underflow 错误
+
+    - ```solidity
+        function insertionSort(
+                uint[] memory a
+            ) public pure returns (uint[] memory) {
+                for (uint i = 1; i < a.length; i++) {
+                    uint temp = a[i];
+                    uint j = i;
+                    while ((j >= 1) && (temp < a[j - 1])) {
+                        a[j] = a[j - 1];
+                        j--;
+                    }
+                    a[j] = temp;
+                }
+                return (a);
+            }
+        ```
+
+    - 
+
+3. 合约部署
+
+    - ![image-20240930160402267](content/Aris/image-20240930160402267.png)
+
+4. 第 10 节测验得分: 100, 答案: CBAEDABC
+
+---
+
 <!-- Content_END -->

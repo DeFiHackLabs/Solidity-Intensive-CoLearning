@@ -364,7 +364,122 @@ function saySomething(string memory something) public pure returns(string memory
     return(something);
 }
 ```
+### 2024.09.29
+29号的笔记找不到了，学了库合约和 `import`的使用，贴两段昨天的练习代码
 
-### 
+```solidity
 
+import "@openzeppelin/contracts/utils/Strings.sol";
+
+// 用函数调用另一个库合约
+contract UseLibrary{    
+    // 利用using for操作使用库
+    using Strings for uint256;
+    function getString1(uint256 _number) public pure returns(string memory){
+        // 库函数会自动添加为uint256型变量的成员
+        return _number.toHexString();
+    }
+
+    // 直接通过库合约名调用
+    function getString2(uint256 _number) public pure returns(string memory){
+        return Strings.toHexString(_number);
+    }
+}
+```
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+// 通过文件相对位置import
+import './Yeye.sol';
+// 通过`全局符号`导入特定的合约
+import {Yeye} from './Yeye.sol';
+// 通过网址引用
+import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+// 引用OpenZeppelin合约
+import '@openzeppelin/contracts/access/Ownable.sol';
+
+contract UseImport {
+    // 成功导入Address库
+    using Address for address;
+    // 声明yeye变量
+    Yeye yeye = new Yeye();
+
+    // 测试是否能调用yeye的函数
+    function test() external{
+        yeye.hip();
+    }
+}
+```
+### 2024.09.30
+1、`solidity` 中有两个特殊的函数 `receive` 和 `fallback` 用于接收 `ETH` 和简单逻辑处理，均不需要 `function` 关键字
+
+区别：合约接收 `ETH` 时，`msg.data` 为空且存在 `receive()` 时，会触发 `receive()`；`msg.data` 不为空或不存在 `receive()` 时，会触发 `fallback()`，此时 `fallback()` 必须为 `payable`。
+
+`receive()` 和 `payable fallback()` 均不存在的时候，向合约直接发送 `ETH` 将会报错（你仍可以通过带有 `payable` 的函数向合约发送ETH）。
+
+2、三种发送 ETH 方法
+
+- `call`没有`gas`限制，最为灵活，是最提倡的方法；
+- `transfer`有`2300 gas`限制，但是发送失败会自动`revert`交易，是次优选择；
+- `send`有`2300 gas`限制，而且发送失败不会自动`revert`交易，几乎没有人用它。
+  
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+// 3种方法发送ETH
+// transfer: 2300 gas, revert
+// send: 2300 gas, return bool
+// call: all gas, return (bool, data)
+
+error SendFailed(); // 用send发送ETH失败error
+error CallFailed(); // 用call发送ETH失败error
+
+contract SendETH {
+    // 构造函数，payable使得部署的时候可以转eth进去
+    constructor() payable{}
+    // receive方法，接收eth时被触发
+    receive() external payable{}
+
+    // 用transfer()发送ETH
+    function transferETH(address payable _to, uint256 amount) external payable{
+        _to.transfer(amount);
+    }
+
+    // send()发送ETH
+    function sendETH(address payable _to, uint256 amount) external payable{
+        // 处理下send的返回值，如果失败，revert交易并发送error
+        bool success = _to.send(amount);
+        if(!success){
+            revert SendFailed();
+        }
+    }
+
+    // call()发送ETH
+    function callETH(address payable _to, uint256 amount) external payable{
+        // 处理下call的返回值，如果失败，revert交易并发送error
+        (bool success,) = _to.call{value: amount}("");
+        if(!success){
+            revert CallFailed();
+        }
+    }
+}
+
+contract ReceiveETH {
+    // 收到eth事件，记录amount和gas
+    event Log(uint amount, uint gas);
+
+    // receive方法，接收eth时被触发
+    receive() external payable{
+        emit Log(msg.value, gasleft());
+    }
+    
+    // 返回合约ETH余额
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+}
+```
 <!-- Content_END -->

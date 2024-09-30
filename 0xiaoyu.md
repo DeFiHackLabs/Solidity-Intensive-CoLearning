@@ -466,4 +466,165 @@ struct Student {
 选择哪种方法取决于具体需求、代码可读性和 gas 优化考虑。
 
 
+
+### 2024.09.28
+
+學習內容: 
+
+- [solidity-101 第七课 映射类型 mapping](https://www.wtf.academy/docs/solidity-101/Mapping/)
+
+笔记
+
+
+#### 映射（Mapping）的基本概念
+- 通过键（`Key`）查询对应的值（`Value`）
+- 声明格式：`mapping(_KeyType => _ValueType)`
+- 示例：
+  ```solidity
+  mapping(uint => address) public idToAddress; // id映射到地址
+  mapping(address => address) public swapPair; // 币对的映射，地址到地址
+  ```
+
+#### 映射的规则
+1. `_KeyType` 只能是 Solidity 内置的值类型（如 `uint`、`address`），不能用自定义结构体
+2. 映射的存储位置必须是 `storage`
+3. 声明为 `public` 时，Solidity 自动创建 getter 函数
+4. 新增键值对语法：`_Var[_Key] = _Value`
+
+#### 映射的原理
+1. 不储存键（`Key`）的信息，没有 length 信息
+2. 使用 `keccak256(abi.encodePacked(key, slot))` 作为 offset 存取 value
+3. 未赋值的键初始值为该类型的默认值（如 uint 默认为 0）
+
+#### 思考与解答
+1. 为什么映射的 `_KeyType` 不能使用自定义结构体？
+   - 这可能是为了确保键的唯一性和哈希计算的效率。内置类型有固定的大小和明确的哈希方法，而自定义结构体可能导致复杂性和不确定性。
+
+2. 映射为什么必须存储在 `storage` 中？
+   - 映射通常用于存储大量数据和持久化信息。`storage` 是区块链上的永久存储空间，适合存储这种需要长期保存的数据结构。
+
+3. 映射不存储键信息会有什么影响？
+   - 这意味着我们无法直接获取所有的键或遍历映射。如果需要这些功能，通常需要额外维护一个数组来存储所有的键。
+
+
+### 2024.09.28
+
+學習內容: 
+
+- [solidity-101 第七课 映射类型 mapping](https://www.wtf.academy/docs/solidity-101/Mapping/)
+
+笔记
+
+
+#### 映射（Mapping）的基本概念
+- 通过键（`Key`）查询对应的值（`Value`）
+- 声明格式：`mapping(_KeyType => _ValueType)`
+- 示例：
+  ```solidity
+  mapping(uint => address) public idToAddress; // id映射到地址
+  mapping(address => address) public swapPair; // 币对的映射，地址到地址
+  ```
+
+#### 映射的规则
+1. `_KeyType` 只能是 Solidity 内置的值类型（如 `uint`、`address`），不能用自定义结构体
+2. 映射的存储位置必须是 `storage`
+3. 声明为 `public` 时，Solidity 自动创建 getter 函数
+4. 新增键值对语法：`_Var[_Key] = _Value`
+
+#### 映射的原理
+1. 不储存键（`Key`）的信息，没有 length 信息
+2. 使用 `keccak256(abi.encodePacked(key, slot))` 作为 offset 存取 value
+3. 未赋值的键初始值为该类型的默认值（如 uint 默认为 0）
+
+#### 思考与解答
+1. 为什么映射的 `_KeyType` 不能使用自定义结构体？
+   - 这可能是为了确保键的唯一性和哈希计算的效率。内置类型有固定的大小和明确的哈希方法，而自定义结构体可能导致复杂性和不确定性。
+
+2. 映射为什么必须存储在 `storage` 中？
+   - 映射通常用于存储大量数据和持久化信息。`storage` 是区块链上的永久存储空间，适合存储这种需要长期保存的数据结构。
+
+3. 映射不存储键信息会有什么影响？
+   - 这意味着我们无法直接获取所有的键或遍历映射。如果需要这些功能，通常需要额外维护一个数组来存储所有的键。
+
+
+
+### 2024.09.29
+
+學習內容: 
+
+- [solidity-101 第八课  变量初始值](https://www.wtf.academy/docs/solidity-101/InitialValue/)
+
+笔记
+
+#### 值类型初始值
+- `boolean`: `false`
+- `string`: `""`
+- `int`: `0`
+- `uint`: `0`
+- `enum`: 枚举中的第一个元素
+- `address`: `0x0000000000000000000000000000000000000000` (或 `address(0)`)
+- `function`:
+  - `internal`: 空白函数
+  - `external`: 空白函数
+
+示例代码：
+```solidity
+bool public _bool; // false
+string public _string; // ""
+int public _int; // 0
+uint public _uint; // 0
+address public _address; // 0x0000000000000000000000000000000000000000
+
+enum ActionSet { Buy, Hold, Sell}
+ActionSet public _enum; // 第1个内容Buy的索引0
+
+function fi() internal{} // internal空白函数
+function fe() external{} // external空白函数 
+```
+
+#### 引用类型初始值
+- 映射 `mapping`: 所有元素都为其默认值的 `mapping`
+- 结构体 `struct`: 所有成员设为其默认值的结构体
+- 数组 `array`:
+  - 动态数组: `[]`
+  - 静态数组（定长）: 所有成员设为其默认值的静态数组
+
+示例代码：
+```
+solidity
+uint[8] public _staticArray; // 所有成员设为其默认值的静态数组[0,0,0,0,0,0,0,0]
+uint[] public _dynamicArray; // `[]`
+mapping(uint => address) public _mapping; // 所有元素都为其默认值的mapping
+// 所有成员设为其默认值的结构体 0, 0
+struct Student{
+    uint256 id;
+    uint256 score; 
+}
+Student public student;
+```
+
+#### `delete` 操作符
+`delete a` 会让变量 `a` 的值变为初始值。
+
+示例代码：
+```
+solidity
+bool public _bool2 = true; 
+function d() external {
+    delete _bool2; // delete 会让_bool2变为默认值，false
+}
+```
+
+#### 思考与解答
+
+1. 为什么了解变量的初始值很重要？
+   - 了解初始值有助于避免潜在的错误和意外行为。例如，在条件判断中，如果不知道 `bool` 类型的初始值是 `false`，可能会导致逻辑错误。
+
+2. 动态数组和静态数组的初始值有什么区别？为什么会有这种区别？
+   - 动态数组的初始值是空数组 `[]`，而静态数组的初始值是所有元素都设为默认值的数组。这是因为静态数组的长度是固定的，必须在创建时就分配所有空间，而动态数组可以根据需要增长。
+
+3. `delete` 操作符和将变量赋值为其类型的默认值有什么区别？
+   - 从结果上看，两者是相同的。但 `delete` 操作符更加通用，可以用于任何类型，包括复杂的数据结构。此外，使用 `delete` 可能在某些情况下更节省 gas，因为它直接将存储槽重置为初始状态。
+
+
 <!-- Content_END -->

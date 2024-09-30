@@ -20,7 +20,7 @@ timezone: Asia/Taipei
 ps.每按一次deploy 按鈕,會部署一次合約
 
 ### 2024.09.24
-認識一些value type
+認識一些value type,變數宣告時先型態，再public
 
 ### 2024.09.25
 function的結構
@@ -50,5 +50,14 @@ array和 struct 需要的儲存空間比較大故需指定類型, storage在鏈�
 ### 2024.09.28
 array和struct的使用，先看快速掃過。
 array型態在第一個元素宣告即可。如果使用memory則是固定長度。
+
+### 2024.09.29
+mapping可以認知為dictionary, key-value pair
+key只允許內建型態，value可以使用自定義struct
+
+### 2024.09.30
+變數的初始值，delete操作符可以讓變數恢復初始值。
+
+
 
 <!-- Content_END -->
