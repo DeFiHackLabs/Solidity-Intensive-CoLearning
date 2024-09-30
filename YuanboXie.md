@@ -338,8 +338,10 @@ import '@openzeppelin/contracts/access/Ownable.sol';
         - 无 gas 限制
         - 转账失败不会 revert
         - call()的返回值是(bool, bytes)
-- [102-21] 
-
+    - 一个习题：EOA调用合约A的sendeth函数给合约b发eth，合约a、b均无eth。这里的执行逻辑是先把交易带的eth加到合约a上，所以sendeth不会revert。
+- [102-21] 调用其他合约
+    - 传入合约地址：OtherContract(_Address).setX(x);
+    - 合约变量：OtherContract _Address （本质上还是address）
 ### 2024.09.30
 
 - [102-22] 
