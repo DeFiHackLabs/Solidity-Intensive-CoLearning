@@ -225,10 +225,9 @@ Modifiers are like rules that we can apply to functions. They allow us to add ex
 8. Events
 Events allow contracts to communicate with external applications. They are like messages that can be logged on the blockchain and listened to by other programs.
 
-It's the first time to write Step2 QA,
 
-using too much time to choose questions,it's little hard.
+### 2024.09.30
 
-I need more time to oganize today's two questions' answer.
+One benefit of learning solidity is to be calm down. Rome was not built in a day.
 
 <!-- Content_END -->
