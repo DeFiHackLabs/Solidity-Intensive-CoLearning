@@ -764,7 +764,6 @@ contract InteractWithBAYC {
 
 
 ## 二、 異常
-我會根據您的要求改寫、補充和延伸思考這個章節。以下是修改後的版本:
 
 ## Solidity中的異常處理:Error、Require和Assert
 
