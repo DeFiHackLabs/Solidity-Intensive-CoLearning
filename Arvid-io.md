@@ -129,7 +129,7 @@ In the context of a Twitter-like contract, this mapping allows each Ethereum add
 
 以上。
 
-### 2024.09.30
+### 2024.09.29
 Ethereum Client
 
 安裝Parity, Open Ethereum, but were all deprecated. 
