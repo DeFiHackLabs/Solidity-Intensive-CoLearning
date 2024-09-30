@@ -69,4 +69,11 @@ day02
 [WTF Academy Solidity 101 Note 18-19](/content/JakeDu/07.md)
 <br>
 
+### 2024.09.30
+
+学习101的第二十课和第二十一课
+
+[WTF Academy Solidity 101 Note 20-21](/content/JakeDu/08.md)
+<br>
+
 <!-- Content_END -->
