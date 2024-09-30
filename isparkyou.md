@@ -1657,6 +1657,659 @@ try externalContract.f() returns(returnType){
 }
 ```
 
+### 2024.9.30
+
+### ERC20
+它实现了代币转账的基本逻辑：
+账户余额(balanceOf())
+转账(transfer())
+授权转账(transferFrom())
+授权(approve())
+代币总供给(totalSupply())
+授权转账额度(allowance())
+代币信息（可选）：名称(name())，代号(symbol())，小数位数(decimals())
+
+### IERC20
+IERC20是ERC20代币标准的接口合约，规定了ERC20代币需要实现的函数和事件。 之所以需要定义接口，是因为有了规范后，就存在所有的ERC20代币都通用的函数名称，输入参数，输出参数。 在接口函数中，只需要定义函数名称，输入参数，输出参数，并不关心函数内部如何实现。 由此，函数就分为内部和外部两个内容，一个重点是实现，另一个是对外接口，约定共同数据。 这就是为什么需要ERC20.sol和IERC20.sol两个文件实现一个合约。
+#### 事件
+```
+/**
+ * @dev 释放条件：当 `value` 单位的货币从账户 (`from`) 转账到另一账户 (`to`)时.
+ */
+event Transfer(address indexed from, address indexed to, uint256 value);
+
+/**
+ * @dev 释放条件：当 `value` 单位的货币从账户 (`owner`) 授权给另一账户 (`spender`)时.
+ */
+event Approval(address indexed owner, address indexed spender, uint256 value);
+```
+#### 函数
+```
+/**
+ * @dev 返回代币总供给.
+ */
+function totalSupply() external view returns (uint256);
+/**
+ * @dev 返回账户`account`所持有的代币数.
+ */
+function balanceOf(address account) external view returns (uint256);
+/**
+ * @dev 转账 `amount` 单位代币，从调用者账户到另一账户 `to`.
+ *
+ * 如果成功，返回 `true`.
+ *
+ * 释放 {Transfer} 事件.
+ */
+function transfer(address to, uint256 amount) external returns (bool);
+/**
+ * @dev 返回`owner`账户授权给`spender`账户的额度，默认为0。
+ *
+ * 当{approve} 或 {transferFrom} 被调用时，`allowance`会改变.
+ */
+function allowance(address owner, address spender) external view returns (uint256);
+/**
+ * @dev 调用者账户给`spender`账户授权 `amount`数量代币。
+ *
+ * 如果成功，返回 `true`.
+ *
+ * 释放 {Approval} 事件.
+ */
+function approve(address spender, uint256 amount) external returns (bool);
+/**
+ * @dev 通过授权机制，从`from`账户向`to`账户转账`amount`数量代币。转账的部分会从调用者的`allowance`中扣除。
+ *
+ * 如果成功，返回 `true`.
+ *
+ * 释放 {Transfer} 事件.
+ */
+function transferFrom(
+    address from,
+    address to,
+    uint256 amount
+) external returns (bool);
+```
+
+#### 状态变量
+我们需要状态变量来记录账户余额，授权额度和代币信息。其中balanceOf, allowance和totalSupply为public类型，会自动生成一个同名getter函数，实现IERC20规定的balanceOf(), allowance()和totalSupply()。而name, symbol, decimals则对应代币的名称，代号和小数位数。
+```
+mapping(address => uint256) public override balanceOf;
+
+mapping(address => mapping(address => uint256)) public override allowance;
+
+uint256 public override totalSupply;   // 代币总供给
+
+string public name;   // 名称
+string public symbol;  // 代号
+
+uint8 public decimals = 18; // 小数位数
+// 构造函数：初始化代币名称、代号。
+constructor(string memory name_, string memory symbol_){
+    name = name_;
+    symbol = symbol_;
+}
+// transfer()函数：实现IERC20中的transfer函数，代币转账逻辑。调用方扣除amount数量代币，接收方增加相应代币。土狗币会魔改这个函数，加入税收、分红、抽奖等逻辑。
+function transfer(address recipient, uint amount) public override returns (bool) {
+    balanceOf[msg.sender] -= amount;
+    balanceOf[recipient] += amount;
+    emit Transfer(msg.sender, recipient, amount);
+    return true;
+}
+// approve()函数：实现IERC20中的approve函数，代币授权逻辑。被授权方spender可以支配授权方的amount数量的代币。spender可以是EOA账户，也可以是合约账户：当你用uniswap交易代币时，你需要将代币授权给uniswap合约。
+function approve(address spender, uint amount) public override returns (bool) {
+    allowance[msg.sender][spender] = amount;
+    emit Approval(msg.sender, spender, amount);
+    return true;
+}
+// transferFrom()函数：实现IERC20中的transferFrom函数，授权转账逻辑。被授权方将授权方sender的amount数量的代币转账给接收方recipient。
+function transferFrom(
+    address sender,
+    address recipient,
+    uint amount
+) public override returns (bool) {
+    allowance[sender][msg.sender] -= amount;
+    balanceOf[sender] -= amount;
+    balanceOf[recipient] += amount;
+    emit Transfer(sender, recipient, amount);
+    return true;
+}
+// mint()函数：铸造代币函数，不在IERC20标准中。这里为了教程方便，任何人可以铸造任意数量的代币，实际应用中会加权限管理，只有owner可以铸造代币：
+function mint(uint amount) external {
+    balanceOf[msg.sender] += amount;
+    totalSupply += amount;
+    emit Transfer(address(0), msg.sender, amount);
+}
+// burn()函数：销毁代币函数，不在IERC20标准中。
+function burn(uint amount) external {
+    balanceOf[msg.sender] -= amount;
+    totalSupply -= amount;
+    emit Transfer(msg.sender, address(0), amount);
+}
+```
+
+### 代币水龙头
+```
+// 状态变量
+uint256 public amountAllowed = 100; // 每次领 100 单位代币
+address public tokenContract;   // token合约地址
+mapping(address => bool) public requestedAddress;   // 记录领取过代币的地址
+// 事件
+// SendToken事件    
+event SendToken(address indexed Receiver, uint256 indexed Amount);
+// 函数
+// 部署时设定ERC20代币合约
+constructor(address _tokenContract) {
+  tokenContract = _tokenContract; // set token contract
+}
+// 用户领取代币函数
+function requestTokens() external {
+    require(!requestedAddress[msg.sender], "Can't Request Multiple Times!"); // 每个地址只能领一次
+    IERC20 token = IERC20(tokenContract); // 创建IERC20合约对象
+    require(token.balanceOf(address(this)) >= amountAllowed, "Faucet Empty!"); // 水龙头空了
+
+    token.transfer(msg.sender, amountAllowed); // 发送token
+    requestedAddress[msg.sender] = true; // 记录领取地址 
+    
+    emit SendToken(msg.sender, amountAllowed); // 释放SendToken事件
+}
+```
+
+### 空投合约
+Airdrop空投合约逻辑非常简单：利用循环，一笔交易将ERC20代币发送给多个地址。
+```
+// 数组求和函数
+function getSum(uint256[] calldata _arr) public pure returns(uint sum){
+    for(uint i = 0; i < _arr.length; i++)
+        sum = sum + _arr[i];
+}
+/// @notice 向多个地址转账ERC20代币，使用前需要先授权
+///
+/// @param _token 转账的ERC20代币地址
+/// @param _addresses 空投地址数组
+/// @param _amounts 代币数量数组（每个地址的空投数量）
+function multiTransferToken(
+    address _token,
+    address[] calldata _addresses,
+    uint256[] calldata _amounts
+    ) external {
+    // 检查：_addresses和_amounts数组的长度相等
+    require(_addresses.length == _amounts.length, "Lengths of Addresses and Amounts NOT EQUAL");
+    IERC20 token = IERC20(_token); // 声明IERC合约变量
+    uint _amountSum = getSum(_amounts); // 计算空投代币总量
+    // 检查：授权代币数量 >= 空投代币总量
+    require(token.allowance(msg.sender, address(this)) >= _amountSum, "Need Approve ERC20 token");
+
+    // for循环，利用transferFrom函数发送空投
+    for (uint8 i; i < _addresses.length; i++) {
+        token.transferFrom(msg.sender, _addresses[i], _amounts[i]);
+    }
+}
+/// 向多个地址转账ETH
+function multiTransferETH(
+    address payable[] calldata _addresses,
+    uint256[] calldata _amounts
+) public payable {
+    // 检查：_addresses和_amounts数组的长度相等
+    require(_addresses.length == _amounts.length, "Lengths of Addresses and Amounts NOT EQUAL");
+    uint _amountSum = getSum(_amounts); // 计算空投ETH总量
+    // 检查转入ETH等于空投总量
+    require(msg.value == _amountSum, "Transfer amount error");
+    // for循环，利用transfer函数发送ETH
+    for (uint256 i = 0; i < _addresses.length; i++) {
+        // 注释代码有Dos攻击风险, 并且transfer 也是不推荐写法
+        // Dos攻击 具体参考 https://github.com/AmazingAng/WTF-Solidity/blob/main/S09_DoS/readme.md
+        // _addresses[i].transfer(_amounts[i]);
+        (bool success, ) = _addresses[i].call{value: _amounts[i]}("");
+        if (!success) {
+            failTransferList[_addresses[i]] = _amounts[i];
+        }
+    }
+}
+```
+
+### ERC721
+EIP全称 Ethereum Improvement Proposals(以太坊改进建议), 是以太坊开发者社区提出的改进建议, 是一系列以编号排定的文件, 类似互联网上IETF的RFC。
+EIP可以是 Ethereum 生态中任意领域的改进, 比如新特性、ERC、协议改进、编程工具等等。
+ERC全称 Ethereum Request For Comment (以太坊意见征求稿), 用以记录以太坊上应用级的各种开发标准和协议。如典型的Token标准(ERC20, ERC721)、名字注册(ERC26, ERC13), URI范式(ERC67), Library/Package格式(EIP82), 钱包格式(EIP75,EIP85)。
+**EIP包含ERC**
+
+### ERC165
+智能合约可以声明它支持的接口，供其他合约检查。简单的说，ERC165就是检查一个智能合约是不是支持了ERC721，ERC1155的接口。
+```
+interface IERC165 {
+    /**
+     * @dev 如果合约实现了查询的`interfaceId`，则返回true
+     * 规则详见：https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[EIP section]
+     *
+     */
+    function supportsInterface(bytes4 interfaceId) external view returns (bool);
+}
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool)
+    {
+        return
+            interfaceId == type(IERC721).interfaceId ||
+            interfaceId == type(IERC165).interfaceId;
+    }
+```
+
+### IERC721
+IERC721是ERC721标准的接口合约，规定了ERC721要实现的基本函数。它利用tokenId来表示特定的非同质化代币，授权或转账都要明确tokenId；而ERC20只需要明确转账的数额即可。
+```
+/**
+ * @dev ERC721标准接口.
+ */
+interface IERC721 is IERC165 {
+    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+    event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
+    event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
+
+    function balanceOf(address owner) external view returns (uint256 balance);
+
+    function ownerOf(uint256 tokenId) external view returns (address owner);
+
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 tokenId,
+        bytes calldata data
+    ) external;
+
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 tokenId
+    ) external;
+
+    function transferFrom(
+        address from,
+        address to,
+        uint256 tokenId
+    ) external;
+
+    function approve(address to, uint256 tokenId) external;
+
+    function setApprovalForAll(address operator, bool _approved) external;
+
+    function getApproved(uint256 tokenId) external view returns (address operator);
+
+    function isApprovedForAll(address owner, address operator) external view returns (bool);
+}
+```
+
+#### IERC721事件
+IERC721包含3个事件，其中Transfer和Approval事件在ERC20中也有。
+
+Transfer事件：在转账时被释放，记录代币的发出地址from，接收地址to和tokenid。
+Approval事件：在授权时释放，记录授权地址owner，被授权地址approved和tokenid。
+ApprovalForAll事件：在批量授权时释放，记录批量授权的发出地址owner，被授权地址operator和授权与否的approved。
+
+#### IERC721函数
+balanceOf：返回某地址的NFT持有量balance。
+ownerOf：返回某tokenId的主人owner。
+transferFrom：普通转账，参数为转出地址from，接收地址to和tokenId。
+safeTransferFrom：安全转账（如果接收方是合约地址，会要求实现ERC721Receiver接口）。参数为转出地址from，接收地址to和tokenId。
+approve：授权另一个地址使用你的NFT。参数为被授权地址approve和tokenId。
+getApproved：查询tokenId被批准给了哪个地址。
+setApprovalForAll：将自己持有的该系列NFT批量授权给某个地址operator。
+isApprovedForAll：查询某地址的NFT是否批量授权给了另一个operator地址。
+safeTransferFrom：安全转账的重载函数，参数里面包含了data。
+
+#### IERC721 Receiver
+如果一个合约没有实现ERC721的相关函数，转入的NFT就进了黑洞，永远转不出来了。为了防止误转账，ERC721实现了safeTransferFrom()安全转账函数，目标合约必须实现了IERC721Receiver接口才能接收ERC721代币，不然会revert。
+```
+// ERC721接收者接口：合约必须实现这个接口来通过安全转账接收ERC721
+interface IERC721Receiver {
+    function onERC721Received(
+        address operator,
+        address from,
+        uint tokenId,
+        bytes calldata data
+    ) external returns (bytes4);
+}
+function _checkOnERC721Received(
+    address operator,
+    address from,
+    address to,
+    uint256 tokenId,
+    bytes memory data
+) internal {
+    if (to.code.length > 0) {
+        try IERC721Receiver(to).onERC721Received(operator, from, tokenId, data) returns (bytes4 retval) {
+            if (retval != IERC721Receiver.onERC721Received.selector) {
+                // Token rejected
+                revert IERC721Errors.ERC721InvalidReceiver(to);
+            }
+        } catch (bytes memory reason) {
+            if (reason.length == 0) {
+                // non-IERC721Receiver implementer
+                revert IERC721Errors.ERC721InvalidReceiver(to);
+            } else {
+                /// @solidity memory-safe-assembly
+                assembly {
+                    revert(add(32, reason), mload(reason))
+                }
+            }
+        }
+    }
+}
+```
+
+#### IERC721 Metadata
+IERC721Metadata是ERC721的拓展接口，实现了3个查询metadata元数据的常用函数：
+
+name()：返回代币名称。
+symbol()：返回代币代号。
+tokenURI()：通过tokenId查询metadata的链接url，ERC721特有的函数。
+```
+interface IERC721Metadata is IERC721 {
+    function name() external view returns (string memory);
+
+    function symbol() external view returns (string memory);
+
+    function tokenURI(uint256 tokenId) external view returns (string memory);
+}
+```
+
+### ERC721主合约
+```
+// SPDX-License-Identifier: MIT
+// by 0xAA
+pragma solidity ^0.8.21;
+
+import "./IERC165.sol";
+import "./IERC721.sol";
+import "./IERC721Receiver.sol";
+import "./IERC721Metadata.sol";
+import "./String.sol";
+
+contract ERC721 is IERC721, IERC721Metadata{
+    using Strings for uint256; // 使用String库，
+
+    // Token名称
+    string public override name;
+    // Token代号
+    string public override symbol;
+    // tokenId 到 owner address 的持有人映射
+    mapping(uint => address) private _owners;
+    // address 到 持仓数量 的持仓量映射
+    mapping(address => uint) private _balances;
+    // tokenID 到 授权地址 的授权映射
+    mapping(uint => address) private _tokenApprovals;
+    //  owner地址。到operator地址 的批量授权映射
+    mapping(address => mapping(address => bool)) private _operatorApprovals;
+
+    // 错误 无效的接收者
+    error ERC721InvalidReceiver(address receiver);
+
+    /**
+     * 构造函数，初始化`name` 和`symbol` .
+     */
+    constructor(string memory name_, string memory symbol_) {
+        name = name_;
+        symbol = symbol_;
+    }
+
+    // 实现IERC165接口supportsInterface
+    function supportsInterface(bytes4 interfaceId)
+        external
+        pure
+        override
+        returns (bool)
+    {
+        return
+            interfaceId == type(IERC721).interfaceId ||
+            interfaceId == type(IERC165).interfaceId ||
+            interfaceId == type(IERC721Metadata).interfaceId;
+    }
+
+    // 实现IERC721的balanceOf，利用_balances变量查询owner地址的balance。
+    function balanceOf(address owner) external view override returns (uint) {
+        require(owner != address(0), "owner = zero address");
+        return _balances[owner];
+    }
+
+    // 实现IERC721的ownerOf，利用_owners变量查询tokenId的owner。
+    function ownerOf(uint tokenId) public view override returns (address owner) {
+        owner = _owners[tokenId];
+        require(owner != address(0), "token doesn't exist");
+    }
+
+    // 实现IERC721的isApprovedForAll，利用_operatorApprovals变量查询owner地址是否将所持NFT批量授权给了operator地址。
+    function isApprovedForAll(address owner, address operator)
+        external
+        view
+        override
+        returns (bool)
+    {
+        return _operatorApprovals[owner][operator];
+    }
+
+    // 实现IERC721的setApprovalForAll，将持有代币全部授权给operator地址。调用_setApprovalForAll函数。
+    function setApprovalForAll(address operator, bool approved) external override {
+        _operatorApprovals[msg.sender][operator] = approved;
+        emit ApprovalForAll(msg.sender, operator, approved);
+    }
+
+    // 实现IERC721的getApproved，利用_tokenApprovals变量查询tokenId的授权地址。
+    function getApproved(uint tokenId) external view override returns (address) {
+        require(_owners[tokenId] != address(0), "token doesn't exist");
+        return _tokenApprovals[tokenId];
+    }
+     
+    // 授权函数。通过调整_tokenApprovals来，授权 to 地址操作 tokenId，同时释放Approval事件。
+    function _approve(
+        address owner,
+        address to,
+        uint tokenId
+    ) private {
+        _tokenApprovals[tokenId] = to;
+        emit Approval(owner, to, tokenId);
+    }
+
+    // 实现IERC721的approve，将tokenId授权给 to 地址。条件：to不是owner，且msg.sender是owner或授权地址。调用_approve函数。
+    function approve(address to, uint tokenId) external override {
+        address owner = _owners[tokenId];
+        require(
+            msg.sender == owner || _operatorApprovals[owner][msg.sender],
+            "not owner nor approved for all"
+        );
+        _approve(owner, to, tokenId);
+    }
+
+    // 查询 spender地址是否可以使用tokenId（需要是owner或被授权地址）
+    function _isApprovedOrOwner(
+        address owner,
+        address spender,
+        uint tokenId
+    ) private view returns (bool) {
+        return (spender == owner ||
+            _tokenApprovals[tokenId] == spender ||
+            _operatorApprovals[owner][spender]);
+    }
+
+    /*
+     * 转账函数。通过调整_balances和_owner变量将 tokenId 从 from 转账给 to，同时释放Transfer事件。
+     * 条件:
+     * 1. tokenId 被 from 拥有
+     * 2. to 不是0地址
+     */
+    function _transfer(
+        address owner,
+        address from,
+        address to,
+        uint tokenId
+    ) private {
+        require(from == owner, "not owner");
+        require(to != address(0), "transfer to the zero address");
+
+        _approve(owner, address(0), tokenId);
+
+        _balances[from] -= 1;
+        _balances[to] += 1;
+        _owners[tokenId] = to;
+
+        emit Transfer(from, to, tokenId);
+    }
+    
+    // 实现IERC721的transferFrom，非安全转账，不建议使用。调用_transfer函数
+    function transferFrom(
+        address from,
+        address to,
+        uint tokenId
+    ) external override {
+        address owner = ownerOf(tokenId);
+        require(
+            _isApprovedOrOwner(owner, msg.sender, tokenId),
+            "not owner nor approved"
+        );
+        _transfer(owner, from, to, tokenId);
+    }
+
+    /**
+     * 安全转账，安全地将 tokenId 代币从 from 转移到 to，会检查合约接收者是否了解 ERC721 协议，以防止代币被永久锁定。调用了_transfer函数和_checkOnERC721Received函数。条件：
+     * from 不能是0地址.
+     * to 不能是0地址.
+     * tokenId 代币必须存在，并且被 from拥有.
+     * 如果 to 是智能合约, 他必须支持 IERC721Receiver-onERC721Received.
+     */
+    function _safeTransfer(
+        address owner,
+        address from,
+        address to,
+        uint tokenId,
+        bytes memory _data
+    ) private {
+        _transfer(owner, from, to, tokenId);
+        _checkOnERC721Received(from, to, tokenId, _data);
+    }
+
+    /**
+     * 实现IERC721的safeTransferFrom，安全转账，调用了_safeTransfer函数。
+     */
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint tokenId,
+        bytes memory _data
+    ) public override {
+        address owner = ownerOf(tokenId);
+        require(
+            _isApprovedOrOwner(owner, msg.sender, tokenId),
+            "not owner nor approved"
+        );
+        _safeTransfer(owner, from, to, tokenId, _data);
+    }
+
+    // safeTransferFrom重载函数
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint tokenId
+    ) external override {
+        safeTransferFrom(from, to, tokenId, "");
+    }
+
+    /** 
+     * 铸造函数。通过调整_balances和_owners变量来铸造tokenId并转账给 to，同时释放Transfer事件。铸造函数。通过调整_balances和_owners变量来铸造tokenId并转账给 to，同时释放Transfer事件。
+     * 这个mint函数所有人都能调用，实际使用需要开发人员重写，加上一些条件。
+     * 条件:
+     * 1. tokenId尚不存在。
+     * 2. to不是0地址.
+     */
+    function _mint(address to, uint tokenId) internal virtual {
+        require(to != address(0), "mint to zero address");
+        require(_owners[tokenId] == address(0), "token already minted");
+
+        _balances[to] += 1;
+        _owners[tokenId] = to;
+
+        emit Transfer(address(0), to, tokenId);
+    }
+
+    // 销毁函数，通过调整_balances和_owners变量来销毁tokenId，同时释放Transfer事件。条件：tokenId存在。
+    function _burn(uint tokenId) internal virtual {
+        address owner = ownerOf(tokenId);
+        require(msg.sender == owner, "not owner of token");
+
+        _approve(owner, address(0), tokenId);
+
+        _balances[owner] -= 1;
+        delete _owners[tokenId];
+
+        emit Transfer(owner, address(0), tokenId);
+    }
+
+    // _checkOnERC721Received：函数，用于在 to 为合约的时候调用IERC721Receiver-onERC721Received, 以防 tokenId 被不小心转入黑洞。
+    function _checkOnERC721Received(address from, address to, uint256 tokenId, bytes memory data) private {
+        if (to.code.length > 0) {
+            try IERC721Receiver(to).onERC721Received(msg.sender, from, tokenId, data) returns (bytes4 retval) {
+                if (retval != IERC721Receiver.onERC721Received.selector) {
+                    revert ERC721InvalidReceiver(to);
+                }
+            } catch (bytes memory reason) {
+                if (reason.length == 0) {
+                    revert ERC721InvalidReceiver(to);
+                } else {
+                    /// @solidity memory-safe-assembly
+                    assembly {
+                        revert(add(32, reason), mload(reason))
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 实现IERC721Metadata的tokenURI函数，查询metadata。
+     */
+    function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
+        require(_owners[tokenId] != address(0), "Token Not Exist");
+
+        string memory baseURI = _baseURI();
+        return bytes(baseURI).length > 0 ? string(abi.encodePacked(baseURI, tokenId.toString())) : "";
+    }
+
+    /**
+     * 计算{tokenURI}的BaseURI，tokenURI就是把baseURI和tokenId拼接在一起，需要开发重写。
+     * BAYC的baseURI为ipfs://QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/ 
+     */
+    function _baseURI() internal view virtual returns (string memory) {
+        return "";
+    }
+}
+```
+
+### 免费铸造的APE
+```
+// SPDX-License-Identifier: MIT
+// by 0xAA
+pragma solidity ^0.8.21;
+
+import "./ERC721.sol";
+
+contract WTFApe is ERC721{
+    uint public MAX_APES = 10000; // 总量
+
+    // 构造函数
+    constructor(string memory name_, string memory symbol_) ERC721(name_, symbol_){
+    }
+
+    //BAYC的baseURI为ipfs://QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/ 
+    function _baseURI() internal pure override returns (string memory) {
+        return "ipfs://QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/";
+    }
+    
+    // 铸造函数
+    function mint(address to, uint tokenId) external {
+        require(tokenId >= 0 && tokenId < MAX_APES, "tokenId out of range");
+        _mint(to, tokenId);
+    }
+}
+```
+
+
+
+
+
 
 
 
