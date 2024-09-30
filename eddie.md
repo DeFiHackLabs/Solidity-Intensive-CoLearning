@@ -15,6 +15,31 @@ timezone: Asia/Shanghai
 ## Notes
 <!-- Content_START -->
 
+### 2024.09.30
+
+WTF103章节内容：ERC20、代币水龙头
+
+#### 笔记
+
+- IERC20接口
+    
+    ```solidity
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address to, uint256 amount) external returns (bool);
+    function allowance(address owner, address spender) external view returns (uint256);
+    function approve(address spender, uint256 amount) external returns (bool);
+    function transferFrom(address from,address to,uint256 amount) external returns (bool);
+    ```
+    
+- 相关代码：
+
+    https://github.com/eddiehsu66/SolidityCase/tree/main/ERC20
+
+    https://github.com/eddiehsu66/SolidityCase/tree/main/TokenFaucet
+
 ### 2024.09.29
 
 WTF102章节内容：Hash、TryCatch
