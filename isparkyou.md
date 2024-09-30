@@ -2306,8 +2306,126 @@ contract WTFApe is ERC721{
 }
 ```
 
+为了防止NFT被转到一个没有能力操作NFT的合约中去,目标必须正确实现ERC721TokenReceiver接口：
+```
+interface ERC721TokenReceiver {
+    function onERC721Received(address _operator, address _from, uint256 _tokenId, bytes _data) external returns(bytes4);
+}
+```
+接口是某些行为的集合(在solidity中更甚，接口完全等价于函数选择器的集合)，某个类型只要实现了某个接口，就表明该类型拥有这样的一种功能。因此，只要某个contract类型实现了上述的ERC721TokenReceiver接口(更具体而言就是实现了onERC721Received这个函数),该contract类型就对外表明了自己拥有管理NFT的能力。
+ERC165是一种对外表明自己实现了哪些接口的技术标准。就像上面所说的，实现了一个接口就表明合约拥有种特殊能力。有一些合约与其他合约交互时，期望目标合约拥有某些功能，那么合约之间就能够通过ERC165标准对对方进行查询以检查对方是否拥有相应的能力。
+```
+/// 注意这个**0x80ac58cd**
+///  **⚠⚠⚠ Note: the ERC-165 identifier for this interface is 0x80ac58cd. ⚠⚠⚠**
+interface ERC721 /* is ERC165 */ {
+    event Transfer(address indexed _from, address indexed _to, uint256 indexed _tokenId);
 
+    event Approval(address indexed _owner, address indexed _approved, uint256 indexed _tokenId);
 
+    event ApprovalForAll(address indexed _owner, address indexed _operator, bool _approved);
+
+    function balanceOf(address _owner) external view returns (uint256);
+
+    function ownerOf(uint256 _tokenId) external view returns (address);
+
+    function safeTransferFrom(address _from, address _to, uint256 _tokenId, bytes data) external payable;
+
+    function safeTransferFrom(address _from, address _to, uint256 _tokenId) external payable;
+
+    function transferFrom(address _from, address _to, uint256 _tokenId) external payable;
+
+    function approve(address _approved, uint256 _tokenId) external payable;
+
+    function setApprovalForAll(address _operator, bool _approved) external;
+
+    function getApproved(uint256 _tokenId) external view returns (address);
+
+    function isApprovedForAll(address _owner, address _operator) external view returns (bool);
+}
+```
+
+### 荷兰拍卖 Dutch Auction
+亦称“减价拍卖”，它是指拍卖标的的竞价由高到低依次递减直到第一个竞买人应价（达到或超过底价）时击槌成交的一种拍卖。
+项目方非常喜欢这种拍卖形式，主要有两个原因
+1. 荷兰拍卖的价格由最高慢慢下降，能让项目方获得最大的收入。
+2. 拍卖持续较长时间（通常6小时以上），可以避免gas war。
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "https://github.com/AmazingAng/WTF-Solidity/blob/main/34_ERC721/ERC721.sol";
+
+contract DutchAuction is Ownable, ERC721 {
+    uint256 public constant COLLECTOIN_SIZE = 10000; // NFT总数
+    uint256 public constant AUCTION_START_PRICE = 1 ether; // 起拍价(最高价)
+    uint256 public constant AUCTION_END_PRICE = 0.1 ether; // 结束价(最低价/地板价)
+    uint256 public constant AUCTION_TIME = 10 minutes; // 拍卖时间，为了测试方便设为10分钟
+    uint256 public constant AUCTION_DROP_INTERVAL = 1 minutes; // 每过多久时间，价格衰减一次
+    uint256 public constant AUCTION_DROP_PER_STEP =
+        (AUCTION_START_PRICE - AUCTION_END_PRICE) /
+        (AUCTION_TIME / AUCTION_DROP_INTERVAL); // 每次价格衰减步长
+    
+    uint256 public auctionStartTime; // 拍卖开始时间戳
+    string private _baseTokenURI;   // metadata URI
+    uint256[] private _allTokens; // 记录所有存在的tokenId
+
+    constructor() ERC721("WTF Dutch Auctoin", "WTF Dutch Auctoin") {
+        auctionStartTime = block.timestamp;
+    }
+
+    // auctionStartTime setter函数，onlyOwner
+    function setAuctionStartTime(uint32 timestamp) external onlyOwner {
+        auctionStartTime = timestamp;
+    }
+    // 获取拍卖实时价格
+    function getAuctionPrice()
+        public
+        view
+        returns (uint256)
+    {
+        if (block.timestamp < auctionStartTime) {
+        return AUCTION_START_PRICE;
+        }else if (block.timestamp - auctionStartTime >= AUCTION_TIME) {
+        return AUCTION_END_PRICE;
+        } else {
+        uint256 steps = (block.timestamp - auctionStartTime) /
+            AUCTION_DROP_INTERVAL;
+        return AUCTION_START_PRICE - (steps * AUCTION_DROP_PER_STEP);
+        }
+    }
+    // 拍卖mint函数
+    function auctionMint(uint256 quantity) external payable{
+        uint256 _saleStartTime = uint256(auctionStartTime); // 建立local变量，减少gas花费
+        require(
+        _saleStartTime != 0 && block.timestamp >= _saleStartTime,
+        "sale has not started yet"
+        ); // 检查是否设置起拍时间，拍卖是否开始
+        require(
+        totalSupply() + quantity <= COLLECTOIN_SIZE,
+        "not enough remaining reserved for auction to support desired mint amount"
+        ); // 检查是否超过NFT上限
+
+        uint256 totalCost = getAuctionPrice() * quantity; // 计算mint成本
+        require(msg.value >= totalCost, "Need to send more ETH."); // 检查用户是否支付足够ETH
+        
+        // Mint NFT
+        for(uint256 i = 0; i < quantity; i++) {
+            uint256 mintIndex = totalSupply();
+            _mint(msg.sender, mintIndex);
+            _addTokenToAllTokensEnumeration(mintIndex);
+        }
+        // 多余ETH退款
+        if (msg.value > totalCost) {
+            payable(msg.sender).transfer(msg.value - totalCost); //注意一下这里是否有重入的风险
+        }
+    }
+    // 提款函数，onlyOwner
+    function withdrawMoney() external onlyOwner {
+        (bool success, ) = msg.sender.call{value: address(this).balance}(""); // call函数的调用方式详见第22讲
+        require(success, "Transfer failed.");
+    }
+```
 
 
 
