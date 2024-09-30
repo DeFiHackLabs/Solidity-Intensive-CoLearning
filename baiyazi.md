@@ -393,4 +393,32 @@ B通过delegatecall来调用C的setVars()函数，将改变合约B里的状态�
 
 2.当合约中有`selfdestruct`功能时常常会带来安全问题和信任问题，合约中的selfdestruct功能会为攻击者打开攻击向量(例如使用`selfdestruct`向一个合约频繁转入token进行攻击，这将大大节省了GAS的费用，虽然很少人这么做)，此外，此功能还会降低用户对合约的信心。
 
+### 2024.09.30
+
+**ABI**是与以太坊智能合约交互的标准。数据基于他们的类型编码；并且由于编码后不包含类型信息，解码时需要注明它们的类型.
+
+`Solidity`中，`ABI编码`有4个函数：`abi.encode`, `abi.encodePacked`, `abi.encodeWithSignature`, `abi.encodeWithSelector`。而`ABI解码`有1个函数：`abi.decode`，用于解码`abi.encode`的数据。
+
+abi.encode
+
+将给定参数利用ABI规则编码。`ABI`被设计出来跟智能合约交互，他将每个参数填充为32字节的数据，并拼接在一起。如果要和合约交互，要用的就是`abi.encode`
+
+abi.encodePacked
+
+将给定参数根据其所需最低空间编码。它类似 `abi.encode`，但是会把其中填充的很多`0`省略。比如，只用1字节来编码`uint8`类型。当想省空间，并且不与合约交互的时候，可以使用`abi.encodePacked`
+
+abi.encodeWithSignature
+
+与`abi.encode`功能类似，只不过第一个参数为`函数签名`。当调用其他合约的时候可以使用。
+
+abi.encodeWithSignature
+
+与`abi.encodeWithSignature`功能类似，只不过第一个参数为`函数选择器`，为`函数签名`Keccak哈希的前4个字节。
+
+abi.decode
+
+`abi.decode`用于解码`abi.encode`生成的二进制编码，将它还原成原本的参数。
+
+`Keccak256`函数是`Solidity`中最常用的哈希函数
+
 <!-- Content_END -->

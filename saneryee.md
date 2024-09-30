@@ -50,6 +50,24 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 ## Notes
 
 <!-- Content_START -->
+### 2024.09.30
+
+Day 6
+
+WTF Academy Solidity 101 24-26
+
+- `Create2` is used more often than `Create`.
+
+Opinion of `SELFDESTRUCT` change after Cancun Update
+
+- `SELFDESTRUCT` was initially designed as a safety measure for emergency situations.
+- As the ecosystem evolved, `SELFDESTRUCT` began to pose potential systemic risks.
+- With increasing interdependence among contracts, the destruction of a single contract could potendially impact the entire eco.
+- In most emergency situations, the primary concern is fund security.
+- Simply transferring funds is often sufficient to mitigate risks, without the need to completely destroy the contract.
+- The recent update represents a refinement of the `SELFDESTRUCT` functionality, striking a balance between risk migitgation and practical utility.
+
+
 ### 2024.09.28
 Day 5
 WTF Academy Solidity 101 20-23
