@@ -131,4 +131,26 @@ storage（合约的状态变量）赋值给本地storage（函数里的）,memor
         initcode: 新合约的初始字节码（合约的Creation Code和构造函数的参数）。
     - 新地址 = hash("0xFF",创建者地址, salt, initcode)
     - Contract x = new Contract{salt: _salt, value: _value}(params)
+### 2024.09.30
+- selfdestruct
+    -  selfdestruct命令可以用来删除智能合约，并将该合约剩余ETH转到指定地址。
+    - 在以太坊坎昆（Cancun）升级中，EIP-6780被纳入升级以实现对Verkle Tree更好的支持。EIP-6780减少了SELFDESTRUCT操作码的功能。 **已经部署的合约无法被SELFDESTRUCT了。 如果要使用原先的SELFDESTRUCT功能，必须在同一笔交易中创建并SELFDESTRUCT。**
+    - selfdestruct(payable(msg.sender));
+    - 使用selfdestruct()函数删除合约时，合约中的所有状态变量都会被删除，但合约中的函数仍然可以访问这些状态变量。因此，在删除合约之前，应该确保所有状态变量都被正确地处理。
+    - 对外提供合约销毁接口时，最好设置为只有合约所有者可以调用，可以使用函数修饰符onlyOwner进行函数声明。
+    当合约中有selfdestruct功能时常常会带来安全问题和信任问题，合约中的selfdestruct功能会为攻击者打开攻击向量(例如使用selfdestruct向一个合约频繁转入token进行攻击，这将大大节省了GAS的费用，虽然很少人这么做)，此外，此功能还会降低用户对合约的信心。
+
+- ABI编码
+    -  ABI（Application Binary Interface）是以太坊和其他区块链平台中用于定义智能合约与外部应用程序（如前端、其他合约）之间交互的规范。
+    -  abi.encode, 
+    -  abi.encodePacked, //压缩数据，无法正常吉奥胡
+    -  abi.encodeWithSignature, 
+    -  abi.encodeWithSelector
+    -  abi.encodeWithSelector(bytes4(0x533ba33a));**通过abi函数选择器，address(contract).staticcall(data)来调用相关函数**
+-  Hash
+    -  生成数据唯一标识
+    -  Solidity使用keccak256，返回一个32字节的哈希值。
+    
+
+
 <!-- Content_END -->

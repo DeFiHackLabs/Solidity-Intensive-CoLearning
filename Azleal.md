@@ -183,4 +183,30 @@ function fe() external{} // external空白函数
    - `assert`: 通常用于合约的执行结果的检查，确认结果是符合预期的。用法很简单，但不能解释抛出异常的原因
       - 用法：`assert(_success);`
 
+### 2024.09.30
+1. 函数重载
+> solidity允许函数重载，即函数名称相同但参数类型不同的函数可以同时存在，他们被视为不同的函数。但不允许`modifier`重载。
+>
+> ```
+> function saySomething() public pure returns(string memory){
+>     return("Nothing");
+> }
+>
+> function saySomething(string memory something) public pure returns(string memory){
+>     return(something);
+> }
+> ```
+> 由于方法签名不同，经过编译之后，它们都成为了不同的函数选择器(`selector`).
+- 实参匹配：如果调用重载方法时，实际参数可以匹配到多个重载函数，此时会报错。即必须保证参数类型只能匹配到一个函数。
+2. 库合约
+  - 特点：
+     - 不能存在状态变量
+     - 不能够继承或被继承
+     - 不能接收以太币
+     - 不可以被销毁
+  - 使用：
+     - `using for`: `using Strings for uint256;`
+     - `Strings.toHexString(_number);`
+
+
 <!-- Content_END -->

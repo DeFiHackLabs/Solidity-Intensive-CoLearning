@@ -234,7 +234,66 @@ function fStorage() public{
         _owners[tokenId] = newOwner;
     }
     ```
-    - Require
-    - 
+    - Require: solidity 0.8版本之前抛出异常的常用方法，目前很多主流合约仍然还在使用它。它很好用，唯一的缺点就是gas随着描述异常的字符串长度增加，比error命令要高
+    - assert命令一般用于程序员写程序debug，因为它不能解释抛出异常的原因（比require少个字符串）。它的用法很简单，assert(检查条件），当检查条件不成立的时候，就会抛出异常。
+    - 三种方法的gas比较:error方法gas最少，其次是assert，require方法消耗gas最多！因此，error既可以告知用户抛出异常的原因，又能省gas。
+
+### 2024.09.28
+
+- [102-16] 函数重载: Solidity中允许函数进行重载（overloading），即名字相同但输入参数类型不同的函数可以同时存在，他们被视为不同的函数。注意，Solidity不允许修饰器（modifier）重载。
+    - 重载函数在经过编译器编译后，由于不同的参数类型，都变成了不同的函数选择器（selector）
+    - 实参匹配（Argument Matching）：在调用重载函数时，会把输入的实际参数和函数参数的变量类型做匹配。 如果出现多个匹配的重载函数，则会报错。
+    ```solidity
+    // f(50)，因为50既可以被转换为uint8，也可以被转换为uint256，因此会报错。
+    function f(uint8 _in) public pure returns (uint8 out) {
+        out = _in;
+    }
+
+    function f(uint256 _in) public pure returns (uint256 out) {
+        out = _in;
+    }
+    ```
+- [102-17] 库合约
+    - 和普通合约主要有以下几点不同：
+        - 不能存在状态变量、不能够继承或被继承、不能接收以太币、不可以被销毁
+    - 库合约中的函数可见性如果被设置为 public 或者 external，则在调用函数时会触发一次 delegatecall。而如果被设置为 internal，则不会引起。对于设置为 private 可见性的函数来说，其仅能在库合约中可见，在其他合约中不可用。
+    - 如何使用库合约：
+        - using for：用于附加库合约（从库 A）到任何类型（B）。添加完指令后，库A中的函数会自动添加为B类型变量的成员，可以直接调用。注意：在调用的时候，这个变量会被当作第一个参数传递给函数;
+        ```solidity
+        // 利用using for指令
+        using Strings for uint256;
+        function getString1(uint256 _number) public pure returns(string memory){
+            // 库合约中的函数会自动添加为uint256型变量的成员
+            return _number.toHexString();
+        }
+        ```
+        - 通过库合约名称调用函数
+        ```solidity
+        // 直接通过库合约名调用
+        function getString2(uint256 _number) public pure returns(string memory){
+            return Strings.toHexString(_number);
+        }
+        ```
+    - 常用库：
+        - [Strings](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Strings.sol)
+        - [Address](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Address.sol)
+        - [Create2](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Create2.sol)
+        - [Arrays](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Arrays.sol)
+- [102-18] Import
+```solidity
+文件结构
+├── Import.sol
+└── Yeye.sol
+
+// 通过文件相对位置import
+import './Yeye.sol';
+import {Yeye} from './Yeye.sol';
+
+// 通过网址引用
+import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+
+// 通过npm的目录导入
+import '@openzeppelin/contracts/access/Ownable.sol';
+```
 
 <!-- Content_END -->

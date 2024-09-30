@@ -54,5 +54,11 @@ day07:
 
 [solidity-101 13 Note](./content/llt/107.md)
 
+### 2024.09.30
+
+day08:
+
+[solidity-101 14 Note](./content/llt/108.md)
+
 <!-- Content_END -->
 

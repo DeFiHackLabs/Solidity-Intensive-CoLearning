@@ -82,4 +82,23 @@ timezone: Asia/Shanghai
 2. gas随着描述异常的字符串长度增加，比error命令要高。使用方法：require(检查条件，"异常的描述")
 3. 我们可以看到，error方法gas最少，其次是assert，require方法消耗gas最多！因此，error既可以告知用户抛出异常的原因，又能省gas，大家要多用！
 
+
+### 2024.09.29
+开始102  
+1. Solidity中允许函数进行重载（overloading），即名字相同但输入参数类型不同的函数可以同时存在，他们被视为不同的函数。注意，Solidity不允许修饰器（modifier）重载。
+2. 我们调用f(50)，因为50既可以被转换为uint8，也可以被转换为uint256，因此会报错。
+3. 库合约和普通合约主要有以下几点不同：  
+- 不能存在状态变量
+- 不能够继承或被继承
+- 不能接收以太币
+- 不可以被销毁
+4. 常用的库  Strings：将uint256转换为String  
+Address：判断某个地址是否为合约地址  
+Create2：更安全的使用Create2 EVM opcode  
+Arrays：跟数组相关的库合约
+5. import四种用法
+6. receive()函数是在合约收到ETH转账时被调用的函数。一个合约最多有一个receive()函数，声明方式与一般函数不一样，不需要function关键字：receive() external payable { ... }。receive()函数不能有任何的参数，不能返回任何值，必须包含external和payable   
+7. fallback()函数会在调用合约不存在的函数时被触发。可用于接收ETH，也可以用于代理合约proxy contract。fallback()声明时不需要function关键字，必须由external修饰，一般也会用payable修饰，用于接收ETH:fallback() external payable { ... }。
+8. 合约接收ETH时，msg.data为空且存在receive()时，会触发receive()；msg.data不为空或不存在receive()时，会触发fallback()，此时fallback()必须为payable。receive()和payable fallback()均不存在的时候，向合约直接发送ETH将会报错（你仍可以通过带有payable的函数向合约发送ETH）。
+9. Solidity有三种方法向其他合约发送ETH，他们是：transfer()，send()和call()，其中call()是被鼓励的用法。
 <!-- Content_END -->
