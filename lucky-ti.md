@@ -540,9 +540,120 @@ PART 18
 
 ### 2024.09.29
 
+章节19——20
+
+笔记：
+
+receive()函数是在合约收到ETH转账时被调用的函数。一个合约最多有一个receive()函数，声明方式与一般函数不一样，不需要function关键字：receive() external payable { ... }。receive()函数不能有任何的参数，不能返回任何值，必须包含external和payable。
+当合约接收ETH的时候，receive()会被触发。receive()最好不要执行太多的逻辑因为如果别人用send和transfer方法发送ETH的话，gas会限制在2300，receive()太复杂可能会触发Out of Gas报错；如果用call就可以自定义gas执行更复杂的逻辑。
+警惕恶意合约，会在receive() 函数（老版本0.6.x的话，就是 fallback() 函数）嵌入恶意消耗gas的内容或者使得执行故意失败的代码。
 ```
-完成课程19-20
+// 定义事件
+event Received(address Sender, uint Value);
+// 接收ETH时释放Received事件
+receive() external payable {
+    emit Received(msg.sender, msg.value);
+}
 ```
+fallback()函数会在调用合约不存在的函数时被触发。可用于接收ETH，也可以用于代理合约proxy contract。fallback()声明时不需要function关键字，必须由external修饰，一般也会用payable修饰，用于接收ETH:fallback() external payable { ... }。
+
+receive和fallback的区别：
+```
+触发fallback() 还是 receive()?
+           接收ETH
+              |
+         msg.data是空？
+            /  \
+          是    否
+          /      \
+receive()存在?   fallback()
+        / \
+       是  否
+      /     \
+receive()   fallback()
+// 合约接收ETH时，msg.data为空且存在receive()时，会触发receive()
+```
+transfer（接收方地址.transfer(发送ETH数额)）、send（接收方地址.send(发送ETH数额)）、call（接收方地址.call{value: 发送ETH数额}("")）都可用于发送ETH，三者的区别：
+
+1.transfer、send的gas限制都在2300，足够用于转账，但对方合约的fallback()或receive()函数不能实现太复杂的逻辑。区别在于，交易失败transfer会自动revert，send不会（send只会返回成功与否的bool值，需要额外代码处理一下）。
+2.call()没有gas限制，可以支持对方合约fallback()或receive()函数实现复杂逻辑，不会revert，call()的返回值是(bool, bytes)，其中bool代表着转账成功或失败，需要额外代码处理一下。
+```
+error SendFailed(); // 用send发送ETH失败error
+
+// send()发送ETH
+function sendETH(address payable _to, uint256 amount) external payable{
+    // 处理下send的返回值，如果失败，revert交易并发送error
+    bool success = _to.send(amount);
+    if(!success){
+        revert SendFailed();
+    }
+}
+```
+```
+error CallFailed(); // 用call发送ETH失败error
+
+// call()发送ETH
+function callETH(address payable _to, uint256 amount) external payable{
+    // 处理下call的返回值，如果失败，revert交易并发送error
+    (bool success,) = _to.call{value: amount}("");
+    if(!success){
+        revert CallFailed();
+    }
+}
+```
+
+答案：
+
+PART 19
+1.	下面哪个选项语法是正确的？receive() external payable {}
+2.	fallback(or receive)函数能否在合约内部调用？不能
+3.	vitalik想部署一个能接收ETH和msg.data的合约，那么他部署的合约中：
+必须含有fallback函数
+4.	假设存在如下合约，现在vitalik向该合约发起一笔低级交互，value=100Wei，msg.data=0xaa，那么会发生下面选项中的哪种情况？
+error:Fallback function is not defined,value和msg.data均发送失败
+5.	假设存在如下合约，现在vitalik想调用该合约中不存在的函数，他在calldata中输入函数选择器，并将value设置为1ETH，那么会发生下面选项中的哪种情况？
+error:'Fallback'function is not defined,value和msg.data均发送失败
+
+PART 20
+1.	下面三种发送ETH的方法中，哪一种没有gas限制？call
+2.	下面三种发送ETH的方法中，哪一种发送失败会自动revert交易?transfer
+3.	transfer的gas限制为？2300
+4.	vitalik写了一个合约，并且该合约在被部署时可以转ETH进去，那么该合约的构造函数可能为？constructor() payable {}
+5.	vitalik写了一个用send()发送ETH的函数：
+bool success =_to.send(amount); if(!success) { revert SendFailed(); }
+6.	vitalik又写了一个用call()发送ETH的函数：
+(bool success,) =_to.call {value:amount} (""); if(!success) {revert CallFailed();}
+7.	假设存在如下两个合约(sendETH和ReceiveETH)，两个合约目前ETH余额皆为0，现在vitalik想通过SendETH合约的callETH函数往ReceiveETH合约转入1ETH，他将交易的value设置为2ETH，同时交易成功执行，那么此时sendETH合约和ReceiveETH的ETH余额分别为？1ETH;1ETH
+
+### 2024.09.30
+
+章节21-22
+
+笔记：
+```
+contract CallContract{
+   // 合约名（地址）.函数名（）的方式调用其他合约函数
+    function callSetX(address _Address, uint256 x) external{
+        OtherContract(_Address).setX(x);
+    }
+   // 相当于参数已经提前指定合约地址引用，直接调用
+    function callGetX(OtherContract _Address) external view returns(uint x){
+        x = _Address.getX();
+    }
+   // 将指定好的赋值给一个变量，通过变量来调用具体函数
+    function callGetX2(address _Address) external view returns(uint x){
+        OtherContract oc = OtherContract(_Address);
+        x = oc.getX();
+    }
+   // 这边对比第一条callSetX实际多了个转账
+    function setXTransferETH(address otherContract, uint256 x) payable external{
+        OtherContract(otherContract).setX{value: msg.value}(x);
+    }
+}
+```
+
+
+
 
 
 
