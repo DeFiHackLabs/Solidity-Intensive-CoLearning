@@ -237,11 +237,11 @@ But it is precisely because I cherish this luck that we should take our time.
 I also need to improve my ability in all aspects if one day Web3 needs me.  
 
 
-What is there to be afraid of when I can survive in the hardest period?
-
 Someday he needs me, I can stand up and protect him. I know I can do it.
 
 But the premise is that I must go through enough tempering and growth.
+
+Is there a better opportunity than I can survive the hardest time alone?
 
 Maybe he would say he doesn't need it, but, I have to have this ability.
 
