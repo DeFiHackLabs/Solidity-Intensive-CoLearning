@@ -1306,4 +1306,105 @@ timezone: Asia/Shanghai
 
         - 当合约中有selfdestruct功能时常常会带来安全问题和信任问题，合约中的selfdestruct功能会为攻击者打开攻击向量(例如使用selfdestruct向一个合约频繁转入token进行攻击，这将大大节省了GAS的费用，虽然很少人这么做)，此外，此功能还会降低用户对合约的信心。
 ###
+
+### 2024.09.30
+
+学习内容:
+1. 第二十七讲
+    
+    - `ABI` (Application Binary Interface，应用二进制接口)是与以太坊智能合约交互的标准。数据基于他们的类型编码；并且由于编码后不包含类型信息，解码时需要注明它们的类型。
+    
+    - `ABI编码`函数
+
+            ```Solidity
+
+            // 编码示例数据
+            uint x = 10;
+            address addr = 0x7A58c0Be72BE218B41C608b7Fe7C5bB630736C71;
+            string name = "0xAA";
+            uint[2] array = [5, 6]; 
+            ```
+
+        - `abi.encode` - 将每个参数填充为`32字节`的数据，并拼接在一起，常用于智能合约交互
+
+            ```Solidity
+
+            function encode() public view returns(bytes memory result) {
+                result = abi.encode(x, addr, name, array);
+            }
+            // 编码结果 由于abi.encode将每个数据都填充为32字节，中间有很多0
+            // 0x000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000043078414100000000000000000000000000000000000000000000000000000000
+            ```
+
+        - `abi.encodePacked` - 将给定参数根据其所需最低空间编码。它类似 `abi.encode`，但是会把其中填充的很多`0`省略。比如，只用`1字节`来编码`uint8`类型。当你想省空间，并且不与合约交互的时候，可以使用`abi.encodePacked`，例如算一些数据的`hash`时。
+
+            ```Solidity
+
+            function encodePacked() public view returns(bytes memory result) {
+                result = abi.encodePacked(x, addr, name, array);
+            }
+            // 编码结果 由于abi.encodePacked对编码进行了压缩，长度比abi.encode短很多。
+            // 0x000000000000000000000000000000000000000000000000000000000000000a7a58c0be72be218b41c608b7fe7c5bb630736c713078414100000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000006
+            ```
+
+        - `abi.encodeWithSignature` - 与`abi.encode`功能类似，只不过第一个参数为函数签名，比如`"foo(uint256,address,string,uint256[2])"`。当调用其他合约的时候可以使用。
+
+            ```Solidity
+
+            function encodeWithSignature() public view returns(bytes memory result) {
+                result = abi.encodeWithSignature("foo(uint256,address,string,uint256[2])", x, addr, name, array);
+            }
+            // 编码结果 等同于在abi.encode编码结果前加上了4字节的函数选择器1。
+            // 0xe87082f1000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000043078414100000000000000000000000000000000000000000000000000000000
+            ```
+
+        - `abi.encodeWithSelector` - 与`abi.encodeWithSignature`功能类似，只不过第一个参数为函数选择器，为`函数签名Keccak哈希`的前4个字节。
+
+            ```Solidity
+
+            function encodeWithSelector() public view returns(bytes memory result) {
+                result = abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array);
+            }
+            // 编码结果 与abi.encodeWithSignature结果一样。
+            // 0xe87082f1000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000043078414100000000000000000000000000000000000000000000000000000000
+            ```
+
+    - `ABI解码`函数
+
+        - `abi.decode` - 用于解码`abi.encode`生成的`二进制编码`，将它还原成原本的参数。
+
+            ```Solidity
+
+            function decode(bytes memory data) public pure returns(uint dx, address daddr, string memory dname, uint[2] memory darray) {
+                (dx, daddr, dname, darray) = abi.decode(data, (uint, address, string, uint[2]));
+            }
+            ```
+    
+    - `ABI`的使用场景
+
+        - 配合`call`来实现对合约的底层调用
+
+        - 对于未开源的合约使用`abi.encodeWithSelector`对合约进行调用
+
+2. 第二十八讲
+
+    - `哈希函数`（hash function）是一个密码学概念，它可以将任意长度的消息转换为一个固定长度的值，这个值也称作哈希`（hash）`。
+
+    - `哈希`在`Solidity`的应用
+
+        - 利用`keccak256`来生成一些数据的唯一标识
+
+    - `SHA3`由`keccak`标准化而来，在很多场合下`Keccak`和`SHA3`是同义词, 但在2015年8月SHA3最终完成标准化时，NIST调整了填充算法，`所以`SHA3`就和`keccak`计算的结果不一样`, 所以在实际开发中建议直接使用`keccak256`。
+
+    - `keccak256` hash示例
+
+        ```Solidity
+
+        function hash(uint _num, string memory _string, address _addr) public pure returns (bytes32) {
+            
+            // 在进行hash运算之前，一般先用abi.encodePacked将数据编码(省gas)，再使用keccak256进行hash
+            return keccak256(abi.encodePacked(_num, _string, _addr));
+        }
+        ```
+##
 <!-- Content_END -->
