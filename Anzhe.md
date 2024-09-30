@@ -791,4 +791,77 @@ Constructor 需要先給定參數（這邊是地址 `initialOwner`），才能�
 ![](https://i.imgur.com/IX2MZNE.png)
 因為 msg.sender（`0x5B38...`） 和 owner（`0x4B20...`）不符合 Modifier 的 condition，所以 `changeOwner` 未成功執行，交易被 revert 了。
 ![](https://i.imgur.com/jA4ejMe.png)
+
+### 2024.09.30
+# 事件
+Solidity 的事件（Event）提供了乙太坊虛擬機（EVM）日誌功能之上的抽象，應用程式（如使用 [ether.js](https://learnblockchain.cn/docs/ethers.js/api-contract.html#id18)）可以透過乙太坊客戶端的 RPC（Remote Process Call）介面訂閱和監聽這些事件，然後可以在前端響應事件。當調用事件時，事件會將參數、鍊上發生的事儲存在交易日誌（區塊鍊中的特殊資料結結構）中。
+事件可以在定義在檔案層級，也可以定義為合約的**可繼承成員**（包括介面、函式庫），使事件能夠被不同合約使用。
+這些日誌會與發出它們的合約的地址相關。只要區塊可訪問，日誌就會保留在區塊鏈上。
+EVM 上儲存資料使用事件更有經濟效益，一個是事件大約消耗 2000 gas，鍊上儲存一個新變數需要 20000 gas。
+## EVM 日誌
+乙太坊虛擬機用日誌（Log）儲存 Solidity 事件，每個日誌記錄都包含主題 `
+topics` 和資料 `data` 兩部分。
+![](https://www.wtf.academy/assets/images/12-3-06b5d454b3752b96000f8a9477fa31de.png)
+### 主題 `topics`
+主題是一個描述事件的陣列，長度不超過 4。第一個元素是事件的簽章（Hash），主題最多可以有 3 個 `indexed` 參數，可以當成索引的鍵方便續搜索。每個 `indexed` 參數的大小為固定的 256 bit，如果參數太大了（例如字串），就會自動計算 hash 儲存在 topics 部分。
+Transfer 的事件簽章是 `keccak256("Transfer(address,address,uint256)")`，得到 hash 值 `0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef`。
+### 資料 `data`
+事件中不帶 `indexed` 的參數會儲存在 data 部分，可以理解為事件的「值」。data 部分的變數不能直接檢索，但可以儲存任意大小的數據，通常用來儲存複雜的資料結構，例如陣列和字串等等，因為這些資料超過了256比特，即使儲存在事件的 topics 部分中，也是以雜湊的方式儲存。儲存在 data 部分的變數消耗的 gas 比 topics 更少。
+## 事件宣告與釋放
+### 宣告
+```
+event <事件名稱>(<變數類型和名稱>)
+```
+例如 ERC20 代幣合約中的 `Transfer` 事件：
+```
+event Transfer(address indexed from, address indexed to, uint256 value);
+```
+#### 說明
+*  `from` 變數：代幣的轉帳地址
+*  `to` 變數：代幣的接收地址
+*  `value` 變數：轉帳數量
+*  `indexed` 關鍵字：保存在以太坊虛擬機器日誌的 `topics` 中，方便之後檢索。
+### 釋放
+```
+emit <事件名稱>(<變數名稱>);
+```
+可以在函數中釋放事件，例如定義一個 `_transfer` 函數，每次調用 `_transfer` 時都會釋放 `Transfer` 事件，並記錄對應的變數名稱：
+```
+function _transfer(
+    address from,
+    address to,
+    uint256 amount
+) external {
+    _balances[from] = 10000000; // 給轉帳地址一些初始代幣
+    _balances[from] -= amount； // from 地址減去轉帳數量
+    _banances[to] += amount; // to 地址加上轉帳數量
+    
+    emit Transfer(from, to, amount);
+}
+```
+## 程式碼
+`Event.sol`
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+contract Event{
+    mapping(address => uint256) public _balances;
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) external {
+        _balances[from] = 10000000; // 給轉帳地址一些初始代幣
+        _balances[from] -= amount; // from 地址減去轉帳數量
+        _balances[to] += amount; // to 地址加上轉帳數量
+        
+        emit Transfer(from, to, amount);
+    }
+}
+```
+![](https://i.imgur.com/ubkst3p.png)
+輸入 `from`, `to`, `amount` 三個參數再調用再點 transact 調用 `_tranfer` 函數。
+![](https://i.imgur.com/mTYBiZG.png)
+可以從 logs 中看到外層的 from 是產生日誌的合約地址、topic 是事件簽章、args 是事件參數。
 <!-- Content_END -->
