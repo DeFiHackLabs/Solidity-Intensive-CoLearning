@@ -152,6 +152,33 @@ function <function name>(<parameter types>) {internal|external|public|private} [
 
 
 
+### 2024.09.28
+
+#### 函式輸出
+
+Solidity 有兩個關鍵字  `return` 及 `returns` 差別在
+- `returns`: 用來定義函式的回傳值的型態及名稱
+- `return`: 在函式內，用於在設定回傳值
+```
+// 對回傳參數進行命名
+function returnNamed() public pure returns(unit256 _number, bool _bool, unit256[3] memory _array) {
+  return(1, true, [unit256(1),2,5])
+}
+```
+
+#### 解賦值
+- 讀取所有返回值
+```
+uint256 _number;
+bool _bool;
+uint256[3] memory _array;
+(_number, _bool, _array) = returnNamed();
+```
+- 讀取部份返回值
+```
+// 不讀取的留空，單存只設定要讀取返回值的變量
+(, _bool2, ) = returnNamed();
+```
 
 <!-- Content_END -->
 

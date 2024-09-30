@@ -64,6 +64,14 @@ day07:
 [WTF Academy Solidity 101 13-14 Note](/content/Eric/107.md)
 
 
+### 2024.09.30
+
+day08:
+
+[WTF Academy Solidity 102 15-16 Note](/content/Eric/108.md)
+
+
+
 
 
 

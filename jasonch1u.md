@@ -621,8 +621,9 @@ contract Events {
 }
 ```
 ### 2024.09.27
-* BootCamp作業(09.27~29)：建立ERC20合約、測試合約、鍊上互動
-* 建立ERC20合約
+* 複習12_Event並更新筆記
+* BootCamp任務：建立ERC20合約
+
 ```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
@@ -763,9 +764,208 @@ hw1 是一個預先配置的賬戶別名。
 cast wallet vanity --starts-with 1234
 ```
 
+如何用foundryup做鍊上互動 終端機測試指令
+```
+cast wallet import 自定義錢包名稱 --interactive //需要輸入私鑰跟密碼
+forge script script/DeFiHackLabsBootcamp.s.sol:DeFiHackLabsBootcampScript --rpc-url $SEPOLIA_RPC_URL --broadcast -vvvvv
+
+forge script:
+這是 Forge 工具的子命令，用於執行 Solidity 腳本。
+
+script/DeFiHackLabsBootcamp.s.sol:DeFiHackLabsBootcampScript:
+指定要執行的腳本文件路徑和腳本名稱。
+文件位於 script/DeFiHackLabsBootcamp.s.sol。
+要執行的具體腳本是 DeFiHackLabsBootcampScript。
+
+--rpc-url $SEPOLIA_RPC_URL:
+指定要連接的以太坊網絡 RPC URL。
+$SEPOLIA_RPC_URL 是一個環境變量，存儲了 Sepolia 測試網的 RPC URL。
+
+--broadcast:
+指示 Forge 實際廣播交易到指定的網絡。
+如果沒有這個選項，Forge 只會模擬交易而不實際發送。
+
+--account hw1:
+指定用於簽署和發送交易的賬戶。
+hw1 是一個預先配置的賬戶別名。
+```
+```
+ecrecover 是什麼？
+ecrecover 是 Ethereum 虛擬機（EVM）提供的一個內置函數。
+它的目的是從給定的消息哈希和簽名中恢復出簽名者的地址。
+函數名 "ecrecover" 代表 "elliptic curve recover"，意味著它使用橢圓曲線加密技術。
+
+ecrecover 的工作原理：
+它接受四個參數：消息哈希（32字節）和簽名的三個組成部分 v（1字節）、r（32字節）和 s（32字節）。
+使用這些參數，ecrecover 能夠計算出用於創建簽名的公鑰。
+從公鑰，它進一步導出相應的 Ethereum 地址。
+
+為什麼它能恢復簽名者地址？
+在橢圓曲線加密中，簽名本質上是一個數學問題的解。
+給定消息哈希和簽名，可以通過複雜的數學運算逆向計算出公鑰。
+Ethereum 地址是公鑰的最後20字節的 Keccak-256 哈希。
+
+v, r, s 的作用：
+r 和 s 是簽名的主要組成部分，由私鑰和消息哈希生成。
+v 是一個恢復標識符，用於確定使用哪個候選公鑰（因為橢圓曲線加密可能產生兩個有效的公鑰）。
+
+在 Script 中：(uint8 v, bytes32 r, bytes32 s) = vm.sign(messageHash);
+vm.sign 模擬了使用私鑰對消息進行簽名的過程。
+它生成了 v, r, s，這些值隨後被傳遞給 signIn 函數。
+
+在合約中：
+address signer = ecrecover(hash, v, r, s);
+使用相同的哈希和接收到的 v, r, s，ecrecover 能夠恢復出簽名者的地址。
+
+安全性考慮：
+這個過程的安全性基於橢圓曲線加密的數學特性。
+知道公鑰（或地址）無法反推出私鑰，這就是為什麼數字簽名是安全的。
+
+總結：
+ecrecover 利用橢圓曲線加密的數學特性，從簽名和消息哈希中恢復出簽名者的公鑰，進而得到地址。這個過程允許智能合約驗證一個簽名確實來自特定的地址，而無需知道該地址的私鑰。這是實現鏈下簽名和鏈上驗證的關鍵機制，廣泛用於各種需要身份驗證的智能合約場景。
+```
+```
+ecrecover 函數只需要這四個參數：hash, v, r, s，就可以恢復出簽名者的地址。這是 Ethereum 中一個非常強大的內建函數。
+關於 hash：
+您說得對。在這個例子中，hash 確實是通過以下方式生成的：
+solidityCopybytes32 hash = keccak256(abi.encode(number, name, time));
+這個哈希代表了被簽名的原始消息。
+關於 v, r, s：
+您的理解也是正確的。在 DeFiHackLabsBootcampScript 中，v, r, s 是通過以下方式得到的：
+solidityCopy(uint8 v, bytes32 r, bytes32 s) = vm.sign(keccak256(abi.encode(number, name, time)));
+這裡 vm.sign 函數模擬了使用私鑰對消息哈希進行簽名的過程。
+
+讓我進一步解釋整個流程：
+
+在 Script 中：
+創建消息哈希：keccak256(abi.encode(number, name, time))
+使用 vm.sign 對這個哈希進行簽名，得到 v, r, s
+將 number, name, time, v, r, s 傳給合約的 signIn 函數
+
+在合約中：
+重新創建相同的消息哈希
+使用 ecrecover(hash, v, r, s) 恢復簽名者地址
+驗證恢復的地址是否與調用者地址匹配
+
+這個設計的巧妙之處在於：
+
+合約可以獨立驗證簽名，而不需要存儲任何額外的數據。
+它允許離線簽名，增加了靈活性和安全性。
+通過包含 number, name, time 在簽名中，防止了重放攻擊。
+```
+還有接口也要看懂
+
 #### 13_Inheritance
+* 基本語法: contract 子合約 is 父合約
+* virtual: 父合約中可被重寫的函數
+* override: 子合約中重寫的函數
+* 多重繼承:順序: 最高輩分到最低
+* 函數調用:直接調用: 父合約名.函數名()
 
 #### 14_Interface
+接口（Interface）定義：接口是一種特殊的合約類型，只定義函數簽名，不包含實現。
+
+目的：
+   * 定義標準（如 ERC20、ERC721）
+   * 實現合約間的安全交互
+   * 提供類型檢查和編譯時錯誤捕捉
+
+使用方法：
+
+a. 定義接口：
+```solidity
+
+interface IERC20 { //聲明接口，聲明如何調用ERC20的transfer, balanceOf函數功能，要輸入什麼之類的
+    function transfer(address to, uint256 amount) external returns (bool);
+    function balanceOf(address account) external view returns (uint256);
+}
+```
+b. 使用接口與合約交互：
+
+```solidity
+contract MyContract {
+    IERC20 public token; //聲明一個變數叫token，他是的變數類型是ERC20
+    
+    constructor(address _tokenAddress) { //在建構子中一開始就聲明要輸入一個 _tokenAddress，這個地址應該要是ERC合約的地址
+        token = IERC20(_tokenAddress); //token可以看成是要去 _tokenAddress 地址調用ERC20合約的功能
+                                       //更精確的說是將 _tokenAddress 轉換為 IERC20 接口類型，使 token 可以通過接口與該地址的 ERC20 合約交互。
+    }
+    
+    function transferTokens(address to, uint256 amount) public {
+        token.transfer(to, amount); //token.transfer可以看成去_tokenAddress地址調用ERC20合約的transfer函數功能
+    }
+}
+```
+延伸寫法：
+
+a. 直接調用：
+```solidity
+IERC20(tokenAddress).transfer(to, amount); //一步寫法直接調用
+
+IERC20 token = IERC20(tokenAddress); //兩步寫法
+token.transfer(to, amount);
+```
+b. 接口繼承：(看起來很複雜，建議另外找說明)
+```solidity
+interface ICompound is IERC20 {
+    function mint(uint256 amount) external returns (uint256);
+}
+```
+接口的產生：
+* 由合約開發者或標準制定者創建、
+* 可以從現有合約中提取、
+* 可以根據需要自行定義
+
+如何產生接口：
+a. 從現有合約提取：識別所有 public 和 external 函數，創建只包含這些函數簽名的接口
+b. 根據需求自定義：定義您需要與之交互的函數，確保函數簽名正確匹配目標合約
+
+接口的特點：
+* 不能包含狀態變量
+* 不能包含構造函數
+* 所有函數必須是 external
+* 不能繼承其他合約（但可以繼承其他接口）
+
+實際應用示例：
+```solidity
+interface IUniswapV2Router {
+    function swapExactTokensForTokens(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external returns (uint256[] memory amounts);
+}
+
+contract MyDeFiProject {
+    IUniswapV2Router public uniswapRouter;
+
+    constructor(address _routerAddress) {
+        uniswapRouter = IUniswapV2Router(_routerAddress);
+    }
+
+    function performSwap(uint256 amount) public {
+        address[] memory path = new address[](2);
+        path[0] = address(tokenA);
+        path[1] = address(tokenB);
+
+        uniswapRouter.swapExactTokensForTokens(
+            amount,
+            0,
+            path,
+            msg.sender,
+            block.timestamp
+        );
+    }
+}
+```
+注意事項：
+* 確保接口與實際合約函數完全匹配
+* 接口可以提高代碼的模塊化和可維護性
+* 使用接口可以與未知實現的合約安全交互
+
+接口是智能合約開發中非常重要的工具，它允許不同合約之間進行標準化和類型安全的交互。通過接口，您可以與各種遵循特定標準的合約進行交互，而不需要了解這些合約的具體實現細節。
 
 #### 15_Errors
 

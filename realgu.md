@@ -55,4 +55,50 @@ timezone: Asia/Shanghai
 7. immutable变量可以在声明时或构造函数中初始化
 8. Solidity中最常用的变量类型是uint，也就是正整数，取到负值的话，会报underflow错误。而在插入算法中，变量j有可能会取到-1，引起报错。这里，我们需要把j加1，让它无法取到负值。
 
+### 2024.09.26
+1. 注意：构造函数在不同的Solidity版本中的语法并不一致，在Solidity 0.4.22之前，构造函数不使用 constructor 而是使用与合约名同名的函数作为构造函数而使用，由于这种旧写法容易使开发者在书写时发生疏漏（例如合约名叫 Parents，构造函数名写成 parents），使得构造函数变成普通函数，引发漏洞，所以0.4.22版本及之后，采用了全新的 constructor 写法。
+2. event Transfer(address indexed from, address indexed to, uint256 value);
+3. 每条日志记录都包含主题topics和数据data两部分
+4. 可以在测试网sepolia发event，在etherscan看到
+
+### 2024.09.27
+1. virtual: 父合约中的函数，如果希望子合约重写，需要加上virtual关键字。override：子合约重写了父合约中的函数，需要加上override关键字。
+2. 继承时要按辈分最高到最低的顺序排，contract Erzi is Yeye, Baba
+3. 修饰器（Modifier）同样可以继承，用法与函数继承类似，在相应的地方加virtual和override关键字即可。
+4. 在这个例子中，调用合约people中的super.bar()会依次调用Eve、Adam，最后是God合约。虽然Eve、Adam都是God的子合约，但整个过程中God合约只会被调用一次。
+
+
+### 2024.09.28
+接口类似于抽象合约，但它不实现任何功能。接口的规则：  
+- 不能包含状态变量  
+- 不能包含构造函数  
+- 不能继承除接口外的其他合约  
+- 所有函数都必须是external且不能有函数体  
+- 继承接口的非抽象合约必须实现接口定义的所有功能
+  
+如果我们知道一个合约实现了IERC721接口，我们不需要知道它具体代码实现，就可以与它交互。  
+
+1. error必须搭配revert（回退）命令使用。
+2. gas随着描述异常的字符串长度增加，比error命令要高。使用方法：require(检查条件，"异常的描述")
+3. 我们可以看到，error方法gas最少，其次是assert，require方法消耗gas最多！因此，error既可以告知用户抛出异常的原因，又能省gas，大家要多用！
+
+
+### 2024.09.29
+开始102  
+1. Solidity中允许函数进行重载（overloading），即名字相同但输入参数类型不同的函数可以同时存在，他们被视为不同的函数。注意，Solidity不允许修饰器（modifier）重载。
+2. 我们调用f(50)，因为50既可以被转换为uint8，也可以被转换为uint256，因此会报错。
+3. 库合约和普通合约主要有以下几点不同：  
+- 不能存在状态变量
+- 不能够继承或被继承
+- 不能接收以太币
+- 不可以被销毁
+4. 常用的库  Strings：将uint256转换为String  
+Address：判断某个地址是否为合约地址  
+Create2：更安全的使用Create2 EVM opcode  
+Arrays：跟数组相关的库合约
+5. import四种用法
+6. receive()函数是在合约收到ETH转账时被调用的函数。一个合约最多有一个receive()函数，声明方式与一般函数不一样，不需要function关键字：receive() external payable { ... }。receive()函数不能有任何的参数，不能返回任何值，必须包含external和payable   
+7. fallback()函数会在调用合约不存在的函数时被触发。可用于接收ETH，也可以用于代理合约proxy contract。fallback()声明时不需要function关键字，必须由external修饰，一般也会用payable修饰，用于接收ETH:fallback() external payable { ... }。
+8. 合约接收ETH时，msg.data为空且存在receive()时，会触发receive()；msg.data不为空或不存在receive()时，会触发fallback()，此时fallback()必须为payable。receive()和payable fallback()均不存在的时候，向合约直接发送ETH将会报错（你仍可以通过带有payable的函数向合约发送ETH）。
+9. Solidity有三种方法向其他合约发送ETH，他们是：transfer()，send()和call()，其中call()是被鼓励的用法。
 <!-- Content_END -->

@@ -55,5 +55,9 @@ array型態在第一個元素宣告即可。如果使用memory則是固定長度
 mapping可以認知為dictionary, key-value pair
 key只允許內建型態，value可以使用自定義struct
 
+### 2024.09.30
+變數的初始值，delete操作符可以讓變數恢復初始值。
+
+
 
 <!-- Content_END -->

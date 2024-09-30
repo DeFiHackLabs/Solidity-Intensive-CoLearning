@@ -221,4 +221,82 @@ contract VarTest{
 
 ### 
 
+### 2024.09.28
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract ArrayTest{
+
+    /**
+    * 数组 array
+    数组（Array）是Solidity常用的一种变量类型，用来存储一组数据（整数，字节，地址等等）。数组分为固定长度数组和可变长度数组两种
+    **/
+
+    //固定长度
+    int[4] a;
+    bytes1[5] b;
+    address[100]  c;
+
+    //可变长度  方框中不声明长度
+    int[] a1;
+    bytes1[] b2;
+    address[] c3;
+    bytes d;
+
+    //创建数组需要使用的规则 使用memory修饰, 可以用new操作符来创建，但是必须声明长度，并且声明后长度不能改变
+    function f() public pure {
+        uint[] memory array8 = new uint[](5);    
+
+        //创建动态数组
+        uint[] memory dArray = new uint[](5);
+        dArray[0] = 1;
+        dArray[1] = 2;
+        dArray[2] = 3;
+
+        // 数组成员 
+        uint len = dArray.length; //长度
+        // dArray.push(); //动态数组拥有push(x)成员，可以在数组最后添加一个x元素
+        // dArray.pop(); //移除最后一个元素
+    }
+
+
+     // 结构体 struct  Solidity支持通过构造结构体的形式定义新的类型。结构体中的元素可以是原始类型，也可以是引用类型；结构体可以作为数组或映射的元素。创建结构体的方法
+     //跟java中类的概念相似
+     // 结构体
+
+    struct Student{
+        uint256 id;
+        uint256 score; 
+    }
+
+    Student student; // 初始一个student结构体
+
+    //  给结构体赋值
+    // 方法1:在函数中创建一个storage的struct引用
+    function initStudent1() external{
+        Student storage _student = student; // assign a copy of student
+        _student.id = 11;
+        _student.score = 100;
+    }
+
+    
+    
+}
+```
+###
+
+### 2024.09.29
+## 映射Mapping
+
+在映射中，人们可以通过键（`Key`）来查询对应的值（`Value`），比如：通过一个人的`id`来查询他的钱包地址。
+
+声明映射的格式为`mapping(_KeyType => _ValueType)`，其中`_KeyType`和`_ValueType`分别是`Key`和`Value`的变量类型。例子：
+
+```solidity
+mapping(uint => address) public idToAddress; // id映射到地址
+mapping(address => address) public swapPair; // 币对的映射，地址到地址
+```
+###
+
 <!-- Content_END -->
