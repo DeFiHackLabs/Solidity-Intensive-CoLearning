@@ -323,4 +323,25 @@ timezone: Asia/Shanghai
 
 > 進度: 複習 Solidity 101, 完成 Bootcamp 作業
 
+### 2024.09.30
+
+> 進度: Solidity 102 16
+
+- 函數重載 (overloading)
+    - 相同函數名稱，不同參數類型
+    - `modifier` 無法 overloading
+    - 如果出現多個匹配的函數, 會報錯
+        - e.g. 
+            ```
+            function f(uint8 _in) public pure returns (uint8 out) {
+                out = _in;
+            }
+
+            function f(uint256 _in) public pure returns (uint256 out) {
+                out = _in;
+            }
+
+            f(50);
+            ```
+
 <!-- Content_END -->
