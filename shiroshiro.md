@@ -90,7 +90,7 @@ just like normal old struct nothing special
 
 #### mapping
 
-
+can be quered by key like normal mapping
 
 
 <!-- Content_END -->
