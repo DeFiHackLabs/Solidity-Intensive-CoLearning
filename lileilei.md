@@ -622,6 +622,95 @@ contract pairCreate2{
         getPair[tokenB][tokenA] = pairAdd;
     }
 }
-create跟create2的区别就是create2需要salt
+create跟create2的区别就是create2需要sa
+
+
+### 2024.09.30
+contract deleteContract{
+    receive() external payable { 
+
+    }
+    event log(address addr);
+    uint public value=10;
+    constructor() payable {}
+    event log(string mesg);
+
+    function deletecontract() public{
+        emit log(msg.sender);
+        selfdestruct(payable (msg.sender));
+    }
+
+    function getBalance() external view returns(uint){
+        return address(this).balance;
+    }
+}
+删除合约，删除后eth会返回到调用方
+import "./deleteContray.sol";
+contract deployContract{
+    constructor() payable{}
+    event log(address addr,uint balance,uint value);
+    error callfailed();
+
+    struct DemoResult{
+       address addr;
+       uint balance;
+       uint value;
+    }
+
+    function getBalance() external view returns(uint){
+        return address(this).balance;
+    }
+    
+    //先给deleteContract发送ETH
+    function callEth(address payable addr,uint amount) public{
+        (bool success,bytes memory data) = addr.call{value:amount}("");
+        if(!success){
+            revert callfailed();
+        }
+    }
+    function deploycontract() public payable returns(DemoResult memory){
+       deleteContract ddl = new deleteContract{value:msg.value}();
+       DemoResult memory res = DemoResult({
+        addr:address(ddl),
+        balance: ddl.getBalance(),
+        value:ddl.value()
+       });
+       emit log(res.addr,res.balance,res.value); 
+       ddl.deletecontract();
+       return res;
+    }
+}
+先发送eth给deleteContract,在调用删除合约的方法，看etl是否会返回当前合约的balance
+
+contract encode{
+    uint x =10;
+    string name ='leiii';
+    uint[2] arr = [5,6];
+
+    function encoded() public  view returns(bytes memory){ //可以与合约进行交互
+        return abi.encode(x,name,arr);
+    }
+
+    function encodePacked()public view returns(bytes memory){ //节省空间但是不能与合约交互
+        return abi.encodePacked(x,name,arr);
+    }
+
+    function encodeWithSignature() public view returns(bytes memory){
+        return abi.encodeWithSignature("foo(uint256,string,uint256[2])",x,name,arr);
+    }
+
+    function encodeWithSelector() public view returns(bytes memory result){
+        result =  abi.encodeWithSelector(bytes4(keccak256("foo(uint256,string,uint256[2])")), x, name, arr);
+    }
+
+    function decode(bytes memory data) public pure returns(uint256 dx,string memory dname,uint256[2] memory adrr ){
+        (dx,dname,adrr) = abi.decode(data, (uint256,string,uint256[2]));
+    }
+}
+加密和解密常用的方法
+encode() 将参数都编译成32字节的数据在拼接到一起，可以调用其他的合约，安全性高，省资源
+encodePacked 常用来取hash值
+encodeWithSelector和encodeWithSignature一样，但是select在选择方法时更精准
+
 
 <!-- Content_END -->

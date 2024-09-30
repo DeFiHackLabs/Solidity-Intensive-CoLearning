@@ -505,8 +505,38 @@ contract MappingExample {
 }
 
 ```
+##### 测验结果
+- 100/100
 
 ### 2024.09.30
 #### WTF Academy Solidity 101.8 变量初始值
+
+##### 变量初始值
+- 在Solidity中，声明但没赋值的变量都有它的初始值或默认值。
+- 值类型初始值
+  - `uint` 初始值为 `0`
+  - `int` 初始值为 `0`
+  - `bool` 初始值为 `false`
+  - `address` 初始值为 `address(0)`
+  - `bytes` 初始值为 `bytes("")`
+  - `string` 初始值为 `""`
+  - `enum` 初始值为 `0`
+- 引用类型初始值
+  - `struct` 初始值为 `struct` 的默认值
+  - `array` 初始值为 `array(length => 0)`，即`[]`
+  - `mapping` 初始值为 `mapping(key => value)` 的默认值
+  
+- `delete a`会让变量a的值变为初始值
+
+##### 测验结果
+- 80/100
+- 100/100
+
+##### 测验错题
+- bytes1的初始值是`0x00`
+
+### 2024.10.01
+#### WTF Academy Solidity 101.9 常数
+
 
 <!-- Content_END -->

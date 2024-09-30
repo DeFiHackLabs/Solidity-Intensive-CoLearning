@@ -102,13 +102,26 @@ ETH 交易的签名使用 ECDSA 签名算法，但与标准的 ECDSA 有一点�
 
 mapping、array 等变长数据结构会使用 hash 确定真实的存储位置。
 
-<<<<<<< HEAD
-=======
 ### 2024.09.29
 
 在 Byzantium 升级之后，函数调用时的 `view` 修饰是由 evm 机制保证的，`STATICCALL` opcode 会将 evm 设置为 storage 只读状态。对于库函数，依然使用 `DELEGATECALL`。
 
 > For library `view` functions `DELEGATECALL` is used, because there is no combined `DELEGATECALL` and `STATICCALL`. This means library `view` functions do not have run-time checks that prevent state modifications. This should not impact security negatively because library code is usually known at compile-time and the static checker performs compile-time checks.
 
->>>>>>> dfbdbdbf911ccc1a9ff6eb1a9bc5c00266912f29
+### 2024.09.30
+
+合约的调用数据会被编码为字节串。其中前 4 字节为函数选择器 (Function Selector)，之后编码调用的参数。对于 staic 数据类型，会按顺序用 32 bytes 编码，对于 dynamic 数据类型，首先编码该数据的实际位置偏移，再在所有参数出现后编码实际数据。
+
+常用函数：
+
+- `abi.encode` 函数可以将若干变量按 abi 编码规则编码为 bytes
+
+- `abi.encodeWithSignature` 会自动将第一个参数作为函数签名，计算函数选择器并进行编码
+
+- `abi.encodeWithSelector` 直接将第一个参数为函数选择器进行编码
+
+- `abi.encodePacked` 并不使用 abi 编码规则，而是将给定参数根据其所需最低空间编码，适用于自行打包数据为 bytes，可以用于数据拼接
+
+- `abi.decode` 用于解码 `abi.encode` 生成的二进制编码，将它还原成原本的参数。
+
 <!-- Content_END -->
