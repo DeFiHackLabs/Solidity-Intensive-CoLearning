@@ -455,11 +455,23 @@ function callSetX(address _Address, uint256 x) external{
 ```
 2. 傳入合約的變數
 ```Solidity
-
+function callGetX(OtherContract _Address) external view returns(uint x){
+   x = Address.getX(); 
+}
 ```
-4. 創見合約的變數
-5. 調用合約並發送 eth
-   
+3. 創建合約的變數
+```Solidity
+function callGetX2(address _Address) external view returns(uint x){
+   OtherContract oc = OtherContract(_Address);
+   x = oc.getX();
+}
+```
+4. 調用合約並發送 eth
+```Solidity
+function setXTransferETH(address otherContract, uint256 x) payable external{
+   OtherContract(otherContract).setX{value: msg.value}(x);
+}
+```   
 
 
 
