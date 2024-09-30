@@ -901,7 +901,7 @@ require(condition, "Error message");
 ```
 3. Assert
 * 主要用於開發者調試
-* 不提供錯誯描述
+* 不提供錯誤描述
 使用方法: 
 ```solidity
 assert(condition);
