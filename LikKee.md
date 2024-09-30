@@ -659,6 +659,118 @@ End of WTF Solidity 101
 
 ### 2024.09.30
 
+#### Chapter 16: Function overloading
+
+Solidity allow function overloading, same function name but different parameters
+
+```
+function input(uint256 _number) external {
+  ...
+}
+
+function input(string memory _str) external {
+  ...
+}
+```
+
+Although both function share the same name, but due to different parameters, the functions will have different function signature/selector.
+
+**_Notes_**: `modifier` cannot be overloading like function
+
+**Argument matching**
+
+```
+function input(uint256 _number) external {
+  ...
+}
+
+function input(uint32 _number) external {
+
+}
+```
+
+The contract is able to compile, but when call data meet both function's parameter, for example: `50`, error prompted.
+
+#### Chapter 17: Library Contract
+
+`library` use to reduce code redundancy and gas usage.
+
+The different:
+
+- Cannot contain state variable
+- Cannot inherit other contract or to inherit by other contract
+- Cannot receive native currency, eg: ETH
+- Cannot be destroy
+
+- `public` and `private` functions in the library contract will trigger `delegatecall` when calling
+- `internal` functions won't trigger
+- `private` functions able to call by other functions within library contract
+
+Some commonly used library:
+
+- [String](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Strings.sol)
+- [Address](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol)
+- [Arrays](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Arrays.sol)
+
+Usage
+
+```
+contract Lending {
+  using Strings for uint256; // using A for B;
+
+  function convert(uint256 _number) public pure returns (string memory) {
+    return _number.toHexString();
+  }
+}
+```
+
+or
+
+```
+contract Lending {
+  function convert(uint256 _number) public pure returns (string memory) {
+    return Strings.toHexString(_number); // call directly
+  }
+}
+```
+
+#### Chapter 18: Import
+
+`import` allow contract to refer content of another contracts, maximize reusability and contract security
+
+How to:
+
+```
+File
+├── Other.sol
+└── MyContract.sol
+
+/* ------------------ */
+import './Other.sol';
+
+contract MyContract {
+  ...
+}
+```
+
+or (Source URL)
+
+```
+import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+```
+
+or (`npm`)
+
+```
+import '@openzeppelin/contracts/access/Ownable.sol';
+```
+
+or (Directive import)
+
+```
+import {Other} from './Other.sol';
+```
+
 ### 2024.10.01
 
 ### 2024.10.02
