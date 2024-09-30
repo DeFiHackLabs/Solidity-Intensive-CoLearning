@@ -84,7 +84,12 @@ array literals first element must hv type/ type with the smallest storage space 
 array methods length/push()/push(x)/pop()
 
 #### struct
-just like normal old structnorhting special
+just like normal old struct nothing special
+
+### 2024.09.29
+
+#### mapping
+
 
 
 
