@@ -39,4 +39,26 @@ timezone: Asia/Shanghai
 知识点 1 returns：跟在函数名后面，用于声明返回的变量类型及变量名。
         return：用于函数主体中，返回指定的变量。
       2 命名式返回  解构式赋值  两者区别
+
+### 2024.09.28
+
+1 学习了101 第五章 第六章
+知识点 1 引用类型(Reference Type)：包括数组（array）和结构体（struct）
+      2 存储位置有三类：storage，memory和calldata  三者区别点 gas 消耗
+      3 状态变量（state variable），局部变量（local variable）和全局变量(global variable) 三者作用域的区别
+
+第六章 知识点
+      1 引用类型, array, struct 的基本用法
+      2 创建数组的规则 有动态数组与固定长度数组区别
+
+### 2024.09.29
+
+1 学习了101 第七章
+知识点 1 映射类型 mapping 映射的_KeyType只能选择Solidity内置的值类型，而_ValueType可以使用自定义的类型
+      2 映射的存储位置必须是storage 
+      3学习映射的原理 映射不储存任何键（Key）的资讯，也没有length的资讯， 初始值都是各个type的默认值，如uint的默认值是0。
+
+
+   
+
 <!-- Content_END -->

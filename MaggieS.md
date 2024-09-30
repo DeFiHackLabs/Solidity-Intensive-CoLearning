@@ -163,4 +163,87 @@ Just Like:
 
 50 Multisignature Wallet —— 27 ABI encoding 
 
+
+### 2024.09.28
+
+Actually, the function of Language is for communication, no matter the natural language or programming language. In other words, a technology is just a solution, and a solution is only as good as the problems, so we need to make sure we know the problem really well, so we know how to attack it with this smart contract technology.
+
+By the way, It’s a person who gives me huge passions to challenge solidity this time , she is a female security auditor. I remember what she said in a interview that before she intended the ZK audit competition she even never learn ZK language, she just use few days to familiar with ZK language, but she got the champion, soooo fantastic.
+
+I try to find the crucial reason in Step 2 which confusing me for a long time that why and how she could make done it. So it must be something more important than language itself, language is just a language. No one knows whether I will be the solidity auditor in the future. It's a black box, which is interesting. But I'm sure this is not the most important thing.
+
+I know what I’m appreciate and chase for, learning solidity is just a experience to understand something to serve my life goals. Solidity itself is not my goal.
+
+Q1: 
+<img width="777" alt="image" src="https://github.com/user-attachments/assets/c0655440-5342-4d36-b991-33f635506990">
+
+Where is the bug of this picture in coding Hello Web3 ?
+
+Though it said there are some bugs here, but I believe that "Code is law". 
+
+A bug is just a bug, it will not exist forever,be relaxed. 
+
+If the bug is fixed today, it will only affect yesterday.
+
+I believe very strongly, someday, the web3 will change the world. 
+
+At that time, I will smile and say "hello web3",welcome to our world.
+
+
+This answer will be written again later after this bug has fixed.
+The most easist coding maybe not so easy, When I copied tutorial's example,it's correct,
+When I wrote by myself, it said there are errors, but I couldn't distinguish they have any diffenence.
+
+Q2:
+How Does Solidity Work?
+
+1. Public and Private Functions
+In Solidity, functions are the building blocks of smart contracts.
+Some functions can be accessed from outside the contract (public),
+while others are only available within the contract (private).
+
+2. Standard and Code Logic
+Solidity follows a set of rules and logic similar to other programming languages.
+The behavior of a smart contract is determined by the functions and conditions defined in the code.
+
+3. Immutability
+Once deployed on the Ethereum blockchain, a smart contract becomes immutable,meaning its code and behavior cannot be changed.
+This ensures the contract’s transparency and security, as participants can trust that the contract will always function as intended.
+
+4. Gas Costs
+When interacting with smart contracts on Ethereum, users must pay for the computational power used during the execution of functions. This payment is done using “gas.” Each operation within the contract consumes a specific amount of gas and users need to provide enough gas to complete the transaction.
+
+5. Data Types
+Solidity has different types of data that can be used, such as numbers, addresses, true/false values, text, arrays, and more.
+
+6. Control Structures
+Solidity provides tools to control how the program behaves, such as conditional statements (if-else), loops (for, while), and switches.
+
+7. Modifiers
+Modifiers are like rules that we can apply to functions. They allow us to add extra checks or behaviors to functions.
+
+8. Events
+Events allow contracts to communicate with external applications. They are like messages that can be logged on the blockchain and listened to by other programs.
+
+
+### 2024.09.30
+
+One benefit of learning solidity is to be calm down. Rome was not built in a day.
+
+I am a soooo lucky girl that Web3 is willing to love, protect and support me.  
+
+But it is precisely because I cherish this luck that we should take our time.  
+
+I also need to improve my ability in all aspects if one day Web3 needs me.  
+
+
+What is there to be afraid of when I can survive in the hardest period?
+
+Someday he needs me, I can stand up and protect him. I know I can do it.
+
+But the premise is that I must go through enough tempering and growth.
+
+Maybe he would say he doesn't need it, but, I have to have this ability.
+
+
 <!-- Content_END -->

@@ -120,7 +120,7 @@ mapping(address => string[]) public tweets;
 Here's what it does:
 
 - It creates a mapping called "tweets"
-- The key of this mapping is an Ethereum address
+- The key to this mapping is an Ethereum address
 - The value associated with each address is an array of strings
 - Each address can have multiple tweets (stored as strings in the array)
 - The 'public' keyword automatically creates a getter function for this mapping
@@ -128,5 +128,48 @@ Here's what it does:
 In the context of a Twitter-like contract, this mapping allows each Ethereum address (user) to have an array of tweets associated with it. Users can add tweets to their array, and anyone can retrieve tweets for a specific address.
 
 以上。
+
+### 2024.09.29
+Ethereum Client
+
+安裝Parity, Open Ethereum, but were all deprecated. 
+
+Installed Go Ethereum
+
+https://geth.ethereum.org/downloads
+
+ Node and 
+
+Node.js Truffle (CLI Ganache)  through the terminal. 
+
+https://medium.com/@1chooo/如何在-mac-安裝-node-js-npm-3d7101d998f4
+
+https://nodejs.org/zh-tw/download/package-manager
+
+https://archive.trufflesuite.com/docs/truffle/how-to/install/
+
+- **Step 1 (`mkdir greeter`)**: Creates a new folder called `greeter` to organize your project files.
+- **Step 2 (`cd greeter`)**: Moves into the `greeter` folder so that you can start working on your project.
+- **Step 3 (`truffle init`)**: Initializes a new Truffle project inside the `greeter` folder, generating the basic structure needed for Ethereum smart contract development.
+
+Since you're inside the `greeter` directory, you can simply run:
+
+```bash
+bash
+複製程式碼
+ls -l
+```
+
+### CLI commands:
+Installing `brew` for directory `tree`: `brew install tree`, but brew must be installed first. 
+
+Show all files within every folder:`tree -a`
+
+Notice that the commands specified in the output line up well with the directory structure generated when initializing our application. truffle compile will compile all the contracts in the contracts directory, truffle migrate will deploy our compiled contracts by running the scripts in our migrations directory, and lastly, truffle test will run the tests in our test directory.
+
+
+
+
+
 
 <!-- Content_END -->
