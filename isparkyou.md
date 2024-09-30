@@ -1082,6 +1082,70 @@ function callETH(address payable _to, uint256 amount) external payable{
 transfer有2300 gas限制，但是发送失败会自动revert交易，是次优选择；
 send有2300 gas限制，而且发送失败不会自动revert交易，几乎没有人用它。**
 
+### 2024.09.28
+### 调用其他合约
+**目标合约**
+```
+contract OtherContract {
+    uint256 private _x = 0; // 状态变量_x
+    // 收到eth的事件，记录amount和gas
+    event Log(uint amount, uint gas);
+    
+    // 返回合约ETH余额
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+
+    // 可以调整状态变量_x的函数，并且可以往合约转ETH (payable)
+    function setX(uint256 x) external payable{
+        _x = x;
+        // 如果转入ETH，则释放Log事件
+        if(msg.value > 0){
+            emit Log(msg.value, gasleft());
+        }
+    }
+
+    // 读取_x
+    function getX() external view returns(uint x){
+        x = _x;
+    }
+}
+```
+
+#### 调用OtherContract合约
+**我们可以利用合约的地址和合约代码（或接口）来创建合约的引用：_Name(_Address)，其中_Name是合约名，应与合约代码（或接口）中标注的合约名保持一致，_Address是合约地址。然后用合约的引用来调用它的函数：_Name(_Address).f()，其中f()是要调用的函数。**
+
+1. 传入合约地址
+在函数里传入目标合约地址，生成目标合约的引用，然后调用目标函数。
+```
+function callSetX(address _Address, uint256 x) external{
+    OtherContract(_Address).setX(x);
+}
+```
+2. 传入合约变量
+直接在函数里传入合约的引用，只需要把上面参数的address类型改为目标合约名
+```
+function callGetX(OtherContract _Address) external view returns(uint x){
+    x = _Address.getX();
+}
+```
+3. 创建合约变量
+创建合约变量，然后通过它来调用目标函数。
+```
+function callGetX2(address _Address) external view returns(uint x){
+    OtherContract oc = OtherContract(_Address);
+    x = oc.getX();
+}
+```
+4. 调用合约并发送ETH
+如果目标合约的函数是payable的，那么我们可以通过调用它来给合约转账：_Name(_Address).f{value: _Value}()，其中_Name是合约名，_Address是合约地址，f是目标函数名，_Value是要转的ETH数额（以wei为单位）。
+```
+function setXTransferETH(address otherContract, uint256 x) payable external{
+    OtherContract(otherContract).setX{value: msg.value}(x);
+}
+```
+
+### Call
 
 
 <!-- Content_END -->

@@ -321,10 +321,20 @@ Solidity三种抛出异常的方法：error，require和assert
    3. assert(检查条件），当检查条件不成立的时候，就会抛出异常。
    4. error方法gas最少，其次是assert，require方法消耗gas最多！因此，error既可以告知用户抛出异常的原因，又能省gas
 
-### 2024.09.
+### 2024.09.29
 
 學習內容：WTF #16
+![image](https://github.com/user-attachments/assets/599163cf-49f6-4353-97d4-d1ab7528d376)
 
-# 16:
+
+
+# 16:overloading
+名字相同但输入参数类型不同的函数可以同时存在，他们被视为不同的函数(返回了不同的结果)。注意，Solidity不允许修饰器（modifier）重载，会把输入的实际参数和函数参数的变量类型做匹配。 如果出现多个匹配的重载函数（即一輸入可以進入不同overloding function 時），则会报错
+
+### 2024.09.
+
+學習內容：WTF #17
+
+# 17:
 
 <!-- Content_END -->

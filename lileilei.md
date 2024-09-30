@@ -517,4 +517,111 @@ transfer 有gas限制2300，失败后会revert
 send 有gas限制，失败后不会自动revert，一般不会用
 call 没有gas限制，常用
 
+
+### 2024.09.27
+import "./other.sol";
+contract callOther{
+    event log(string message);
+
+    function callSetx(address payable addr,uint amount) public payable {
+          (bool success,bytes memory data) = addr.call{value:msg.value}(abi.encodeWithSignature("setx(uint256)", amount));
+          if(success){
+            emit log("success");
+          }
+    }
+    function callGetx(address payable addr) public returns(uint256){
+        (bool success,bytes memory data) = addr.call(abi.encodeWithSignature("getx()"));
+        if(success){
+            emit log(string(abi.encodePacked(abi.decode(data, (uint256)))));
+        }
+        return abi.decode(data, (uint256));
+    }
+    function callnotexist(address payable addr)public{
+        (bool success,bytes memory data) = addr.call(abi.encodeWithSignature("selects()"));
+        if(!success){
+            emit log("the method is not exist");
+        }
+    }
+}
+使用call调用其他的合约方法，abi.encodeWithSignature("setx(uint256)")会找到对应的方法，如果有入参的话在后边指定
+call还可以发送eth，addr.call(value:msg.value) 这个value指的是当前合约拥有的eth,也可以手动指定数值
+调用不存在的方法时，会自动fallback()
+
+pragma solidity ~0.8.21;
+
+contract c{
+    uint256 public number;
+    address public addr;
+   function setVars(uint256 num) external{
+     number = num;
+     addr = msg.sender;
+   }
+}
+contract B{
+    uint public number;
+    address public addr;
+    function callSetVars(address _addr,uint amount) public {
+        (bool success,bytes memory data) = _addr.call(abi.encodeWithSignature("setVars(uint256)", amount));
+    }
+    function callVars(uint amount,address _addr) public{
+        (bool success,bytes memory data) = _addr.delegatecall(abi.encodeWithSignature("setVars(uint256)", amount));
+    }
+}
+call调用目标方法直接修改目标的方法的属性
+delegatecall 是A调用B资产执行c的代理方法，修改的B的属性值，这会B相当于目标方法，c成了代理方法。
+
+
+// SPDX-License-Identifier: MIT
+pragma solidity ~0.8.21;
+
+contract Pair{
+    address public factory;
+    address public token1;
+    address public token2;
+
+    constructor(){
+        factory = msg.sender;
+    }
+
+    function init(address _token1,address _token2) public{
+        require(factory == msg.sender);
+        token1 = _token1;
+        token2 = _token2;
+    }
+}
+
+
+contract pairFactory{
+
+    mapping(address=>mapping(address=>address)) public getPair;
+    address[] public allPair;
+    function createPair(address tokenA,address tokenB)public returns(address addPair) {
+        Pair pp  = new Pair();
+        pp.init(tokenA, tokenB);
+        addPair = address(pp); //生成一个当前初始化的地址 
+        allPair.push(addPair);
+        getPair[tokenA][tokenB] =  addPair; //修改map的key,value
+        getPair[tokenB][tokenA] = addPair;
+    }
+}
+
+
+contract pairCreate2{ 
+    mapping(address=>mapping(address=>address)) public getPair;
+    address[] public allPair;
+
+    function createPair2(address tokenA,address tokenB) public returns(address pairAdd){
+        //create2跟create不一样的地方是多了salt参数
+        (address token1,address token2) = tokenA>tokenB?(tokenB,tokenA):(tokenA,tokenB);
+        bytes32 salt = keccak256(abi.encodePacked(token1,token2));
+        Pair pp = new Pair{salt:salt}();
+        pp.init(tokenA,tokenB);
+        pairAdd = address(pp);
+        allPair.push(pairAdd);
+        getPair[tokenA][tokenB] = pairAdd;
+        getPair[tokenB][tokenA] = pairAdd;
+    }
+}
+create跟create2的区别就是create2需要salt
+
 <!-- Content_END -->

@@ -50,6 +50,15 @@ timezone: Asia/Shanghai
 第六章 知识点
       1 引用类型, array, struct 的基本用法
       2 创建数组的规则 有动态数组与固定长度数组区别
+
+### 2024.09.29
+
+1 学习了101 第七章
+知识点 1 映射类型 mapping 映射的_KeyType只能选择Solidity内置的值类型，而_ValueType可以使用自定义的类型
+      2 映射的存储位置必须是storage 
+      3学习映射的原理 映射不储存任何键（Key）的资讯，也没有length的资讯， 初始值都是各个type的默认值，如uint的默认值是0。
+
+
    
 
 <!-- Content_END -->
