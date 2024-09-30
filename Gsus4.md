@@ -105,6 +105,16 @@ contract HelloWeb3{                 // 合約部分
 * 選擇器 Selector
 * try-catch
 
+---
+
+### 2024.09.30
+#### 學習內容：Solidity 應用 31 - 35
+* ERC20
+* 代幣水龍頭
+* 空投合約
+* ERC721
+* 荷蘭拍賣
+
 
 ### 
 
