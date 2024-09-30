@@ -518,7 +518,7 @@ send 有gas限制，失败后不会自动revert，一般不会用
 call 没有gas限制，常用
 
 
-### 2024.09.27
+### 2024.09.29
 import "./other.sol";
 contract callOther{
     event log(string message);
