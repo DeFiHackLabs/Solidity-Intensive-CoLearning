@@ -428,4 +428,122 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 
 ###
 
+### 2024.09.29
+
+#### 1. 接收eth
+
+solidity的特殊回调函数： receive() fallback()
+
+使用场景：
+
+1. 接收eth
+2. 处理合约中不存在的函数调用(代理合约proxy contract)
+
+> reveive
+
+作用： 合约接收eth转账时被调用的函数
+
+限制： 一个合约最多有一个receive()函数
+
+声明方式: reveice() external payable {}
+
+逻辑：内部逻辑不能太复杂，这收到发送方的方法影响，如果发送方使用send和transfer方法发送eht，就会有2300的gas限制。
+
+code:
+
+```solidty
+event Received(address Sender,uint Value);
+
+reveice() external payable {
+    emit Received(msg.sender,msg.value);
+}
+```
+
+> fallback
+
+作用： 调用合约不存在的函数时被触发。也可用于接收eth，也可用于代理合约。
+
+声明方式： fallback() external payable //(paybale修饰可选) {}
+
+> 区别
+
+```text
+触发fallback() 还是 receive()?
+           接收ETH
+              |
+         msg.data是空？
+            /  \
+          是    否
+          /      \
+receive()存在?   fallback()
+        / \
+       是  否
+      /     \
+receive()   fallback()
+```
+
+如果两者均不存在，则直接向合约中发送eth会报错。
+
+但是可以在调用有被payable关键词修饰的function时，发送eth，这也能达到同样的效果，而且不需要调用这两个特殊回调函数。
+
+
+#### 2. 发送eth
+
+发送eth的方式
+
+1. transfer()
+2. send()
+3. call() //推荐
+
+```solidity
+contract Sender {
+    event SendFail(address to,uint256 amount);
+    event CallFail(address to,uint256 amount);
+
+    constructor() payable {}
+
+    receive() external payable { }
+
+    //transfer 的gas限制是2300，如果接收方合约地址的receive()或者fallback()过于复杂，则会失败
+    //好消息是，transfer失败自动revert
+    function transferEth(address payable to,uint256 amount) external payable {
+        to.transfer(amount); // 只要是个address类型即可 合约一定要实现收款函数，账户本身就可以接收
+    }
+
+    function getBalance() view public returns(uint256) {
+        return address(this).balance;
+    } 
+
+    //也是有2300的gas限制，失败后不会自动revert，所以返回值是bool类型，可以用来按照情况revert()
+    function sendEth(address payable to,uint256 amount) external payable {
+        bool success = to.send(amount);
+        if(!success){
+            emit SendFail(to, amount);
+            revert();
+        }
+    }
+
+    // to.call{value:value}(""); 没有gas限制，接收方的接收回调可以实现复杂逻辑
+    // 失败不会自动revert
+    function callEth(address payable to,uint256 amount) external payable {
+        (bool success,) = to.call{value:amount}("");
+        if(!success){
+            emit CallFail(to,amount);
+            revert();
+        }
+    }
+
+}
+```
+
+那我在想一个特殊情况，如果我把receive()的实现搞复杂一点，然后使用sendEth，但是我失败后不revert，是不是接收方还是会收到eth呢？
+
+经过尝试后确实是这样，而且执行不会报错，出发了SendFail事件。
+
+当我通过transfer做这个事件的时候就失败了，因为他失败自动回滚，不会触发对应的内容。
+
+这也从侧面说明了，solidity语言中，event事件的发送也是同步的。
+
+###
+
 <!-- Content_END -->
