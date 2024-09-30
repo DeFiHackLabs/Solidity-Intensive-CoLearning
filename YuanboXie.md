@@ -323,8 +323,22 @@ import '@openzeppelin/contracts/access/Ownable.sol';
         receive()   fallback()
         ```
         - receive()和payable fallback()均不存在的时候，向合约直接发送ETH将会报错（但可以通过合约里带有payable的其他函数发送ETH）。
-- [102-20] 
-- [102-21]
+- [102-20] 发送ETH:transfer()，send()和call()
+    - transfer
+        - 接收方地址.tranfer(eth_amount)
+        - gas limit 2300
+        - 转账失败会 revert
+    - send 【不推荐】
+        - 接收方地址.send(eth_amount)
+        - gas limit 2300
+        - 转账失败不会 revert
+        - 返回值：bool
+    - call
+        - 接收方地址.call{value: eth_amount}("")
+        - 无 gas 限制
+        - 转账失败不会 revert
+        - call()的返回值是(bool, bytes)
+- [102-21] 
 
 ### 2024.09.30
 
