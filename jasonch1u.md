@@ -621,7 +621,6 @@ contract Events {
 }
 ```
 ### 2024.09.27
-* 複習12_Event並更新筆記
 * BootCamp任務：建立ERC20合約
 
 ```solidity
@@ -763,98 +762,6 @@ hw1 是一個預先配置的賬戶別名。
 ```
 cast wallet vanity --starts-with 1234
 ```
-
-如何用foundryup做鍊上互動 終端機測試指令
-```
-cast wallet import 自定義錢包名稱 --interactive //需要輸入私鑰跟密碼
-forge script script/DeFiHackLabsBootcamp.s.sol:DeFiHackLabsBootcampScript --rpc-url $SEPOLIA_RPC_URL --broadcast -vvvvv
-
-forge script:
-這是 Forge 工具的子命令，用於執行 Solidity 腳本。
-
-script/DeFiHackLabsBootcamp.s.sol:DeFiHackLabsBootcampScript:
-指定要執行的腳本文件路徑和腳本名稱。
-文件位於 script/DeFiHackLabsBootcamp.s.sol。
-要執行的具體腳本是 DeFiHackLabsBootcampScript。
-
---rpc-url $SEPOLIA_RPC_URL:
-指定要連接的以太坊網絡 RPC URL。
-$SEPOLIA_RPC_URL 是一個環境變量，存儲了 Sepolia 測試網的 RPC URL。
-
---broadcast:
-指示 Forge 實際廣播交易到指定的網絡。
-如果沒有這個選項，Forge 只會模擬交易而不實際發送。
-
---account hw1:
-指定用於簽署和發送交易的賬戶。
-hw1 是一個預先配置的賬戶別名。
-```
-```
-ecrecover 是什麼？
-ecrecover 是 Ethereum 虛擬機（EVM）提供的一個內置函數。
-它的目的是從給定的消息哈希和簽名中恢復出簽名者的地址。
-函數名 "ecrecover" 代表 "elliptic curve recover"，意味著它使用橢圓曲線加密技術。
-
-ecrecover 的工作原理：
-它接受四個參數：消息哈希（32字節）和簽名的三個組成部分 v（1字節）、r（32字節）和 s（32字節）。
-使用這些參數，ecrecover 能夠計算出用於創建簽名的公鑰。
-從公鑰，它進一步導出相應的 Ethereum 地址。
-
-為什麼它能恢復簽名者地址？
-在橢圓曲線加密中，簽名本質上是一個數學問題的解。
-給定消息哈希和簽名，可以通過複雜的數學運算逆向計算出公鑰。
-Ethereum 地址是公鑰的最後20字節的 Keccak-256 哈希。
-
-v, r, s 的作用：
-r 和 s 是簽名的主要組成部分，由私鑰和消息哈希生成。
-v 是一個恢復標識符，用於確定使用哪個候選公鑰（因為橢圓曲線加密可能產生兩個有效的公鑰）。
-
-在 Script 中：(uint8 v, bytes32 r, bytes32 s) = vm.sign(messageHash);
-vm.sign 模擬了使用私鑰對消息進行簽名的過程。
-它生成了 v, r, s，這些值隨後被傳遞給 signIn 函數。
-
-在合約中：
-address signer = ecrecover(hash, v, r, s);
-使用相同的哈希和接收到的 v, r, s，ecrecover 能夠恢復出簽名者的地址。
-
-安全性考慮：
-這個過程的安全性基於橢圓曲線加密的數學特性。
-知道公鑰（或地址）無法反推出私鑰，這就是為什麼數字簽名是安全的。
-
-總結：
-ecrecover 利用橢圓曲線加密的數學特性，從簽名和消息哈希中恢復出簽名者的公鑰，進而得到地址。這個過程允許智能合約驗證一個簽名確實來自特定的地址，而無需知道該地址的私鑰。這是實現鏈下簽名和鏈上驗證的關鍵機制，廣泛用於各種需要身份驗證的智能合約場景。
-```
-```
-ecrecover 函數只需要這四個參數：hash, v, r, s，就可以恢復出簽名者的地址。這是 Ethereum 中一個非常強大的內建函數。
-關於 hash：
-您說得對。在這個例子中，hash 確實是通過以下方式生成的：
-solidityCopybytes32 hash = keccak256(abi.encode(number, name, time));
-這個哈希代表了被簽名的原始消息。
-關於 v, r, s：
-您的理解也是正確的。在 DeFiHackLabsBootcampScript 中，v, r, s 是通過以下方式得到的：
-solidityCopy(uint8 v, bytes32 r, bytes32 s) = vm.sign(keccak256(abi.encode(number, name, time)));
-這裡 vm.sign 函數模擬了使用私鑰對消息哈希進行簽名的過程。
-
-讓我進一步解釋整個流程：
-
-在 Script 中：
-創建消息哈希：keccak256(abi.encode(number, name, time))
-使用 vm.sign 對這個哈希進行簽名，得到 v, r, s
-將 number, name, time, v, r, s 傳給合約的 signIn 函數
-
-在合約中：
-重新創建相同的消息哈希
-使用 ecrecover(hash, v, r, s) 恢復簽名者地址
-驗證恢復的地址是否與調用者地址匹配
-
-這個設計的巧妙之處在於：
-
-合約可以獨立驗證簽名，而不需要存儲任何額外的數據。
-它允許離線簽名，增加了靈活性和安全性。
-通過包含 number, name, time 在簽名中，防止了重放攻擊。
-```
-還有接口也要看懂
-
 #### 13_Inheritance
 * 基本語法: contract 子合約 is 父合約
 * virtual: 父合約中可被重寫的函數
@@ -967,7 +874,227 @@ contract MyDeFiProject {
 
 接口是智能合約開發中非常重要的工具，它允許不同合約之間進行標準化和類型安全的交互。通過接口，您可以與各種遵循特定標準的合約進行交互，而不需要了解這些合約的具體實現細節。
 
+### 2024.09.30
 #### 15_Errors
+1. Error
+* Solidity 0.8.4版本新增
+* 高效省gas
+* 可攜帶參數,有助於調試
+* 可在contract外定義
+使用方法: 
+```solidity
+error TransferNotOwner(); // 無參數
+error TransferNotOwner(address sender); // 帶參數
+
+// 使用時需配合revert
+if (condition) {
+    revert TransferNotOwner();
+    // 或 revert TransferNotOwner(msg.sender);
+}
+```
+2. Require
+* Solidity 0.8版本前的常用方法
+* 可提供錯誤描述,但gas隨描述長度增加
+使用方法: 
+```solidity
+require(condition, "Error message");
+```
+3. Assert
+* 主要用於開發者調試
+* 不提供錯誯描述
+使用方法: 
+```solidity
+assert(condition);
+```
+Gas消耗比較 (Solidity 0.8.17)
+1. Error: 24457 (帶參數: 24660)
+2. Require: 24755
+3. Assert: 24473
+
+注意事項
+* Error方法gas消耗最少,推薦使用
+* Solidity 0.8.0之前,assert會消耗所有剩餘gas
+* 具體gas消耗可能因部署時間而略有不同
+
+總結：Error方法既可提供錯誤信息,又能節省gas,是最佳選擇。在編寫智能合約時,應優先考慮使用Error來處理異常情況。
+
+#### 16_Overloading
+函數重載定義:
+* Solidity允許同名，但輸入參數類型不同的函數同時存在
+* 這些函數被視為不同的函數
+* 修飾器(modifier)不允許重載
+
+函數重載示例:
+```solidity
+function saySomething() public pure returns(string memory){
+    return("Nothing");
+}
+
+function saySomething(string memory something) public pure returns(string memory){
+    return(something);
+}
+```
+
+* 重載函數編譯:
+編譯後,重載函數會因輸入參數類型不同而有不同的函數選擇器(selector)
+
+* 什麼是函數選擇器?
+實參匹配:
+調用時會將輸入的實際參數與函數參數的變量類型做匹配
+如果出現多個匹配的重載函數，會報錯
+
+實參匹配示例:
+```solidity
+function f(uint8 _in) public pure returns (uint8 out) {
+    out = _in;
+}
+
+function f(uint256 _in) public pure returns (uint256 out) {
+    out = _in;
+}
+```
+調用f(50)會報錯，因為50既可以轉換為uint8也可以轉換為uint256
+
+uint8最大值255
+
+uint256最大值2^256-1
+
+這個案例如果輸入256是不是就不會報錯了? 因為會跑到uint256的參數去執行?
+>>>YES
+
+當一個值可以無損地轉換為多種類型時，才會出現報錯?
+>>>YES
+
+注意事項:
+
+* 重載函數在編譯後會有不同的函數選擇器
+* 調用時要注意參數類型，避免報錯
+
+#### 17_Library
+庫合約(Library)筆記
+1. 定義: 
+    * 庫合約是一種特殊的合約,用於提升代碼複用性和減少gas消耗。
+    * 它是一系列函數的集合,由開發者或項目方創建,供其他合約使用。
+
+2. 特點: 
+    * 不能存在狀態變量
+    * 不能繼承或被繼承
+    * 不能接收以太幣
+    * 不可被銷毀
+
+3. 函數可見性: 
+    * public/external: 調用時觸發delegatecall
+    * internal: 不觸發delegatecall
+    * private: 僅在庫合約內可見
+
+4. 使用方法: 
+    a. using for 指令: 
+    * 語法: using A for B;
+    * 將庫A的函數附加到類型B上
+    * 例: using Strings for uint256;
+
+ b. 直接通過庫名調用: 
+    * 例: Strings.toHexString(_number);
+
+* 常用庫合約: 
+    * Strings: uint256轉String
+    * Address: 判斷地址是否為合約地址
+    * Create2: 安全使用Create2 EVM opcode
+    * Arrays: 數組相關操作
+
+案例 - Strings庫: 
+   * 主要函數: 
+        * toString(): uint256轉string
+        * toHexString(): uint256轉16進制string
+   * 使用示例: 
+
+```solidity
+// 方法1: using for
+using Strings for uint256;
+function getString1(uint256 _number) public pure returns(string memory){
+    return _number.toHexString();
+}
+
+// 方法2: 直接調用
+function getString2(uint256 _number) public pure returns(string memory){
+    return Strings.toHexString(_number);
+}
+```
+* 優點: 
+    * 提高代碼複用性
+    * 減少gas消耗
+    * 利用經過審計的代碼,提高安全性
+    * 簡化開發過程
+
+* 注意事項: 
+    * 大多數開發者不需要自己編寫庫合約
+    * 重點在於了解何時使用哪種庫合約
+    * 使用前應確保理解庫合約的功能和限制
+
+#### 18_Import
+作用:
+在一個文件中引用另一個文件的內容，提高代碼的可重用性和組織性
+
+import的位置:
+1. 在聲明版本號之後
+2. 在其餘代碼之前
 
 
+import的用法:
+```solidity
+a. 通過源文件相對位置導入:
+solidityCopyimport './Yeye.sol';
+b. 通過源文件網址導入:
+solidityCopyimport 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+c. 通過npm的目錄導入:
+solidityCopyimport '@openzeppelin/contracts/access/Ownable.sol';
+d. 通過指定全局符號導入特定的全局符號:
+solidityCopyimport {Yeye} from './Yeye.sol';
+```
+文件結構示例:
+```solidity
+Copy├── Import.sol
+└── Yeye.sol
+```
+測試導入結果:
+可以通過以下代碼測試是否成功導入外部源代碼:
+```solidity
+solidityCopy// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+```
+```solidity
+import './Yeye.sol';
+import {Yeye} from './Yeye.sol';
+import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+import '@openzeppelin/contracts/access/Ownable.sol';
+```
+```solidity
+contract Import {
+    using Address for address;
+    Yeye yeye = new Yeye();
+
+    function test() external{
+        yeye.hip();
+    }
+}
+```
+優點:
+* 可以引用自己寫的其他文件中的合約或函數
+* 可以直接導入他人寫好的代碼
+* 提高開發效率
+* 促進代碼模塊化和重用
+
+
+注意事項:
+* 確保導入的代碼來源可靠
+* 注意版本兼容性
+* 避免循環依賴
+* 合理組織項目結構,便於管理導入
+
+常見用途:
+* 導入標準庫(如OpenZeppelin)
+* 導入接口定義
+* 導入共用的工具函數或合約
+
+總結:import語句是Solidity中重要的代碼組織工具,能夠有效提高開發效率和代碼質量。開發者應熟練掌握不同的import方法,並在項目中合理使用,以實現代碼的模塊化和重用
 <!-- Content_END -->
