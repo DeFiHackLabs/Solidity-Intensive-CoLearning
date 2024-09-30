@@ -1032,13 +1032,11 @@ function getString2(uint256 _number) public pure returns(string memory){
     * 使用前應確保理解庫合約的功能和限制
 
 #### 18_Import
-作用:
-在一個文件中引用另一個文件的內容，提高代碼的可重用性和組織性
+作用:在一個文件中引用另一個文件的內容，提高代碼的可重用性和組織性
 
 import的位置:
 1. 在聲明版本號之後
 2. 在其餘代碼之前
-
 
 import的用法:
 ```solidity
@@ -1053,7 +1051,7 @@ solidityCopyimport {Yeye} from './Yeye.sol';
 ```
 文件結構示例:
 ```solidity
-Copy├── Import.sol
+├── Import.sol
 └── Yeye.sol
 ```
 測試導入結果:
@@ -1084,7 +1082,6 @@ contract Import {
 * 提高開發效率
 * 促進代碼模塊化和重用
 
-
 注意事項:
 * 確保導入的代碼來源可靠
 * 注意版本兼容性
@@ -1096,5 +1093,5 @@ contract Import {
 * 導入接口定義
 * 導入共用的工具函數或合約
 
-總結:import語句是Solidity中重要的代碼組織工具,能夠有效提高開發效率和代碼質量。開發者應熟練掌握不同的import方法,並在項目中合理使用,以實現代碼的模塊化和重用
+總結：import語句是Solidity中重要的代碼組織工具，能夠有效提高開發效率和代碼質量。開發者應熟練掌握不同的import方法，並在項目中合理使用，以實現代碼的模塊化和重用
 <!-- Content_END -->
