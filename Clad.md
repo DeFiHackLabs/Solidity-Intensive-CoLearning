@@ -415,6 +415,52 @@ function callETH(address payable _to, uint256 amount) external payable{
    }
 }
 ```
+### 2024.09.30
+學習內容  
+筆記:  
+
+#### 調用其他合約
+
+ex: 目標合約
+```Solidity
+contract OtherContract{
+   uint256 private _x = 0;
+
+   event Log(uint amount, uint gas);
+
+   // return 合約 eth 餘額
+   function getBalance() view public returns(uint){
+      return address(this).balance;
+   }
+
+   function setX(uint256 x) external payable{
+      _x = x;
+      if(msg.value > 0){
+         emit Log(msg.value, gasleft());
+      }
+   }
+
+   function getX() external view returns(uint x){
+      x = _x;
+   }
+}
+```
+
+1. 傳入合約的地址
+- 在函數裡傳入要調用的合約地址, 生成目標合約的引用, 調用目標函數
+```Solidity
+function callSetX(address _Address, uint256 x) external{
+   otherContract(_Address).setX(x);
+}
+```
+2. 傳入合約的變數
+```Solidity
+
+```
+4. 創見合約的變數
+5. 調用合約並發送 eth
+   
+
 
 
 <!-- Content_END -->
