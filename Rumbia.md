@@ -371,4 +371,92 @@ delete a会让变量a的值变为初始值。
 
 
 ###
+
+###  2024.09.30
+# constant and immutable 
++ Constant常量和immutable不变量 使用变量声明这俩关键字后，不能在初始化函数之后更改数值
++ 提高**合约安全性**
++ **节省gas**
+
+## constant
+- 必须在声明的时候初始化，之后也不能改变！！
+- 尝试改变就会报错！
+```solidity
+
+uint constant a=99;
+uint constant address=0x0x0000000000000000000000000000000000000078;
+
+```
+# immutable
++ 可以在声明时 或者 在 构造函数**constuctor**中初始化
+``` solidity
+contract MyContract {
+    uint immutable c;
+
+    constructor(uint _value) {
+        c = _value;
+    }
+}
+
++ 可以使用全局变量例如**address(this)**，**block.number **或者自定义的函数给immutable变量初始化
+
+```
+
+###
+
+###  2024.10.01
+# 控制流
+
+## 一、条件语句（if-else）
+
+```solidity
+if (condition) {
+    // 条件为真时执行的代码
+} else {
+    // 条件为假时执行的代码
+}
+```
+
+## 二、循环语句（for、while、do-while）
+### 1. for 循环
+```solidity
+for (initialization; condition; increment) {
+    // 循环体代码
+}
+```
++ initialization：初始化循环变量。
++ condition：循环继续的条件。
++ increment：在每次循环迭代后执行的操作，通常用于更新循环变量。
+### 2. while 循环
+```solidity
+
+while (condition) {
+    // 循环体代码
+}
+```
++ 只要条件为真，就会一直执行循环体。
+### 3. do-while 循环
+```solidity
+
+do {
+    // 循环体代码
+} while (condition);
+```
++ 先执行一次循环体，然后再检查条件是否为真，如果为真则继续循环。
+
+## 三、开关语句（switch）
+```solidity
+
+switch (expression) {
+    case value1:
+        // 当 expression 等于 value1 时执行的代码
+        break;
+    case value2:
+        // 当 expression 等于 value2 时执行的代码
+        break;
+    default:
+        // 当 expression 不等于任何 case 值时执行的代码
+}
+```
+###
 <!-- Content_END -->
