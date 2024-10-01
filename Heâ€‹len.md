@@ -15,6 +15,29 @@ timezone: Asia/Shanghai
 ## Notes
 
 <!-- Content_START -->
+### 2024.09.30
+## 3. 地址類型（Address）
+在 Solidity 中，address 是一種專門用於儲存以太坊地址的資料類型。地址類型有兩種類型：
+
+(1) 普通地址（address）：用於儲存一個 20 字節長的以太坊地址。
+(2) 支付地址（`payable` address）：這類地址可以接收`以太幣`（ETH），並且有 `transfer` 和 `send` 這兩個方法可以進行轉帳。
+範例：
+```solidity
+// 地址類型示範
+address public _address = 0x7A58c0Be72BE218B41C608b7Fe7C5bB630736C71;  // 普通地址
+address payable public _address1 = payable(_address);                  // 可支付地址，可以進行轉帳操作
+```
+
+(3) 地址類型的成員變數
+```solidity
+uint256 public balance = _address1.balance;  // 獲取地址的餘額（以 wei 為單位）
+```
+在上述範例中：
+
+_address 是一個普通的以太坊地址。
+_address1 是一個 payable 類型的地址，可以接收以太幣。
+使用 balance 成員變數可以查詢某個地址的以太幣餘額。
+
 
 ### 2024.09.29
 ## 2. 整型

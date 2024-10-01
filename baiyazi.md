@@ -421,4 +421,20 @@ abi.decode
 
 `Keccak256`函数是`Solidity`中最常用的哈希函数
 
+### 2024.10.01
+
+**函数选择器**
+
+当我们调用智能合约时，本质上是向目标合约发送了一段`calldata`，发送的`calldata`中前4个字节是`selector`（函数选择器）。
+
+`calldata`就是告诉智能合约，我要调用哪个函数，以及参数是什么。
+
+`method id`定义为`函数签名`的`Keccak`哈希后的前4个字节，当`selector`与`method id`相匹配时，即表示调用该函数。在同一个智能合约中，不同的函数有不同的函数签名，因此我们可以通过函数签名来确定要调用哪个函数。
+
+映射类型参数通常有：`contract`、`enum`、`struct`等。在计算`method id`时，需要将该类型转化成为`ABI`类型。0
+
+**try-catch**
+
+在`Solidity`中，`try-catch`只能被用于`external`函数或创建合约时`constructor`（被视为`external`函数）的调用。
+
 <!-- Content_END -->

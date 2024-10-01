@@ -150,7 +150,10 @@ def get_user_study_status(nickname):
             local_date = date.astimezone(user_tz).replace(
                 hour=0, minute=0, second=0, microsecond=0)
 
-            if date.day == current_date.day:
+            # 手動設置 2024.09.01、2024.09.08、2024.09.15 週日為✅
+            if local_date.strftime("%Y-%m-%d") in ["2024-09-29"]:
+                user_status[date] = "✅"
+            elif date.day == current_date.day:
                 user_status[date] = "✅" if check_md_content(
                     file_content, date, pytz.UTC) else " "
             elif date > current_date:

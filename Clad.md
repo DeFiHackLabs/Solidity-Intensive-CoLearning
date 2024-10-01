@@ -415,6 +415,79 @@ function callETH(address payable _to, uint256 amount) external payable{
    }
 }
 ```
+### 2024.09.30
+學習內容  
+筆記:  
+
+#### 調用其他合約
+
+ex: 目標合約
+```Solidity
+contract OtherContract{
+   uint256 private _x = 0;
+
+   event Log(uint amount, uint gas);
+
+   // return 合約 eth 餘額
+   function getBalance() view public returns(uint){
+      return address(this).balance;
+   }
+
+   function setX(uint256 x) external payable{
+      _x = x;
+      if(msg.value > 0){
+         emit Log(msg.value, gasleft());
+      }
+   }
+
+   function getX() external view returns(uint x){
+      x = _x;
+   }
+}
+```
+
+1. 傳入合約的地址
+- 在函數裡傳入要調用的合約地址, 生成目標合約的引用, 調用目標函數
+```Solidity
+function callSetX(address _Address, uint256 x) external{
+   otherContract(_Address).setX(x);
+}
+```
+2. 傳入合約的變數
+```Solidity
+function callGetX(OtherContract _Address) external view returns(uint x){
+   x = Address.getX(); 
+}
+```
+3. 創建合約的變數
+```Solidity
+function callGetX2(address _Address) external view returns(uint x){
+   OtherContract oc = OtherContract(_Address);
+   x = oc.getX();
+}
+```
+4. 調用合約並發送 eth
+```Solidity
+function setXTransferETH(address otherContract, uint256 x) payable external{
+   OtherContract(otherContract).setX{value: msg.value}(x);
+}
+```
+### 2024.10.1
+學習內容  
+筆記:  
+
+#### Call
+- call 是 address 類型的低級成員函數, 用來與其他合約交互, 返回值為(bool, bytes memory), 對應 call 是否成功和目標函數的返回值
+- call 通過觸發 fallback 或 receive 函數發送 eth 的方法
+- 不要用 call 調用另一個合約, 當調用不安全的合約函數時, 就會把主動權給了對方, 建議方法是聲明合約變量後調用函數 
+- 使用規則, 目標合約地址.call(自節碼), 自節碼是利用結構化編碼函數 abi.encodeWithSignature("函數簽名", 逗號分隔具體參數),ex: abi.encodeWithSignature("f(uint256, address)", _x, _addr)
+
+- 使用規則2, call 在調用合約時可以指定交易發送的 eth 數量和 gas 數量, 目標合約地址.call{value: 發送數量, gas: gas數量}(字節碼);
+
+
+
+
+
 
 
 <!-- Content_END -->
