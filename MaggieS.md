@@ -305,4 +305,13 @@ The msg.value == 0 condition check is meaningless in most cases.
 Recommendation:
 Avoid meaningless checks
 
+
+### 2024.10.01
+
+Q1:
+
+Q2:
+
+
+
 <!-- Content_END -->
