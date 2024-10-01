@@ -441,6 +441,37 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     - 使用场景：
         - 生成数据唯一标识：`keccak256(abi.encodePacked(_num, _string, _addr))`
 - [102-29] 选择器
+    - 调用智能合约时，本质上是向目标合约发送了一段 calldata。sg.data 是 Solidity 中的一个全局变量，值为完整的 calldata。
+    - 在函数签名中，uint 和 int 要写为 uint256 和 int256。
+    - 计算 method id 时，需要通过函数名和函数的参数类型来计算。在Solidity中，函数的参数类型主要分为：基础类型参数，固定长度类型参数，可变长度类型参数和映射类型参数。
+        - `bytes4(keccak256("elementaryParamSelector(uint256,bool)"))`
+        - `bytes4(keccak256("fixedSizeParamSelector(uint256[3])"))`
+        - `bytes4(keccak256("nonFixedSizeParamSelector(uint256[],string)"))`
+        - 映射类型参数通常有：contract、enum、struct等。在计算method id时，需要将该类型转化成为ABI类型。
+        ```solidity
+        contract DemoContract {
+            // empty contract
+        }
+
+        contract Selector{
+            // Struct User
+            struct User {
+                uint256 uid;
+                bytes name;
+            }
+            // Enum School
+            enum School { SCHOOL1, SCHOOL2, SCHOOL3 }
+            ...
+            // mapping（映射）类型参数selector
+            // 输入：demo: 0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99， user: [1, "0xa0b1"], count: [1,2,3], mySchool: 1
+            // mappingParamSelector(address,(uint256,bytes),uint256[],uint8) : 0xe355b0ce
+            function mappingParamSelector(DemoContract demo, User memory user, uint256[] memory count, School mySchool) external returns(bytes4 selectorWithMappingParam){
+                emit SelectorEvent(this.mappingParamSelector.selector);
+                return bytes4(keccak256("mappingParamSelector(address,(uint256,bytes),uint256[],uint8)"));
+            }
+            ...
+        }
+        ```
 - [102-30] Try Catch
 
 ### 2024.10.03
