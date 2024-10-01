@@ -503,6 +503,25 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 ### 2024.10.03
 
 - [103-31] ERC20
+    - 来自15年V神参与的 [EIP-20](https://eips.ethereum.org/EIPS/eip-20)，实现了代币转账的基本逻辑。IERC20是ERC20代币标准的接口合约，规定了ERC20代币需要实现的函数和事件。
+        - 账户余额 balanceOf()
+        - 转账 transfer()
+        - 授权转账 transferFrom()
+        - 授权 approve()
+        - 代币总供给 totalSupply()
+        - 授权转账额度 allowance()
+        - 代币信息（可选）：名称(name())，代号(symbol())，小数位数(decimals())
+    - IERC20定义了2个事件：Transfer事件和Approval事件，分别在转账和授权时被释放
+        - event Transfer(address indexed from, address indexed to, uint256 value);
+        - event Approval(address indexed owner, address indexed spender, uint256 value);
+    - IERC20定义了6个函数，提供了转移代币的基本功能
+        - function totalSupply() external view returns (uint256);
+        - function balanceOf(address account) external view returns (uint256);
+        - function transfer(address to, uint256 amount) external returns (bool);
+        - function allowance(address owner, address spender) external view returns (uint256); 返回`owner`账户授权给`spender`账户的额度
+        - function approve(address spender, uint256 amount) external returns (bool); 授权
+        - function transferFrom(address from,address to,uint256 amount) external returns (bool); 授权转账
+    - 一般不自己手撸，而是基于 OpenZeppelin 模版改：[docs](https://docs.openzeppelin.com/contracts/5.x/erc20) [ERC20-template](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/ERC20.sol)
 - [103-32] 代币水龙头
 - [103-33] 空投合约
 
