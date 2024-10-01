@@ -372,11 +372,41 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     - 使用场景：去中心化交易所 uniswap 利用工厂合约（PairFactory）创建了无数个币对合约（Pair）： [code](https://github.com/Uniswap/v2-core/tree/master/contracts)
         - UniswapV2Pair: 币对合约，用于管理币对地址、流动性、买卖。
         - UniswapV2Factory: 工厂合约，用于创建新的币对，并管理币对地址。
-    
+
 ### 2024.10.01
 
 - [102-25] 在合约中创建新合约：Create2
-
+    - CREATE2 操作码使我们在智能合约部署在以太坊网络之前就能预测合约的地址。CREATE2 的目的是为了让合约地址独立于未来的事件。
+    - 用CREATE2创建的合约地址由4个部分决定：`Contract x = new Contract{salt: _salt, value: _value}(params)`
+        - 0xFF：一个常数，避免和CREATE冲突
+        - CreatorAddress: 调用 CREATE2 的当前合约（创建合约）地址。
+        - salt（盐）：一个创建者指定的bytes32类型的值，它的主要目的是用来影响新创建的合约的地址。
+        - initcode: 新合约的初始字节码（合约的Creation Code和构造函数的参数）。
+    - 提前计算地址：
+        - 无参数：
+        ```solidity
+        // 计算合约地址方法 hash()
+        predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+            bytes1(0xff),
+            address(this),
+            salt,
+            keccak256(type(Pair).creationCode)
+        )))));
+        ```
+        - 有参数：
+        ```solidity
+        predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+                bytes1(0xff),
+                address(this),
+                salt,
+                keccak256(abi.encodePacked(type(Pair).creationCode, abi.encode(address(this))))
+            )))));
+        ```
+    - 使用场景：
+        - 交易所为新用户预留创建钱包合约地址。
+    - Create VS Create2
+        - create: `新地址 = hash(创建者地址, nonce)`。由于nonce不确定（你不知道你是第几个，因为别人也可能在调用）所以无法预测地址。
+        - create2: `新地址 = hash("0xFF",创建者地址, salt, initcode)`。新合约的地址由创建者地址、salt值(一个256位的值)、合约字节码计算得出。可以预测出创造出的合约地址。
 - [102-26] 删除合约
 
 - [102-27] ABI编码解码
