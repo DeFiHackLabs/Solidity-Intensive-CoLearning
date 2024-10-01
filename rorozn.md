@@ -577,4 +577,261 @@ function transferOwner1(uint256 tokenId, address newOwner) public {
 
 ### 2024.09.24
 
+16. 函数重载：名字相同但入参不同，调用时根据不同参数选择执行哪个函数
+
+- 装饰器 modifier 不能重载
+- 如果出现多个匹配的重载函数，则会报错。
+
+17. 库合约
+
+- 一系列函数集合，方便实用，减少 gas，关键字 library。
+  - 不能存在状态变量
+  - 不能够继承或被继承
+  - 不能接收以太币
+  - 不可以被销毁
+  - **尚未理解的：** 库合约重的函数可见性如果被设置为 public 或者 external，则在调用函数时会触发一次 delegatecall。而如果被设置为 internal，则不会引起。对于设置为 private 可见性的函数来说，其仅能在库合约中可见，在其他合约中不可用。
+- 使用 常用的有：  
+   Strings：将 uint256 转换为 String  
+   Address：判断某个地址是否为合约地址  
+   Create2：更安全的使用 Create2 EVM opcode  
+   Arrays：跟数组相关的库合约
+
+```solidity
+// 方法一： 利用using for指令
+using Strings for uint256;
+function getString1(uint256 _number) public pure returns(string memory){
+    // 库合约中的函数会自动添加为uint256型变量的成员
+    return _number.toHexString();
+}
+
+// 方法二： 直接通过库合约名调用
+function getString2(uint256 _number) public pure returns(string memory){
+    return Strings.toHexString(_number);
+}
+```
+
+18. 跨文件引用 import
+
+- 在声明版本号之后，在其余代码之前。  
+  可以引用的内容：  
+  文件相对位置（import './Yeye.sol';）  
+  网址源文件（import 'https://xxx/xxx.sol'）  
+  npm(import @openzeppelin/xxx.sol)  
+  全局符号（import {xxx as yyy} from './xxx.sol'
+
+### 2024.09.25
+
+19. 接收 eth
+
+- 0.6 之前是 fallback(),之后拆分成 receive()和 fallback()
+- receive():  
+  合约收到 eth 时被调用  
+  不要写太多逻辑，因为 transfer 发送 eth 的话限制 gas 2300
+
+```solidity
+event Received(address Sender, uint Value);// 定义事件
+
+receive() external payable {// 接收ETH时释放Received事件
+   emit Received(msg.sender, msg.value);
+}
+```
+
+**有些恶意合约，会在 receive()/fallback() 函数，嵌入恶意消耗 gas 的内容或者使得执行故意失败的代码，导致一些包含退款和转账逻辑的合约不能正常工作**
+
+- fallback()  
+  在调用合约不存在的函数时被触发
+
+  ```solidity
+  event fallbackCalled(address Sender, uint Value, bytes Data);
+
+  fallback() external payable{//释放事件
+  emit fallbackCalled(msg.sender, msg.value, msg.data);
+  }
+  ```
+
+- receive 和 fallback 区别
+
+```graph
+           接收ETH
+              |
+         msg.data是空？
+            /  \
+          是    否
+          /      \
+receive()存在?   fallback()
+        / \
+       是  否
+      /     \
+receive()   fallback()
+```
+
+### 2024.09.26
+
+20. 发送 eth
+
+- transfer()，  
+  gas 限制是 2300  
+  失败自动 revert
+- send()几乎没人用  
+  gas 限制是 2300  
+  不会 revert  
+  返回 bool，代表成功/失败，需要额外代码处理下
+- call()【推荐】
+  没有 gas 限制  
+  如果转账失败，不会 revert  
+  返回值是(bool, bytes)，其中 bool 代表着转账成功或失败，需要额外代码处理一下
+
+### 2024.09.27
+
+21. 调用其他合约  
+    接口的调用实际上也是一种调用其他合约：InterfaceContractName other = InterfaceContractName(\_ContractAddress)
+
+```solidity
+//方法1：通过合约地址，合约名(合约地址).函数名()
+function callSetX(address _Address, uint256 x) external{
+    OtherContract(_Address).setX(x);
+}
+
+//方法2：通过合约变量
+function callGetX(OtherContract _Address) external view returns(uint x){
+    x = _Address.getX();
+}
+
+//方法3：创建合约变量，然后调用
+function callGetX2(address _Address) external view returns(uint x){
+    OtherContract oc = OtherContract(_Address);
+    x = oc.getX();
+}
+
+//方法4：目标合约的函数是payable的，可以调用它来给合约转账
+function setXTransferETH(address otherContract, uint256 x) payable external{
+    OtherContract(otherContract).setX{value: msg.value}(x);
+}
+```
+
+### 2024.09.28
+
+22. call
+
+- call 是 address 类型的低级成员函数,它的返回值为(bool, bytes memory)，分别对应 call 是否成功、及目标函数的返回值。  
+  call 不是调用合约的推荐方法，因为**不安全**。但他能让我们在不知道源代码和 ABI 的情况下调用目标合约
+  - call 是 Solidity 官方推荐的通过触发 fallback 或 receive 函数发送 ETH 的方法。
+  - 不推荐用 call 来调用另一个合约，避免合约漏洞。应该**先声明合约变量后调用函数**。
+  - 当我们不知道对方合约的源代码或 ABI，就没法生成合约变量；这时，我们仍可以通过 call 调用对方合约的函数。
+- 使用
+  - 字节码：abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)
+  - 目标合约地址.call( abi.encodeWithSignature("函数签名", 逗号分隔的具体参数) );
+  - call 在调用合约时可以指定交易发送的 ETH 数额和 gas 数额：目标合约地址.call{value:发送数额, gas:gas 数额}(abi.encodeWithSignature("函数签名", 逗号分隔的具体参数));
+- 举例
+
+```solidity
+//目标合约
+contract OtherContract {
+    uint256 private _x = 0; // 状态变量x
+    // 收到eth的事件，记录amount和gas
+    event Log(uint amount, uint gas);
+
+    fallback() external payable{}
+
+    // 返回合约ETH余额
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+
+    // 可以调整状态变量_x的函数，并且可以往合约转ETH (payable)
+    function setX(uint256 x) external payable{
+        _x = x;
+        // 如果转入ETH，则释放Log事件
+        if(msg.value > 0){
+            emit Log(msg.value, gasleft());
+        }
+    }
+
+    // 读取x
+    function getX() external view returns(uint x){
+        x = _x;
+    }
+}
+```
+
+```solidity
+//调用setX
+function callSetX(address payable _addr, uint256 x) public payable {
+    // call setX()，同时可以发送ETH
+    (bool success, bytes memory data) = _addr.call{value: msg.value}(
+        abi.encodeWithSignature("setX(uint256)", x)
+    );
+
+    emit Response(success, data); //释放事件
+}
+
+//调用不存在的函数，相当于fallback
+function callNonExist(address _addr) external{
+    // call 不存在的函数
+    (bool success, bytes memory data) = _addr.call(
+        abi.encodeWithSignature("foo(uint256)")
+    );
+
+    emit Response(success, data); //释放事件
+}
+```
+
+### 2024.09.29
+
+23. Delegatecall
+
+- 用途：
+  - 合约代理  
+    用户 A 通过合约 B 调用合约 C 里的函数，改变合约 B 里的变量
+  - [EIP-2535 Diamonds](https://eip2535diamonds.substack.com/p/introduction-to-the-diamond-standard)
+- delegatecall 在调用合约时可以指定交易发送的 gas，但不能指定发送的 ETH 数额
+- delegatecall 有**安全隐患**，使用时要保证当前合约和目标合约的状态变量存储结构相同，并且目标合约安全，不然会造成资产损失。
+- 举例：
+
+```solidity
+// 被调用的合约C,使用这个合约里的函数功能
+contract C {
+    uint public num;
+    address public sender;
+    function setVars(uint _num) public payable {
+        num = _num;
+        sender = msg.sender;
+    }
+}
+
+//发起调用的合约B
+//合约B必须和目标合约C的变量存储布局必须相同，两个变量（可以不同名，类型和顺序必须相同），并且顺序为num和sender
+contract B {
+    uint public num;
+    address public sender;
+
+    // 通过call来调用C的setVars()函数，将改变合约C里的状态变量
+    function callSetVars(address _addr, uint _num) external payable{
+        // call setVars()
+        (bool success, bytes memory data) = _addr.call(
+            abi.encodeWithSignature("setVars(uint256)", _num)
+        );
+    }
+
+    // 通过delegatecall来调用C的setVars()函数，将改变合约B里的状态变量
+    function delegatecallSetVars(address _addr, uint _num) external payable{
+        // delegatecall setVars()
+        (bool success, bytes memory data) = _addr.delegatecall(
+            abi.encodeWithSignature("setVars(uint256)", _num) //注意是uint256
+        );
+    }
+}
+```
+
+部署好合约 B,C；  
+用户钱包地址 A；  
+使用 B 的 callSetVars,传入 C 合约地址，num=10：C 合约变量 num 改成 10，sender 为 B 的地址；  
+使用 B 的 delegatecallSetValues，传入 C 的合约地址，num=100: B 的合约变量 num 改为 100，sender 地址为 A 的钱包地址，C 合约变量没变；
+
+### 2024.09.30
+
 <!-- Content_END -->
+
+```
+
+```

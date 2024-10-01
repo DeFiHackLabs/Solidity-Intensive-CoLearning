@@ -32,6 +32,97 @@ contract HelloWeb3{
  - 编译完成后，点击左侧菜单的“部署”按钮，进入部署页面。点击 `Deploy`（黄色按钮），即可部署我们编写的合约。
 
 
+### 2024.09.24
 ####  2. 值类型
+##### 值类型(Value Type)
+这类变量赋值时候直接传递数值
+1. 布尔型
+2. 整型
+   ```
+   int public _int = -1; // 整数，包括负数
+   uint public _uint = 1; // 正整数，uint默认为uint256
+   uint256 public _number = 20220330; // 256位正整数
+   ```
+3. 地址类型
+   存储一个 20 字节的值（以太坊地址的大小）
+4. 字节数组
+   分为定长和不定长2种
+5. 枚举 enum
+   主要用于为 uint 分配名称，使程序易于阅读和维护。它与 C 语言 中的 enum 类似，使用名称来代替从 0 开始的 uint。是一个比较冷门的变量，几乎没什么人用。
+   ```
+   // 用enum将uint 0， 1， 2表示为Buy, Hold, Sell
+   enum ActionSet { Buy, Hold, Sell }
+   // 创建enum变量 action
+   ActionSet action = ActionSet.Buy;
+   // enum可以和uint显式的转换,并会检查转换的正整数是否在枚举的长度内，否则会报错
+   function enumToUint() external view returns(uint){
+       return uint(action);
+   }
+   ```
+##### 引用类型(Reference Type)
+这类变量占空间大，赋值时候直接传递地址（类似指针）
+##### 映射类型(Mapping Type)
+存储键值对，可以理解为哈希表
+
+### 2024.09.26
+####  3. 函数
+`function <function name>(<parameter types>) {internal|external|public|private} [pure|view|payable] [returns (<return types>)]`
+
+ - `function`：声明函数时的固定用法
+
+- `<function name>`：函数名。
+
+- `(<parameter types>)`：参数(变量类型和名称)
+
+- `{internal|external|public|private}`：函数可见性说明符，共有4种。
+   1. `public`：内部和外部均可见。
+   2. `private`：只能从本合约内部访问，继承的合约也不能使用。
+   3. `external`：只能从合约外部访问（但内部可以通过 this.f() 来调用，f是函数名）。
+   4. `internal`: 只能从合约内部访问，继承的合约可以用。
+   - 定义函数时需要明确指定可见性，没有默认值。
+   - 定义状态变量时可不指定，默认为`internal`。`public|private|internal` 可用于修饰状态变量。public变量会自动生成同名的`getter`函数，用于查询数值。
+- `[pure|view|payable]`：决定函数权限/功能的关键字。
+   - `payable`运行的时候可以给合约转入ETH。
+   - `pure`函数既不能读取也不能改写状态变量。
+   - `view`函数可以读取状态变量。
+
+- `[returns ()]`：函数返回的变量类型和名称。
+
+### 2024.09.28
+####  4. 函数输出
+- returns：跟在函数名后面，用于声明返回的变量类型及变量名。
+- return：用于函数主体中，返回指定的变量。
+
+##### 命名式返回
+可以在 returns 中标明返回变量的名称。Solidity 会初始化这些变量，在函数直接修改就能自动返回这些值，无需使用 return。
+```
+// 命名式返回
+function returnNamed() public pure returns(uint256 _number, bool _bool, uint256[3] memory _array){
+    _number = 2;
+    _bool = false;
+    _array = [uint256(3),2,1];
+}
+```
+当然，想要使用return也可以。
+```
+// 命名式返回，依然支持return
+function returnNamed2() public pure returns(uint256 _number, bool _bool, uint256[3] memory _array){
+    return(1, true, [uint256(1),2,5]);
+}
+```
+##### 解构式赋值
+Solidity 支持使用解构式赋值规则来读取函数的全部或部分返回值
+- 读取所有返回值：声明变量，然后将要赋值的变量用`,`隔开，注意按顺序排列
+```
+uint256 _number;
+bool _bool;
+uint256[3] memory _array;
+(_number, _bool, _array) = returnNamed();
+```
+- 读取部分返回值：声明要读取的返回值对应的变量，不读取的留空。在下面的代码中，我们只读取_bool
+```
+(, _bool2, ) = returnNamed();
+```
+
 
 <!-- Content_END -->

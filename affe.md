@@ -47,6 +47,32 @@ d) Execute the contract code
 ```
 
 
-### 
+### 2024.09.24
+- 今天在用 Remix 跟着写合约，写了一个简单的 ERC20 实现了 Burn 的合约。感觉 Solidity 的复杂度很大程度在于，需要考虑 “任何人都可能发送任意形式的请求”，这个和传统在 VPC 里的微服务价格差别很大。在私有网络里一个服务会大概接收到哪种类型的服务是确定的，需要考虑的 Edge Case 比较少，心智负担比较轻，而且安全的保证是几层几层的（物理层，网络层，各种 RBAC 啥的），但是在以太坊里，很大程度上安全依赖于业务代码，这要求写业务代码的时候必须考虑到安全问题以及各种 Edge Case.
 
+### 2024.09.26
+
+- 今天在看 Wagmi 和 Wallet Connect 相关的内容。我在 lido 的 dao-voting-ui 仓库里看源代码，梳理了整个 UI 和合约侧交互的逻辑。 web3 的 交互需要把 Contract 的 Abi 的 Json 文件传给 Wagmi，然后 Wagmi 会生成一些代码来给JS 调用 （React 则是以各种 Hook 的形式。 这里很麻烦，没有上手实践，明天继续看代码。
+
+
+
+### 2024.09.26
+- 今天对着 WTF 34 写 ERC721 的实现，总算搞懂了 NFT 是如何被实现的。
+- 说一个我觉得有意思的点：NFT 就是通过合约内的 tokenUri() 以及 tokenId 指向IPFS上的一个数据文件。所有的交易部分都是在合约里。看懂了这一点就觉得很神奇。
+
+
+### 2024.09.28
+
+- a lot of the restrictions in smart contract is around :  Contracts are immutable after deployment
+- 在看 OZ Upgradable
+- Hardhat 的 Upgradable 的这个工具，确实会检查是否已经有部署的 Implementation Contract，并且除非impl contract 有改变，否则不会部署新的impl contract。是不是这就是导致了不同的proxy contract 都指向了同一个 impl contract
+- Beacon Proxy 是做什么的 ？有点不太理解具体的场景。
+- Etherscan 上的源代码不是天生就现实出来，需要人为Verify And Publish.
+- The Hardhat plugin keeps track of all the implementation contracts you have deployed in an `.openzeppelin` folder in the project root. You will find one file per network there. It is advised that you commit to source control the files for all networks except the development ones
+- So basically the deployed contracts is in the .openzeppelin folder. Maybe when I delete them it will deploy new contracts for me.
+- 合约的验证需要指定 Compiler 以及 Compiler 参数，许可证版本，以及源代码。
+- 下一步是继续看 Proxy 合约的一些知识，以及一些常见的 Proxy 合约。
+    - UUPS 代理
+    - Transparent 代理
+    - Beacon 代理
 <!-- Content_END -->

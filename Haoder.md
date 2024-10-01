@@ -1,7 +1,5 @@
 ---
-timezone: Asia/Shanghai
----
-
+timezone: Asia/Taipei
 ---
 
 # Haoder
@@ -18,37 +16,50 @@ LFG～～～～～ 會完成的
 
 ### 2024.09.23
 
-### 1. HelloWeb3(三行代碼)
+[**WTF Solidity 極簡入門：1. HelloWeb3(三行代碼)**](<content/Haoder/md/101.md>)
 
-#### 重點內容
->
-> [!NOTE]
-> 學習開發環境以及 Solidity 基礎語法
+### 2024.09.24  
 
-#### 題目練習
+[**WTF Solidity 極簡入門：2. 值類型**](<content/Haoder/md/102.md>)
 
-1. **Q: Solidity是什么？**  
-   **A:** 編寫智能合約的語言
+### 2024.09.25
 
-2. **Q: Remix 是什麼？**  
-   **A:** 智能合約開發 IDE
+[**WTF Solidity 極簡入門：3. 函數**](<content/Haoder/md/103.md>)
 
-3. **Q: 什麼事 IDE？**  
-   **A:** 集成開發環境（Integrated Development Environment）
+### 2024.09.26
 
-4. **Q: 帶有pragma solidity ^0.8.4; 的智能合约能否被 solidity 0.8版本編譯？**  
-   **A:** 不可以
+[**WTF Solidity 極簡入門：4. 函數輸出**](<content/Haoder/md/104.md>)
 
-5. **Q: Remix没有以下哪个面板？**  
-   **A:** 版本
+### 2024.09.27
 
-6. **Q: Remix的本地测试账户中有多少个ETH？**  
-   **A:** 100
+[**WTF Solidity 極簡入門：5. 變量數據儲存和作用域**](<content/Haoder/md/105.md>)
 
-7. **Q: Solidity中每行代码需要以什么符号结尾？**  
-   **A:** 分號;
+### 2024.09.28
 
-8. **Q: String是什么类型的变量？**  
-   **A:** 字符串
+[**WTF Solidity 極簡入門：6. 引用類型**](<content/Haoder/md/106.md>)
+
+[**WTF Solidity 極簡入門：7. 映射類型**](<content/Haoder/md/107.md>)
+
+### 2024.09.29
+
+[**WTF Solidity 極簡入門：8. 變量初始值**](<content/Haoder/md/108.md>)
+
+[**WTF Solidity 極簡入門：9. 常數**](<content/Haoder/md/109.md>)
+
+[**WTF Solidity 極簡入門：10. 控制流**](<content/Haoder/md/110.md>)
+
+### 2024.09.30
+
+[**WTF Solidity 極簡入門：11. 構造函數和修飾器**](<content/Haoder/md/111.md>)
+
+[**WTF Solidity 極簡入門：12. 事件**](<content/Haoder/md/112.md>)
+
+[**WTF Solidity 極簡入門：13. 繼承**](<content/Haoder/md/113.md>)
+
+### 2024.10.01
+
+[**WTF Solidity 極簡入門：14. 抽象合約和接口**](<content/Haoder/md/114.md>)
+
+[**WTF Solidity 極簡入門：15. 異常**](<content/Haoder/md/115.md>)
 
 <!-- Content_END -->

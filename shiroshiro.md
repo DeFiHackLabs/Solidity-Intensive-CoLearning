@@ -1,40 +1,5 @@
 ---
-timezone: Asia/Toyko
----
-
-> 请在上边的 timezone 添加你的当地时区，这会有助于你的打卡状态的自动化更新，如果没有添加，默认为北京时间 UTC+8 时区
-> 时区请参考以下列表，请移除 # 以后的内容
-
-timezone: Pacific/Honolulu # 夏威夷-阿留申标准时间 (UTC-10)
-
-timezone: America/Anchorage # 阿拉斯加夏令时间 (UTC-8)
-
-timezone: America/Los_Angeles # 太平洋夏令时间 (UTC-7)
-
-timezone: America/Denver # 山地夏令时间 (UTC-6)
-
-timezone: America/Chicago # 中部夏令时间 (UTC-5)
-
-timezone: America/New_York # 东部夏令时间 (UTC-4)
-
-timezone: America/Halifax # 大西洋夏令时间 (UTC-3)
-
-timezone: America/St_Johns # 纽芬兰夏令时间 (UTC-2:30)
-
-timezone: Asia/Dubai # 海湾标准时间 (UTC+4)
-
-timezone: Asia/Kolkata # 印度标准时间 (UTC+5:30)
-
-timezone: Asia/Dhaka # 孟加拉国标准时间 (UTC+6)
-
-timezone: Asia/Bangkok # 中南半岛时间 (UTC+7)
-
-timezone: Asia/Shanghai # 中国标准时间 (UTC+8)
-
-timezone: Asia/Tokyo # 日本标准时间 (UTC+9)
-
-timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
-
+timezone: Asia/Dubai
 ---
 
 # shiroshiro
@@ -50,43 +15,82 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 ### 2024.09.23
 
 學習內容: 
-- A 系列的 Ethernaut CTF, 之前做了差不多了. POC: [ethernaut-foundry-solutions](https://github.com/SunWeb3Sec/ethernaut-foundry-solutions)
-- A 系列的 QuillAudit CTF 題目的網站關掉了, 幫大家收集了[題目](./Writeup/SunSec/src/QuillCTF/), 不過還是有幾題沒找到. 有找到題目的人可以在發出來.
-- A 系列的 DamnVulnerableDeFi 有持續更新, 題目也不錯. [Damn Vulnerable DeFi](https://github.com/theredguild/damn-vulnerable-defi/tree/v4.0.0).
-- 使用 [Foundry](https://book.getfoundry.sh/) 在本地解題目, 可以參考下面 RoadClosed 為例子
-- ``forge test --match-teat testRoadClosedExploit -vvvv``
-#### [QuillAudit CTF - RoadClosed](./Writeup/SunSec/src/QuillCTF/RoadClosed.sol)
-```
-  function addToWhitelist(address addr) public {
-    require(!isContract(addr), "Contracts are not allowed");
-    whitelistedMinters[addr] = true;
-  }
 
-  function changeOwner(address addr) public {
-    require(whitelistedMinters[addr], "You are not whitelisted");
-    require(msg.sender == addr, "address must be msg.sender");
-    require(addr != address(0), "Zero address");
-    owner = addr;
-  }
+1. finished 01 Hello Web3
+2. deployed a contract on simulated EVM 
+3. able to view the string from the contract
+4. finished reading 02
+5. understanding deploying contracts needs gas
+6. finished 02 coding exercise
 
-  function pwn(address addr) external payable {
-    require(!isContract(msg.sender), "Contracts are not allowed");
-    require(msg.sender == addr, "address must be msg.sender");
-    require(msg.sender == owner, "Must be owner");
-    hacked = true;
-  }
 
-  function pwn() external payable {
-    require(msg.sender == pwner);
-    hacked = true;
-  }
-```
-- 解決這個題目需要成為合約的 owner 和 hacked = true.
-- On-chain: 可以透過 ``cast send`` 或是 forge script 來解.
-- Local: 透過 forge test 通常是在local解題, 方便 debug.
-- RoadClosed 為例子我寫了2個解題方式. testRoadClosedExploit 和 testRoadClosedContractExploit (因為題目有檢查msg.sender是不是合約, 所以可以透過constructor來繞過 isContract)
-- [POC](./Writeup/SunSec/test/QuillCTF/RoadClosed.t.sol) 
+### 2024.09.24
+1. 03 functions
+2. pivate keyword => can be only accessed within this contract
+3. extra solidity keywords => pure/view/payable
+4. pure and view function doesnt cost gas ( no rewrite no gas fee )
+5. low-level calls cost gas
+6. internal and external functions
+7. payable function for transferring eth
+8. finished 03 quiz
 
-### 
+### 2024.09.26
+
+#### 04 function output
+##### return
+decalre return types => returns
+normal return => return
+returns can be named at the beginning of function => no return keyword needs at the end, still supports normal return tho
+
+##### tuples
+can contain different types of elements and be returned
+syntax => (a,"b", [c,d,e])
+
+#### 05 data storage and scope
+
+##### reference type 
+like pointers/address
+can access same underlying data with different var like array/struct/mapping
+##### data location
+3 types: storage/memory/calldata, gas cost r different
+storage: on chain like HDD/ high fee
+memory: in mem
+calldata: in mem but cant modify, usually used in param
+##### modifying reference data
+pointing uint[] x = [1,2,3]; // state variable: array x
+then assign uint[] storage xStorage = x; xStorage[0] = 100; 
+will modify x => [100,2,3]
+
+##### variable scope
+state var: on chain/ high gas, declared outside of the function
+    can change state var in functions
+local var: only avalible in func like normal, low gas
+global var: reserved keywords for solidity　like blcok hash etc.
+    
+
+### 2024.09.27
+
+#### 06 array and struct
+fixed or dynamic size array
+fixed decalre: type[length] name
+dynamic decalre: type[] name / bytes name
+bytes is cheaper than bytes1[]
+
+#### array
+memory dynamic array:  uint[] memory array8 = new uint[](5);
+    bytes memory array9 = new bytes(9);
+array literals first element must hv type/ type with the smallest storage space is used by default
+
+array methods length/push()/push(x)/pop()
+
+#### struct
+just like normal old struct nothing special
+
+### 2024.09.29
+
+#### mapping
+
+can be quered by key like normal mapping
+
 
 <!-- Content_END -->

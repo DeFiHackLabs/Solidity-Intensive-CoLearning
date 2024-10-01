@@ -41,6 +41,49 @@ timezone: Asia/Taipei
     
 
 ### 2024.09.24        
-    
+1. 在WTF完成前兩章的測驗
+2. 學習第三張，function 功能，可視性的功能上{internal|external|public|private}，感覺重點在於，如果function要給外部call，就選擇public或者external，內部訪問就寫private或者是internal，測試的話一開始寫public比較方便。
+3. about function permission的部分，分成[pure|view|payable]，而pure和view主要主要跟gas有關，而pure和view的function是不修改鏈上的狀態，也就不會被收gas，而教學上用瑪利歐的比喻也非常能理解
+4. pure和view的部分比較不容易分得清楚
+5. 完成了第三章的測驗
+6. 學習第四章returns/return，並完成了第四章測驗
 
+
+### 2024.09.25
+1. 了解變數儲存的三種不同類型，storage、memory和calldata，memory和calldata是儲存在RAM裡面，，消耗的gas少，storage是儲存在硬碟上的，消耗gas大
+2. 了解變數作用區，分別為狀態狀態、局部、全域三種類型，一般來說在合約內宣告的變數為狀態變數，而再pure function內的變數，因為跳出後，內部的變數就無效了，因此是儲存於RAM內，而全域變數則為預留關鍵字
+3. 完成了第五章測驗
+4. 完成了第六章測驗
+
+### 2024.09.26
+1. 學習了第七章mapping，但是還需要更多的範例或練習，才能夠更了解mapping能運用在哪一些用途上
+2. 完成了第七章的測驗
+3. 學習了變數宣告但不賦值時會有一個預設的值
+4. 使用delete變數，可以將變數的值變為預設值
+5. 完成了第八章的測驗
+6. 第九章有點需要慢慢理解
+    这一讲，我们介绍Solidity中和常量相关的两个关键字，constant（常量）和immutable（不变量）。状态变量声明这两个关键字之后，不能在初始化后更改数值。这样做的好处是提升合约的安全性并节省gas。
+
+    另外，只有数值变量可以声明constant和immutable；string和bytes可以声明为constant，但不能为immutable。
+
+
+### 2024.09.27
+1. 完成了第九章的測驗
+2. 了解控制流的功能，跟一其他程式語言差不多，但是在insertiinsort的部分比較苦手，因為要看很久才能懂
+3. 完成了第十章的測驗
+4. 完成第十一章的測驗
+
+
+### 2024.09.28
+1. 完成了12章事件的測驗
+2. 因為第13張有點雜，先跳到第15章理解異常的功能
+3. 完成了第15章的測驗
+
+
+### 2024.09.30
+1. 了解了繼承的功能，並完成了第13章的測驗
+2. 完成了第14章的測驗，基本的了解了solidity101的課程內容
+3. 如果再多去了解31章的ERC20，就可以完成defibootcamp的hw1作業task1
+
+### 2024.10.01
 <!-- Content_END -->

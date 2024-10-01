@@ -51,10 +51,69 @@ contract HelloWeb3{                 // 合約部分
    * note: ```&&``` (and) 和 ```||``` (or) 遵守短路規則
 1. Integer: 整數
    * ```int``` 整數
-2. 
+2. (待補)
 
+---
 
+### 2024.09.24
+#### 學習內容：Solidity 入門 06 - 10
+* 引用類型：array & struct
+* 映射類型：mapping
+* 變量初始值
+* 常數：constant & immutable
+* 控制流：if-else、for loop、while loop、do-while、三元運算子
+#### 筆記
+(先簽到，有空再補)
 
+---
+
+### 2024.09.25
+#### 學習內容：Solidity 入門 11 - 15
+* 構造函數 (constructor) & 修飾器 (Modifier)
+* 事件 (event)
+* 繼承
+* 抽象合約 (abstract) & 接口 (Interface)
+* 異常 (error/require/assert)
+
+---
+
+### 2024.09.26
+#### 學習內容：Solidity 進階 16 - 20
+* 函數重載
+* library
+* import
+* 接收 ETH：receive & fallback
+* 發送 ETH：transfer & send & call
+
+---
+
+### 2024.09.27
+#### 學習內容：Solidity 進階 21 - 25
+* 調用其他合約
+* Call
+* Delegatecall
+* 在合約中創建新合約
+* CREATE2
+
+---
+
+### 2024.09.28
+#### 學習內容：Solidity 進階 26 - 30
+* 刪除合約 selfdestruct
+* ABI 編碼 & 解碼
+* Hash
+* 選擇器 Selector
+* try-catch
+
+---
+
+### 2024.09.30
+#### 學習內容：Solidity 應用 31 - 35
+* ERC20
+* 代幣水龍頭
+* 空投合約
+* ERC721
+* 荷蘭拍賣
 
 
 ### 

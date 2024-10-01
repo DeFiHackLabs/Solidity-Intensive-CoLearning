@@ -50,43 +50,67 @@ KungfuPanda
 ### 2024.09.23
 
 學習內容: 
-- A 系列的 Ethernaut CTF, 之前做了差不多了. POC: [ethernaut-foundry-solutions](https://github.com/SunWeb3Sec/ethernaut-foundry-solutions)
-- A 系列的 QuillAudit CTF 題目的網站關掉了, 幫大家收集了[題目](./Writeup/SunSec/src/QuillCTF/), 不過還是有幾題沒找到. 有找到題目的人可以在發出來.
-- A 系列的 DamnVulnerableDeFi 有持續更新, 題目也不錯. [Damn Vulnerable DeFi](https://github.com/theredguild/damn-vulnerable-defi/tree/v4.0.0).
-- 使用 [Foundry](https://book.getfoundry.sh/) 在本地解題目, 可以參考下面 RoadClosed 為例子
-- ``forge test --match-teat testRoadClosedExploit -vvvv``
-#### [QuillAudit CTF - RoadClosed](./Writeup/SunSec/src/QuillCTF/RoadClosed.sol)
-```
-  function addToWhitelist(address addr) public {
-    require(!isContract(addr), "Contracts are not allowed");
-    whitelistedMinters[addr] = true;
-  }
+- setup Foundary 的运行环境
+- 使用mkdir 命令建立 co—learning的文件夹
+- 使用forge init命令初始化
+- 使用 forge compile 编译 HelloWeb3.sol
+- 新开窗口用anvil创建一条本机链
+- 使用forge create部署HelloWeb3.sol合约
 
-  function changeOwner(address addr) public {
-    require(whitelistedMinters[addr], "You are not whitelisted");
-    require(msg.sender == addr, "address must be msg.sender");
-    require(addr != address(0), "Zero address");
-    owner = addr;
-  }
+结果如下：
+[⠃] Compiling...
+No files changed, compilation skipped
+Deployer: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+Deployed to: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+Transaction hash: 0x957fd94ac366ec5eef8c849dae9993b04b03c456cd61fd116621b44138bdf743
 
-  function pwn(address addr) external payable {
-    require(!isContract(msg.sender), "Contracts are not allowed");
-    require(msg.sender == addr, "address must be msg.sender");
-    require(msg.sender == owner, "Must be owner");
-    hacked = true;
-  }
+- cast call 0x5FbDB2315678afecb367f032d93F642f64180aa3 "_string()" --rpc-url http://127.0.0.1:8545
+  得到_string的字节码， decode该字节码得到 “Hello，World” 字符串
 
-  function pwn() external payable {
-    require(msg.sender == pwner);
-    hacked = true;
-  }
-```
-- 解決這個題目需要成為合約的 owner 和 hacked = true.
-- On-chain: 可以透過 ``cast send`` 或是 forge script 來解.
-- Local: 透過 forge test 通常是在local解題, 方便 debug.
-- RoadClosed 為例子我寫了2個解題方式. testRoadClosedExploit 和 testRoadClosedContractExploit (因為題目有檢查msg.sender是不是合約, 所以可以透過constructor來繞過 isContract)
-- [POC](./Writeup/SunSec/test/QuillCTF/RoadClosed.t.sol) 
+### 2024.09.24
+- Today's work is try to use script in Foundary to deploy more smart contracts. script is like this:
+- // SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
 
-### 
+import "forge-std/Script.sol";
+import "../src/ValueTypes.sol";
+import "../src/Function.sol";
+import "../src/DataStorage.sol";
+import "../src/Return.sol";
 
+contract DeployScript is Script {
+    function run() public {
+
+        uint256 deployerPrivateKey = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
+        vm.startBroadcast(deployerPrivateKey);
+
+        // Deploy ValueTypes
+        ValueTypes valueTypes = new ValueTypes();
+        console.log("ValueTypes deployed to:", address(valueTypes));
+
+        // Deploy Return
+        Return return1 = new Return( );
+        console.log("Return deployed to:", address(return1));
+
+        FunctionTypes function1 = new FunctionTypes( );
+        console.log("FunctionTypes deployed to:", address(function1));
+        
+        DataStorage dataStorage = new DataStorage( );
+        console.log("DataStorage deployed to:", address(dataStorage));
+        
+        vm.stopBroadcast();
+    }
+}
+
+- output :
+  ValueTypes deployed to: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+  Return deployed to: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+  FunctionTypes deployed to: 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
+  DataStorage deployed to: 0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9
+- 
+- to be continued: test the functions in each contract. not finished today ,try to use script to test them one by one 
+
+  
+
+    
 <!-- Content_END -->

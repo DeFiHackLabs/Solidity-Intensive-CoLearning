@@ -2,11 +2,11 @@
 
 1. 自我介绍 
 
-   来自web2全栈工程师
+   来自web2八年前端工程师
 
 2. 你认为你会完成本次残酷学习吗？
 
-   必须的
+   必须的!
 
 ## Notes
 
@@ -14,60 +14,51 @@
 
 ### 2024.09.23
 
-#### Solidity 简介
+day01:
 
-`Solidity` 是一种用于编写以太坊虚拟机（`EVM`）智能合约的编程语言
+[solidity-101 1-2 Note](./content/llt/101.md)
 
-#### Remix
+### 2024.09.24
 
-- `Remix` 是以太坊官方推荐的智能合约集成开发环境（IDE）
-- 创建文件-》编写文件-》编译-》部署
+day02:
 
-<img width="922" alt="1-1-59ec4df354181363259759212e42dad1" src="https://github.com/user-attachments/assets/050c5159-8621-44db-ac70-ec46808737e1">
+[solidity-101 3-4 Note](./content/llt/102.md)
 
+### 2024.09.25
 
-- 第一个solidity程序
+day03:
 
-  ```solidity
-  // SPDX-License-Identifier: MIT
-  pragma solidity ^0.8.26;
-  
-  contract HelloWorld {
+[solidity-101 5-6 Note](./content/llt/103.md)
 
-      string public hi = "helloWorld";
-  }
-  ```
+### 2024.09.26
 
-  - 以下是这段代码的解释：
-    1. **// SPDX-License-Identifier: MIT**：这是代码所使用到的软件许可，这里是用的MIT许可
-    2. **pragma solidity ^0.8.26;** ：这行是指定Solidity编译器版本号，`^`表示要大于0.8.26的版本号。通常我们会选择最新版本的前一版
-    3. **contract HelloWorld {……}**：`contract`合约声明关键字，`HelloWorld `合约名称
-    4. **string public hi = "helloWorld";**：声明变量为string 类型的变量hi,并赋值为helloWorld
+day04:
 
-  - 运行结果
+[solidity-101 7-8 Note](./content/llt/104.md)
 
-    ![Snipaste_2024-09-23_17-49-38](https://github.com/user-attachments/assets/fbe7b904-13cc-4c25-99e5-5228321cda46)
+### 2024.09.27
 
+day05:
 
+[solidity-101 9-10 Note](./content/llt/105.md)
 
+### 2024.09.28
 
-#### Solidity中的变量类型
+day06:
 
-1. **值类型(Value Type)**：包括布尔型，整数型等等，这类变量赋值时候直接传递数值。
-2. **引用类型(Reference Type)**：包括数组和结构体，这类变量占空间大，赋值时候直接传递地址（类似指针）。
-3. **映射类型(Mapping Type)**: Solidity中存储键值对的数据结构，可以理解为哈希表
+[solidity-101 11-12 Note](./content/llt/106.md)
 
-#### 值类型
+### 2024.09.29
 
-- ​	布尔值
+day07:
 
-  ```solidity
-  // 布尔运算
-  bool public _bool1 = !_bool; // 取非
-  bool public _bool2 = _bool && _bool1; // 与
-  bool public _bool3 = _bool || _bool1; // 或
-  bool public _bool4 = _bool == _bool1; // 相等
-  bool public _bool5 = _bool != _bool1; // 不相等
-  ```
+[solidity-101 13 Note](./content/llt/107.md)
+
+### 2024.09.30
+
+day08:
+
+[solidity-101 14 Note](./content/llt/108.md)
 
 <!-- Content_END -->
+
