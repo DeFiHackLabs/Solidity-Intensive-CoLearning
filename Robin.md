@@ -578,28 +578,6 @@ abstract contract EBusinessCalculator is Calculator{
     }
 }
 
-### 2024.09.28
-
-學習內容:
-
-- [x] 事件
-   - event 关键字申明事件  emit关键字发送事件
-   - EVM使用Log来存储事件。
-       - 每条日志包含 topics和data两部分。topics是一个最大长度为4的数组，第一个元素存储事件签名，后面三个可用于存储indexed索引。所以事件的索引最多三个
-       - data存储复杂数据，消耗的gas比topics小。
-
-```solidity
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.21;
-
-contract eventContract{
-    event CustomerEvent(address indexed from,string message);
-
-    function emitEventFunction(string memory message) external {
-        emit CustomerEvent(msg.sender, message);
-    }
-}
-```
 
 // 京东商城折扣价计算
 contract JdCalculator is EBusinessCalculator{
@@ -635,4 +613,59 @@ contract JdCalculator is EBusinessCalculator{
     }
 }
 ```
+
+### 2024.10.01
+
+學習內容:
+
+- [x] 重载（修饰器不可重载）
+   -  重载就是名称相同，但是输入参数类型不同的函数可以同时存在，他们视为不同的函数，我们把它叫做重载
+        
+比如：
+
+  ```solidity
+
+            function add(uint256 a, uint256 b) public pure returns(uint256){
+                return a + b;
+            }
+            // 重载函数，函数名相同，参数不同，实现不同功能
+            function add(uint256 a ) public pure returns(uint256){
+                return a + 1;
+            }
+ ```
+- [x] 库合约
+        库合约类似工具库，他与普通合约的区别在于：
+- 不能存在状态变量
+- 不能继承或者被继承
+- 不能接收以太币
+- 不可以被销毁
+- 用关键字library声明库合约
+        
+        
+  比如：
+
+  ```solidity
+            library Math{
+                function add(uint256 a, uint256 b) public pure returns(uint256){
+                    return a + b;
+                }
+            }
+  ```
+        
+ - [x] 使用库合约：
+    -  利用using A for B 将库A附加到B
+    -  B 可以直接调用A中的函数，且函数的第一个参数是B
+    - 也可以直接调用A中的函数，但是需要传入第一个参数
+        
+        ```solidity
+            contract Test{
+                using Math for uint256;
+                
+                uint256 public result;
+                function test() public pure returns(uint256){
+                    return result.add(2);
+                }
+            }
+        ```
+
 <!-- Content_END -->
