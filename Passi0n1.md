@@ -437,11 +437,10 @@ https://passi0n1.github.io/post/he-yue-zhong-de-event.html
 测试链怎么去进行监听之类的呢？
 
 
-
 ### 2024.09.28
 #### 学习笔记
 
-被弃用的 constant
+## 被弃用的 constant
 
 之前在查询函数修饰符的时候看到了 `view` 和 `pure` ，后续扩展的时候了解到了主要由 `view` 和 `pure` 替代了 `constant` 的功能，而 `constant` 算是被启用的。
 后来再次看到 `constant` 和 `immutable` 时开始疑惑 `constant` 到底被弃用了没有。
@@ -450,13 +449,13 @@ https://passi0n1.github.io/post/he-yue-zhong-de-event.html
 
 停用 `constant ` 修饰函数
 
-![image](https://github.com/user-attachments/assets/a9afeb13-3d4e-47df-b3e9-0d754e18ec2f)
+<img width="608" alt="image" src="https://github.com/user-attachments/assets/8485279f-5418-498a-92a6-f36157e743e4">
 
 
 但是可以用来修饰变量。
 
 https://learnblockchain.cn/docs/solidity/cheatsheet.html?highlight=immutable
-![image](https://github.com/user-attachments/assets/75e002ea-3bbe-4380-aecb-90af1520a09c)
+<img width="614" alt="image" src="https://github.com/user-attachments/assets/5edd8a6f-654c-48f7-9142-b5c51f758a37">
 
 
 
@@ -516,4 +515,132 @@ contract Example {
 
 从功能上理解应该会好理解一些：
 constant 可以用于业务手续费，一些元数据的存放，而 immutable 更适合于 `有些情况下，不可变的值需要在合约部署时根据外部输入来确定。例如，一个去中心化金融（DeFi）合约可能需要根据用户的初始存款来设置某些参数。`
+
+
+
+### 2024.09.29
+#### 学习笔记
+
+不同类型的引用变量相互赋值时，修改其中一个的值，不会导致另一个的值随之改变的是以下哪种情况：
+
+选择一个答案
+A. 合约中的 storage 赋值给本地的 storage
+B. 合约中的 memory 赋值给本地的 memory
+C. 合约中的 storage 赋值给本地的 memory
+D. 以上全部
+
+```
+在以太坊智能合约中，变量的存储位置主要有三种：storage、memory 和 calldata。它们之间的赋值和修改行为如下：
+A. 合约中的storage赋值给本地的storage：这种情况下，赋值实际上是一个引用赋值。如果修改了本地storage变量的值，合约中的storage变量的值也会随之改变。
+B. 合约中的memory赋值给本地的memory：memory 是一个临时存储区域，通常用于函数调用时传递参数或局部变量。如果一个memory变量被赋值给另一个memory变量，它们是相互独立的副本，修改一个不会影响另一个。
+C. 合约中的storage赋值给本地的memory：这种情况下，memory变量会获得storage变量的一个副本。修改memory中的副本不会影响storage中的原始值。
+根据上述解释，正确答案是：
+B. 合约中的memory赋值给本地的memory
+以及
+C. 合约中的storage赋值给本地的memory
+因为这两种情况下，修改其中一个变量的值不会导致另一个变量的值随之改变。选项A会导致值的改变，因为它们是引用同一个存储位置。选项D不正确，因为它包含了A选项。
+
+```
+
+补充：
+不过，之所以答案是 C 而不是 B 或者 "D. 以上全部"，是因为题目问的是**“不同类型的引用变量相互赋值时”**。关键在于"不同类型"：
+
+B 选项：memory 赋值给 memory，虽然是值的拷贝，但 memory 和 memory 是相同类型的数据位置，不符合“不同类型”的条件。
+C 选项：storage 赋值给 memory，这是一个**从永久存储位置（storage）赋值给临时存储位置（memory）**的操作，属于不同类型的数据位置，这种情况下是值拷贝，符合题目所述的条件。
+因此，选 C 是因为它满足“不同类型的引用变量相互赋值”这一条件，且是值的拷贝。
+
+
+消耗 gas 最多的变量类型为：
+
+A. 状态变量
+B. 局部变量
+C. 全局变量
+
+
+```
+	•	A. 状态变量
+解释：
+在 Solidity 中，不同类型的变量对 gas 消耗的影响是不同的。其中，状态变量是消耗 gas 最多的变量类型。
+	•	状态变量： 存储在链上，是永久性的，每次读写都会消耗 gas。初始化一个新的存储槽需要 20000 gas，修改一个已有的存储槽需要 5000 gas。
+	•	局部变量： 存储在内存中，是临时的，函数调用结束后会被销毁。相对于状态变量，局部变量的 gas 消耗较小。
+	•	全局变量： 在 Solidity 中没有明确的全局变量概念。如果指的是合约级别的变量，那么通常是指状态变量。
+
+```
+
+
+### 2024.09.30
+#### 学习笔记
+
+
+
+
+**有如下一段合约代码，执行 initStudent 方法后，student. Id 和 student. Score 的值分别为**
+
+```
+contract StructTypes {
+    struct Student{
+        uint256 id;
+        uint256 score; 
+    }
+   Student student;
+   function initStudent() external{
+        student.id = 100;
+        student.score = 200;
+        Student storage _student = student;
+        _student.id = 300;
+        _student.score = 400;
+    }
+}
+```
+
+选择一个答案
+
+A. 300 400
+
+B. 100 200
+
+C. 300 200
+
+D. 100 400
+
+
+在这个题目当中，存在两个两个结构体；
+第一个结构体是初始的时候就有的结构体，这个时候初始结构体里面被赋值为了 100 和 200。
+第二次赋值，是对于新产生的 `_student` 进行赋值，这个时候对于 `_student.id` 和 `_student.score` 进行了赋值。
+但是此时需要注意的是，`_student` 来自于 `Student storage _student = student;`，所以他们变量的引用的位置是一致的，所以 `student.id` 和 `student.score` 的值也发生了改变。
+
+
+**可以作为 mapping 中值（value）的变量类型是**
+
+选择一个答案
+A. struct
+B. string
+C. address
+D. 以上均可
+返回上一题
+
+- **哈希碰撞：** 如果将 struct 作为 key，不同的 struct 可能计算出相同的哈希值，导致哈希碰撞，从而无法正确地从 mapping 中获取到对应的 value。
+- **复杂类型：** struct 通常包含多个成员变量，这些成员变量的类型可能不同，这使得哈希函数的实现变得复杂。
+- **版本差异：** 不同的 Solidity 版本中，struct 的哈希计算方式可能不同，这会导致在不同版本之间迁移合约时出现问题。
+
+说白了就是，mapping 是一张速查表，或者理解为一个储物柜，储物柜格子里面放什么都行，但是如果储物柜的标号总是乱改那就没法找到具体的储物柜了。
+
+
+
+**给映射变量 map 新增键值对的方法：**
+
+选择一个答案
+
+A. `map(_Key) = _Value;`
+
+B. `map[_Key] = _Value;`
+
+C. `map.push(_Key, _Value);`
+
+
+答案 B
+
+solidity 当中仅有动态数组支持 `push` 操作。
+
+
 <!-- Content_END -->

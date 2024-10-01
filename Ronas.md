@@ -220,7 +220,7 @@ timezone: Asia/Shanghai
     - `topics`: 函數簽名 e.g. `keccak256("Transfer(address,address,uint256)")`
     - `data`: 事件中不含 `index` 的資料會儲存在 data
 
-# 2024.09.28
+### 2024.09.28
 
 > 進度: Solidity 101 13~15
 
@@ -318,5 +318,30 @@ timezone: Asia/Shanghai
         - e.g. `require(_owners[tokenId] == msg.sender, "Transfer Not Owner");`
     - `assert`: 確認某些已知條件, 常用於除錯 
         - e.g. `assert(檢查條件);`
+
+### 2024.09.29
+
+> 進度: 複習 Solidity 101, 完成 Bootcamp 作業
+
+### 2024.09.30
+
+> 進度: Solidity 102 16
+
+- 函數重載 (overloading)
+    - 相同函數名稱，不同參數類型
+    - `modifier` 無法 overloading
+    - 如果出現多個匹配的函數, 會報錯
+        - e.g. 
+            ```
+            function f(uint8 _in) public pure returns (uint8 out) {
+                out = _in;
+            }
+
+            function f(uint256 _in) public pure returns (uint256 out) {
+                out = _in;
+            }
+
+            f(50);
+            ```
 
 <!-- Content_END -->

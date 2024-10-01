@@ -365,5 +365,35 @@ contract initValue {
 
 ![image](https://github.com/user-attachments/assets/f72bb525-5f6d-4143-9449-f1a69d8ed252)
 
+### 2024.09.29
+学习了常量constant和不可变量 immutable
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+contract test_Constant{
+    uint public constant CONSTANT_NUM = 10;
+    string public constant CONSTANT_STRING= "ini";
+    bool public constant live = true;
+    bytes public constant CONSTANT_BYTES="WTF";
+    address public constant CONSTANT_ADDRESS=address(1);
+    
+    uint public immutable IMMUTABLE_NUM = 10000;
+    address public immutable IMMUTABLE_ADDRESS;
+    uint public immutable IMMUTABLE_BLOCK;
+    uint public  immutable IMMUTABLE_TEST;
+
+    constructor(){
+        IMMUTABLE_ADDRESS = address(this); 
+        IMMUTABLE_NUM = 9999;
+        IMMUTABLE_TEST = test();
+    }
+
+    function test() public   pure  returns(uint return_test) {
+        return_test = 9;
+    }
+
+}
+
+![image](https://github.com/user-attachments/assets/86f4b104-dd02-4b3d-b8fe-ca99d662520d)
+
 
 <!-- Content_END -->

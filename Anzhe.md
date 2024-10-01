@@ -719,4 +719,149 @@ function insertSort(uint[] memory a) public pure returns(uint[] memory) {
 ```
 ### 運行結果
 ![](https://i.imgur.com/Ecr9Ybw.png)
+
+### 2024.09.29
+今天的主題是前天提過的建構子（Constructor），Solidity 獨有的修飾器（Modifier）。我們可以透過這建構子與修飾器來實現智能合約的權限控制。
+# 建構子
+每個合約可以定義一個建構子，它會在部署時自動運行一次，可以拿來完成初始化合約的參數（賦值）。
+```
+address owner;
+constructor(address initialOwner){
+    owner = initialOwner;
+}
+```
+註：0.4.21 以前的 Solidity 版本使用與合約名稱同名的函數當作合約建構子使用，開發者如果寫錯建構子名稱，建構子就會變成一般函數，導致參數未正確初始化而引發漏洞。
+# 修飾器
+修飾器（Modifier）是 Solidity 特有的語法，類似於物件導向程式設計中的裝飾器（decorator），宣告函數擁有的特性，並減少冗餘的程式碼，帶有裝飾器的函數會有某些特定的行為。主要使用場域是執行函數前檢查地址、變數、餘額等。
+## Modifier 語法
+```
+modifier <modifierName>() {
+    // 前置檢查或操作
+    // require(<condition>,<errorMessage>)
+    _; // 這個佔位符表示原函數的邏輯
+    // 後置檢查或操作
+}
+```
+* `<modifierName>` 是修飾器的名稱。
+* `<condition>` 檢查是否符合條件。
+* `<errorMessage>` 是錯誤訊息字串，當 `<condition>` 為 false 時，這個訊息會被作為錯誤信息回傳，也可以不寫。
+### 修飾器例子
+首先，定義一個叫做 `onlyOwner` 的 modifier：
+```
+modifier onlyOwner {
+    require(msg.sender == owner, "Only the owner can call this function."); // 檢查合約發起者是否為 owner 的地址
+    _; 如果是的話，就繼續運行函數；否則報 error 並 revert 交易
+}
+```
+帶有 `onlyOwner` 修飾符的函數只能被 `owner` 地址調用：
+```
+function changeOwner(address _newOwner) external onlyOwner{ // 這邊調用 onlyOwner 確認此請求是由 Owner 發出的，只有符合條件這個函數才會繼續被執行
+    owner = _newOwner;
+}
+藉此可以達到控制智能合約的權限。
+```
+### 多個修飾器
+Solidity 支援多個修飾器的組合使用，這些修飾器會按順序執行。
+```
+modifier onlyOwner() {
+    require(msg.sender == owner, "Only the owner can call this function.");
+    _;
+}
+modifier validAddress(address _address) {
+    require(_address != address(0), "Invalid address.");
+    _;
+}
+function transferOwnership(address newOwner) public onlyOwner validAddress(newOwner) {
+    owner = newOwner;
+}
+```
+`transferOwnership` 函數同時使用了 `onlyOwner` 和 `validAddress` 修飾器，這樣可以在函數執行前同時檢查兩個條件。
+
+補充：`OpenZeppelin` 是一個維護 Solidity 標準化程式碼庫的組織，有一套 [Ownable 的合約模組](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/Ownable.sol)，用於實現基本的權限控制，允許合約擁有者對合約進行管理，所以這個模組可以作為其他合約的基礎合約，也提供合約所有者授權的功能。
+# Remix 操作
+可以先去複製 Owner 的 address。
+![](https://i.imgur.com/9xZVV1C.png)
+Constructor 需要先給定參數（這邊是地址 `initialOwner`），才能開始初始化、部署合約。
+![](https://i.imgur.com/0z51WF4.png) 
+部署成功後，調用 owner 可以看到 owner 的地址。
+![](https://i.imgur.com/6Ezdx6R.png)
+以 owner 位址的使用者身份，呼叫 changeOwner 函數改變 owner，交易成功。
+![](https://i.imgur.com/HGkNg8e.png)
+點擊藍色 owner 查看地址，msg.sender 仍是 `0x5B38...`，但 owner 地址被改變了。
+![](https://i.imgur.com/IX2MZNE.png)
+因為 msg.sender（`0x5B38...`） 和 owner（`0x4B20...`）不符合 Modifier 的 condition，所以 `changeOwner` 未成功執行，交易被 revert 了。
+![](https://i.imgur.com/jA4ejMe.png)
+
+### 2024.09.30
+# 事件
+Solidity 的事件（Event）提供了乙太坊虛擬機（EVM）日誌功能之上的抽象，應用程式（如使用 [ether.js](https://learnblockchain.cn/docs/ethers.js/api-contract.html#id18)）可以透過乙太坊客戶端的 RPC（Remote Process Call）介面訂閱和監聽這些事件，然後可以在前端響應事件。當調用事件時，事件會將參數、鍊上發生的事儲存在交易日誌（區塊鍊中的特殊資料結結構）中。
+事件可以在定義在檔案層級，也可以定義為合約的**可繼承成員**（包括介面、函式庫），使事件能夠被不同合約使用。
+這些日誌會與發出它們的合約的地址相關。只要區塊可訪問，日誌就會保留在區塊鏈上。
+EVM 上儲存資料使用事件更有經濟效益，一個是事件大約消耗 2000 gas，鍊上儲存一個新變數需要 20000 gas。
+## EVM 日誌
+乙太坊虛擬機用日誌（Log）儲存 Solidity 事件，每個日誌記錄都包含主題 `
+topics` 和資料 `data` 兩部分。
+![](https://www.wtf.academy/assets/images/12-3-06b5d454b3752b96000f8a9477fa31de.png)
+### 主題 `topics`
+主題是一個描述事件的陣列，長度不超過 4。第一個元素是事件的簽章（Hash），主題最多可以有 3 個 `indexed` 參數，可以當成索引的鍵方便續搜索。每個 `indexed` 參數的大小為固定的 256 bit，如果參數太大了（例如字串），就會自動計算 hash 儲存在 topics 部分。
+Transfer 的事件簽章是 `keccak256("Transfer(address,address,uint256)")`，得到 hash 值 `0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef`。
+### 資料 `data`
+事件中不帶 `indexed` 的參數會儲存在 data 部分，可以理解為事件的「值」。data 部分的變數不能直接檢索，但可以儲存任意大小的數據，通常用來儲存複雜的資料結構，例如陣列和字串等等，因為這些資料超過了256比特，即使儲存在事件的 topics 部分中，也是以雜湊的方式儲存。儲存在 data 部分的變數消耗的 gas 比 topics 更少。
+## 事件宣告與釋放
+### 宣告
+```
+event <事件名稱>(<變數類型和名稱>)
+```
+例如 ERC20 代幣合約中的 `Transfer` 事件：
+```
+event Transfer(address indexed from, address indexed to, uint256 value);
+```
+#### 說明
+*  `from` 變數：代幣的轉帳地址
+*  `to` 變數：代幣的接收地址
+*  `value` 變數：轉帳數量
+*  `indexed` 關鍵字：保存在以太坊虛擬機器日誌的 `topics` 中，方便之後檢索。
+### 釋放
+```
+emit <事件名稱>(<變數名稱>);
+```
+可以在函數中釋放事件，例如定義一個 `_transfer` 函數，每次調用 `_transfer` 時都會釋放 `Transfer` 事件，並記錄對應的變數名稱：
+```
+function _transfer(
+    address from,
+    address to,
+    uint256 amount
+) external {
+    _balances[from] = 10000000; // 給轉帳地址一些初始代幣
+    _balances[from] -= amount； // from 地址減去轉帳數量
+    _banances[to] += amount; // to 地址加上轉帳數量
+    
+    emit Transfer(from, to, amount);
+}
+```
+## 程式碼
+`Event.sol`
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+contract Event{
+    mapping(address => uint256) public _balances;
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) external {
+        _balances[from] = 10000000; // 給轉帳地址一些初始代幣
+        _balances[from] -= amount; // from 地址減去轉帳數量
+        _balances[to] += amount; // to 地址加上轉帳數量
+        
+        emit Transfer(from, to, amount);
+    }
+}
+```
+![](https://i.imgur.com/ubkst3p.png)
+輸入 `from`, `to`, `amount` 三個參數再調用再點 transact 調用 `_tranfer` 函數。
+![](https://i.imgur.com/mTYBiZG.png)
+可以從 logs 中看到外層的 from 是產生日誌的合約地址、topic 是事件簽章、args 是事件參數。
 <!-- Content_END -->

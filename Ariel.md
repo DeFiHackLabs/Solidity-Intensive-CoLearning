@@ -321,10 +321,45 @@ Solidity三种抛出异常的方法：error，require和assert
    3. assert(检查条件），当检查条件不成立的时候，就会抛出异常。
    4. error方法gas最少，其次是assert，require方法消耗gas最多！因此，error既可以告知用户抛出异常的原因，又能省gas
 
-### 2024.09.
+### 2024.09.29
 
 學習內容：WTF #16
+![image](https://github.com/user-attachments/assets/599163cf-49f6-4353-97d4-d1ab7528d376)
 
-# 16:
+
+
+# 16:overloading
+名字相同但输入参数类型不同的函数可以同时存在，他们被视为不同的函数(返回了不同的结果)。注意，Solidity不允许修饰器（modifier）重载，会把输入的实际参数和函数参数的变量类型做匹配。 如果出现多个匹配的重载函数（即一輸入可以進入不同overloding function 時），则会报错
+
+### 2024.09.30
+
+學習內容：WTF #17
+
+# 17:庫合約
+
+1. 和普通合约主要有以下几点不同：
+
+不能存在状态变量
+不能够继承或被继承
+不能接收以太币
+不可以被销毁
+
+2. 函数可见性如果被设置为public或者external，则在调用函数时会触发一次delegatecall。而如果被设置为internal，则不会引起。对于设置为private可见性的函数来说，其仅能在库合约中可见，在其他合约中不可用。
+
+3. 調用
+   a. using A for B
+   b. 直接調用庫合約
+4. 常用庫合約
+   Strings：将uint256转换为String
+   Address：判断某个地址是否为合约地址
+   Create2：更安全的使用Create2 EVM opcode
+   Arrays：跟数组相关的库合约
+
+### 2024.10.
+
+學習內容：WTF #18
+
+# 18:
+
 
 <!-- Content_END -->

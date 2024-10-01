@@ -342,7 +342,7 @@ contract TwoSum {
 }
 ```
 
-`twosum` 非常简单，真正写起来的时候才意识到 Solidity 和其他编程语言的差别， Solidity 的 mapping 不像正常的 hashmap 那样，它是不支持 =contains= 函数的，所以我只好用另外一个 mapping 来模拟 contains 的函数，但是这样又会增加存储的开销。
+`twosum` 非常简单，真正写起来的时候才意识到 Solidity 和其他编程语言的差别， Solidity 的 mapping 不像正常的 hashmap 那样，它是不支持 `contains 函数的，所以我只好用另外一个 mapping 来模拟 contains 的函数，但是这样又会增加存储的开销。
 
 顺便推荐个 web3 的 Leetcode，用 Solidity 来解决编程题：https://dapp-world.com
 
@@ -588,5 +588,139 @@ contract AnimalShelter {
 课程中无聊猿(BAYC)的交互, 其实就是多态的一种应用，`BAYC` 就是若干个实现了代币 `IERC721` 接口的代币之一. 
 
 另外一个非常关键的知识点就是合约的ABI 与接口等价，RPC 接口调用的ABI，背后实际调用的是定义的各式接口。
+
+### 2024.09.29
+
+#### Error handling
+
+按照官方文档的说明，Solidity使用的是 state-reverting exception，我是第一次了解 state-reverting 的异常。
+
+它的大概含义是，如果出现异常，那么函数调用及其子函数调用导致的所有的状态变更，都需要回滚(reverted, undone), 概念理解起来和数据库的异常处理很类似，只是成功和失败两个状态，没有中间态，失败就回滚所有操作，保证原子性。
+
+Solidity 内置的错误类型有两种 `Error(string)` 和 `Panic(uint256)`. `Error` 就类似 Java 中的常规错误(`CheckedException`), 可以预期会发生的; Panic 就类似 Java 中的`UncheckedException`, 就是通常来表示在没有 bug 代码中就不应该出现的错误，比如数组越界，除0等等。
+
+文档提及的 `state-reverting` 是通过 `revert` 函数来实现的，它接受一个 `Error` 类型作为参数，`revert` 回滚状态，并将传入的错误向调用方抛出，调用方也会自动向它的调用方抛出，直到遇到 `try/catch` 语句捕获异常。
+（原来还一个 `throw` 的关键字，具有同样的功能，不过在 0.4.13 被废弃，后面就被移除了，估计是只强调了「向上抛出」的语义，没有强制「回滚」）
+
+而 `assert` 和 `require` 就是两个在预期条件不满足时，分别用来抛出 `Panic` 和 `Error` 的函数，差别就是 `require` 还可以指定一下错误信息, 两个函数内部都会调用 `revert` 来回滚状态，并将异常向上抛出。
+
+Solidity 的 try/catch 和 Java 也很类似:
+
+```solidity
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.8.1;
+
+interface DataFeed { function getData(address token) external returns (uint value); }
+
+contract FeedConsumer {
+    DataFeed feed;
+    uint errorCount;
+    function rate(address token) public returns (uint value, bool success) {
+        // Permanently disable the mechanism if there are
+        // more than 10 errors.
+        require(errorCount < 10);
+        try feed.getData(token) returns (uint v) {
+            return (v, true);
+        } catch Error(string memory /*reason*/) {
+            // This is executed in case
+            // revert was called inside getData
+            // and a reason string was provided.
+            errorCount++;
+            return (0, false);
+        } catch Panic(uint /*errorCode*/) {
+            // This is executed in case of a panic,
+            // i.e. a serious error like division by zero
+            // or overflow. The error code can be used
+            // to determine the kind of error.
+            errorCount++;
+            return (0, false);
+        } catch (bytes memory /*lowLevelData*/) {
+            // This is executed in case revert() was used.
+            errorCount++;
+            return (0, false);
+        }
+    }
+}
+```
+
+catch 语句可以用来匹配不同的错误类型，优先级从上到下，就是如果匹配到某个 catch 语句，就不会向下继续走了。
+
+前面两个 catch 语句就是用来捕获 Solidity 内置的 `Error` 和 `Panic` 类型，而 `catch(bytes memory lowLevelData)` 就比较有趣，有错误数据它能 catch 到，没有错误数据它也能 catch 到， `bytes memory` 就是用来获取底层错误信息，相当于是用来兜底的。
+
+所以想要 catch 住所有的错误，要不用 `catch {...}` (不指定错误类型)，要不用 `catch (byte memory lowLevelData) {...}` catch 底层错误信息.
+
+Solidity 101 课程到此结束, 耶.
+
+### 2024.09.30
+
+#### 16 Overloading
+
+函数重载的概念在C++ 和 Java 中都是非常常见且有用的功能的，可以编写多个同名但是函数签名不一样的参数。
+
+对于课程提到的实参匹配问题：
+
+```solidity
+function f(uint8 _in) public pure returns (uint8 out) {
+    out = _in;
+}
+
+function f(uint256 _in) public pure returns (uint256 out) {
+    out = _in;
+}
+```
+
+调用 `f(50)` 的确会报错，因为 `50` 既可以转换成 `uint8` 也可以转换成 `uint256`，解决方法就是显式给出类型，如`uint8 number = 50;`. 
+
+但是调用 `f(256)` 却不会报错，因为 `256` 只能转换 `uint256`, `uint8` 的最大值为 `255`.
+
+#### 17 Library
+
+就像所有的库一样，Solidity的库目标也是为了复用，定义一个库合约，然后被多个合约调用，减少代码冗余。
+
+而在Solidity，库合约其实可以看作是所有合约隐式的基类，库合约不会出现在继承链里面，但是调用库合约就好像调用基类的函数一样, 通过`L.f()` 这样的语法, 我个人是不太喜欢用 `using for`指令，太隐式了，涉及到钱的东西，还是显式调用好。
+
+而关于库合约限制，不能存储状态变量，不能继承或者被继承，以及不能接收Ether等，都是为了可以让库合约成为纯粹的库，避免引入状态导致问题。
+
+关于合约调用合约，有三个关键的底层函数，`CALL`, `DELEGATECALL`, `CALLCODE`(已废弃).
+
+`CALL` 是最常用的，用来调用其他合约的或者发送Ether的函数，当调用`CALL`的时候，他会创建自己的上下文；而 `DELEGATECALL` 和 `CALL` 类似，最大的差别是它可以保存合约调用者的状态，意味着它会使用调用方的状态，而非被调用方的状态。
+
+而调用库合约，用的就是`DELEGATECALL`.
+
+谈到库，另外一个绕不开的话题就是怎么引用第三方现成的库合约，这就需要包管理器(package manager), Java有Maven, Javascript 有NPM, Solidity 用啥呢? 下节分解.
+
+### 2024.10.01
+
+#### 18 Import
+
+上一个章节提到了库合约，要使用库合约，肯定是要和包管理器结合，需要一种方式来把库合约引入进来。
+
+在 Solidity 比较流行的一种包管理方式是使用 NPM, 类似本地开发，安装 `OpenZeppelin` 的库:
+
+```sh
+npm install @openzeppelin/contracts
+```
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+
+contract MyContract {
+    using SafeMath for uint256;
+    // Your code
+}
+
+```
+
+或者像Golang 那样，通过 http/https 链接来直接引入资源，但是这种方式有个缺点就是没有版本机制，也就是如果依赖的库合约文件升级了，那么你就直接引用了最新的库合约，可能引入了 breaking change, 所以使用 full url 引入库合约的时候，就要小心一些。
+
+```
+// 通过网址引用
+import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol'; // Address.sol 文件一旦更新，就会直接导入最新文件
+```
+
+除了NPM之外，还有其他的Solidity 包管理器，如 `ethPM` 和 `DappTools`.
 
 <!-- Content_END -->

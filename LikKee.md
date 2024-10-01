@@ -574,7 +574,202 @@ contract Chick is Rooster, Hen {
 
 ### 2024.09.29
 
+#### Chapter 14: Abstract and Interface
+
+- Abstract Contract
+
+  - A special contract where it contain at least one unimplemented function, and the function must labeled with `virtual`
+
+  ```
+  abstract contract SomeIdea {
+   function someFeature(bytes calldata _data) public pure virtual returns (bool);
+  }
+  ```
+
+- Interface Contract
+
+  - Rules:
+    - Cannot contain state variables
+    - Cannot contain constructor
+    - Cannot inherit non-interface contracts
+    - All functions must be external and no content within it
+    - Contracts that inherit it must have all functions implemented
+  - Why implement interface?
+    - It provide `bytes4` selector for each function in the contract, and the function signatures (function `name` and `parameters`)
+    - It provide interface id
+  - Equivalent to contract `ABI` (Application Binary Interface), can be converted to each other
+
+  ```
+  interface IERC20 {
+   event Transfer(address indexed from, address indexed to, uint256 amount);
+
+   function balanceOf(address who) external view return (uint256);
+  }
+  ```
+
+  - Implementing `interface` can let contract interact with it without knowing it detail
+
+  ```
+  contract Staking {
+    IERC20 someToken = IERC20(0x1234....1234);
+    ...
+    function checkBalanceBeforeStake(uint256 _address) external {
+      if(someToken.balanceOf(_address) < minimumStake) {
+        // do something
+      }
+    }
+  }
+  ```
+
+#### Chapter 15: Errors
+
+- `error` & `revert`
+
+  - New feature introduce in Solidity `0.8`
+  - Recommended way to throw error
+
+  ```
+  error InsufficientBalance(address who);
+
+  function checkBalance(address _who) external {
+    if(balanceOf(_who) == 0) revert InsufficientBalance(_who);
+  }
+  ```
+
+- `require`
+
+  - Error handling prior to Solidity `0.8`
+  - Cost higher gas
+
+  ```
+  function checkBalance(address _who) external {
+    require(balanceOf(_who) == 0, "InsufficientBalance");
+  }
+  ```
+
+- `assert`
+  - Conditional statement, usually used for debugging purpose as it doesn't return error
+  ```
+  function checkBalance(address _who) external {
+    assert(balanceOf(_who) > 0);
+  }
+  ```
+
+End of WTF Solidity 101
+
 ### 2024.09.30
+
+#### Chapter 16: Function overloading
+
+Solidity allow function overloading, same function name but different parameters
+
+```
+function input(uint256 _number) external {
+  ...
+}
+
+function input(string memory _str) external {
+  ...
+}
+```
+
+Although both function share the same name, but due to different parameters, the functions will have different function signature/selector.
+
+**_Notes_**: `modifier` cannot be overloading like function
+
+**Argument matching**
+
+```
+function input(uint256 _number) external {
+  ...
+}
+
+function input(uint32 _number) external {
+
+}
+```
+
+The contract is able to compile, but when call data meet both function's parameter, for example: `50`, error prompted.
+
+#### Chapter 17: Library Contract
+
+`library` use to reduce code redundancy and gas usage.
+
+The different:
+
+- Cannot contain state variable
+- Cannot inherit other contract or to inherit by other contract
+- Cannot receive native currency, eg: ETH
+- Cannot be destroy
+
+- `public` and `private` functions in the library contract will trigger `delegatecall` when calling
+- `internal` functions won't trigger
+- `private` functions able to call by other functions within library contract
+
+Some commonly used library:
+
+- [String](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Strings.sol)
+- [Address](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol)
+- [Arrays](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Arrays.sol)
+
+Usage
+
+```
+contract Lending {
+  using Strings for uint256; // using A for B;
+
+  function convert(uint256 _number) public pure returns (string memory) {
+    return _number.toHexString();
+  }
+}
+```
+
+or
+
+```
+contract Lending {
+  function convert(uint256 _number) public pure returns (string memory) {
+    return Strings.toHexString(_number); // call directly
+  }
+}
+```
+
+#### Chapter 18: Import
+
+`import` allow contract to refer content of another contracts, maximize reusability and contract security
+
+How to:
+
+```
+File
+├── Other.sol
+└── MyContract.sol
+
+/* ------------------ */
+import './Other.sol';
+
+contract MyContract {
+  ...
+}
+```
+
+or (Source URL)
+
+```
+import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+```
+
+or (`npm`)
+
+```
+import '@openzeppelin/contracts/access/Ownable.sol';
+```
+
+or (Directive import)
+
+```
+import {Other} from './Other.sol';
+```
 
 ### 2024.10.01
 

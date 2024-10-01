@@ -138,6 +138,75 @@ function fe() external{} // external空白函数
       - topics:
          - 第一部分是事件的签名
          - 之后的部分(如果存在)，对应事件中定义的`indexed`变量的值，注意最多有3个`indexed`变量。
-      - data: 其余的非`indexed`变量的值。     
+      - data: 其余的非`indexed`变量的值。
+        
+
+### 2024.09.29
+1. 继承
+  - 规则:
+     - 父合约中的函数，如果希望子合约重写，需要加上`virtual`关键字
+     - 子合约重写了父合约中的函数，需要加上`override`关键字。`override`可以修饰函数或者变量。
+  - 多重继承:
+     - 顺序: 辈分越高越在前
+       ```
+       contract Erzi is Yeye, Baba{
+          // 继承两个function: hip()和pop()，输出值为Erzi。
+          function hip() public virtual override(Yeye, Baba){
+              emit Log("Erzi");
+          }
+      
+          function pop() public virtual override(Yeye, Baba) {
+              emit Log("Erzi");
+          }
+       }
+       ```
+    - `modifier`也可以被继承，需要继承的`modifier`在父类中用`virtual`标识，在子类中用`override`标识
+    - 钻石继承`super`的调用顺序
+
+
+2. 抽象合约和接口
+   - 抽象合约：合约用`abstract`标识，其中至少有一个`abstract`方法
+   - 接口：
+      - 不能包含状态变量
+      - 不能包含构造函数
+      - 不能继承除接口外的其他合约
+      - 所有函数都必须是external且不能有函数体
+      - 继承接口的非抽象合约必须实现接口定义的所有功能
+
+3. 异常
+   - `error`: 方便且高效（省gas）地向用户解释操作失败的原因.
+      - 定义：`error TransferNotOwner(address sender); // 自定义的带参数的error`
+      - 使用：`revert TransferNotOwner(msg.sender);`
+  
+   - `require`: 好用，缺点是gas随着描述异常的字符串长度增加，比error命令要高。
+     - 用法：`require(_owners[tokenId] == msg.sender, "Transfer Not Owner");`
+   - `assert`: 通常用于合约的执行结果的检查，确认结果是符合预期的。用法很简单，但不能解释抛出异常的原因
+      - 用法：`assert(_success);`
+
+### 2024.09.30
+1. 函数重载
+> solidity允许函数重载，即函数名称相同但参数类型不同的函数可以同时存在，他们被视为不同的函数。但不允许`modifier`重载。
+>
+> ```
+> function saySomething() public pure returns(string memory){
+>     return("Nothing");
+> }
+>
+> function saySomething(string memory something) public pure returns(string memory){
+>     return(something);
+> }
+> ```
+> 由于方法签名不同，经过编译之后，它们都成为了不同的函数选择器(`selector`).
+- 实参匹配：如果调用重载方法时，实际参数可以匹配到多个重载函数，此时会报错。即必须保证参数类型只能匹配到一个函数。
+2. 库合约
+  - 特点：
+     - 不能存在状态变量
+     - 不能够继承或被继承
+     - 不能接收以太币
+     - 不可以被销毁
+  - 使用：
+     - `using for`: `using Strings for uint256;`
+     - `Strings.toHexString(_number);`
+
 
 <!-- Content_END -->

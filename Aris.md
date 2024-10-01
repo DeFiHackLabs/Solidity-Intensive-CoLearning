@@ -277,4 +277,209 @@ timezone: Asia/Shanghai
 
 5. 第 07 节测验得分: 100, 答案: BADABB
 
+---
+
+### 2024.09.29
+
+#### 学习内容 8. 变量初始值
+
+在 solidity 中,声明但是没复制的变量都有默认值(初始值)
+
+1. 值类型:
+    - boolean: fasle
+    - string: ""
+    - int: 0
+    - uint: 0
+    - enum: 第一个元素
+    - addres: 0x000000000000000000000000000000 (addres(0))
+    - function: 
+        - internal: 空白函数
+        - external: 空白函数
+2. 引用类型:
+    - 映射 mapping:其value值数据类型的默认值
+    - 结构体 struct:其成员值数据类型的默认值
+    - 静态数组: 定长,其成员值数据类型的默认值
+    - 动态数组: []
+3. delete 操作符
+    - delete 操作符会让变量值变为其默认值
+4. 合约部署
+    - ![image-20240929101542907](content/Aris/image-20240929101542907.png)
+5. 第 08 节测验得分: 100, 答案: CBDDA
+
+#### 学习内容 9. 常数 constant和immutable
+
+1. constant(常量),immutable(不变量)
+    - 状态变量声明这两个变量以后,不能在初始化之后再更改;
+    - 提升合约安全性
+    - 节省 gas 费用
+    - 只有数值变量可以声明为 constant 和 immutable
+    - string 和 bytes 可以声明为 constant,不能为 immutable
+2. constant
+    - constant 必须在声明的时候初始化,之后不可变
+3. immutable
+    - immutable 变量可在声明时或者构造函数中初始化
+4. 合约部署
+    - ![image-20240929104513664](content/Aris/image-20240929104513664.png)
+5. 第 09 节测验得分: 100, 答案:ACDDC
+
+---
+
+### 2024.09.30
+
+#### 学习内容 10. 控制流，用Solidity实现插入排序
+
+1. 控制流
+
+    - if-else
+
+    - for
+
+    - while
+
+    - do-while
+
+    - 三元运算符
+
+    - 循环中有 continue 和 break 关键字
+
+2. solidity 插入排序
+
+    - solidity 中 uint 是正整数,无法取到负值,否则报 underflow 错误
+
+    - ```solidity
+        function insertionSort(
+                uint[] memory a
+            ) public pure returns (uint[] memory) {
+                for (uint i = 1; i < a.length; i++) {
+                    uint temp = a[i];
+                    uint j = i;
+                    while ((j >= 1) && (temp < a[j - 1])) {
+                        a[j] = a[j - 1];
+                        j--;
+                    }
+                    a[j] = temp;
+                }
+                return (a);
+            }
+        ```
+
+    - 
+
+3. 合约部署
+
+    - ![image-20240930160402267](content/Aris/image-20240930160402267.png)
+
+4. 第 10 节测验得分: 100, 答案: CBAEDABC
+
+#### 学习内容 11. 构造函数和修饰器
+
+1. 构造函数
+
+    - constructor,特殊函数,合约中只有一个,且部署合约时只允许一次;
+
+    - 构造函数中可以初始化合约的参数;
+
+2. 修饰器
+
+    - modifier,声明函数拥有的特性,见到代码冗余
+
+    - ```solidity
+        // 定义modifier
+        modifier onlyOwner {
+           require(msg.sender == owner); // 检查调用者是否为owner地址
+           _; // 如果是的话，继续运行函数主体；否则报错并revert交易
+        }
+        ```
+
+    - 
+
+3. 合约部署
+
+    - ![image-20240930162152729](content/Aris/image-20240930162152729.png)
+
+4. 第 11 节测验得分: 100, 答案: BBADB
+
+---
+
+### 2024.10.01
+
+#### 学习内容 12. 事件
+
+1. 事件
+
+    - solidity 中的事件是 evm 上日志的抽象
+
+        - 响应: 应用程序可以通过 RPC 接口订阅和监听这些事件,并做出相应;
+
+        - 经济: 事件是 EVM 上比较经济的存储数据的方式,每个大约消耗 2000gas;(链上存储一个新变量最少 20000gas)
+
+    - 声明事件
+
+        - 事件的声明由 event 关键字开头,事件名,括号中是变量类型和变量名;
+
+        - ```solidity
+            event Transfer(address indexed from, address indexed to, uint256 value);
+            ```
+
+            - from: 代币转账地址
+            - to: 代币接收地址
+            - value: 转账数量
+
+        - indexed 关键字: 保存在 EVM 日志的 topics 中,方便检索;
+
+    - 释放事件
+
+        - 使用 emit 释放事件
+
+        - ```solidity
+            emit Transfer(from, to, amount);
+            ```
+
+2. EVM 日志 Log
+
+    - 日志包含 主题topics 和数据(data)两部分
+
+    - ![image-20241001090753640](content/Aris/image-20241001090753640.png)
+
+    - 主题 topics
+
+        - 日志第一部分是主题数组,用于描述事件,最大 4;
+
+            - 第一个元素是事件签名哈希
+
+                - ```solidity
+                    keccak256("Transfer(address,address,uint256)")
+                    //0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+                    ```
+
+            - 主题能包含最多 3 个 indexed 参数 (事件参数中标记 indexed 的from,to)
+
+            - indexed 标记的参数是索引"键",方便搜索.
+
+            - 每个 indexed 参数大小固定 256 比特,超过(例如字符串)则自动计算哈希存储在主题中;
+
+    - 数据 data
+
+        - 事件中不带 indexed 的参数存储在 data 部分,可以理解为"值";
+        - data 变量不能被直接检索,但可以存储任意大小的数据;
+        - 因此一般 data 部分可以存储复杂的数据结构(例如数组,字符串)
+            - 因为这些数据超过了256比特，即使存储在事件的 `topics` 部分中，也是以哈希的方式存储。
+
+        - data 部分的变量数据存储消耗的 gas 比 topics 少.
+
+3. 合约部署
+
+    - ![image-20241001090658062](content/Aris/image-20241001090658062.png)
+
+4. 第 12 节测验得分: 100, 答案: CABBA
+
+    - ![image-20241001091555412](content/Aris/image-20241001091555412.png)
+
+
+---
+
+
+
+
+
 <!-- Content_END -->

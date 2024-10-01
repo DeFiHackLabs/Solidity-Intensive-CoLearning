@@ -6,7 +6,7 @@ timezone: Asia/Shanghai
 
 1. 自我介绍
 
-大家好，我是eddie，智能合约初学者，希望和大家共同进步，WAGMI
+大家好，我是eddie，智能合约初学者，希望和大家共同进步，WGMI
 
 2. 你认为你会完成本次残酷学习吗？
 
@@ -14,6 +14,83 @@ timezone: Asia/Shanghai
    
 ## Notes
 <!-- Content_START -->
+
+### 2024.09.30
+
+WTF103章节内容：ERC20、代币水龙头
+
+#### 笔记
+
+- IERC20接口
+    
+    ```solidity
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address to, uint256 amount) external returns (bool);
+    function allowance(address owner, address spender) external view returns (uint256);
+    function approve(address spender, uint256 amount) external returns (bool);
+    function transferFrom(address from,address to,uint256 amount) external returns (bool);
+    ```
+    
+- 相关代码：
+
+    [erc20](https://github.com/eddiehsu66/SolidityCase/tree/main/ERC20)
+
+    [tokenFaucet](https://github.com/eddiehsu66/SolidityCase/tree/main/TokenFaucet)
+
+### 2024.09.29
+
+WTF102章节内容：Hash、TryCatch
+
+#### 笔记
+
+- 选择器
+    
+    即为bytes4(keccak256("fixedSizeParamSelector(uint256[3])"))，可以理解作为函数的标识符；
+
+    此处需要注意空格，uint换为uint256；
+    
+    ```solidity
+    contract DemoContract {
+    }
+    
+    contract Selector{
+        struct User {
+            uint256 uid;
+            bytes name;
+        }
+        enum School { SCHOOL1, SCHOOL2, SCHOOL3 }
+        function mappingParamSelector(DemoContract demo, User memory user, uint256[] memory count, School mySchool) external returns(bytes4 selectorWithMappingParam){
+            emit SelectorEvent(this.mappingParamSelector.selector);
+            //mappingParamSelector中DemoContract需要转化为address
+            //结构体User需要转化为tuple类型(uint256,bytes)
+            //枚举类型School需要转化为uint8
+            return bytes4(keccak256("mappingParamSelector(address,(uint256,bytes),uint256[],uint8)"));
+        }
+        function callWithSignature() external{
+        //利用选择器来进行函数调用
+    	    (bool success1, bytes memory data1) = address(this).call(abi.encodeWithSelector(0x3ec37834, 1, 0));
+        }
+    }
+    ```
+    
+- 异常捕捉
+    
+    ```solidity
+    try externalContract.f() returns(returnType){
+    } catch Error(string memory /*reason*/) {
+        // revert和require→用Error(string memory)进行捕捉
+    } catch Panic(uint /*errorCode*/) {
+        // assert→用Panic()进行捕捉|
+    } catch (bytes memory) {
+        // 通用的，不考虑区分Error和Panic
+        // 例如revert() require(false) revert自定义类型的error
+    }
+    ```
+
+
 ### 2024.09.28
 
 - WTF102章节内容：在合约中创建新合约、Create2、删除合约、ABI编码解码
@@ -21,35 +98,34 @@ timezone: Asia/Shanghai
 #### 笔记
 
 - 使用CREATE创建合约
-
+  
 新地址 = hash(创建者地址，nonce)
-- 使用CREATE2创建合约
 
+- 使用CREATE2创建合约
 新地址 = hash(常数，创建者地址，salt，initcode)
-    
-    ```solidity
+    ```
     predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
-                bytes1(0xff),
-                address(this),
-                salt,
-                keccak256(type(Pair).creationCode)
-                )))));
+    	    bytes1(0xff),
+    	    address(this),
+    	    salt,
+	    keccak256(type(Pair).creationCode)
+	    )))));
     bytes32 salt = keccak256(abi.encodePacked(token0, token1));
     // 用create2部署新合约
-    Pair pair = new Pair{salt: salt}(); 
+    Pair pair = new Pair{salt: salt}();
     ```
-    
+
 - ABI
 应用二进制接口，是与以太坊智能合约交互的标准。数据基于他们的类型编码；并且由于编码后不包含类型信息，解码时需要注明它们的类型。
+    ```solidity
+    abi.encode()//为每个参数填充32字节的数据来并拼接
+    abi.encodePacked()//和encode相比，将填充的很多0省略，节省空间，但无法和合约交互
+    abi.encodeWithSignature()//第一个参数为函数签名FunctionName
+    //函数选择器：就是通过函数名和参数进行签名处理(Keccak–Sha3)来标识函数，可以用于不同合约之间的函数调用
+    abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array);//第一个参数为函数选择器
+    abi.decode()
+    ```
 
-	```solidity
-	abi.encode()//为每个参数填充32字节的数据来并拼接
-	abi.encodePacked()//和encode相比，将填充的很多0省略，节省空间，但无法和合约交互
-	abi.encodeWithSignature()//第一个参数为函数签名FunctionName
-	//函数选择器：就是通过函数名和参数进行签名处理(Keccak–Sha3)来标识函数，可以用于不同合约之间的函数调用
-	abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array);//第一个参数为函数选择器
-	abi.decode()
-	```
 
 ### 2024.09.27
 

@@ -145,7 +145,135 @@ interfaces中声明的所有函数都是隐式虚拟(`virtual`)的，并且任�
 - storage和memory（或来自 calldata）之间的赋值总是创建一个独立的副本。
 - 从memory到memory的赋值仅创建引用。
 - 从storage到本地存储变量(**local**)的赋值也仅分配一个引用。
-- 对存储的所有其他分配始终进行复制。这种情况的示例是对状态变量或存储结构类型的局部变量的成员的赋值，即使局部变量本身只是一个引用。???
+- 对存储的所有其他分配始终进行复制。这种情况的示例是对状态变量或存储结构类型的局部变量的成员的赋值，即使局部变量本身只是一个引用。
+
+### 2024.09.29
+**学习内容：**<br>
+在以太坊链上，除了外部账户外，智能合约也可以创建合约。有两种方法：`create`和`create2`。
+
+对于create：
+
+```
+new_address = keccak256(sender, nonce);
+```
+
+对于create2：
+
+```
+new_address = keccak256(0xFF, sender, salt, bytecode);
+```
+
+
+
+create用法就是new一个合约，并传入新合约构造函数所需的参数：
+
+```
+Contract x = new Contract{value: _value}(params)
+```
+
+
+
+create2的内联汇编方式：
+
+```
+function deploy(
+        bytes memory bytecode,
+        uint _salt
+    ) public payable returns (address) {
+        address addr;
+
+        assembly {
+            addr := create2(
+                callvalue(), // wei sent with current call
+                // Actual code starts after skipping the first 32 bytes
+                add(bytecode, 0x20),
+                mload(bytecode), // Load the size of code contained in the first 32 bytes
+                _salt // Salt from function arguments
+            )
+
+            if iszero(extcodesize(addr)) {
+                revert(0, 0)
+            }
+        }
+
+        return addr;
+    }
+```
+### 2024.09.30
+**学习内容：**<br>
+Solidity是静态类型语言，需要指定变量的状态和位置。
+
+Solidity中不存在`undefined`、`null`的概念，但变量会有相应的默认值。
+
+值类型（Value Types）:值类型变量将始终按值传递（copy）
+
+`bool`:true/false。`||`与`&&`有短路属性。
+
+**整数类型**：有符号整数`int`和无符号整数`uint`。大小均为256 bits。可以指定不同位数，如`int8` `int16` `int32` .... `int256`(也即int)
+
+操作符：`<=  <  ==  !=  >=  >`、`&  |  ^  ~`、`<<  >>`、`+  -  *  /  %  **`
+
+除法的结果朝0取整。
+
+对于整数类型X，可以`type(X).min  type(X).max`获取该类型的最小值和最大值，如`type(uint).min`
+
+> 有两种模式在这些类型上执行算术：“wrapping”或“unchecked”模式和“checked”模式。默认情况下，算术始终是“checked”的，这意味着如果操作的结果不在类型的值范围之内，则该调用将通过失败的断言恢复。您可以使用unchecked{...}切换到“未选中”模式。有关未检查的部分，请参阅更多细节。
+
+`fixed/ufixed`：固定精度
+
+**地址类型**：`address`用于存储20字节的以太坊地址。分为payable和非payable两种。带有payable可以多两个操作transfer和send。eg：`payable(<address>)`
+
+> Explicit conversions to and from `address` are allowed for `uint160`, integer literals, `bytes20` and contract types.
+
+```solidity
+address payable x = payable(0x123);
+address myAddress = address(this);
+if (x.balance < 10 && myAddress.balance >= 10) x.transfer(10);
+```
+
+address类型的成员：balance、transfer、send、call、delegatecall、staticcall、code、codehash。
+
+addr.code查询合约的部署代码，addr.codehash == keccak256(addr.code)，但addr.codehash更cheaper
+
+固定大小的字节数组： `bytes1`, `bytes2`, `bytes3`, …, `bytes32` 。成员`.length`
+
+> The type `bytes1[]` is an array of bytes, but due to padding rules, it wastes 31 bytes of space for each element (except in storage). It is better to use the `bytes` type instead.
+
+常量值：solidity不存在Octal。小数`1.3`、`.3`。
+
+支持科学注释法：`MeE` -> `M * 10**E`
+
+下划线可以分隔常量: `123_000`、`0x2eff_abde`、`1_2e345_678`（科学注释法也适用）
+
+字符串常量可单双引号`"foo"`、`'bar'`，也可以分开`"foo" "bar"` = `"foobar"`，这个特性在处理长字符串会有用。字符串常量没有后置0，`"foo"`就是代表了3个字节。
+
+字符串常量支持转义字符：`\<newline>`、`\\`、`\'`、`\"`、`\n`、`\r`、`\t`.....
+
+适用unicode前缀可以支持utf-8序列:`string memory a = unicode"Hello 😃";`
+
+16进制常量以`hex`为前缀：`hex"001122FF"`、`hex'0011_22_FF'`。空白格可以进行隔离：
+
+`hex""00112233" hex"44556677"` = `hex"0011223344556677"`
+
+Enum是solidity中的一个用户自定义类型，可以显式地与整数类型转换。Enum至少需要一个成员，最多256个。`type(NameOfEnum).min`和`type(NameOfEnum).max`可以获得最小最大值。
+
+User-defined Value Types：`type C is V`，给V取别名，但其有着本质区别。
+
+`C.warp()`从基础类型到别名， `C.unwrap()`从别名到基础类型
+
+函数类型有两种：internal 、external。内部函数只能在当前代码单元调用，外部函数由地址和函数签名组成。默认情况下，函数类型是内部的，可以省略。
+
+```
+function (<parameter types>) {internal|external} [pure|view|payable] [returns (<return types>)]
+```
+
+函数类型在参数、返回类型、内外部属性相同时，可以隐式转换，但需要从限制大的变为限制小的。
+
+`pure => view/non-payable` `view => non-payable` `payable => non-payable`
+
+函数变量的成员：`.address`返回函数所在合约的地址，`.selector`返回函数选择器。
+
+在调用函数时，可以指定gas和要发送的ether：`this.f{gas: 10, value: 800}();`
 
 
 <!-- Content_END -->

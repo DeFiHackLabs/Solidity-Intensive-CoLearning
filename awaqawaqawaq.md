@@ -115,5 +115,42 @@ storage（合约的状态变量）赋值给本地storage（函数里的）,memor
 -  Delegatecall
      - 而当用户A通过合约B来delegatecall合约C的时候，执行的是合约C的函数，但是上下文仍是合约B的：msg.sender是A的地址，并且如果函数改变一些状态变量，产生的效果会作用于合约B的变量上。
      - ![](https://images.mirror-media.xyz/publication-images/VgMR533pA8WYtE5Lr65mQ.png?height=698&width=1860) 
+ 
      - ![](https://images.mirror-media.xyz/publication-images/JucQiWVixdlmJl6zHjCSI.png?height=702&width=1862)
+### 2024.09.29
+- create & create2
+  - Contract x = new Contract{value: _value}(params) 
+      - Contract是要创建的合约名，x是合约对象（地址），如果构造函数是payable，可以创建时转入_value数量的ETH，params是新合约构造函数的参数。
+      - 新地址 = hash(创建者地址, nonce)
+- create2 
+      - CREATE2的目的是为了让合约地址独立于未来的事件。不管未来区块链上发生了什么，你都可以把合约部署在事先计算好的地址上。用CREATE2创建的合约地址由4个部分决定：
+
+        0xFF：一个常数，避免和CREATE冲突
+        CreatorAddress: 调用 CREATE2 的当前合约（创建合约）地址。
+        salt（盐）：一个创建者指定的bytes32类型的值，它的主要目的是用来影响新创建的合约的地址。
+        initcode: 新合约的初始字节码（合约的Creation Code和构造函数的参数）。
+    - 新地址 = hash("0xFF",创建者地址, salt, initcode)
+    - Contract x = new Contract{salt: _salt, value: _value}(params)
+### 2024.09.30
+- selfdestruct
+    -  selfdestruct命令可以用来删除智能合约，并将该合约剩余ETH转到指定地址。
+    - 在以太坊坎昆（Cancun）升级中，EIP-6780被纳入升级以实现对Verkle Tree更好的支持。EIP-6780减少了SELFDESTRUCT操作码的功能。 **已经部署的合约无法被SELFDESTRUCT了。 如果要使用原先的SELFDESTRUCT功能，必须在同一笔交易中创建并SELFDESTRUCT。**
+    - selfdestruct(payable(msg.sender));
+    - 使用selfdestruct()函数删除合约时，合约中的所有状态变量都会被删除，但合约中的函数仍然可以访问这些状态变量。因此，在删除合约之前，应该确保所有状态变量都被正确地处理。
+    - 对外提供合约销毁接口时，最好设置为只有合约所有者可以调用，可以使用函数修饰符onlyOwner进行函数声明。
+    当合约中有selfdestruct功能时常常会带来安全问题和信任问题，合约中的selfdestruct功能会为攻击者打开攻击向量(例如使用selfdestruct向一个合约频繁转入token进行攻击，这将大大节省了GAS的费用，虽然很少人这么做)，此外，此功能还会降低用户对合约的信心。
+
+- ABI编码
+    -  ABI（Application Binary Interface）是以太坊和其他区块链平台中用于定义智能合约与外部应用程序（如前端、其他合约）之间交互的规范。
+    -  abi.encode, 
+    -  abi.encodePacked, //压缩数据，无法正常吉奥胡
+    -  abi.encodeWithSignature, 
+    -  abi.encodeWithSelector
+    -  abi.encodeWithSelector(bytes4(0x533ba33a));**通过abi函数选择器，address(contract).staticcall(data)来调用相关函数**
+-  Hash
+    -  生成数据唯一标识
+    -  Solidity使用keccak256，返回一个32字节的哈希值。
+    
+
+
 <!-- Content_END -->

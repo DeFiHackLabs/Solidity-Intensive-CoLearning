@@ -197,31 +197,41 @@ Solidity 101-13 继承inheritance
 8 is关键字：表示继承（Child is Parent意思是Child合约继承了Parent合约的功能）
 <!-- Content_END -->
 <!-- Content_START -->
-### 2024.09.28
-Day6
-Solidity 101-14 抽象合约和接口
-1 如果一个智能合约里至少有一个未实现的函数，即某个函数缺少主体{}中的内容，则必须将该合约标为abstract，不然编译会报错
-2 未实现的函数需要加virtual，以便子合约重写
-3 接口是智能合约的骨架，定义了合约的功能以及如何触发
-4 接口提供每个函数的 bytes4 选择器和函数
-签名
-5 接口ID 是一种通过接口中的函数来唯一标识接口的万式
-6 IERC721是一个标准的ERC-721接口，它规定了 NFT 合约必须实现的函数
-7 查询持仓量 （balanceOf）
-8 安全转账（safeTransferFrom）
-9 抽象合约abstract contract必须通过一个具体实现的子合约来补全所有未实现的函数后，才能进行部署
-10 return Azuki.ownerOf(id); 	ownerOf 是 ERC-721 标准的一部分，用于查询特定 tokenId 的拥有者
-11 Azuki.approve(to, id)：函数调用方式，approve 是 ERC-721 中的标准函数之一，用于批准某个地址对特定 tokenId 的控制权限
+### 2024.09.29
+Day7
+Solidity 102-17库合约Library Contracts
+1 using A for B：使用库合约A的函数来扩展类型B的功能（B类型的变量可以直接调用库合约A的函数）
 
-Solidity 101-15 异常
-1 三种抛出异常的方法：error，require和assert
-2 error必须搭配revert（回退）命令一起使用
-3 require唯一的缺点就是gas会随着描述异常的字符串长度增加
-4 error，require检查条件不成立，会抛出异常
-5 assert不能解释抛出异常原因
-6 assert主要是内部错误检查 
+Solidity 102-18 import
+1 import导入
+2 npm ：Node Package Manager，随Node.js 一起发布的包管理工具
+3 Solidity中import的作用是：导入其他合约中的全局符号
+4 import导入文件的来源可以是：源文件网址，npm的目录，本地文件
+5 import导入文件中的全局符号可以单独指定其中的：合约，纯函数，结构体类型
+6 被导入文件中的全局符号想要被其他合约单独导入，应该：与合约并列在文件结构中
+7 导入的本地文件会被编译成字节码部署到链上
+8 在import 语句中使用*是为了导入一个Solidity 文件中的所有内容，并通过一个命名空间来访问这些内容
+<!-- Content_END -->
+<!-- Content_START -->
+### 2024.09.30
+Day8
+Solidity 102-19 接收ETH receive和fallback
+1 receive( ) external payable { } 注意⚠️：receive( )函数不能有任何参数，不能返回任何值，必须包含external和payable
+2 fallback( )函数会在调用合约不存在的函数时被触发，可以用于接收eth，也可以用于代理合约proxy contract
+3 fallback( ) external payable 也可以接收eth
+4 bytes data在solidity中表示原始的字节数据
+5 receive( )函数用于处理纯粹的eth发送
+6 fallback( )函数用于处理带有数据的调用或调用不存在的函数时接收eth
+7 Dapp = decentralized application 去中心化应用
 
-Solidity 102-16 函数重载
-1 函数重载function overloading（名字相同但输入参数类型不同的函数可以同时存在，被看作不同的函数，不同的function selector函数选择器）
-2 solidity不允许修饰器modifier重载
+Solidity 102-20 发送ETH transfer, send, call
+1 call没有gas限制，最为灵活，提倡使用
+2 transfer有2300 gas限制，但发送失败会自动revert( )回滚交易，次优选则
+3 send有2300 gas限制，而且发送失败不会自动revert( )回滚交易，几乎没人用
+
+Solidity 102-21 调用其他合约
+1 Name(address).f( ) 解析：name是目标合约或接口名字，address是目标合约地址，f是要调用的目标合约中的函数
+2 安全性依赖合约设计
+3 UI = user interface 用户界面
+4 interface 接口 （关键字interface表示你定义了一个接口）
 <!-- Content_END -->

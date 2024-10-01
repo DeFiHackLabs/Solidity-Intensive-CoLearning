@@ -332,7 +332,7 @@ function getString2(uint256 _number) public pure returns(string memory){
 學習內容  
 筆記:  
 
-#### receive, fallback
+#### 接收 ETH, receive, fallback
 - 目的, 1.接收 ETH 2.處理合約中不存在的函數調用
 - 觸發規則   
 ![image](https://github.com/user-attachments/assets/3dbf8f0a-2f3b-413f-b5e2-b9d0c437964d)
@@ -354,5 +354,125 @@ receive() external payable{
 fallback
 - 調用不存在的函數時會被觸發, 可用於接收 ETH, 也可用於代理合約 proxy contract
 - fallback() external payable{}
-   
+
+### 2024.09.29
+學習內容  
+筆記:  
+
+#### 發送 ETH, transfer(), send(), call()
+- call 推薦, 沒有 gas 限制
+- transfer, 有 2300 gas 限制, 發送失敗會自動 revert 交易
+- send 最不推薦, 有 2300 gas 限制, 發送失敗時不會自動 revert 交易
+
+假設一個接收 ETH 合約
+```Solidity
+contract ReceiveETH{
+   // 收到 eth 事件, 紀錄 amount, gas
+   event Log(uint amount, uint gas);
+
+   // 接收到 eth 時觸發
+   receive() external payable{
+      emit Log(msg.value, gasleft());
+   }
+
+   // return 合約的 eth 餘額
+   function getBalance() view public returns(uint){
+      return address(this).balance;
+   }
+}
+```
+
+發送 eth 合約
+```Solidity
+contract snedETH{
+   // 構造函數, 部屬時候可以轉 eth 進去
+   construct() payable{}
+   // receice, 接收 eth 時被觸發
+   receive() external payable{}
+}
+```
+
+transfer  
+- 接收方的地址.transfer(發送數量)
+```Solidity
+// 用 transfer 發送 eth
+function transferETH(address payable _to, uint256 amount) external payable{
+   _to.transfer(amount);
+}
+```
+
+call  
+- 接收方地址.call{value: 發送數量}("")
+- call() 會返回 (bool, bytes), 其中 bool 代表轉帳成功或失敗, 需要額外程式碼處理
+```Solidity
+// 用 call 發送 eth 失敗 error
+error CallFailed();
+
+function callETH(address payable _to, uint256 amount) external payable{
+   (bool success, ) = _to.call{value: amount}("");
+   if(!success){
+      revert CallFailed();
+   }
+}
+```
+### 2024.09.30
+學習內容  
+筆記:  
+
+#### 調用其他合約
+
+ex: 目標合約
+```Solidity
+contract OtherContract{
+   uint256 private _x = 0;
+
+   event Log(uint amount, uint gas);
+
+   // return 合約 eth 餘額
+   function getBalance() view public returns(uint){
+      return address(this).balance;
+   }
+
+   function setX(uint256 x) external payable{
+      _x = x;
+      if(msg.value > 0){
+         emit Log(msg.value, gasleft());
+      }
+   }
+
+   function getX() external view returns(uint x){
+      x = _x;
+   }
+}
+```
+
+1. 傳入合約的地址
+- 在函數裡傳入要調用的合約地址, 生成目標合約的引用, 調用目標函數
+```Solidity
+function callSetX(address _Address, uint256 x) external{
+   otherContract(_Address).setX(x);
+}
+```
+2. 傳入合約的變數
+```Solidity
+function callGetX(OtherContract _Address) external view returns(uint x){
+   x = Address.getX(); 
+}
+```
+3. 創建合約的變數
+```Solidity
+function callGetX2(address _Address) external view returns(uint x){
+   OtherContract oc = OtherContract(_Address);
+   x = oc.getX();
+}
+```
+4. 調用合約並發送 eth
+```Solidity
+function setXTransferETH(address otherContract, uint256 x) payable external{
+   OtherContract(otherContract).setX{value: msg.value}(x);
+}
+```   
+
+
+
 <!-- Content_END -->

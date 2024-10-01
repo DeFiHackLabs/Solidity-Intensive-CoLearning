@@ -40,10 +40,20 @@ LFG～～～～～ 會完成的
 
 [**WTF Solidity 極簡入門：7. 映射類型**](<content/Haoder/md/107.md>)
 
+### 2024.09.29
+
 [**WTF Solidity 極簡入門：8. 變量初始值**](<content/Haoder/md/108.md>)
 
 [**WTF Solidity 極簡入門：9. 常數**](<content/Haoder/md/109.md>)
 
 [**WTF Solidity 極簡入門：10. 控制流**](<content/Haoder/md/110.md>)
+
+### 2024.09.30
+
+[**WTF Solidity 極簡入門：11. 構造函數和修飾器**](<content/Haoder/md/111.md>)
+
+[**WTF Solidity 極簡入門：12. 事件**](<content/Haoder/md/112.md>)
+
+[**WTF Solidity 極簡入門：13. 繼承**](<content/Haoder/md/113.md>)
 
 <!-- Content_END -->

@@ -409,6 +409,174 @@ contract MyContract{
 }
 
 ```
+### 2024.09.28
+
+學習內容:
+
+- [x] 事件
+    - event 关键字申明事件  emit关键字发送事件
+    - EVM使用Log来存储事件。
+        - 每条日志包含 topics和data两部分。topics是一个最大长度为4的数组，第一个元素存储事件签名，后面三个可用于存储indexed索引。所以事件的索引最多三个
+        - data存储复杂数据，消耗的gas比topics小。
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract eventContract{
+    event CustomerEvent(address indexed from,string message);
+
+    function emitEventFunction(string memory message) external {
+        emit CustomerEvent(msg.sender, message);
+    }
+}
+```
+
+### 2024.09.29
+
+學習內容:
+
+- [x] 继承
+    - 简单继承 is 关键字
+    - 多继承 逗号分隔多个父合约 顺序：辈分越高越靠前
+    - 修饰器也能继承
+    - 钻石继承中super调用函数顺序
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+// 声明一个动物合约，所有动物都应该有自己的名字，并且能发出声音
+contract Animal{
+
+    event SPEAK_EVENT(address indexed from, string message);
+
+    string public name;
+
+    constructor(string memory _name){
+        name = _name;
+    }
+
+    function speak(string calldata message) public  virtual {
+        emit SPEAK_EVENT(msg.sender, message);
+    }
+}
+
+// 声明一个人类合约，继承动物并能够跑步
+contract Human is Animal{
+
+    event RUN_EVENT(address indexed runner);
+
+    constructor(string memory _name) Animal(_name){
+
+    }
+
+    function speak(string calldata message) public virtual override {
+        emit SPEAK_EVENT(msg.sender, string(abi.encodePacked("my name is ",name," : ",message)));
+    }
+
+    function _run() internal virtual {
+        emit RUN_EVENT(msg.sender);
+    }
+
+    // 摸鱼
+    function _touchFish() internal virtual {
+
+    }
+}
+
+// 工作
+contract Work{
+    event WORK_EVENT(address from, string produce);
+    // 打黑工
+    function _workHard() internal virtual {
+        emit WORK_EVENT(msg.sender, "work work hard");
+    }
+
+    // 摸鱼
+    function _touchFish() internal virtual {
+
+    }
+}
+
+
+// 牛马
+contract Joker is Human,Work{
+    constructor(string  memory _name) Human(_name) Work(){
+
+    }
+
+    // 打黑工
+    function workHard() external {
+        super._workHard();
+        _touchFish();
+    }
+
+    function run() external   {
+        super._run();
+    }
+
+    // 摸鱼
+    function _touchFish() internal override(Human,Work)  {
+        emit WORK_EVENT(msg.sender, "lalalalalala...");
+    }
+}
+
+```
+### 2024.09.30
+
+學習內容:
+
+- [x] 抽象合约
+   - abstract关键字修饰合约 
+   - 抽象合约中的函数可以缺少主体。
+   - 没有主体的函数要使用virtual关键字修饰
+   - 普通合约继承抽象合约，必须实现抽象合约中的所有未实现的函数
+- [x] 接口
+   - interface关键字修饰接口
+   - 不能包含状态变量
+   - 不能包含构造函数
+   - 不能继承除接口以外的其他合约
+   - 所有函数必须是external，且不能有函数体
+   - 继承接口的非抽象合约，必须实现接口定义的所有功能
+- [x] 异常
+   -  error: 定义异常，搭配revert使用, revert用于抛出异常
+   - require: 检查条件是否满足，不满足则抛出异常
+   - assert: 检查不可能发生的错误，如果发生则抛出异常
+   - error 灵活性高，方便高效且消耗gas少，推荐使用；require 书写方便，消耗gas比error多；assert 消耗gas最多，不推荐使用
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+// 计算器接口
+interface Calculator {
+    // 折扣事件
+    event DiscountsEvent(address indexed owner, uint256 originPrice, uint256 discountsPrice);
+    // 根据当前价计算优惠力度并返回
+    function calcDiscounts(uint256 currentPrice) external pure returns(uint256);
+}
+
+// 电商计算器，实现计算接口
+abstract contract EBusinessCalculator is Calculator{
+    // 判断是否VIP
+    function _isVip(address owner) internal view virtual returns(bool);
+
+    // 根据当前加个进行折扣
+    function calcDiscounts(uint256 currentPrice) external pure  virtual  override  returns(uint256);
+
+    // 返回当前用户折扣后的价格
+    function discountPrice(address owner, uint256 currentPrice) public returns(uint256){
+        uint256 discountsPrice;
+        if(_isVip(owner)){
+            discountsPrice = currentPrice - this.calcDiscounts(currentPrice);
+        }else{
+            discountsPrice = currentPrice;
+        }
+        emit DiscountsEvent(owner, currentPrice, discountsPrice);
+        return discountsPrice;
+    }
+}
 
 ### 2024.09.28
 
@@ -433,5 +601,38 @@ contract eventContract{
 }
 ```
 
+// 京东商城折扣价计算
+contract JdCalculator is EBusinessCalculator{
 
+    // 自定义错误
+    error AddressError(address ads);
+
+    address public vip;
+    constructor(){
+        vip = msg.sender;
+    }
+      
+     function _isVip(address owner) internal view override  returns(bool){
+        if(owner == address(0)){
+            // 抛出异常
+            revert AddressError(owner);
+        }
+       return owner == vip;
+     }
+
+    function calcDiscounts(uint256 currentPrice) external pure override  returns(uint256){
+
+        if(currentPrice < 10){
+            return 0;
+        }
+        if(currentPrice < 50){
+            return 3;
+        }
+        if(currentPrice < 100){
+            return 5;
+        }
+        return 10;
+    }
+}
+```
 <!-- Content_END -->

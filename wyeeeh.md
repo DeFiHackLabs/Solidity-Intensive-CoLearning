@@ -289,4 +289,254 @@ uint256[3] memory _array;
 ### 2024.09.28
 #### WTF Academy Solidity 101.6 引用类型, array, struct
 
+##### 数组 Array
+- 存储在 `storage` 的数组：
+    - **可变长度数组**（即未指定固定长度的 `T[]`）是可以动态扩展和缩减的，例如通过 `push()` 和 `pop()` 操作。
+    - **固定长度数组**（如 `uint[8]`）在 `storage` 中长度是固定的，初始化后不能改变其长度。
+- 存储在 `memory` 的数组：
+    - **可变长度数组**在 `memory` 中一旦初始化，**长度是固定的**，不能在运行时再改变长度。因此，`memory` 数组在初始化时必须指定其长度，之后无法扩展或缩减。
+
+**数组成员**
+- `length`: 可以读取数组的长度。`memory`数组的长度在创建后是固定的，`storage` 数组可以通过直接赋值来修改数组长度。
+- `push()`: 向 `storage` 中的可变长度数组添加一个`0`元素，并返回该元素的引用。
+- `push(x)`: 向 `storage` 中的可变长度数组添加一个`x`元素，并自动增加数组的长度。
+- `pop()`: 删除 `storage` 数组的最后一个元素，并减少数组的长度。
+
+- 注意事项
+  - `storage` 数组：支持 `.push()`、`.pop()` 和 `.length` 成员，可以动态增加和减少长度。
+  - `memory` 数组的操作相对简单，因为它们的长度一旦初始化后无法改变。因此，只有读取和修改数组元素的功能，没有 `push` 和 `pop` 操作。
+  - 对于固定长度的数组（无论在 `storage` 还是 `memory`），它们的长度在编译时就确定了，因此无法使用 `.push()` 或 `.pop()` 操作。
+
+```Solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract StorageArrayLength {
+    uint[] public array;
+
+    // 获取数组长度
+    function getLength() public view returns (uint) {
+        return array.length;
+    }
+
+    // 修改数组长度
+    function setLength(uint newLength) public {
+        array.length = newLength;
+    }
+}
+
+contract StorageArrayPush {
+    uint[] public array;
+
+    // 向数组中添加元素
+    function addElement(uint _value) public {
+        array.push(_value);
+    }
+
+    uint[] public numbers;
+
+    function addElement() public {
+        uint storageElement = numbers.push(); // 添加一个0元素并返回其引用
+        numbers[numbers.length - 1] = 42;     // 可以通过引用直接修改最后一个元素
+      }
+}
+```
+
+##### 结构体 struct
+`struct` 是 Solidity 中用于定义自定义类型的关键字。每个结构体可以包含不同类型的变量，称为字段（fields），它们可以是基本类型（如 `uint`、`bool` 等）或引用类型（如数组、映射等）。
+1. **定义结构体**
+     - 这是为了创建一种新的数据类型，类似于定义一个模版。定义结构体是告诉 Solidity，接下来可以使用这种新的自定义类型，类似于在其他编程语言中定义一个类（class）或数据类型。
+    ```solidity
+    // 定义一个名为 Student 的结构体
+    struct Student {
+        uint256 id;     // 学生ID
+        uint256 score;  // 学生分数
+    }
+    ```
+
+2. **声明结构体变量**
+    - 这是在定义的结构体类型基础上创建一个实际的变量，并分配内存。声明结构体变量后，可以使用它来存储和操作数据。
+      ```solidity
+      Student student; // 声明一个 `Student` 结构体变量
+      ```
+
+3. **赋值方式**
+    - `storage` 引用：在函数中创建一个指向状态变量的 `storage` 引用，可以直接修改该结构体。
+      ```solidity
+      function initStudent1() external {
+          Student storage _student = student; // 指向 `student` 结构体的引用
+          _student.id = 11;                   // 修改 `student` 的 id
+          _student.score = 100;               // 修改 `student` 的 score
+      }
+      ```
+
+      在这个例子中，`_student` 是对状态变量 `student` 的引用。通过修改 `_student`，你实际上是在修改原始 `student` 结构体。
+
+    - 直接修改结构体字段：直接引用结构体变量并为其字段赋值。
+      ```solidity
+      function initStudent2() external {
+          student.id = 1;        // 直接修改 `student` 的 id
+          student.score = 80;     // 直接修改 `student` 的 score
+      }
+      ```
+      在这种方法中，直接操作状态变量 `student`，而不需要创建中间的引用。
+    - 构造函数式：利用构造函数风格的赋值方法为结构体赋值。
+      ```solidity
+      function initStudent3() external {
+          student = Student(3, 90);  // 使用构造函数语法为 `student` 赋值
+      }
+      ```
+      这种方法类似于函数调用，通过提供参数来一次性赋值结构体的所有字段。
+    - `key-value` 形式赋值：这种方式允许通过 `key-value` 的形式为结构体赋值，特别适用于具有很多字段的结构体。
+      ```solidity
+      function initStudent4() external {
+          student = Student({id: 4, score: 60});  // 通过键值对形式赋值
+      }
+      ```
+      `key-value` 方式在参数顺序不重要或者字段较多时，能提高代码的可读性。
+
+##### 测验结果
+- 100/100
+
+
+### 2024.09.29
+#### WTF Academy Solidity 101.7 映射类型 mapping
+
+##### 映射的声明
+
+映射的基本格式为：
+
+```solidity
+mapping(_KeyType => _ValueType)
+```
+
+- **例子**：
+    
+    ```solidity
+    mapping(uint => address) public idToAddress; // 将 id 映射到地址
+    mapping(address => address) public swapPair; // 将一个地址映射到另一个地址
+    ```
+
+##### 映射的规则
+
+- **规则1**：`_KeyType` 只能是 Solidity 内置的值类型（如 `uint`、`address` 等），而 `_ValueType` 可以是自定义类型。
+    - **错误示例**：
+        
+        ```solidity
+        struct Student {
+            uint256 id;
+            uint256 score;
+        }
+        mapping(Student => uint) public testVar; // 这会报错，因为Student是自定义的struct
+        ```
+        
+- **规则2**：映射的存储位置必须是 `storage`，不能用作 `public` 函数的参数或返回值。
+  - **映射不能作为 `memory` 或 `calldata` 类型的变量**：因为映射的结构依赖于区块链的存储模型，它无法直接被赋值为临时变量（`memory`）或传递给函数作为参数（`calldata`）。例如，不能像这样做：
+
+    ```solidity
+    function test(mapping(uint => address) memory tempMap) public {} // 错误
+    ```
+  - **映射不能作为函数参数或返回类型**：映射不能直接作为 `public` 或 `external` 函数的参数或返回类型。这是因为映射的数据不是像普通变量那样存储在内存中或通过函数参数传递。下面这个代码会报错：
+
+    ```solidity
+    // 错误示例：试图将映射作为函数参数或返回类型
+    function returnMapping(mapping(uint => address) memory someMapping) public pure returns (mapping(uint => address) memory) {
+        return someMapping; // 这是不允许的
+    }
+    ```
+  - **为什么映射不能作为 `public` 函数的参数或返回类型？**
+    - **映射记录的是一种关系**（键-值对），而不是单纯的值。当你试图传递或返回映射时，Solidity 无法有效处理这些键-值对的传递，因为映射依赖于区块链的存储结构，而不是内存或临时存储区域（如 `memory` 或 `calldata`）。
+    - **映射在内部通过哈希函数处理**：每个键会通过 `keccak256` 函数生成一个存储位置，并且映射并不存储完整的键或值的列表。因此，映射无法像数组那样直接作为函数的参数或返回值。
+- **规则3**：如果映射被声明为 `public`，Solidity 会自动生成一个 `getter` 函数，可以通过键来查询对应的值。正确用法如下：
+    ```solidity
+      pragma solidity ^0.8.0;
+
+      contract MappingExample {
+          // 映射必须是状态变量，存储在 storage 中
+          mapping(uint => address) public idToAddress;
+
+          // 函数可以修改映射，映射存储在 storage
+          function setAddress(uint _id, address _addr) public {
+              idToAddress[_id] = _addr; // 将 _id 对应的地址设置为 _addr
+          }
+
+          // 通过自动生成的 getter 函数来查询映射
+          function getAddress(uint _id) public view returns (address) {
+              return idToAddress[_id]; // 返回存储在映射中的地址
+          }
+      }
+    ```
+- **规则4**：添加键值对的语法为 `_Var[_Key] = _Value`。
+    - **例子**：
+        
+        ```solidity
+        function writeMap(uint _Key, address _Value) public {
+            idToAddress[_Key] = _Value; // 将地址 _Value 存储在 idToAddress 映射中
+        }
+        
+        ```
+##### 原理
+- **原理1**: 映射不储存任何键（`Key`）的信息，也没有 `length` 信息
+  - **为什么不存储键？** 映射是通过哈希（hashing）的方式来定位和存取键对应的值。也就是说，它不直接存储键，而是通过计算哈希值来找到存储的值。因此，映射的本质是键和值的关系，而不是键的存储。
+  - **映射 vs 数组**：映射是无序的，没有“长度”概念，无法直接遍历；而数组是有序的，可以通过索引查找特定位置的元素。
+- **原理2**：映射使用 `keccak256(abi.encodePacked(key, slot))` 来计算值的偏移量，其中 `slot` 是映射变量定义时的插槽位置。
+  1. **`key`（键）**：这是映射中的某个键，比如 `uint` 类型的 `1`。
+  2. **`slot`（插槽）**：这是映射变量在 Solidity 合约中的位置，类似于它在合约中的地址或索引。插槽是 Solidity 合约的状态变量存储结构中的位置，它唯一标识每个映射或变量的存储地址。
+  3. 通过 `keccak256(abi.encodePacked(key, slot))` 来计算具体的存储位置。这个哈希值就是键值对中的 `value` 的存储位置。
+- **原理3**：所有未赋值的键的初始值都是各自类型的默认值（例如，`uint` 的默认值是 0）。
+##### 示例代码
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract MappingExample {
+    // 声明一个映射
+    mapping(uint => address) public idToAddress;
+
+    // 写入映射
+    function writeMap(uint _key, address _value) public {
+        idToAddress[_key] = _value; // 将地址存入映射
+    }
+
+    // 查询映射
+    function readMap(uint _key) public view returns (address) {
+        return idToAddress[_key]; // 返回对应的地址
+    }
+}
+
+```
+##### 测验结果
+- 100/100
+
+### 2024.09.30
+#### WTF Academy Solidity 101.8 变量初始值
+
+##### 变量初始值
+- 在Solidity中，声明但没赋值的变量都有它的初始值或默认值。
+- 值类型初始值
+  - `uint` 初始值为 `0`
+  - `int` 初始值为 `0`
+  - `bool` 初始值为 `false`
+  - `address` 初始值为 `address(0)`
+  - `bytes` 初始值为 `bytes("")`
+  - `string` 初始值为 `""`
+  - `enum` 初始值为 `0`
+- 引用类型初始值
+  - `struct` 初始值为 `struct` 的默认值
+  - `array` 初始值为 `array(length => 0)`，即`[]`
+  - `mapping` 初始值为 `mapping(key => value)` 的默认值
+  
+- `delete a`会让变量a的值变为初始值
+
+##### 测验结果
+- 80/100
+- 100/100
+
+##### 测验错题
+- bytes1的初始值是`0x00`
+
+### 2024.10.01
+#### WTF Academy Solidity 101.9 常数
+
+
 <!-- Content_END -->
