@@ -66,6 +66,8 @@ string和 bytes不能用 immutable修飾。
 string public immutable _string = "Hello Web3! 0923-2"; => X
 TypeError: Immutable variables cannot have a non-value type.
 
+### 2024.10.02
+solidity版的 insert sort的眉角是
 
 
 <!-- Content_END -->
