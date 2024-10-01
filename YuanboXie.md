@@ -422,9 +422,6 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     - 解码：abi.decode
         - `(dx, daddr, dname, darray) = abi.decode(data, (uint, address, string, uint[2]));`
 
-<!-- Content_END -->
-
-
 ### 2024.10.02
 
 - [102-28] Hash
@@ -500,6 +497,8 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     ```
     - 可以使用this.f()来替代externalContract.f()，this.f()也被视作为外部调用，但不可在构造函数中使用，因为此时合约还未创建。
     - try 代码块内的 revert 不会被 catch 本身捕获。
+
+<!-- Content_END -->
 
 ### 2024.10.03
 
