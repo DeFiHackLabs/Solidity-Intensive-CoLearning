@@ -416,11 +416,91 @@ send有2300 gas限制，而且发送失败不会自动revert交易，几乎没�
 
 ### 2024.09.30
 
-笔记内容
+call 是address类型的低级成员函数，它用来与其他合约交互。它的返回值为(bool, bytes memory)，分别对应call是否成功以及目标函数的返回值。
+
+call是Solidity官方推荐的通过触发fallback或receive函数发送ETH的方法。
+不推荐用call来调用另一个合约，因为当你调用不安全合约的函数时，你就把主动权交给了它。推荐的方法仍是声明合约变量后调用函数
+当我们不知道对方合约的源代码或ABI，就没法生成合约变量；这时，我们仍可以通过call调用对方合约的函数。
+目标合约地址.call(字节码);
+其中字节码利用结构化编码函数abi.encodeWithSignature获得：
+abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)
+函数签名为"函数名（逗号分隔的参数类型）"。例如abi.encodeWithSignature("f(uint256,address)", _x,_addr)。
+call在调用合约时可以指定交易发送的ETH数额和gas数额：
+目标合约地址.call{value:发送数额, gas:gas数额}(字节码);
+call不是调用合约的推荐方法，因为不安全。但他能让我们在不知道源代码和ABI的情况下调用目标合约，很有用。
+
+delegatecall与call类似，是Solidity中地址类型的低级成员函数。delegate中是委托/代表的意思
+目标合约地址.delegatecall(二进制编码);
+abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)
+和call不一样，delegatecall在调用合约时可以指定交易发送的gas，但不能指定发送的ETH数额
+注意：delegatecall有安全隐患，使用时要保证当前合约和目标合约的状态变量存储结构相同，并且目标合约安全，不然会造成资产损失。
+目前delegatecall主要有两个应用场景：
+
+1. 代理合约（Proxy Contract）：将智能合约的存储合约和逻辑合约分开：代理合约（Proxy Contract）存储所有相关的变量，并且保存逻辑合约的地址；所有函数存在逻辑合约（Logic Contract）里，通过delegatecall执行。当升级时，只需要将代理合约指向新的逻辑合约即可。
+
+2. EIP-2535 Diamonds（钻石）：钻石是一个支持构建可在生产中扩展的模块化智能合约系统的标准。钻石是具有多个实施合约的代理合约
+Solidity中的另一个低级函数delegatecall。与call类似，它可以用来调用其他合约；不同点在于运行的上下文，B call C，上下文为C；而B delegatecall C，上下文为B。目前delegatecall最大的应用是代理合约和EIP-2535 Diamonds（钻石）。
+
+当用户A通过合约B来delegatecall合约C时，执行了C的函数，语境是B，msg.sender和msg.value来自 A， 并且如果函数改变一些状态变量，产生的效果会作用于B的变量上
+在合约中创建新合约
+在以太坊链上，用户（外部账户，EOA）可以创建智能合约，智能合约同样也可以创建新的智能合约。去中心化交易所uniswap就是利用工厂合约（PairFactory）创建了无数个币对合约（Pair）。
+有两种方法可以在合约中创建新合约，create和create2
+create的用法很简单，就是new一个合约，并传入新合约构造函数所需的参数
+Contract x = new Contract{value: _value}(params)
 
 ### 2024.10.01
 
-笔记内容
+CREATE2 操作码使我们在智能合约部署在以太坊网络之前就能预测合约的地址。Uniswap创建Pair合约用的就是CREATE2而不是CREATE
+新地址 = hash(创建者地址, nonce)
+创建者地址不会变，但nonce可能会随时间而改变，因此用CREATE创建的合约地址不好预测。
+用CREATE2创建的合约地址由4个部分决定：
+
+0xFF：一个常数，避免和CREATE冲突
+CreatorAddress: 调用 CREATE2 的当前合约（创建合约）地址。
+salt（盐）：一个创建者指定的bytes32类型的值，它的主要目的是用来影响新创建的合约的地址。
+initcode: 新合约的初始字节码（合约的Creation Code和构造函数的参数）。
+新地址 = hash("0xFF",创建者地址, salt, initcode)
+
+CREATE2 确保，如果创建者使用 CREATE2 和提供的 salt 部署给定的合约initcode，它将存储在 新地址 中。
+Contract x = new Contract{salt: _salt, value:_value}(params)
+其中Contract是要创建的合约名，x是合约对象（地址），_salt是指定的盐；如果构造函数是payable，可以创建时转入_value数量的ETH，params是新合约构造函数的参数。
+create2的实际应用场景
+
+1. 交易所为新用户预留创建钱包合约地址。
+
+2. 由 CREATE2 驱动的 factory 合约，在Uniswap V2中交易对的创建是在 Factory中调用CREATE2完成。这样做的好处是: 它可以得到一个确定的pair地址, 使得 Router中就可以通过 (tokenA, tokenB) 计算出pair地址, 不再需要执行一次 Factory.getPair(tokenA, tokenB) 的跨合约调用。
+
+selfdestruct命令可以用来删除智能合约，并将该合约剩余ETH转到指定地址。
+<https://eips.ethereum.org/EIPS/eip-6049>
+目前来说：
+
+已经部署的合约无法被SELFDESTRUCT了。
+如果要使用原先的SELFDESTRUCT功能，必须在同一笔交易中创建并SELFDESTRUCT。
+selfdestruct(_addr)；
+其中_addr是接收合约中剩余ETH的地址。_addr 地址不需要有receive()或fallback()也能接收ETH。
+在坎昆升级前，合约会被自毁。但是在升级后，合约依然存在，只是将合约包含的ETH转移到指定地址，而合约依然能够调用。
+
+对外提供合约销毁接口时，最好设置为只有合约所有者可以调用，可以使用函数修饰符onlyOwner进行函数声明。
+当合约中有selfdestruct功能时常常会带来安全问题和信任问题，合约中的selfdestruct功能会为攻击者打开攻击向量(例如使用selfdestruct向一个合约频繁转入token进行攻击，这将大大节省了GAS的费用，虽然很少人这么做)，此外，此功能还会降低用户对合约的信心。
+
+ABI (Application Binary Interface，应用二进制接口)是与以太坊智能合约交互的标准。数据基于他们的类型编码；并且由于编码后不包含类型信息，解码时需要注明它们的类型。
+
+Solidity中，ABI编码有4个函数：abi.encode, abi.encodePacked, abi.encodeWithSignature, abi.encodeWithSelector。而ABI解码有1个函数：abi.decode，用于解码abi.encode的数据。
+abi.encode 将每个参数填充为32字节的数据，并拼接在一起
+abi.encodePacked
+将给定参数根据其所需最低空间编码。它类似 abi.encode，但是会把其中填充的很多0省略。比如，只用1字节来编码uint8类型。当你想省空间，并且不与合约交互的时候，可以使用abi.encodePacked
+abi.encodeWithSignature
+与abi.encode功能类似，只不过第一个参数为函数签名，比如"foo(uint256,address,string,uint256[2])"。当调用其他合约的时候可以使用。
+等同于在abi.encode编码结果前加上了4字节的函数选择器
+说明: 函数选择器就是通过函数名和参数进行签名处理(Keccak–Sha3)来标识函数，可以用于不同合约之间的函数调用
+abi.encodeWithSelector
+与abi.encodeWithSignature功能类似，只不过第一个参数为函数选择器，为函数签名Keccak哈希的前4个字节。
+
+ABI的使用场景
+
+1. 在合约开发中，ABI常配合call来实现对合约的底层调用。
+2. ethers.js中常用ABI实现合约的导入和函数调用。
+3. 对不开源合约进行反编译后，某些函数无法查到函数签名，可通过ABI进行调用。
 
 ### 2024.10.02
 

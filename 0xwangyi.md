@@ -212,3 +212,26 @@ Solidity 102-18 import
 7 导入的本地文件会被编译成字节码部署到链上
 8 在import 语句中使用*是为了导入一个Solidity 文件中的所有内容，并通过一个命名空间来访问这些内容
 <!-- Content_END -->
+<!-- Content_START -->
+### 2024.09.30
+Day8
+Solidity 102-19 接收ETH receive和fallback
+1 receive( ) external payable { } 注意⚠️：receive( )函数不能有任何参数，不能返回任何值，必须包含external和payable
+2 fallback( )函数会在调用合约不存在的函数时被触发，可以用于接收eth，也可以用于代理合约proxy contract
+3 fallback( ) external payable 也可以接收eth
+4 bytes data在solidity中表示原始的字节数据
+5 receive( )函数用于处理纯粹的eth发送
+6 fallback( )函数用于处理带有数据的调用或调用不存在的函数时接收eth
+7 Dapp = decentralized application 去中心化应用
+
+Solidity 102-20 发送ETH transfer, send, call
+1 call没有gas限制，最为灵活，提倡使用
+2 transfer有2300 gas限制，但发送失败会自动revert( )回滚交易，次优选则
+3 send有2300 gas限制，而且发送失败不会自动revert( )回滚交易，几乎没人用
+
+Solidity 102-21 调用其他合约
+1 Name(address).f( ) 解析：name是目标合约或接口名字，address是目标合约地址，f是要调用的目标合约中的函数
+2 安全性依赖合约设计
+3 UI = user interface 用户界面
+4 interface 接口 （关键字interface表示你定义了一个接口）
+<!-- Content_END -->

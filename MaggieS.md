@@ -225,10 +225,84 @@ Modifiers are like rules that we can apply to functions. They allow us to add ex
 8. Events
 Events allow contracts to communicate with external applications. They are like messages that can be logged on the blockchain and listened to by other programs.
 
-It's the first time to write Step2 QA,
 
-using too much time to choose questions,it's little hard.
+### 2024.09.30
 
-I need more time to oganize today's two questions' answer.
+One benefit of learning solidity is to be calm down. Rome was not built in a day.
+
+I am a soooo lucky girl that Web3 is willing to love, protect and support me.  
+
+But it is precisely because I cherish this luck that we should take our time.  
+
+I also need to improve my ability in all aspects if one day Web3 needs me.  
+
+
+Someday he needs me, I can stand up and protect him. I know I can do it.
+
+But the premise is that I must go through enough tempering and growth.
+
+Is there a better opportunity than I can survive the hardest time alone?
+
+Maybe he would say he doesn't need it, but, I have to have this ability.
+
+
+
+Q1: If you want to be a solidity security auditor, what aspects do their safety reports include？
+
+A well-structured security audit report enables readers to grasp the key findings and recommendations quickly. 
+Consider incorporating the following components to achieve a clear, concise, and informative report:
+
+Executive Summary: Provide a high-level overview of the audit’s objectives, scope, methodology, and main findings, catering to non-technical decision-makers.
+
+Detailed Findings: Present an in-depth analysis of specific vulnerabilities, risks, and security issues identified during the audit.
+
+Risk Assessment: Quantify and prioritize the risks associated with each finding, helping stakeholders focus on the most significant areas.
+
+Recommendations: Offer actionable insights and remediation strategies tailored to the organization’s needs, resources, and goals.
+
+Conclusion: Summarize key takeaways and emphasize the value of addressing the identified risks and implementing the proposed recommendations.
+
+
+Q2: If you want to be a solidity security auditor,  to what extent should you learn solidity?
+
+There are so many details about Solidity in security audit reports,just like:
+
+1. Hardcoded Address:
+
+contracts/ComptrollerG4.sol [1379, 1433]
+The contract contains unknown address. This address might be used for some malicious activity.
+Please check hardcoded address and it's usage.
+
+Recommendation:
+It is required to check the address. Also, it is required to check the code of the called
+contract for vulnerabilities.
+
+2. Multiplication after division
+
+Solidity operates only with integers. Thus, if the division is done before the
+multiplication, the rounding errors can increase dramatically.
+● contracts/DAIInterestRateModelV3.sol [line: 83-86]
+● contracts/DAIInterestRateModelV3.sol [line: 94-94]
+
+Recommendation:
+Multiplication before division may increase the rounding precision.
+
+3.  Locked money
+   
+● contracts/Unitroller.sol [Line 10-148]
+Contracts programmed to receive ether should implement a way to withdraw it, i.e., call
+transfer (recommended), send, or call.value at least once.
+
+Recommendation:
+Implement a withdraw function or reject payments (contracts without a fallback function
+do it automatically).
+
+4. msg.value == 0 check
+   
+● contracts/CErc20Delegator.sol [Line: 453-453]
+The msg.value == 0 condition check is meaningless in most cases.
+
+Recommendation:
+Avoid meaningless checks
 
 <!-- Content_END -->

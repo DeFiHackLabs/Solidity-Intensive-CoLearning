@@ -566,4 +566,123 @@ C. 全局变量
 	•	全局变量： 在 Solidity 中没有明确的全局变量概念。如果指的是合约级别的变量，那么通常是指状态变量。
 
 ```
+
+
+### 2024.09.30
+#### 学习笔记
+
+
+
+
+**有如下一段合约代码，执行 initStudent 方法后，student. Id 和 student. Score 的值分别为**
+
+```
+contract StructTypes {
+    struct Student{
+        uint256 id;
+        uint256 score; 
+    }
+   Student student;
+   function initStudent() external{
+        student.id = 100;
+        student.score = 200;
+        Student storage _student = student;
+        _student.id = 300;
+        _student.score = 400;
+    }
+}
+```
+
+选择一个答案
+
+A. 300 400
+
+B. 100 200
+
+C. 300 200
+
+D. 100 400
+
+
+在这个题目当中，存在两个两个结构体；
+第一个结构体是初始的时候就有的结构体，这个时候初始结构体里面被赋值为了 100 和 200。
+第二次赋值，是对于新产生的 `_student` 进行赋值，这个时候对于 `_student.id` 和 `_student.score` 进行了赋值。
+但是此时需要注意的是，`_student` 来自于 `Student storage _student = student;`，所以他们变量的引用的位置是一致的，所以 `student.id` 和 `student.score` 的值也发生了改变。
+
+
+**可以作为 mapping 中值（value）的变量类型是**
+
+选择一个答案
+A. struct
+B. string
+C. address
+D. 以上均可
+返回上一题
+
+- **哈希碰撞：** 如果将 struct 作为 key，不同的 struct 可能计算出相同的哈希值，导致哈希碰撞，从而无法正确地从 mapping 中获取到对应的 value。
+- **复杂类型：** struct 通常包含多个成员变量，这些成员变量的类型可能不同，这使得哈希函数的实现变得复杂。
+- **版本差异：** 不同的 Solidity 版本中，struct 的哈希计算方式可能不同，这会导致在不同版本之间迁移合约时出现问题。
+
+说白了就是，mapping 是一张速查表，或者理解为一个储物柜，储物柜格子里面放什么都行，但是如果储物柜的标号总是乱改那就没法找到具体的储物柜了。
+
+
+
+**给映射变量 map 新增键值对的方法：**
+
+选择一个答案
+
+A. `map(_Key) = _Value;`
+
+B. `map[_Key] = _Value;`
+
+C. `map.push(_Key, _Value);`
+
+
+答案 B
+
+solidity 当中仅有动态数组支持 `push` 操作。
+
+
+
+### 2024.10.01
+#### 学习笔记
+
+
+ 4.在如下的合约中，我们定义了四个 immutable 的变量 y1, y2, y3, y4。
+
+```
+uint256 immutable y1;
+address immutable y2;
+address immutable y3;
+uint256 immutable y4;
+constructor (uint256 _y4){
+    y1 = block.number;
+    y2 = address(this);
+    y3 = msg.sender;
+    y4 = _y4;
+}
+```
+
+
+其中，确实有必要在构造函数 constructor 中才赋值的一项是：
+
+选择一个答案
+
+A. y1
+
+B. y2
+
+C. y3
+
+D. y4
+
+返回上一题
+
+答案为 y4 。
+
+```
+这里强调下关于编译时便定义的这个概念：像block.number、address(this)、msg.sender这些都是在编译时就会获取的，所以不用再去在构造函数的时候去赋值。
+```
+
+
 <!-- Content_END -->

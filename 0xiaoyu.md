@@ -590,8 +590,7 @@ function fe() external{} // external空白函数
   - 静态数组（定长）: 所有成员设为其默认值的静态数组
 
 示例代码：
-```
-solidity
+```solidity
 uint[8] public _staticArray; // 所有成员设为其默认值的静态数组[0,0,0,0,0,0,0,0]
 uint[] public _dynamicArray; // `[]`
 mapping(uint => address) public _mapping; // 所有元素都为其默认值的mapping
@@ -607,8 +606,7 @@ Student public student;
 `delete a` 会让变量 `a` 的值变为初始值。
 
 示例代码：
-```
-solidity
+```solidity
 bool public _bool2 = true; 
 function d() external {
     delete _bool2; // delete 会让_bool2变为默认值，false
@@ -625,6 +623,64 @@ function d() external {
 
 3. `delete` 操作符和将变量赋值为其类型的默认值有什么区别？
    - 从结果上看，两者是相同的。但 `delete` 操作符更加通用，可以用于任何类型，包括复杂的数据结构。此外，使用 `delete` 可能在某些情况下更节省 gas，因为它直接将存储槽重置为初始状态。
+  
+
+### 2024.09.30
+
+學習內容: 
+
+- [solidity-101 第九课  常数](https://www.wtf.academy/docs/solidity-101/Constant/)
+
+笔记
+
+#### constant（常量）
+- 必须在声明时初始化
+- 声明后不能更改值
+- 适用于数值变量、string 和 bytes
+
+示例代码：
+```solidity
+uint256 constant CONSTANT_NUM = 10;
+string constant CONSTANT_STRING = "0xAA";
+bytes constant CONSTANT_BYTES = "WTF";
+address constant CONSTANT_ADDRESS = 0x0000000000000000000000000000000000000000;
+```
+
+#### immutable（不变量）
+- 可以在声明时或构造函数中初始化
+- 初始化后不能更改值
+- 适用于数值变量，不适用于 string 和 bytes
+- 从 Solidity v8.0.21 开始，不需要显式初始化
+
+示例代码：
+```solidity
+uint256 public immutable IMMUTABLE_NUM = 9999999999;
+address public immutable IMMUTABLE_ADDRESS;
+uint256 public immutable IMMUTABLE_BLOCK;
+uint256 public immutable IMMUTABLE_TEST;
+
+constructor(){
+    IMMUTABLE_ADDRESS = address(this);
+    IMMUTABLE_NUM = 1118;
+    IMMUTABLE_TEST = test();
+}
+
+function test() public pure returns(uint256){
+    uint256 what = 9;
+    return(what);
+}
+```
+
+#### 思考与解答
+
+1. 为什么使用 constant 和 immutable 可以节省 gas？
+   - 使用 constant 和 immutable 可以节省 gas，因为这些变量的值在编译时就已确定，不需要在运行时从存储中读取。编译器可以直接将这些值硬编码到字节码中，减少了存储和读取操作，从而降低了 gas 消耗。
+
+2. constant 和 immutable 的主要区别是什么？在什么情况下应该选择使用 immutable 而不是 constant？
+   - 主要区别在于初始化时机和灵活性。constant 必须在声明时初始化，而 immutable 可以在构造函数中初始化。当变量的值需要在部署时动态确定，但之后不再改变时，应该使用 immutable。例如，合约拥有者的地址可能在部署时才能确定，这时就适合使用 immutable。
+
+3. 为什么 string 和 bytes 可以声明为 constant 但不能声明为 immutable？
+   - 这与 Solidity 的内部实现有关。constant 变量在编译时就完全确定，可以直接嵌入字节码。而 immutable 变量虽然也是常量，但其值是在构造函数中设置的。对于定长类型（如 uint、address），这种延迟初始化很容易实现。但对于不定长类型（如 string 和 bytes），在构造函数中初始化会涉及到复杂的存储分配问题，因此目前不支持将它们声明为 immutable。
 
 
 <!-- Content_END -->

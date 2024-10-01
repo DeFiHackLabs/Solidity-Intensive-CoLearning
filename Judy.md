@@ -1245,4 +1245,183 @@ Solidity 中的映射無法被遍歷，這是因為映射不會儲存鍵的清�
     - 當查詢一個不存在的鍵時，映射會返回默認值，而不是告知該鍵不存在。
     - 因此，當值類型有明確的默認值時（如 `uint` 的默認值為 `0`），可能需要額外的邏輯來判斷一個鍵是否實際存在。
 
+### 2024.09.30
+#### 變量初始值
+### 前言
+
+- 在 Solidity 中，所有變量在宣告後，若未經過初始化，都會自動設置為對應型別的**默認初始值**。
+- 默認初始值是基於變量的資料型別來決定的。
+- 了解這些默認值以及 `delete` 關鍵字的作用非常重要，可以幫助在管理智能合約中的狀態變量時避免意外行為。
+
+### 變量的初始值
+
+每種類型的默認初始值如下：
+
+- **`uint` 和 `int`**（無符號與有符號整數）：默認值為 `0`。
+- **`bool`**（布林型）：默認值為 `false`。
+- **`address`**（地址型）：默認值為 `0x0000000000000000000000000000000000000000` （0x + 40個0）。
+- **`bytes`（定長字節）**：默認為 `0x0000...`，填滿零。
+- **`mapping`**：映射中的每個鍵在初始時對應的值是其值類型的默認值（例如，`mapping(address => uint)` 中每個地址對應的值初始為 `0`）。
+- **`array`（陣列）**：動態陣列的長度默認為 `0`。定長陣列的每個元素為其類型的默認值。
+- **`struct`（結構體）**：結構體中的每個成員變數會被初始化為其型別的默認值。
+
+```solidity
+contract ExampleContract {
+    // Value Type
+    bool public _bool; // false
+    string public _string; // ""
+    int public _int; // 0
+    uint public _uint; // 0
+    address public _address; // 0x0000000000000000000000000000000000000000
+
+    enum ActionSet { Buy, Hold, Sell}
+    ActionSet public _enum; // 第1個Buy的索引0
+
+    function fi() internal{} // internal空白函数
+    function fe() external{} // external空白函数
+}
+```
+
+![image](https://github.com/user-attachments/assets/0f6fe1cb-3ee7-4b4c-9d94-7be40631fbd1)
+
+
+```solidity
+   	// Reference Types
+    uint[8] public _staticArray; // [0,0,0,0,0,0,0,0]
+    uint[] public _dynamicArray; // `[]`
+    mapping(uint => address) public _mapping; // 所有元素都為其默認值的mapping
+    
+    // 所有成員設為其默認值的結構體 0, 0
+    struct Student{
+        uint256 id;
+        uint256 score; 
+    }
+    Student public student;
+```
+
+![image](https://github.com/user-attachments/assets/98a38a9f-7498-47b0-8fde-319f7bf54983)
+
+
+### `delete` 關鍵字
+
+- 將變量重置為其默認初始值的操作。
+- 它可以用來重置任何變量，無論是基礎型別（例如 `uint`、`bool` 等），還是複合型別（例如陣列、結構體或映射中的特定鍵值）。
+- 範例：
+    
+    ```solidity
+    contract ExampleContract {
+        struct Person {
+            string name;
+            uint age;
+        }
+    
+        Person public person = Person("Alice", 30);
+    
+        function resetPerson() public {
+            delete person;  // 重置 person 的 name 為空字串，age 為 0
+        }
+    }
+    ```
+    
+    - deploy 起始值
+        
+        ![image](https://github.com/user-attachments/assets/7377d599-430a-439f-af0c-cb6d891b7303)
+
+        
+    - delete 後
+        
+        ![image](https://github.com/user-attachments/assets/95e42f8d-e735-4b43-aef1-2b7d70c05eeb)
+
+        
+
+### `delete` 的作用
+
+- **對基礎型別**：將變量設置為其型別的默認初始值。例如，對 `uint` 使用 `delete`，會將其重置為 `0`；對 `bool` 使用 `delete`，會將其設置為 `false`。
+- **對引用型別（陣列、映射等）**：`delete` 將引用型別的內容重置為初始狀態，例如清空陣列、刪除映射中的特定鍵值等。
+
+### 2024.10.01
+#### 常數的兩個關鍵字：const, immutable
+### 前言
+
+- 在 Solidity 中，**常數（constants）** 是不可變的值，
+- 常數一旦設置後，在合約的生命週期中就不能再更改。
+- Solidity 提供了兩個關鍵字來定義常數：**`constant`** 和 **`immutable`**。
+- 這兩個關鍵字都能提高合約的效率，並確保特定變數的值不會被篡改，但它們有不同的使用場景和特性。
+
+### 1. **`constant` 關鍵字**
+
+- 定義的變量必須在宣告時立即初始化，並且初始化的值必須是**編譯時已知的常量**。
+
+```solidity
+contract Example {
+	// 使用 constant 定義常數
+	uint256 public constant MY_CONSTANT = 100;
+	string public constant NAME = "Alice";
+	address public constant OWNER = 0x1234567890abcdef1234567890abcdef12345678;
+}
+```
+
+- **宣告**：在變量的類型後加上 `constant` 關鍵字。
+- **初始化**：`constant` 變量必須在宣告時進行初始化，且其值不可在合約的任何地方更改。
+- **效率**：`constant` 變量的值在編譯時期就會被確定，並直接嵌入到合約的字節碼中。這樣可以減少存儲需求，降低部署和運行時的 gas 消耗。
+
+### 2. **`immutable` 關鍵字**
+
+- `immutable` 允許定義在部署合約時設置一次且之後不可變更的變量。
+- 與 `constant` 不同，`immutable` 變量的值可以在合約的`建構函數（constructor）`中進行初始化，而不必在宣告時立即賦值。
+- `immutable` 只支持固定大小的型別
+- `string` 和 `bytes` 是動態大小的資料型別（長度不固定），不能用`immutable`
+
+```solidity
+uint256 public immutable IMMUTABLE_NUM = 9999999999;
+address public immutable IMMUTABLE_ADDRESS;
+uint256 public immutable IMMUTABLE_BLOCK;
+uint256 public immutable IMMUTABLE_TEST;
+
+// 利用constructor初始化immutable變量
+// 可以使用全局變量例如 address(this)、block.number 或者自定義的函數給 immutable 變量初始化
+// 在下面這個例子中，利用了 test() 函數給 IMMUTABLE_TEST 初始化為 9。
+constructor(){
+    IMMUTABLE_ADDRESS = address(this);
+    IMMUTABLE_NUM = 1118;
+    IMMUTABLE_TEST = test();
+}
+
+function test() public pure returns(uint256){
+    uint256 what = 9;
+    return(what);
+}
+```
+
+- 結果
+
+![image](https://github.com/user-attachments/assets/8df02d17-9669-46a0-b025-4eaaf8cdfb59)
+
+
+### `constant` 與 `immutable` 的比較
+
+| 特性 | `constant` | `immutable` |
+| --- | --- | --- |
+| **初始化時間** | 必須在宣告時賦值 | 可以在建構函數中初始化 |
+| **修改** | 無法修改，一旦設置後永遠不可改變 | 只能在建構函數中設置，之後不可更改 |
+| **編譯時/部署時** | 在編譯時設置 | 在合約部署時設置 |
+| **用途** | 用於編譯時已知的值 | 用於部署時期才確定的值 |
+| **Gas 效率** | 更高效（直接編譯進字節碼） | 高效，但稍差於 `constant` |
+| **存儲位置** | 嵌入到**合約的字節碼**中（contract bytecode） | 存儲在**合約的字節碼**中 |
+| **訪問效率** | **最高**效率，因為值直接嵌入字節碼中 | **高效率**，從合約字節碼中讀取，不涉及 `storage` |
+
+- 注意：**訪問效率** 和 **Gas 費用** 並不是完全相等的概念
+    - 定義：
+        - **訪問效率**：指的是訪問或操作變量所需的計算資源和時間。高效率的操作通常需要較少的計算步驟，例如直接從合約字節碼中讀取常數，而不涉及對區塊鏈上 `storage` 的存取，這樣的操作會被認為是高效的。
+        - **Gas 費用**：是以太坊網絡對計算和存儲操作的計費方式。每次在智能合約中執行的操作都會消耗一定的 Gas，操作越複雜或需要讀寫區塊鏈存儲的資源越多，消耗的 Gas 也就越多。因此，訪問效率高的操作通常需要更少的 Gas。
+    - 關係：
+        - 如果一個操作非常高效（例如直接從字節碼中讀取常數），它需要的 Gas 很少。
+        - 如果操作涉及存取區塊鏈的 `storage`（例如讀取或寫入存儲變量），則效率較低，並且需要更多的 Gas。
+
+### 為什麼這些關鍵字很重要？
+
+1. **安全性**：`constant` 和 `immutable` 能夠保證變量在合約的整個生命周期中保持不變，從而防止惡意或意外的變更，增強了合約的安全性。
+2. **節省 Gas**：這些變量不會儲存在永久性 `storage` 中，因此不需要消耗額外的存儲資源。這可以顯著降低合約的部署和執行成本。特別是 `constant`，其值直接嵌入到合約的字節碼中，這進一步提升了效率。
+3. **代碼的可讀性和明確性**：通過明確標記某些變量為不可變，可以幫助開發者更好地理解合約的邏輯和設計意圖，並使代碼更加易於維護。
+
 <!-- Content_END -->
