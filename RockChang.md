@@ -86,4 +86,5 @@ timezone: Asia/Taipei
 3. 如果再多去了解31章的ERC20，就可以完成defibootcamp的hw1作業task1
 
 ### 2024.10.01
+1. 因為今天時間比較不充裕，只有學到16章，並完成測驗
 <!-- Content_END -->
