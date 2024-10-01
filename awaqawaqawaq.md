@@ -143,14 +143,36 @@ storage（合约的状态变量）赋值给本地storage（函数里的）,memor
 - ABI编码
     -  ABI（Application Binary Interface）是以太坊和其他区块链平台中用于定义智能合约与外部应用程序（如前端、其他合约）之间交互的规范。
     -  abi.encode, 
-    -  abi.encodePacked, //压缩数据，无法正常吉奥胡
+    -  abi.encodePacked, //压缩数据，无法正常交互
     -  abi.encodeWithSignature, 
     -  abi.encodeWithSelector
     -  abi.encodeWithSelector(bytes4(0x533ba33a));**通过abi函数选择器，address(contract).staticcall(data)来调用相关函数**
 -  Hash
     -  生成数据唯一标识
     -  Solidity使用keccak256，返回一个32字节的哈希值。
-    
 
+### 2024.10.01
+-  Selector
+    -  4字节的函数选择器，**也就是8个16进制位**，用于标识函数
+    - msg.data 储存完整的calldata
+    -  bytes4(keccak256("transfer       (address,uint256)"))
+    - 映射类型参数 contract、enum、struct等，需要将该类型转化成为ABI类型。如：结构体User需要转化为tuple类型(uint256,bytes)，枚举类型School需要转化为uint8
+-  call
+    -  address(contract).call(data)
+    -  address(contract).call{value: 1 ether}(data)
+    -  address(contract).call{gas: 100000}(data)
+- Try Catch
+    -  try address(contract).call(data) returns (bool success, bytes memory returnData) {
+        // 处理返回值
+    } catch Error(string memory reason) {
+        // 处理错误
+         // catch失败的 revert() 和 require()
+    } catch (bytes memory) {
+        // 处理其他类型的错误
+        // catch失败的 assert()
+
+    }
+-  Revert
+    -  revert("Error message");
 
 <!-- Content_END -->
