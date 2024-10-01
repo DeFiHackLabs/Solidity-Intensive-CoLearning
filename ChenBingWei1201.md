@@ -496,6 +496,160 @@ In this section，I learned the `mapping` type in Solidity. So far, we've learne
 
 </details>
 
+### 2024.10.01
+<details>
+<summary>8. Initial Value</summary>
+
+#### Initial values of variables
+In Solidity, variables declared but not assigned have their initial/default values.
+
+##### Initial values of value types
+- `boolean`: `false`
+- `string`: `""`
+- `int`: `0`
+- `uint`: `0`
+- `enum`: first element in enumeration
+- `address`: `0x0000000000000000000000000000000000000000` (or `address(0)`)
+- `function`
+  - `internal`: blank function
+  - `external`: blank function
+You can use `getter` function of `public` variables to confirm the above initial values:
+```solidity
+    bool public _bool; // false
+    string public _string; // ""
+    int public _int; // 0
+    uint public _uint; // 0
+    address public _address; // 0x0000000000000000000000000000000000000000
+
+    enum ActionSet {Buy, Hold, Sell}
+    ActionSet public _enum; // first element 0
+
+    function fi() internal{} // internal blank function
+    function fe() external{} // external blank function
+```
+##### Initial values of reference types
+- `mapping`: a `mapping` which all members set to their default values
+- `struct`: a `struct` which all members set to their default values
+- `array`
+  - dynamic array: `[]`
+  - static array（fixed-length): a static array where all members set to their default values.
+
+You can use `getter` function of `public` variables to confirm initial values:
+```solidity
+    // reference types
+    uint[8] public _staticArray; // a static array which all members set to their default values[0,0,0,0,0,0,0,0]
+    uint[] public _dynamicArray; // `[]`
+    mapping(uint => address) public _mapping; // a mapping which all members set to their default values
+    // a struct which all members set to their default values 0, 0
+    struct Student{
+        uint256 id;
+        uint256 score; 
+    }
+    Student public student;
+```
+
+##### `delete` operator
+`delete a` will change the value of variable `a` to its initial value.
+```solidity
+    // delete operator
+    bool public _bool2 = true; 
+    function d() external {
+        delete _bool2; // delete will make _bool2 change to default(false)
+    }
+```
+
+#### Summary
+In this section, I learned the initial values of variables in Solidity. When a variable is declared but not assigned, its value defaults to the initial value, which is equivalent as 0 represented in its type. The delete operator can reset the value of the variable to the initial value.
+
+</details>
+
+<details>
+<summary>9. Constant and Immutable</summary>
+
+If a state variable is declared with `constant` or `immutable`, its value cannot be modified after contract compilation.
+
+Value-typed variables can be declared as constant and immutable; string and bytes can be declared as constant, but not immutable.
+#### constant and immutable
+
+##### constant
+`constant` variable must be initialized during declaration and cannot be changed afterwards. Any modification attempt will result in error at compilation. 
+```solidity
+    // The constant variable must be initialized when declared and cannot be changed after that
+    uint256 constant CONSTANT_NUM = 10;
+    string constant CONSTANT_STRING = "0xAA";
+    bytes constant CONSTANT_BYTES = "WTF";
+    address constant CONSTANT_ADDRESS = 0x0000000000000000000000000000000000000000;
+```
+##### immutable
+The `immutable` variable can be initialized during declaration or in the constructor, which is more flexible.
+```solidity
+    // The immutable variable can be initialized in the constructor and cannot be changed later
+    uint256 public immutable IMMUTABLE_NUM = 9999999999;
+    address public immutable IMMUTABLE_ADDRESS;
+    uint256 public immutable IMMUTABLE_BLOCK;
+    uint256 public immutable IMMUTABLE_TEST;
+```
+You can initialize the `immutable` variable using a global variable such as `address(this)`, `block.number`, or a custom function. In the following example, we use the `test()` function to initialize the `IMMUTABLE_TEST` variable to a value of `9`:
+```solidity
+    // The immutable variables are initialized with constructor, so that could use
+    constructor(){
+        IMMUTABLE_ADDRESS = address(this);
+        IMMUTABLE_BLOCK = block.number;
+        IMMUTABLE_TEST = test();
+    }
+
+    function test() public pure returns(uint256){
+        uint256 what = 9;
+        return(what);
+    }
+```
+#### Summary
+In this section, I learned two keywords to restrict modifications to their state in Solidity: `constant` and `immutable`. They keep the variables that should not be changed unchanged. It will help to save gas while improving the contract's security.
+
+#### Test
+2. In the following variable definition statement, the one that will report an error is:
+  (a) `string constant x5 = "hello world";`
+
+  (b) `address constant x6 = address(0);`
+
+  (c) `string immutable x7 = "hello world";`
+
+  (d) `address immutable x8 = address(0);`
+
+<details>
+<summary>answer</summary>
+
+(d) The `immutable` keyword can only be applied to state variables that are assigned once during contract construction. This means you cannot initialize an `immutable` variable with a value at the time of declaration like you're doing here.
+
+Instead, you should assign the value of an immutable variable inside the constructor. Here’s an example of how you can do it correctly:
+```solidity
+pragma solidity ^0.8.0;
+
+contract Example {
+    string public immutable x7;
+
+    constructor() {
+        x7 = "hello world";
+    }
+}
+```
+But why (b) is correct?
+Because `immutable` variables in Solidity can be assigned either inside the `constructor` or at the time of declaration, but only when they are assigned a constant or known value (like `address(0)`).
+
+Since address(0) is a constant value, this is allowed. Immutable variables just need to be set at some point during the contract's construction process, whether it's in the constructor or during declaration.
+```solidity
+pragma solidity ^0.8.0;
+
+contract Example {
+    address public immutable x8 = address(0);
+}
+```
+This works because `address(0)` is a known constant value, and you're assigning it at the time of declaration.
+
+</details>
+
+</details>
+
 ###
 
 <!-- Content_END -->
