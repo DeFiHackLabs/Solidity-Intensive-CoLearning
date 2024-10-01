@@ -308,6 +308,10 @@ Avoid meaningless checks
 
 ### 2024.10.01
 
+I recognize that I'm still a Solidity Baby.
+
+Answer the questions later. GN~
+
 Q1:
 
 Q2:
