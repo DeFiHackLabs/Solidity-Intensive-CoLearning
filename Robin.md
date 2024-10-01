@@ -523,29 +523,149 @@ contract Joker is Human,Work{
 }
 
 ```
-
-### 2024.09.28
+### 2024.09.30
 
 學習內容:
 
-- [x] 事件
-   - event 关键字申明事件  emit关键字发送事件
-   - EVM使用Log来存储事件。
-       - 每条日志包含 topics和data两部分。topics是一个最大长度为4的数组，第一个元素存储事件签名，后面三个可用于存储indexed索引。所以事件的索引最多三个
-       - data存储复杂数据，消耗的gas比topics小。
+- [x] 抽象合约
+   - abstract关键字修饰合约 
+   - 抽象合约中的函数可以缺少主体。
+   - 没有主体的函数要使用virtual关键字修饰
+   - 普通合约继承抽象合约，必须实现抽象合约中的所有未实现的函数
+- [x] 接口
+   - interface关键字修饰接口
+   - 不能包含状态变量
+   - 不能包含构造函数
+   - 不能继承除接口以外的其他合约
+   - 所有函数必须是external，且不能有函数体
+   - 继承接口的非抽象合约，必须实现接口定义的所有功能
+- [x] 异常
+   -  error: 定义异常，搭配revert使用, revert用于抛出异常
+   - require: 检查条件是否满足，不满足则抛出异常
+   - assert: 检查不可能发生的错误，如果发生则抛出异常
+   - error 灵活性高，方便高效且消耗gas少，推荐使用；require 书写方便，消耗gas比error多；assert 消耗gas最多，不推荐使用
 
 ```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.21;
 
-contract eventContract{
-    event CustomerEvent(address indexed from,string message);
+// 计算器接口
+interface Calculator {
+    // 折扣事件
+    event DiscountsEvent(address indexed owner, uint256 originPrice, uint256 discountsPrice);
+    // 根据当前价计算优惠力度并返回
+    function calcDiscounts(uint256 currentPrice) external pure returns(uint256);
+}
 
-    function emitEventFunction(string memory message) external {
-        emit CustomerEvent(msg.sender, message);
+// 电商计算器，实现计算接口
+abstract contract EBusinessCalculator is Calculator{
+    // 判断是否VIP
+    function _isVip(address owner) internal view virtual returns(bool);
+
+    // 根据当前加个进行折扣
+    function calcDiscounts(uint256 currentPrice) external pure  virtual  override  returns(uint256);
+
+    // 返回当前用户折扣后的价格
+    function discountPrice(address owner, uint256 currentPrice) public returns(uint256){
+        uint256 discountsPrice;
+        if(_isVip(owner)){
+            discountsPrice = currentPrice - this.calcDiscounts(currentPrice);
+        }else{
+            discountsPrice = currentPrice;
+        }
+        emit DiscountsEvent(owner, currentPrice, discountsPrice);
+        return discountsPrice;
+    }
+}
+
+
+// 京东商城折扣价计算
+contract JdCalculator is EBusinessCalculator{
+
+    // 自定义错误
+    error AddressError(address ads);
+
+    address public vip;
+    constructor(){
+        vip = msg.sender;
+    }
+      
+     function _isVip(address owner) internal view override  returns(bool){
+        if(owner == address(0)){
+            // 抛出异常
+            revert AddressError(owner);
+        }
+       return owner == vip;
+     }
+
+    function calcDiscounts(uint256 currentPrice) external pure override  returns(uint256){
+
+        if(currentPrice < 10){
+            return 0;
+        }
+        if(currentPrice < 50){
+            return 3;
+        }
+        if(currentPrice < 100){
+            return 5;
+        }
+        return 10;
     }
 }
 ```
 
+### 2024.10.01
+
+學習內容:
+
+- [x] 重载（修饰器不可重载）
+   -  重载就是名称相同，但是输入参数类型不同的函数可以同时存在，他们视为不同的函数，我们把它叫做重载
+        
+比如：
+
+  ```solidity
+
+            function add(uint256 a, uint256 b) public pure returns(uint256){
+                return a + b;
+            }
+            // 重载函数，函数名相同，参数不同，实现不同功能
+            function add(uint256 a ) public pure returns(uint256){
+                return a + 1;
+            }
+ ```
+- [x] 库合约
+        库合约类似工具库，他与普通合约的区别在于：
+- 不能存在状态变量
+- 不能继承或者被继承
+- 不能接收以太币
+- 不可以被销毁
+- 用关键字library声明库合约
+        
+        
+  比如：
+
+  ```solidity
+            library Math{
+                function add(uint256 a, uint256 b) public pure returns(uint256){
+                    return a + b;
+                }
+            }
+  ```
+        
+ - [x] 使用库合约：
+    -  利用using A for B 将库A附加到B
+    -  B 可以直接调用A中的函数，且函数的第一个参数是B
+    - 也可以直接调用A中的函数，但是需要传入第一个参数
+        
+        ```solidity
+            contract Test{
+                using Math for uint256;
+                
+                uint256 public result;
+                function test() public pure returns(uint256){
+                    return result.add(2);
+                }
+            }
+        ```
 
 <!-- Content_END -->

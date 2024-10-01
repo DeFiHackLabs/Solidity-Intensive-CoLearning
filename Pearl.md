@@ -777,4 +777,162 @@ contract structType{
           _owners[tokenId] = newOwner;
       }
       ```
+
+### 2024.09.30
+
+**重载**
+   * 名字相同但输入参数类型不同的函数可以同时存在，他们被视为不同的函数。
+   * Solidity不允许修饰器（`modifier`）重载。
+   * 函数重载:
+   ```Solidity
+   function saySomething() public pure returns(string memory){
+       return("Nothing");
+   }
+   
+   function saySomething(string memory something) public pure returns(string memory){
+       return(something);
+   }
+   ```
+![image](https://github.com/user-attachments/assets/562464eb-f093-46d6-8b24-23aeb101352d)
+
+   * 实参匹配（Argument Matching）:
+      * 在调用重载函数时，会把输入的实际参数和函数参数的变量类型做匹配。
+      * 如果出现多个匹配的重载函数，则会报错。
+     ```Solidity
+     function f(uint8 _in) public pure returns (uint8 out) {
+        out = _in;
+     }
+      
+     function f(uint256 _in) public pure returns (uint256 out) {
+        out = _in;
+     }
+     ```
+      * 调用`f(50)`，因为50既可以被转换为`uint8`，也可以被转换为`uint256`，因此会报错。
+        
+**库合约**
+   * 是一系列的函数合集
+   * 和普通合约的不同：
+     1. 不能存在状态变量
+     2. 不能够继承或被继承
+     3. 不能接收以太币
+     4. 不可以被销毁
+   * 函数可见性如果被设置为`public`或者`external`，则在调用函数时会触发一次`delegatecall`。如果被设置为`internal`，则不会引起。
+   * 对于设置为`private`可见性的函数来说，其仅能在库合约中可见，在其他合约中不可用。
+
+**Strings库合约**
+   * 将`uint256`类型转换为相应的`string`类型的代码库
+```Solidity
+   library Strings {
+       bytes16 private constant _HEX_SYMBOLS = "0123456789abcdef";
+   
+       /**
+        * @dev Converts a `uint256` to its ASCII `string` decimal representation.
+        */
+       function toString(uint256 value) public pure returns (string memory) {
+           // Inspired by OraclizeAPI's implementation - MIT licence
+           // https://github.com/oraclize/ethereum-api/blob/b42146b063c7d6ee1358846c198246239e9360e8/oraclizeAPI_0.4.25.sol
+   
+           if (value == 0) {
+               return "0";
+           }
+           uint256 temp = value;
+           uint256 digits;
+           while (temp != 0) {
+               digits++;
+               temp /= 10;
+           }
+           bytes memory buffer = new bytes(digits);
+           while (value != 0) {
+               digits -= 1;
+               buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
+               value /= 10;
+           }
+           return string(buffer);
+       }
+   
+       /**
+        * @dev Converts a `uint256` to its ASCII `string` hexadecimal representation.
+        */
+       function toHexString(uint256 value) public pure returns (string memory) {
+           if (value == 0) {
+               return "0x00";
+           }
+           uint256 temp = value;
+           uint256 length = 0;
+           while (temp != 0) {
+               length++;
+               temp >>= 8;
+           }
+           return toHexString(value, length);
+       }
+   
+       /**
+        * @dev Converts a `uint256` to its ASCII `string` hexadecimal representation with fixed length.
+        */
+       function toHexString(uint256 value, uint256 length) public pure returns (string memory) {
+           bytes memory buffer = new bytes(2 * length + 2);
+           buffer[0] = "0";
+           buffer[1] = "x";
+           for (uint256 i = 2 * length + 1; i > 1; --i) {
+               buffer[i] = _HEX_SYMBOLS[value & 0xf];
+               value >>= 4;
+           }
+           require(value == 0, "Strings: hex length insufficient");
+           return string(buffer);
+       }
+   }
+   ```
+   * 如何使用库合约:
+      1. 利用using for指令: 指令`using A for B`; 可用于附加库合约（从库 A）到任何类型（B）。添加完指令后，库A中的函数会自动添加为B类型变量的成员，可以直接调用。
+         * 在调用的时候，这个变量会被当作第一个参数传递给函数
+         ```Solidity
+         // 利用using for指令
+         using Strings for uint256;
+         function getString1(uint256 _number) public pure returns(string memory){
+             // 库合约中的函数会自动添加为uint256型变量的成员
+             return _number.toHexString();
+         }
+         ```
+      2. 通过库合约名称调用函数
+         ```Solidity
+         // 直接通过库合约名调用
+         function getString2(uint256 _number) public pure returns(string memory){
+             return Strings.toHexString(_number);
+         }
+         ```
+     ![image](https://github.com/user-attachments/assets/eddca6ba-278c-466f-a51a-7eed768b1323)
+两种方法均能返回正确的16进制string “0xaa”。证明我们调用库合约成功！
+
+###  2024.10.01
+
+複習
+**變量類型**
+   * 值類型: 布林、整數、地址、字節數組。直接傳遞數據。
+   * 引用類型: 字串、數組、結構體。只存指向數據的引用。
+      * 數組:
+        1. 固定長度array: 以`memory`修飾的動態數組，可用new創建，但必須宣告長度，且宣告後長度不能改變。
+        2. 可變長度array
+      * 結構體: 定義新的類型，裡面可以是值類型也可以是引用類型。本身也可作為數組或映射類型使用。
+   * 映射類型: mapping。只存在`stroage`。
+      * 透過key來查詢對應的value
+        
+**變量作用域**
+   * 狀態變量: 存在鏈上，合約內、函數外宣告，合約內函數皆可訪問，gas高。
+   * 局部變量: 存在記憶體上，函數內宣告，生命週期為函數執行期間，gas低。
+   * 全域變量: 在全域範圍工作，是Solidity預留的關鍵字，可不宣告就使用。
+      * eg. 乙太單位、時間單位
+     
+**函數**
+   * 需定義可見性: internal、external、public、private
+      * internal: 只能從本合約內部訪問，繼承的合約可使用。
+      * external: 只能從合約外部訪問(內部可通過`this.f()`調用)。
+      * public: 內外部均可見。
+      * private: 只能從本合約內部訪問，繼承的合約不可使用。
+   * 決定函數權限或功能: pure、view、payable
+      * pure: 不能讀也不能寫入鏈上
+      * view: 能讀不能寫入鏈上
+      * payable: 可支付的
+   * 返回: 命令式返回、解構式返回
+      * 命令式返回: `returns`中標明返回變量的名稱，會自動返回，不需使用return。
+      * 解構式返回: 聲明變量，將要賦值的變量用 , 隔開，依序排列。若是只讀取部分返回值，則留空。
 <!-- Content_END -->

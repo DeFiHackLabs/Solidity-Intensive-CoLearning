@@ -15,6 +15,46 @@ timezone: Asia/Shanghai
 ## Notes
 <!-- Content_START -->
 
+### 2024.10.01
+
+WTF103章节内容: 空投合约
+
+#### 笔记
+
+- 空投合约
+    
+    _to.call(value:amount){””}
+    这里的value默认单位为wei，如果需要发送ether，可以amount * 1 ether 来进行换算
+
+- 相关代码
+
+    [airdrop合约](https://github.com/eddiehsu66/SolidityCase/tree/main/Airdrop)
+
+### 2024.09.30
+
+WTF103章节内容：ERC20、代币水龙头
+
+#### 笔记
+
+- IERC20接口
+    
+    ```solidity
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address to, uint256 amount) external returns (bool);
+    function allowance(address owner, address spender) external view returns (uint256);
+    function approve(address spender, uint256 amount) external returns (bool);
+    function transferFrom(address from,address to,uint256 amount) external returns (bool);
+    ```
+    
+- 相关代码：
+
+    [erc20](https://github.com/eddiehsu66/SolidityCase/tree/main/ERC20)
+
+    [tokenFaucet](https://github.com/eddiehsu66/SolidityCase/tree/main/TokenFaucet)
+
 ### 2024.09.29
 
 WTF102章节内容：Hash、TryCatch

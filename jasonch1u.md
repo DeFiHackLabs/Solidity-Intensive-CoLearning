@@ -621,8 +621,8 @@ contract Events {
 }
 ```
 ### 2024.09.27
-* BootCamp作業(09.27~29)：建立ERC20合約、測試合約、鍊上互動
-* 建立ERC20合約
+* BootCamp任務：建立ERC20合約
+
 ```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
@@ -762,7 +762,6 @@ hw1 是一個預先配置的賬戶別名。
 ```
 cast wallet vanity --starts-with 1234
 ```
-
 #### 13_Inheritance
 * 基本語法: contract 子合約 is 父合約
 * virtual: 父合約中可被重寫的函數
@@ -875,7 +874,231 @@ contract MyDeFiProject {
 
 接口是智能合約開發中非常重要的工具，它允許不同合約之間進行標準化和類型安全的交互。通過接口，您可以與各種遵循特定標準的合約進行交互，而不需要了解這些合約的具體實現細節。
 
+### 2024.09.30
 #### 15_Errors
+1. Error
+* Solidity 0.8.4版本新增
+* 高效省gas
+* 可攜帶參數,有助於調試
+* 可在contract外定義
+使用方法: 
+```solidity
+error TransferNotOwner(); // 無參數
+error TransferNotOwner(address sender); // 帶參數
 
+// 使用時需配合revert
+if (condition) {
+    revert TransferNotOwner();
+    // 或 revert TransferNotOwner(msg.sender);
+}
+```
+2. Require
+* Solidity 0.8版本前的常用方法
+* 可提供錯誤描述,但gas隨描述長度增加
+使用方法: 
+```solidity
+require(condition, "Error message");
+```
+3. Assert
+* 主要用於開發者調試
+* 不提供錯誤描述
+使用方法: 
+```solidity
+assert(condition);
+```
+Gas消耗比較 (Solidity 0.8.17)
+1. Error: 24457 (帶參數: 24660)
+2. Require: 24755
+3. Assert: 24473
+
+注意事項
+* Error方法gas消耗最少,推薦使用
+* Solidity 0.8.0之前,assert會消耗所有剩餘gas
+* 具體gas消耗可能因部署時間而略有不同
+
+總結：Error方法既可提供錯誤信息,又能節省gas,是最佳選擇。在編寫智能合約時,應優先考慮使用Error來處理異常情況。
+
+#### 16_Overloading
+函數重載定義:
+* Solidity允許同名，但輸入參數類型不同的函數同時存在
+* 這些函數被視為不同的函數
+* 修飾器(modifier)不允許重載
+
+函數重載示例:
+```solidity
+function saySomething() public pure returns(string memory){
+    return("Nothing");
+}
+
+function saySomething(string memory something) public pure returns(string memory){
+    return(something);
+}
+```
+
+* 重載函數編譯:
+編譯後,重載函數會因輸入參數類型不同而有不同的函數選擇器(selector)
+
+* 什麼是函數選擇器?
+實參匹配:
+調用時會將輸入的實際參數與函數參數的變量類型做匹配
+如果出現多個匹配的重載函數，會報錯
+
+實參匹配示例:
+```solidity
+function f(uint8 _in) public pure returns (uint8 out) {
+    out = _in;
+}
+
+function f(uint256 _in) public pure returns (uint256 out) {
+    out = _in;
+}
+```
+調用f(50)會報錯，因為50既可以轉換為uint8也可以轉換為uint256
+
+uint8最大值255
+
+uint256最大值2^256-1
+
+這個案例如果輸入256是不是就不會報錯了? 因為會跑到uint256的參數去執行?
+>>>YES
+
+當一個值可以無損地轉換為多種類型時，才會出現報錯?
+>>>YES
+
+注意事項:
+
+* 重載函數在編譯後會有不同的函數選擇器
+* 調用時要注意參數類型，避免報錯
+
+#### 17_Library
+庫合約(Library)筆記
+1. 定義: 
+    * 庫合約是一種特殊的合約,用於提升代碼複用性和減少gas消耗。
+    * 它是一系列函數的集合,由開發者或項目方創建,供其他合約使用。
+
+2. 特點: 
+    * 不能存在狀態變量
+    * 不能繼承或被繼承
+    * 不能接收以太幣
+    * 不可被銷毀
+
+3. 函數可見性: 
+    * public/external: 調用時觸發delegatecall
+    * internal: 不觸發delegatecall
+    * private: 僅在庫合約內可見
+
+4. 使用方法: 
+    a. using for 指令: 
+    * 語法: using A for B;
+    * 將庫A的函數附加到類型B上
+    * 例: using Strings for uint256;
+
+ b. 直接通過庫名調用: 
+    * 例: Strings.toHexString(_number);
+
+* 常用庫合約: 
+    * Strings: uint256轉String
+    * Address: 判斷地址是否為合約地址
+    * Create2: 安全使用Create2 EVM opcode
+    * Arrays: 數組相關操作
+
+案例 - Strings庫: 
+   * 主要函數: 
+        * toString(): uint256轉string
+        * toHexString(): uint256轉16進制string
+   * 使用示例: 
+
+```solidity
+// 方法1: using for
+using Strings for uint256;
+function getString1(uint256 _number) public pure returns(string memory){
+    return _number.toHexString();
+}
+
+// 方法2: 直接調用
+function getString2(uint256 _number) public pure returns(string memory){
+    return Strings.toHexString(_number);
+}
+```
+* 優點: 
+    * 提高代碼複用性
+    * 減少gas消耗
+    * 利用經過審計的代碼,提高安全性
+    * 簡化開發過程
+
+* 注意事項: 
+    * 大多數開發者不需要自己編寫庫合約
+    * 重點在於了解何時使用哪種庫合約
+    * 使用前應確保理解庫合約的功能和限制
+
+#### 18_Import
+作用:在一個文件中引用另一個文件的內容，提高代碼的可重用性和組織性
+
+import的位置:
+1. 在聲明版本號之後
+2. 在其餘代碼之前
+
+import的用法:
+```solidity
+a. 通過源文件相對位置導入:
+solidityCopyimport './Yeye.sol';
+b. 通過源文件網址導入:
+solidityCopyimport 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+c. 通過npm的目錄導入:
+solidityCopyimport '@openzeppelin/contracts/access/Ownable.sol';
+d. 通過指定全局符號導入特定的全局符號:
+solidityCopyimport {Yeye} from './Yeye.sol';
+```
+文件結構示例:
+```solidity
+├── Import.sol
+└── Yeye.sol
+```
+測試導入結果:
+可以通過以下代碼測試是否成功導入外部源代碼:
+```solidity
+solidityCopy// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+```
+```solidity
+import './Yeye.sol';
+import {Yeye} from './Yeye.sol';
+import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+import '@openzeppelin/contracts/access/Ownable.sol';
+```
+```solidity
+contract Import {
+    using Address for address;
+    Yeye yeye = new Yeye();
+
+    function test() external{
+        yeye.hip();
+    }
+}
+```
+優點:
+* 可以引用自己寫的其他文件中的合約或函數
+* 可以直接導入他人寫好的代碼
+* 提高開發效率
+* 促進代碼模塊化和重用
+
+注意事項:
+* 確保導入的代碼來源可靠
+* 注意版本兼容性
+* 避免循環依賴
+* 合理組織項目結構,便於管理導入
+
+常見用途:
+* 導入標準庫(如OpenZeppelin)
+* 導入接口定義
+* 導入共用的工具函數或合約
+
+總結：import語句是Solidity中重要的代碼組織工具，能夠有效提高開發效率和代碼質量。開發者應熟練掌握不同的import方法，並在項目中合理使用，以實現代碼的模塊化和重用
+
+### 2024.10.01
+
+#### ERC20
+#### ERC721
+#### ERC1155
 
 <!-- Content_END -->

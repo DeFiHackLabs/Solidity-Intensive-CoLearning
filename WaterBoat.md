@@ -785,6 +785,114 @@ function writeMap (uint _Key, address _Value) public{
 - **原理2**: 映射使用`keccak256(abi.encodePacked(key, slot))`当成offset存取value，其中`slot`是映射变量定义所在的插槽位置。
 - **原理3**: 因为Ethereum会定义所有未使用的空间为0，所以未赋值（`Value`）的键（`Key`）初始值都是各个type的默认值，如uint的默认值是0。
 
+#### 2024.09.30
+
+#### 变量初始值
+
+概念性东西看一下有个印象就行了
+
+- `boolean`: `false`
+
+- `string`: `""`
+
+- `int`: `0`
+
+- `uint`: `0`
+
+- `enum`: 枚举中的第一个元素
+
+- `address`: `0x0000000000000000000000000000000000000000` (或 `address(0)`)
+
+- ```
+  function
+  ```
+
+  - `internal`: 空白函数
+  - `external`: 空白函数
+
+- 映射`mapping`: 所有元素都为其默认值的`mapping`
+
+- 结构体`struct`: 所有成员设为其默认值的结构体
+
+- 数组
+
+  ```
+  array
+  ```
+
+  - 动态数组: `[]`
+  - 静态数组（定长）: 所有成员设为其默认值的静态数组
+
+
+
+#### `delete`操作符
+
+`delete a`会让变量`a`的值变为初始值。
+
+```solidity
+// delete操作符
+bool public _bool2 = true; 
+function d() external {
+    delete _bool2; // delete 会让_bool2变为默认值，false
+}
+```
+
+#### 2024.10.01
+
+#### 常数 constant 和 immutable
+
+`constant`（常量）和`immutable`（不变量）。状态变量声明这两个关键字之后，不能在初始化后更改数值。这样做的好处是提升合约的安全性并节省`gas`。
+
+另外，只有数值变量可以声明`constant`和`immutable`；`string`和`bytes`可以声明为`constant`，但不能为`immutable`。
+
+
+
+#### constant 和 immutable
+
+##### constant 常量
+
+常量必须声明的时候初始化,之后无法进行更改
+
+```sol
+uint256 constant CONSTANT_NUM = 10;
+```
+
+
+
+##### immutable 不变量
+
+不变量可以在声明时或构造函数中初始化,因此更加灵活。
+
+在`Solidity v8.0.21`以后，`immutable`变量不需要显式初始化。反之，则需要显式初始化。 
+
+若`immutable`变量既在声明时初始化，又在constructor中初始化，会使用constructor初始化的值。
+
+
+
+```sol
+// immutable变量可以在constructor里初始化，之后不能改变
+uint256 public immutable IMMUTABLE_NUM = 9999999999;
+address public immutable IMMUTABLE_ADDRESS;
+uint256 public immutable IMMUTABLE_BLOCK;
+uint256 public immutable IMMUTABLE_TEST;
+```
+
+你可以使用全局变量例如`address(this)`，`block.number` 或者自定义的函数给`immutable`变量初始化。在下面这个例子，我们利用了`test()`函数给`IMMUTABLE_TEST`初始化为`9`
+
+```sol
+// 利用constructor初始化immutable变量，因此可以利用
+constructor(){
+    IMMUTABLE_ADDRESS = address(this);
+    IMMUTABLE_NUM = 1118;
+    IMMUTABLE_TEST = test();
+}
+
+function test() public pure returns(uint256){
+    uint256 what = 9;
+    return(what);
+}
+```
+
 
 
 

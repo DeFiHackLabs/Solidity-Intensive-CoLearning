@@ -667,6 +667,284 @@ abstract contract InsertionSort{
     function insertionSort(uint[] memory a) public pure virtual returns(uint[] memory);
 }
 ```
+### 2024.09.30
+
+#### 接口(interface)
+類似抽象合約，但不實現任何功能。  
+* 規則：
+    1. 不能包含狀態變量
+    2. 不能包含構造函數
+    3. 不能繼承接口以外的其他合約
+    4. 所有函數都必須是external且不能有函數體
+    5. 繼承 interface 的非抽象合約必須實現 interface 定義的所有功能  
+
+interface 是智能合約的骨架，定義了合約的功能及如何觸發，若合約實現了某種接口，ex.`ERC20`、`ERC721`，其他`Dapps`和合約就知道該如何與此智能合約交互。  
+* 作用：
+    1. 標準化交互：  
+    如果某個智能合約實現了一個通用的接口（如 ERC20 或 ERC721），那麼其他合約或應用程序就能根據這個接口來與其互動，有助於跨平台、跨合約之間的兼容性。
+    2. 定義合約中的功能：  
+    接口會定義每個函數的名稱和參數類型，以及這些函數如何被調用，這相當於描述了合約的公共 API。
+    3. 定義每個函數哈希(`bytes4`選擇器)、函數簽名(`函數名(每個參數類型)`)，以通過對函數的簽名進行哈希後得到獨特的4字節哈希。  
+        ```Solidity
+        keccak256("transfer(address,uint256)").slice(0, 4)
+        ```
+    4. 接口 ID：  
+    接口 ID 是一個唯一的標識符，用來表示某個合約是否實現了某個接口。
+
+
+```Solidity
+interface IERC721 is IERC165 {
+    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+    event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
+    event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
+    
+    function balanceOf(address owner) external view returns (uint256 balance);
+
+    function ownerOf(uint256 tokenId) external view returns (address owner);
+
+    function safeTransferFrom(address from, address to, uint256 tokenId) external;
+
+    function transferFrom(address from, address to, uint256 tokenId) external;
+
+    function approve(address to, uint256 tokenId) external;
+
+    function getApproved(uint256 tokenId) external view returns (address operator);
+
+    function setApprovalForAll(address operator, bool _approved) external;
+
+    function isApprovedForAll(address owner, address operator) external view returns (bool);
+
+    function safeTransferFrom( address from, address to, uint256 tokenId, bytes calldata data) external;
+}
+```
+
+#### 什麼時候使用interface?
+若知道一個合約實現了`IERC721`，不需要知道他的具體程式實現就可以與之交互。  
+ex.  
+```Solidity
+contract interactBAYC {
+    // 利用BAYC地址创建接口合约变量（ETH主网）
+    IERC721 BAYC = IERC721(0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D);
+
+    // 通过接口调用BAYC的balanceOf()查询持仓量
+    function balanceOfBAYC(address owner) external view returns (uint256 balance){
+        return BAYC.balanceOf(owner);
+    }
+
+    // 通过接口调用BAYC的safeTransferFrom()安全转账
+    function safeTransferFromBAYC(address from, address to, uint256 tokenId) external{
+        BAYC.safeTransferFrom(from, to, tokenId);
+    }
+}
+```
+
+#### 異常
+異常命令可以幫助尋找錯誤。  
+* `error`：可以在`contract`之外拋出異常，高效且方便的向用戶解釋操作失敗的原因，且在拋出異常時可攜帶參數。  
+ex.定義`TransferNotOwner`異常，當用戶不是貨幣`owner`時轉帳會拋出錯誤。  
+    ```Solidity
+    error TransferNotOwner(); // 自定义error
+
+    // 攜帶參數的異常，以提示轉帳的帳戶地址
+    error TransferNotOwner(address sender); // 自定义的带参数的error
+    ```
+    `error`需搭配`revert`命令使用：  
+    當用戶不是貨幣`owner`時轉帳會拋出錯誤，否則成功轉帳。  
+    ```Solidity
+    function transferOwner1(uint256 tokenId, address newOwner) public {
+        if(_owners[tokenId] != msg.sender){
+            revert TransferNotOwner();
+            // revert TransferNotOwner(msg.sender);
+        }
+        _owners[tokenId] = newOwner;
+    }
+    ```
+* `require`：消耗的gas比`error`高，且會隨著描述異常的字符串長度增加，gas也隨之增加。  
+    * 使用方法：`require(檢查條件，"異常的描述")`，檢查條件不成立時，拋出異常。  
+    ```Solidity
+    function transferOwner2(uint256 tokenId, address newOwner) public {
+        require(_owners[tokenId] == msg.sender, "Transfer Not Owner");
+        _owners[tokenId] = newOwner;
+    }
+    ```
+* `assert`：不能解釋拋出異常的原因(相較`require`少了字符串)，但仍會在檢查條件不成立時拋出異常。
+    ```Solidity
+    function transferOwner3(uint256 tokenId, address newOwner) public {
+        assert(_owners[tokenId] == msg.sender);
+        _owners[tokenId] = newOwner;
+    }
+    ```
+#### 驗證
+輸入任意數字、非0地址，呼叫以各種語法寫的異常訊息。  
+<img src="https://github.com/user-attachments/assets/eb044a25-9abd-401b-9fa1-3ecaf76f8d55" height="160px" width="640px" />  
+<img src="https://github.com/user-attachments/assets/fe715ee9-c9be-4db7-ae31-168af6192a1e" height="155px" width="640px" />  
+<img src="https://github.com/user-attachments/assets/5c7d044b-ac35-48b5-afe6-62e615b4a2ce" height="115px" width="640px" />  
+
+* `error`方法`gas`消耗：24457(加入參數後`gas`消耗：24660)
+* `require`方法`gas`消耗：24755
+* `assert`方法`gas`消耗：24473  
+`error`方法`gas`消耗最少，`require`方法消耗最多，因此在求最小`gas`消耗下可以多加使用`error`。
+
+### 2024.10.01
+
+#### 重載`overload`
+重載意即名稱相同但輸入參數類型不同的函數可以同時存在，且視為不同的函數。  
+```Solidity
+function saySomething() public pure returns(string memory){
+    return("Nothing");
+}
+
+function saySomething(string memory something) public pure returns(string memory){
+    return(something);
+}
+```  
+#### 實參匹配`Argument Matching`  
+在呼叫`overload`函數時，會把輸入的實際參數和函數參數的變量做匹配。若出現多個匹配的重載函數，會報錯。  
+ex.若呼叫`f()`，且傳入`50`，因為`50`可以被轉換為`uint8`，也可以被轉換為`uint256`，因此會報錯。
+```Solidity
+function f(uint8 _in) public pure returns (uint8 out) {
+    out = _in;
+}
+
+function f(uint256 _in) public pure returns (uint256 out) {
+    out = _in;
+}
+```
+
+> Solidity中是否允许修饰器（modifier）> 重载？  
+> 选择一个答案  
+> A. 允许
+> B. 不允许
+>
+> ANS：B. 不允许  
+>解釋：
+>Solidity 中不允許修飾器（modifier）重載。修飾器是用來修改函數行為的一段代碼邏輯，它不能像函數那樣通過不同的參數來進行重載。每個修飾器必須有唯一的名稱，且不能有相同名稱但不同參數的多個修飾器。
+
+> 下面两个函数的函数选择器是否相同？
+> ```solidity
+> function f(uint8 _in) public pure returns (uint8 out) { 
+> out = _in; 
+> } 
+>
+> function f(uint256 _in) public pure returns (uint256 out) { 
+> out = _in; 
+> }
+> 
+> A. 相同
+> B. 不相同
+> ANS:B
+
+#### 庫合約
+為一種特殊的合約，目的是為了提升程式的復用性和減少gas。庫合約是一系列的函數合集。  
+* 相較普通合約的特殊點：
+    1. 不能存在狀態變量
+    2. 不能繼承或被繼承
+    3. 不能接收以太幣
+    4. 不可以被銷毀  
+
+庫合約中函數的可見性若被設為`public`或`external`，則在呼叫函數時會觸發一次`delegatecall`。設為`internal`，則不會引起。設為`private`的函數僅能在庫合約中可見。
+
+#### Strings庫合約
+`Strings庫合約`是將`uint256`類型轉換為`string`類型的程式庫。  
+
+ex.以下的程式主要包含兩個函數，`toString()`將`uint256`轉換為`string`，`toHexString()`將`uint256`轉換為`16進制`，再轉換為`string`。  
+```Solidity
+library Strings {
+    bytes16 private constant _HEX_SYMBOLS = "0123456789abcdef";
+
+    /**
+     * @dev Converts a `uint256` to its ASCII `string` decimal representation.
+     */
+    function toString(uint256 value) public pure returns (string memory) {
+        // Inspired by OraclizeAPI's implementation - MIT licence
+        // https://github.com/oraclize/ethereum-api/blob/b42146b063c7d6ee1358846c198246239e9360e8/oraclizeAPI_0.4.25.sol
+
+        if (value == 0) {
+            return "0";
+        }
+        uint256 temp = value;
+        uint256 digits;
+        while (temp != 0) {
+            digits++;
+            temp /= 10;
+        }
+        bytes memory buffer = new bytes(digits);
+        while (value != 0) {
+            digits -= 1;
+            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
+            value /= 10;
+        }
+        return string(buffer);
+    }
+
+    /**
+     * @dev Converts a `uint256` to its ASCII `string` hexadecimal representation.
+     */
+    function toHexString(uint256 value) public pure returns (string memory) {
+        if (value == 0) {
+            return "0x00";
+        }
+        uint256 temp = value;
+        uint256 length = 0;
+        while (temp != 0) {
+            length++;
+            temp >>= 8;
+        }
+        return toHexString(value, length);
+    }
+
+    /**
+     * @dev Converts a `uint256` to its ASCII `string` hexadecimal representation with fixed length.
+     */
+    function toHexString(uint256 value, uint256 length) public pure returns (string memory) {
+        bytes memory buffer = new bytes(2 * length + 2);
+        buffer[0] = "0";
+        buffer[1] = "x";
+        for (uint256 i = 2 * length + 1; i > 1; --i) {
+            buffer[i] = _HEX_SYMBOLS[value & 0xf];
+            value >>= 4;
+        }
+        require(value == 0, "Strings: hex length insufficient");
+        return string(buffer);
+    }
+}
+```
+
+#### 如何使用庫合約
+1. 利用using for指令：  
+`using A for B;`，用於附加合約(從庫A)到任何類型(B)。執行完畢後，庫A中的函數會自動添加為B類型變量的成員，並可以直接呼叫。  
+```Solidity
+// 利用using for指令
+using Strings for uint256;
+function getString1(uint256 _number) public pure returns(string memory){
+    // 库合约中的函数会自动添加为uint256型变量的成员
+    return _number.toHexString();
+}
+```
+
+2. 通過庫合約名稱呼叫函數：
+```Solidity
+// 直接通过库合约名调用
+function getString2(uint256 _number) public pure returns(string memory){
+    return Strings.toHexString(_number);
+}
+```
+
+> Q：库合约和普通合约的区别，下列描述错误的是：  
+> 
+> A. 库合约不能存在状态变量  
+> B. 库合约不能继承  
+> C. 库合约可以被继承  
+> D. 库合约不能被销毁  
+> 
+> A：C，庫合約不能被繼承，這使得它與普通合約不同。
+
+
+**常用庫合約**  
+* `Strings`：將`uint256`轉換為`String`。
+* `Address`：判斷某個地址是否為合約的地址。
+* `Create2`：更安全的使用`Create2 EVM opcode`。
+* `Arrays`：跟數組相關的庫合約。
 
 
 <!-- Content_END -->

@@ -687,6 +687,331 @@ contract mapTypes {
 }
 ```
 
+### 2024.09.29
+
+#### 变量初始值
+
+声明但没赋值的变量都有它的初始值或默认值
+
+##### 值类型初始值[](https://www.wtf.academy/docs/solidity-101/InitialValue/#值类型初始值)
+
+- `boolean`: `false`
+
+- `string`: `""`
+
+- `int`: `0`
+
+- `uint`: `0`
+
+- `enum`: 枚举中的第一个元素
+
+- `address`: `0x0000000000000000000000000000000000000000` (或 `address(0)`)
+
+- ```
+  function
+  ```
+
+  - `internal`: 空白函数
+  - `external`: 空白函数
+
+可以用`public`变量的`getter`函数验证上面写的初始值是否正确：
+
+```solidity
+bool public _bool; // false
+string public _string; // ""
+int public _int; // 0
+uint public _uint; // 0
+address public _address; // 0x0000000000000000000000000000000000000000
+
+enum ActionSet { Buy, Hold, Sell}
+ActionSet public _enum; // 第1个内容Buy的索引0
+
+function fi() internal{} // internal空白函数
+function fe() external{} // external空白函数 
+```
+
+
+
+##### 引用类型初始值[](https://www.wtf.academy/docs/solidity-101/InitialValue/#引用类型初始值)
+
+- 映射`mapping`: 所有元素都为其默认值的`mapping`
+
+- 结构体`struct`: 所有成员设为其默认值的结构体
+
+- 数组
+
+  ```
+  array
+  ```
+
+  - 动态数组: `[]`
+  - 静态数组（定长）: 所有成员设为其默认值的静态数组
+
+可以用`public`变量的`getter`函数验证上面写的初始值是否正确：
+
+```solidity
+// Reference Types
+uint[8] public _staticArray; // 所有成员设为其默认值的静态数组[0,0,0,0,0,0,0,0]
+uint[] public _dynamicArray; // `[]`
+mapping(uint => address) public _mapping; // 所有元素都为其默认值的mapping
+// 所有成员设为其默认值的结构体 0, 0
+struct Student{
+    uint256 id;
+    uint256 score; 
+}
+Student public student;
+```
+
+
+
+##### `delete`操作符[](https://www.wtf.academy/docs/solidity-101/InitialValue/#delete操作符)
+
+`delete a`会让变量`a`的值变为初始值。
+
+```solidity
+// delete操作符
+bool public _bool2 = true; 
+function d() external {
+    delete _bool2; // delete 会让_bool2变为默认值，false
+}
+```
+
+#### 常数
+
+Constant, inmutable
+
+状态变量声明这两个关键字之后，不能在初始化后更改数值。这样做的好处是提升合约的安全性并节省`gas`。
+
+只有数值变量可以声明`constant`和`immutable`；`string`和`bytes`可以声明为`constant`，但不能为`immutable`。
+
+##### constant
+
+变量必须在声明的时候初始化，之后再也不能改变。尝试改变的话，编译不通过。
+
+```solidity
+// constant变量必须在声明的时候初始化，之后不能改变
+uint256 constant CONSTANT_NUM = 10;
+string constant CONSTANT_STRING = "0xAA";
+bytes constant CONSTANT_BYTES = "WTF";
+address constant CONSTANT_ADDRESS = 0x0000000000000000000000000000000000000000;
+```
+
+
+
+##### immutable
+
+变量可以在声明时或构造函数中初始化，因此更加灵活。在`Solidity v8.0.21`以后，`immutable`变量不需要显式初始化。反之，则需要显式初始化。 若`immutable`变量既在声明时初始化，又在constructor中初始化，会使用constructor初始化的值。
+
+```solidity
+// immutable变量可以在constructor里初始化，之后不能改变
+uint256 public immutable IMMUTABLE_NUM = 9999999999;
+address public immutable IMMUTABLE_ADDRESS;
+uint256 public immutable IMMUTABLE_BLOCK;
+uint256 public immutable IMMUTABLE_TEST;
+```
+
+
+
+你可以使用全局变量例如`address(this)`，`block.number` 或者自定义的函数给`immutable`变量初始化。
+
+```solidity
+// 利用constructor初始化immutable变量，因此可以利用
+constructor(){
+    IMMUTABLE_ADDRESS = address(this);
+    IMMUTABLE_NUM = 1118;
+    IMMUTABLE_TEST = test();
+}
+
+function test() public pure returns(uint256){
+    uint256 what = 9;
+    return(what);
+}
+```
+
+##### 代码块
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+// 常数
+contract constType {
+    
+    // 创建常量，不可以修改
+    uint public constant money = 10; // 10
+
+    // function changeMoney() external {
+        // 下面一行代码会报错
+        // money = 20;
+    // }
+
+    uint public immutable point; // 99
+    uint public immutable pointNum = 5; // 9
+
+    // 创建immutable需要使用
+    constructor() {
+        point = 99;
+    }
+
+}
+```
+
+#### 控制流
+
+##### 控制流[](https://www.wtf.academy/docs/solidity-101/InsertionSort/#控制流)
+
+`Solidity`的控制流与其他语言类似，主要包含以下几种：
+
+1. `if-else`
+
+   ```solidity
+   function ifElseTest(uint256 _number) public pure returns(bool){
+       if(_number == 0){
+           return(true);
+       }else{
+           return(false);
+       }
+   }
+   ```
+
+   
+
+2. `for循环`
+
+   ```solidity
+   function forLoopTest() public pure returns(uint256){
+       uint sum = 0;
+       for(uint i = 0; i < 10; i++){
+           sum += i;
+       }
+       return(sum);
+   }
+   ```
+
+   
+
+3. `while循环`
+
+   ```solidity
+   function whileTest() public pure returns(uint256){
+       uint sum = 0;
+       uint i = 0;
+       while(i < 10){
+           sum += i;
+           i++;
+       }
+       return(sum);
+   }
+   ```
+
+   
+
+4. `do-while循环`
+
+   ```solidity
+   function doWhileTest() public pure returns(uint256){
+       uint sum = 0;
+       uint i = 0;
+       do{
+           sum += i;
+           i++;
+       }while(i < 10);
+       return(sum);
+   }
+   ```
+
+   
+
+5. `三元运算符`
+
+   三元运算符是`Solidity`中唯一一个接受三个操作数的运算符，规则`条件? 条件为真的表达式:条件为假的表达式`。此运算符经常用作`if`语句的快捷方式。
+
+   ```solidity
+   // 三元运算符 ternary/conditional operator
+   function ternaryTest(uint256 x, uint256 y) public pure returns(uint256){
+       // return the max of x and y
+       return x >= y ? x: y; 
+   }
+   ```
+
+   
+
+另外还有`continue`（立即进入下一个循环）和`break`（跳出当前循环）关键字可以使用。
+
+用`Solidity`实现插入排序[](https://www.wtf.academy/docs/solidity-101/InsertionSort/#用solidity实现插入排序)
+
+**写在前面：90%以上的人用`Solidity`写插入算法都会出错。**
+
+###### 插入排序[](https://www.wtf.academy/docs/solidity-101/InsertionSort/#插入排序)
+
+```solidity
+// 插入排序 正确版
+function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
+    // note that uint can not take negative value
+    for (uint i = 1;i < a.length;i++){
+        uint temp = a[i];
+        uint j=i;
+        while( (j >= 1) && (temp < a[j-1])){
+            a[j] = a[j-1];
+            j--;
+        }
+        a[j] = temp;
+    }
+    return(a);
+}
+```
+
+### 2024.09.30
+
+#### 构造函数和修改器
+
+##### 构造函数
+
+构造函数（`constructor`）是一种特殊的函数，每个合约可以定义一个，并在部署合约的时候自动运行一次。它可以用来初始化合约的一些参数，例如初始化合约的`owner`地址：
+
+```solidity
+address owner; // 定义owner变量
+
+// 构造函数
+constructor(address initialOwner) {
+    owner = initialOwner; // 在部署合约的时候，将owner设置为传入的initialOwner地址
+}
+```
+
+
+
+##### 修饰器
+
+修饰器（`modifier`）是`Solidity`特有的语法，类似于面向对象编程中的装饰器（`decorator`），声明函数拥有的特性，并减少代码冗余。它就像钢铁侠的智能盔甲，穿上它的函数会带有某些特定的行为。`modifier`的主要使用场景是运行函数前的检查，例如地址，变量，余额等。
+
+我们来定义一个叫做onlyOwner的modifier：
+
+```solidity
+// 定义modifier
+modifier onlyOwner {
+   require(msg.sender == owner); // 检查调用者是否为owner地址
+   _; // 如果是的话，继续运行函数主体；否则报错并revert交易
+}
+```
+
+
+
+带有`onlyOwner`修饰符的函数只能被`owner`地址调用，比如下面这个例子：
+
+```solidity
+function changeOwner(address _newOwner) external onlyOwner{
+   owner = _newOwner; // 只有owner地址运行这个函数，并改变owner
+}
+```
+
+
+
+我们定义了一个`changeOwner`函数，运行它可以改变合约的`owner`，但是由于`onlyOwner`修饰符的存在，只有原先的`owner`可以调用，别人调用就会报错。这也是最常用的控制智能合约权限的方法。
+
+OpenZeppelin的Ownable标准实现
+
+`OpenZeppelin`是一个维护`Solidity`标准化代码库的组织，他的`Ownable`标准实现如下： https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/Ownable.sol
+
 
 
 

@@ -1306,4 +1306,280 @@ timezone: Asia/Shanghai
 
         - 当合约中有selfdestruct功能时常常会带来安全问题和信任问题，合约中的selfdestruct功能会为攻击者打开攻击向量(例如使用selfdestruct向一个合约频繁转入token进行攻击，这将大大节省了GAS的费用，虽然很少人这么做)，此外，此功能还会降低用户对合约的信心。
 ###
+
+### 2024.09.30
+
+学习内容:
+1. 第二十七讲
+    
+    - `ABI` (Application Binary Interface，应用二进制接口)是与以太坊智能合约交互的标准。数据基于他们的类型编码；并且由于编码后不包含类型信息，解码时需要注明它们的类型。
+    
+    - `ABI编码`函数
+
+            ```Solidity
+
+            // 编码示例数据
+            uint x = 10;
+            address addr = 0x7A58c0Be72BE218B41C608b7Fe7C5bB630736C71;
+            string name = "0xAA";
+            uint[2] array = [5, 6]; 
+            ```
+
+        - `abi.encode` - 将每个参数填充为`32字节`的数据，并拼接在一起，常用于智能合约交互
+
+            ```Solidity
+
+            function encode() public view returns(bytes memory result) {
+                result = abi.encode(x, addr, name, array);
+            }
+            // 编码结果 由于abi.encode将每个数据都填充为32字节，中间有很多0
+            // 0x000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000043078414100000000000000000000000000000000000000000000000000000000
+            ```
+
+        - `abi.encodePacked` - 将给定参数根据其所需最低空间编码。它类似 `abi.encode`，但是会把其中填充的很多`0`省略。比如，只用`1字节`来编码`uint8`类型。当你想省空间，并且不与合约交互的时候，可以使用`abi.encodePacked`，例如算一些数据的`hash`时。
+
+            ```Solidity
+
+            function encodePacked() public view returns(bytes memory result) {
+                result = abi.encodePacked(x, addr, name, array);
+            }
+            // 编码结果 由于abi.encodePacked对编码进行了压缩，长度比abi.encode短很多。
+            // 0x000000000000000000000000000000000000000000000000000000000000000a7a58c0be72be218b41c608b7fe7c5bb630736c713078414100000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000006
+            ```
+
+        - `abi.encodeWithSignature` - 与`abi.encode`功能类似，只不过第一个参数为函数签名，比如`"foo(uint256,address,string,uint256[2])"`。当调用其他合约的时候可以使用。
+
+            ```Solidity
+
+            function encodeWithSignature() public view returns(bytes memory result) {
+                result = abi.encodeWithSignature("foo(uint256,address,string,uint256[2])", x, addr, name, array);
+            }
+            // 编码结果 等同于在abi.encode编码结果前加上了4字节的函数选择器1。
+            // 0xe87082f1000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000043078414100000000000000000000000000000000000000000000000000000000
+            ```
+
+        - `abi.encodeWithSelector` - 与`abi.encodeWithSignature`功能类似，只不过第一个参数为函数选择器，为`函数签名Keccak哈希`的前4个字节。
+
+            ```Solidity
+
+            function encodeWithSelector() public view returns(bytes memory result) {
+                result = abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array);
+            }
+            // 编码结果 与abi.encodeWithSignature结果一样。
+            // 0xe87082f1000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000043078414100000000000000000000000000000000000000000000000000000000
+            ```
+
+    - `ABI解码`函数
+
+        - `abi.decode` - 用于解码`abi.encode`生成的`二进制编码`，将它还原成原本的参数。
+
+            ```Solidity
+
+            function decode(bytes memory data) public pure returns(uint dx, address daddr, string memory dname, uint[2] memory darray) {
+                (dx, daddr, dname, darray) = abi.decode(data, (uint, address, string, uint[2]));
+            }
+            ```
+    
+    - `ABI`的使用场景
+
+        - 配合`call`来实现对合约的底层调用
+
+        - 对于未开源的合约使用`abi.encodeWithSelector`对合约进行调用
+
+2. 第二十八讲
+
+    - `哈希函数`（hash function）是一个密码学概念，它可以将任意长度的消息转换为一个固定长度的值，这个值也称作哈希`（hash）`。
+
+    - `哈希`在`Solidity`的应用
+
+        - 利用`keccak256`来生成一些数据的唯一标识
+
+    - `SHA3`由`keccak`标准化而来，在很多场合下`Keccak`和`SHA3`是同义词, 但在2015年8月SHA3最终完成标准化时，NIST调整了填充算法，`所以`SHA3`就和`keccak`计算的结果不一样`, 所以在实际开发中建议直接使用`keccak256`。
+
+    - `keccak256` hash示例
+
+        ```Solidity
+
+        function hash(uint _num, string memory _string, address _addr) public pure returns (bytes32) {
+            
+            // 在进行hash运算之前，一般先用abi.encodePacked将数据编码(省gas)，再使用keccak256进行hash
+            return keccak256(abi.encodePacked(_num, _string, _addr));
+        }
+        ```
+##
+
+### 2024.10.01
+
+学习内容:
+1. 第二十九讲
+
+    - 函数选择器`Selector` - 是用来标识特定合约中函数的一个简短且唯一的标识符。它是通过对函数签名进行哈希运算得到的前 4 个字节，合约在处理外部调用时使用函数选择器来确定需要调用哪个函数。
+
+    - `method id`是定义为函数签名Keccak哈希后的前4个字节，计算`mint`函数的`method id`是否为`0x6a627842`
+        ```Solidity
+            function mintSelector() external pure returns(bytes4 mSelector){
+                return bytes4(keccak256("mint(address)"));
+            }
+        ```    
+    - 在`Solidity`中，函数的参数类型主要分为:
+
+        - 基础类型参数 - `uint256(uint8, ... , uint256)、bool, address`
+
+            - 在计算method id时，只需要计算`bytes4(keccak256("函数名(参数类型1,参数类型2,...)"))`
+
+        - 固定长度类型参数 - `uint256[3]`
+
+            - 在计算method id时，只需要计算`bytes4(keccak256("函数名(uint256[3])"))`
+
+        - 可变长度类型参数 - `address[]、uint8[]、string`
+
+            - 在计算method id时，只需要计算`bytes4(keccak256("函数名(uint256[],string)"))`
+
+        - 映射类型参数 - `contract、enum、struct`
+
+            - 在计算method id时，需要将**该类型转化成为ABI类型**。
+
+            - 例如，`contract`转为`address`类型, `enum`转为`uint8`类型, `struct`转为`tuple`类型
+
+    - 使用`selector`调用目标函数
+
+        ```Solidity
+            // 使用selector来调用函数
+            function callWithSignature() external{
+            ...
+                // 调用elementaryParamSelector函数
+                (bool success1, bytes memory data1) = address(this).call(abi.encodeWithSelector(0x3ec37834, 1, 0));
+            ...
+            }
+        ```   
+
+2. 第三十讲
+
+    - `Try Catch`只能被用于external函数或创建合约时constructor（被视为external函数）的调用。
+
+    - 语法
+
+        ```Solidity
+            try externalContract.f() {
+                // call成功的情况下 运行一些代码
+            } catch {
+                // call失败的情况下 运行一些代码
+            }
+        ```
+
+        - 其中externalContract.f()是某个外部合约的函数调用，try模块在调用成功的情况下运行，而catch模块则在调用失败时运行。
+
+        - 同样可以使用this.f()来替代externalContract.f()，this.f()也被视作为外部调用，但不可在构造函数中使用，因为此时合约还未创建。
+
+        - 如果调用的函数有返回值，那么必须在try之后声明returns(returnType val)，并且在try模块中可以使用返回的变量；如果是创建合约，那么返回值是新创建的合约变量。
+
+        ```Solidity
+            try externalContract.f() returns(returnType val){
+                // call成功的情况下 运行一些代码
+            } catch {
+                // call失败的情况下 运行一些代码
+            }
+        ```
+    - 处理外部函数调用异常
+
+        ```Solidity
+        // SPDX-License-Identifier: MIT
+        pragma solidity ^0.8.21;
+
+        contract OnlyEven{
+            constructor(uint a){
+                require(a != 0, "invalid number");
+                assert(a != 1);
+            }
+
+            function onlyEven(uint256 b) external pure returns(bool success){
+                // 输入奇数时revert
+                require(b % 2 == 0, "Ups! Reverting");
+                success = true;
+            }
+        }
+
+        contract TryCatch {
+            // 成功event
+            event SuccessEvent();
+            // 失败event
+            event CatchEvent(string message);
+            event CatchByte(bytes data);
+
+            // 声明OnlyEven合约变量
+            OnlyEven even;
+
+            constructor() {
+                even = new OnlyEven(2);
+            }
+            
+            // 在external call中使用try-catch
+            // execute(0)会成功并释放`SuccessEvent`
+            // execute(1)会失败并释放`CatchEvent`
+            function execute(uint amount) external returns (bool success) {
+                try even.onlyEven(amount) returns(bool _success){
+                    // call成功的情况下
+                    emit SuccessEvent();
+                    return _success;
+                } catch Error(string memory reason){
+                    // call不成功的情况下
+                    emit CatchEvent(reason);
+                }
+            }
+        }
+        ```
+
+    - 处理合约创建异常
+
+        ```Solidity
+        // SPDX-License-Identifier: MIT
+        pragma solidity ^0.8.21;
+
+        contract OnlyEven{
+            constructor(uint a){
+                require(a != 0, "invalid number");
+                assert(a != 1);
+            }
+
+            function onlyEven(uint256 b) external pure returns(bool success){
+                // 输入奇数时revert
+                require(b % 2 == 0, "Ups! Reverting");
+                success = true;
+            }
+        }
+
+        contract TryCatch {
+            // 成功event
+            event SuccessEvent();
+            // 失败event
+            event CatchEvent(string message);
+            event CatchByte(bytes data);
+
+            // 声明OnlyEven合约变量
+            OnlyEven even;
+
+            constructor() {
+                even = new OnlyEven(2);
+            }
+            
+            // 在创建新合约中使用try-catch （合约创建被视为external call）
+            // executeNew(0)会失败并释放`CatchEvent`
+            // executeNew(1)会失败并释放`CatchByte`
+            // executeNew(2)会成功并释放`SuccessEvent`
+            function executeNew(uint a) external returns (bool success) {
+                try new OnlyEven(a) returns(OnlyEven _even){
+                    // call成功的情况下
+                    emit SuccessEvent();
+                    success = _even.onlyEven(a);
+                } catch Error(string memory reason) {
+                    // catch revert("reasonString") 和 require(false, "reasonString")
+                    emit CatchEvent(reason);
+                } catch (bytes memory reason) {
+                    // catch失败的assert assert失败的错误类型是Panic(uint256) 不是Error(string)类型 故会进入该分支
+                    emit CatchByte(reason);
+                }
+            }
+        }
+        ```
+###
 <!-- Content_END -->
