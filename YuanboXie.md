@@ -522,7 +522,9 @@ import '@openzeppelin/contracts/access/Ownable.sol';
         - function approve(address spender, uint256 amount) external returns (bool); 授权
         - function transferFrom(address from,address to,uint256 amount) external returns (bool); 授权转账
     - 一般不自己手撸，而是基于 OpenZeppelin 模版改：[docs](https://docs.openzeppelin.com/contracts/5.x/erc20) [ERC20-template](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/ERC20.sol)
-- [103-32] 代币水龙头
+    - 本节示例代码：[code](https://github.com/AmazingAng/WTF-Solidity/blob/main/31_ERC20/ERC20.sol)，注意，这个示例代码是有安全问题的，这里仅供示范。
+- [103-32] 代币水龙头:代币水龙头就是让用户免费领代币的网站/应用。
+    - 示例代码：[code](https://github.com/AmazingAng/WTF-Solidity/blob/main/32_Faucet/Faucet.sol)，注意，这个示例代码是有安全问题的，这里仅供示范。
 - [103-33] 空投合约
 
 ### 2024.10.04
