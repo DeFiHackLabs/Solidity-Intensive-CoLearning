@@ -473,6 +473,33 @@ import '@openzeppelin/contracts/access/Ownable.sol';
         }
         ```
 - [102-30] Try Catch
+    - Solidity 0.6 版本添加了 try-catch。try-catch 只能被用于 external 函数或创建合约时 constructor（被视为 external 函数）的调用。
+    ```solidity
+    try externalContract.f() {
+        // call成功的情况下 运行一些代码
+    } catch {
+        // call失败的情况下 运行一些代码
+    }
+
+    try externalContract.f() returns(returnType val) {
+        // call成功的情况下 try模块中可以使用返回的变量,如果是创建合约，那么返回值是新创建的合约变量。
+    } catch {
+        // call失败的情况下 运行一些代码
+    }
+
+    try externalContract.f() returns(returnType){
+        // call成功的情况下 运行一些代码
+    } catch Error(string memory /*reason*/) {
+        // 捕获revert("reasonString") 和 require(false, "reasonString")
+    } catch Panic(uint /*errorCode*/) {
+        // 捕获Panic导致的错误 例如assert失败 溢出 除零 数组访问越界
+    } catch (bytes memory /*lowLevelData*/) {
+        // 如果发生了revert且上面2个异常类型匹配都失败了 会进入该分支
+        // 例如revert() require(false) revert自定义类型的error
+    }
+    ```
+    - 可以使用this.f()来替代externalContract.f()，this.f()也被视作为外部调用，但不可在构造函数中使用，因为此时合约还未创建。
+    - try 代码块内的 revert 不会被 catch 本身捕获。
 
 ### 2024.10.03
 
