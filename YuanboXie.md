@@ -407,9 +407,20 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     - Create VS Create2
         - create: `新地址 = hash(创建者地址, nonce)`。由于nonce不确定（你不知道你是第几个，因为别人也可能在调用）所以无法预测地址。
         - create2: `新地址 = hash("0xFF",创建者地址, salt, initcode)`。新合约的地址由创建者地址、salt值(一个256位的值)、合约字节码计算得出。可以预测出创造出的合约地址。
-- [102-26] 删除合约
-
+- [102-26] 删除合约：selfdestruct `selfdestruct(_addr)；`
+    - selfdestruct 命令可以用来删除智能合约，并将该合约剩余ETH转到指定地址。selfdestruct 是为了应对合约出错的极端情况而设计的。它最早被命名为 suicide，但是这个词太敏感，改名为 selfdestruct。在 [v0.8.18](https://soliditylang.org/blog/2023/02/01/solidity-0.8.18-release-announcement/) 版本中，selfdestruct 关键字被标记为「不再建议使用」，在一些情况下它会导致预期之外的合约语义，但由于目前还没有代替方案，目前只是对开发者做了编译阶段的警告，相关内容可以查看 [EIP-6049](https://eips.ethereum.org/EIPS/eip-6049)。
+    - 在以太坊坎昆（Cancun）升级中，EIP-6780 被纳入升级以实现对 Verkle Tree 更好的支持。EIP-6780 减少了 SELFDESTRUCT 操作码的功能。根据提案描述，当前 SELFDESTRUCT 仅会被用来将合约中的 ETH 转移到指定地址，而原先的删除功能只有在合约创建-自毁这两个操作处在同一笔交易时才能生效。所以目前来说：
+        - 已经部署的合约无法被SELFDESTRUCT了。
+        - 如果要使用原先的SELFDESTRUCT功能，必须在同一笔交易中创建并SELFDESTRUCT。
 - [102-27] ABI编码解码
+    - ABI (Application Binary Interface，应用二进制接口)是与以太坊智能合约交互的标准。数据基于他们的类型编码；并且由于编码后不包含类型信息，解码时需要注明它们的类型。 [docs-abi_spec](https://learnblockchain.cn/docs/solidity/abi-spec.html)
+    - 编码：
+        - abi.encode: 非紧凑编码，每个类型的数据都填充到32bytes，与合约交互要用这个
+        - abi.encodePacked：紧凑编码，用于算hash，长度比abi.encode短很多
+        - abi.encodeWithSignature：与abi.encode功能类似，只不过第一个参数为函数签名。等同于在abi.encode编码结果前加上了4字节的函数选择器。`result = abi.encodeWithSignature("foo(uint256,address,string,uint256[2])", x, addr, name, array);`
+        - abi.encodeWithSelector：与abi.encodeWithSignature功能类似，只不过第一个参数为函数选择器,`result = abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array);`
+    - 解码：abi.decode
+        - `(dx, daddr, dname, darray) = abi.decode(data, (uint, address, string, uint[2]));`
 
 <!-- Content_END -->
 
