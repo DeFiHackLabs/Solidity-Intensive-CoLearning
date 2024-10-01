@@ -61,4 +61,9 @@ timezone: Asia/Taipei
   day08:
   [WTF Academy Solidity 101 15, 102 16-17 Note](/content/0xRory/108.md)
 
+
+### 2024.10.01
+
+  day09:
+  [WTF Academy Solidity 102 18 Note](/content/0xRory/109.md)
 <!-- Content_END -->
