@@ -56,4 +56,10 @@ LFG～～～～～ 會完成的
 
 [**WTF Solidity 極簡入門：13. 繼承**](<content/Haoder/md/113.md>)
 
+### 2024.10.01
+
+[**WTF Solidity 極簡入門：14. 抽象合約和接口**](<content/Haoder/md/114.md>)
+
+[**WTF Solidity 極簡入門：15. 異常**](<content/Haoder/md/115.md>)
+
 <!-- Content_END -->
