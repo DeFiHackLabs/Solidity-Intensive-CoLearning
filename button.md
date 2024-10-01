@@ -17,6 +17,11 @@ timezone: Asia/Shanghai
 ## Notes
 
 <!-- Content_START -->
+### 2024.09.30
+学习 函数重载，了解函数重载的定义和匹配机制。
+
+
+
 ### 2024.09.29
 修复force push main导致的异常
 

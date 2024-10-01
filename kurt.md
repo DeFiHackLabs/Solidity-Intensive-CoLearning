@@ -304,6 +304,7 @@ CREATE2 确保，如果创建者使用 CREATE2 和提供的 salt 部署给定的
 如何使用CREATE2
 ### 2024.09.28
 26. 删除合约
+    
     selfdestruct命令可以用来删除智能合约，并将该合约剩余ETH转到指定地址。selfdestruct是为了应对合约出错的极端情况而设计的。它最早被命名为suicide（自杀），但是这个词太敏感。为了保护抑郁的程序员，改名为selfdestruct；在 v0.8.18 版本中，selfdestruct 关键字被标记为「不再建议使用」，在一些情况下它会导致预期之外的合约语义，但由于目前还没有代替方案，目前只是对开发者做了编译阶段的警告，相关内容可以查看 EIP-6049。
 
 然而，在以太坊坎昆（Cancun）升级中，EIP-6780被纳入升级以实现对Verkle Tree更好的支持。EIP-6780减少了SELFDESTRUCT操作码的功能。根据提案描述，当前SELFDESTRUCT仅会被用来将合约中的ETH转移到指定地址，而原先的删除功能只有在合约创建-自毁这两个操作处在同一笔交易时才能生效。所以目前来说：
@@ -312,10 +313,35 @@ CREATE2 确保，如果创建者使用 CREATE2 和提供的 salt 部署给定的
 如果要使用原先的SELFDESTRUCT功能，必须在同一笔交易中创建并SELFDESTRUCT。
 
 27. ABI编码解码
+    
     ABI (Application Binary Interface，应用二进制接口)是与以太坊智能合约交互的标准。数据基于他们的类型编码；并且由于编码后不包含类型信息，解码时需要注明它们的类型。
     ABI编码有4个函数：abi.encode, abi.encodePacked, abi.encodeWithSignature, abi.encodeWithSelector。而ABI解码有1个函数：abi.decode
 ### 2024.09.29
-
+未更新
 ### 2024.09.30
+28. Hash
 
+    Hash的性质
+一个好的哈希函数应该具有以下几个特性：
+
+单向性：从输入的消息到它的哈希的正向运算简单且唯一确定，而反过来非常难，只能靠暴力枚举。
+灵敏性：输入的消息改变一点对它的哈希改变很大。
+高效性：从输入的消息到哈希的运算高效。
+均一性：每个哈希值被取到的概率应该基本相等。
+抗碰撞性：
+弱抗碰撞性：给定一个消息x，找到另一个消息x'，使得hash(x) = hash(x')是困难的。
+强抗碰撞性：找到任意x和x'，使得hash(x) = hash(x')是困难的。
+Hash的应用
+生成数据唯一标识
+加密签名
+安全加密
+Keccak256
+Keccak256函数是Solidity中最常用的哈希函数，用法非常简单：
+
+哈希 = keccak256(数据);
+
+29. 函数选择器Selector
+
+
+    
 <!-- Content_END -->

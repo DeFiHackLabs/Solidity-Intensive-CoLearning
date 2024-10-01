@@ -290,8 +290,6 @@ mapping(address => address) public swapPair; // Address mapped to another addres
     Example of incorrect usage (this will cause an error):
     
     ```solidity
-    solidity
-    複製程式碼
     struct Student {
         uint256 id;
         uint256 score;
@@ -322,8 +320,6 @@ mapping(address => address) public swapPair; // Address mapped to another addres
     Example:
     
     ```solidity
-    solidity
-    複製程式碼
     function writeMap(uint _Key, address _Value) public {
         idToAddress[_Key] = _Value;
     }
@@ -452,6 +448,383 @@ function setGreeting(string calldata greeting) external {
 }
 
 }
+```
+### 2024.10.01
+#### Constant and Immutable
+
+In this lesson, we introduce two keywords in Solidity related to constants: `constant` and `immutable`. Once a state variable is declared with either of these keywords, its value cannot be changed after initialization. Using constants in this way enhances the contract’s security and reduces gas costs.
+
+Additionally, only numeric types can be declared with both `constant` and `immutable`. Strings and bytes can be declared as `constant`, but not as `immutable`.
+
+### `constant` and `immutable`
+
+### `constant`
+
+A `constant` variable must be initialized at the time of declaration, and its value cannot be changed afterward. If you try to modify it, the code won’t compile.
+
+```solidity
+
+// A constant variable must be initialized at the time of declaration and cannot be changed
+uint256 constant CONSTANT_NUM = 10;
+string constant CONSTANT_STRING = "0xAA";
+bytes constant CONSTANT_BYTES = "WTF";
+address constant CONSTANT_ADDRESS = 0x0000000000000000000000000000000000000000;
+
+```
+
+### `immutable`
+
+An `immutable` variable offers more flexibility because it can be initialized either at the time of declaration or within the constructor. In Solidity version 8.0.21 and later, `immutable` variables don’t need to be explicitly initialized. If not explicitly initialized, they will default to their initial values (based on their type, as discussed in the variable initialization section). If you initialize an `immutable` variable both at the time of declaration and in the constructor, the value from the constructor will be used.
+
+```solidity
+
+// An immutable variable can be initialized in the constructor and cannot be changed afterward
+uint256 public immutable IMMUTABLE_NUM = 9999999999;
+
+// In Solidity 8.0.21 and later, the following variables default to their initial values
+address public immutable IMMUTABLE_ADDRESS;
+uint256 public immutable IMMUTABLE_BLOCK;
+uint256 public immutable IMMUTABLE_TEST;
+
+```
+
+You can use global variables (like `address(this)` or `block.number`) or custom functions to initialize `immutable` variables. In the following example, we use the `test()` function to initialize `IMMUTABLE_TEST` to 9:
+
+```solidity
+
+// The constructor is used to initialize immutable variables
+constructor() {
+    IMMUTABLE_ADDRESS = address(this);
+    IMMUTABLE_NUM = 1118;
+    IMMUTABLE_TEST = test();
+}
+
+function test() public pure returns(uint256) {
+    uint256 value = 9;
+    return value;
+}
+
+```
+
+This makes `immutable` variables more flexible compared to `constant`, as they can be set at runtime in the constructor, while still offering the same benefits once initialized.
+
+A `constructor` in Solidity is a special function that is automatically executed once when a contract is deployed. It is used to initialize the contract's state variables or perform any setup tasks that are necessary at the time of contract deployment.
+
+### Initial Values of Variables
+
+In Solidity, any variable that is declared but not assigned a value is automatically given an initial or default value. In this lesson, we'll cover the default values for commonly used variables.
+
+### Default Values for Value Types:
+
+- **Boolean**: `false`
+- **String**: `""` (empty string)
+- **Integer (`int`)**: `0`
+- **Unsigned Integer (`uint`)**: `0`
+- **Enum**: The first element in the enum list
+- **Address**: `0x0000000000000000000000000000000000000000` (or `address(0)`)
+- **Functions**:
+    - **Internal**: Empty function
+    - **External**: Empty function
+
+You can verify these initial values by using the getter functions of public variables:
+
+```solidity
+solidity
+複製程式碼
+bool public _bool; // false
+string public _string; // ""
+int public _int; // 0
+uint public _uint; // 0
+address public _address; // 0x0000000000000000000000000000000000000000
+
+enum ActionSet { Buy, Hold, Sell }
+ActionSet public _enum; // The first element (Buy) with an index of 0
+
+function fi() internal {} // Empty internal function
+function fe() external {} // Empty external function
+
+```
+
+### Default Values for Reference Types:
+
+- **Mappings**: All elements in the mapping are set to their default values.
+- **Structs**: All members of the struct are initialized to their default values.
+- **Arrays**:
+    - **Dynamic Arrays**: `[]` (empty array)
+    - **Static Arrays** (fixed-length): All elements are initialized to their default values.
+
+You can also use public variables to verify the default values of reference types:
+
+```solidity
+
+// Reference Types
+uint[8] public _staticArray; // Static array where all elements are initialized to 0: [0,0,0,0,0,0,0,0]
+uint[] public _dynamicArray; // Dynamic array initialized as an empty array: []
+mapping(uint => address) public _mapping; // Mapping where all elements default to 0x0000000000000000000000000000000000000000
+
+// Struct with all members initialized to default values (0, 0)
+struct Student {
+    uint256 id;
+    uint256 score;
+}
+Student public student;
+
+```
+
+`delete` Operator:
+
+The `delete` operator resets a variable to its initial or default value.
+
+```solidity
+
+// delete operator
+bool public _bool2 = true;
+function d() external {
+    delete _bool2; // Using delete will reset _bool2 to its default value, which is false
+}
+
+```
+
+By using the `delete` operator, you can revert variables back to their original default state.
+
+### Control Flow
+
+Solidity's control flow is similar to other programming languages and mainly includes the following:
+
+### `if-else`
+
+```solidity
+solidity
+複製程式碼
+function ifElseTest(uint256 _number) public pure returns(bool) {
+    if(_number == 0) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+```
+
+### `for` Loop
+
+```solidity
+solidity
+複製程式碼
+function forLoopTest() public pure returns(uint256) {
+    uint sum = 0;
+    for(uint i = 0; i < 10; i++) {
+        sum += i;
+    }
+    return sum;
+}
+
+```
+
+### `while` Loop
+
+```solidity
+solidity
+複製程式碼
+function whileTest() public pure returns(uint256) {
+    uint sum = 0;
+    uint i = 0;
+    while(i < 10) {
+        sum += i;
+        i++;
+    }
+    return sum;
+}
+
+```
+
+### `do-while` Loop
+
+```solidity
+solidity
+複製程式碼
+function doWhileTest() public pure returns(uint256) {
+    uint sum = 0;
+    uint i = 0;
+    do {
+        sum += i;
+        i++;
+    } while(i < 10);
+    return sum;
+}
+
+```
+
+### Ternary Operator
+
+The ternary operator is the only operator in Solidity that takes three operands. The syntax is: `condition ? expression if true : expression if false`. It is often used as a shortcut for `if` statements.
+
+```solidity
+
+// Ternary operator
+function ternaryTest(uint256 x, uint256 y) public pure returns(uint256) {
+    // Return the larger of x and y
+    return x >= y ? x : y;
+}
+
+```
+
+Additionally, the keywords `continue` (which skips to the next iteration of a loop) and `break` (which exits the current loop) can be used in Solidity.
+
+### Insertion Sort in Solidity
+
+Before we begin: Over 90% of people writing insertion sort in Solidity make mistakes.
+
+### Insertion Sort
+
+Sorting algorithms are used to arrange an unordered set of numbers, such as `[2, 5, 3, 1]`, in ascending order. Insertion sort is one of the simplest sorting algorithms, and it's often the first algorithm many people learn. The idea is straightforward: from left to right, compare each number with the ones before it. If the current number is smaller, swap its position with the previous one. Here's an illustration:
+
+### Python Code
+
+Let’s first look at the Python code for insertion sort:
+
+```python
+
+# Python program for implementation of Insertion Sort
+def insertionSort(arr):
+    for i in range(1, len(arr)):
+        key = arr[i]
+        j = i-1
+        while j >= 0 and key < arr[j]:
+            arr[j+1] = arr[j]
+            j -= 1
+        arr[j+1] = key
+    return arr
+
+```
+
+### Rewriting it in Solidity (with a bug)
+
+It takes only 8 lines of Python to implement insertion sort. It seems simple. Now, after converting it to Solidity, with corresponding functions, variables, and loops, it takes just 9 lines of code:
+
+```solidity
+
+// Incorrect Insertion Sort
+function insertionSortWrong(uint[] memory a) public pure returns(uint[] memory) {
+    for (uint i = 1; i < a.length; i++) {
+        uint temp = a[i];
+        uint j = i - 1;
+        while((j >= 0) && (temp < a[j])) {
+            a[j+1] = a[j];
+            j--;
+        }
+        a[j+1] = temp;
+    }
+    return a;
+}
+
+```
+
+But when I ran it in Remix with input `[2, 5, 3, 1]`, BOOM! There was a bug! I tried to fix it for a long time but couldn’t find the issue. I then googled "Solidity insertion sort" and discovered that most tutorials online had mistakes, for example, "Sorting in Solidity without Comparison."
+
+### The Correct Solidity Insertion Sort
+
+After hours of debugging and with help from a friend in the Dapp-Learning community, we finally found the bug. In Solidity, the `uint` type (unsigned integer) cannot hold negative values. In the insertion sort algorithm, the variable `j` might become `-1`, causing an underflow error.
+
+To fix this, we need to adjust the code so that `j` cannot become negative. Here is the correct code:
+
+```solidity
+solidity
+複製程式碼
+// Correct Insertion Sort
+function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
+    // Note that uint cannot take a negative value
+    for (uint i = 1; i < a.length; i++) {
+        uint temp = a[i];
+        uint j = i;
+        while((j >= 1) && (temp < a[j-1])) {
+            a[j] = a[j-1];
+            j--;
+        }
+        a[j] = temp;
+    }
+    return a;
+}
+
+```
+
+### Result:
+
+Input `[2, 5, 3, 1]`, output `[1, 2, 3, 5]`.
+
+Now it works correctly!
+
+---
+
+### Constructor and Modifier in Solidity: Ownable Example
+
+In this lesson, we'll use the **Ownable** contract as an example to explain the **constructor** and **modifiers** in Solidity.
+
+### Constructor
+
+The **constructor** is a special function in Solidity. Each contract can define one constructor, and it runs automatically **once** when the contract is deployed. It is often used to initialize contract parameters, such as setting the `owner` address of the contract.
+
+For example:
+
+```solidity
+solidity
+複製程式碼
+address owner; // Define an owner variable
+
+// Constructor function
+constructor(address initialOwner) {
+    owner = initialOwner; // Set the owner to the provided initialOwner address during contract deployment
+}
+
+```
+
+**Note**: The syntax for constructors has changed in different versions of Solidity. Before Solidity version 0.4.22, constructors used the same name as the contract. This older method could lead to errors (e.g., a contract named `Parents` might accidentally have a constructor named `parents`, turning the constructor into a regular function). From Solidity 0.4.22 onwards, the constructor keyword was introduced to avoid these issues.
+
+Here’s an example of the old constructor syntax:
+
+```solidity
+solidity
+複製程式碼
+pragma solidity =0.4.21;
+contract Parents {
+    // The function with the same name as the contract acts as the constructor
+    function Parents () public {
+    }
+}
+
+```
+
+### Modifier
+
+A **modifier** in Solidity is a unique syntax feature, similar to a **decorator** in object-oriented programming. It adds specific characteristics to functions and helps reduce code redundancy. A modifier is like Iron Man's armor: functions that use it get special behavior. Modifiers are commonly used for checks that need to be performed before executing the function body, such as verifying addresses, variables, or balances.
+
+### Example: `onlyOwner` Modifier
+
+We define a modifier called `onlyOwner` to restrict access to certain functions to the contract owner:
+
+```solidity
+
+// Define the modifier
+modifier onlyOwner {
+    require(msg.sender == owner); // Check if the caller is the owner
+    _; // If true, execute the function body; otherwise, revert the transaction
+}
+
+```
+
+Now, we can use this `onlyOwner` modifier to ensure that only the owner can execute the following function:
+
+```solidity
+
+function changeOwner(address _newOwner) external onlyOwner {
+   owner = _newOwner; // Only the current owner can change the owner
+}
+
+```
+
+In this `changeOwner` function, the owner of the contract can be changed, but only if the function is called by the current owner. If anyone else tries to call it, the function will revert and throw an error. This is a common way to control access and permissions in smart contracts.
+
+
 ```
 
 

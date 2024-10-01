@@ -101,4 +101,16 @@ Arrays：跟数组相关的库合约
 7. fallback()函数会在调用合约不存在的函数时被触发。可用于接收ETH，也可以用于代理合约proxy contract。fallback()声明时不需要function关键字，必须由external修饰，一般也会用payable修饰，用于接收ETH:fallback() external payable { ... }。
 8. 合约接收ETH时，msg.data为空且存在receive()时，会触发receive()；msg.data不为空或不存在receive()时，会触发fallback()，此时fallback()必须为payable。receive()和payable fallback()均不存在的时候，向合约直接发送ETH将会报错（你仍可以通过带有payable的函数向合约发送ETH）。
 9. Solidity有三种方法向其他合约发送ETH，他们是：transfer()，send()和call()，其中call()是被鼓励的用法。
+
+### 2024.09.30
+1. 我们可以利用合约的地址和合约代码（或接口）来创建合约的引用：_Name(_Address)，其中_Name是合约名，应与合约代码（或接口）中标注的合约名保持一致，_Address是合约地址。然后用合约的引用来调用它的函数：_Name(_Address).f()，其中f()是要调用的函数。
+2. OtherContract(_Address).setX(x);
+3. _Address.getX();
+4. OtherContract oc = OtherContract(_Address);x = oc.getX();
+5. OtherContract(otherContract).setX{value: msg.value}(x);
+6. 目标合约地址.call(字节码);
+7. 字节码 = abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)
+8. 函数签名为"函数名（逗号分隔的参数类型）"。例如abi.encodeWithSignature("f(uint256,address)", _x, _addr)
+9. call不是调用合约的推荐方法，因为不安全。但他能让我们在不知道源代码和ABI的情况下调用目标合约，很有用。
+   
 <!-- Content_END -->

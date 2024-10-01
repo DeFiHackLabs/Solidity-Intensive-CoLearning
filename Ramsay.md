@@ -689,4 +689,38 @@ function f(uint256 _in) public pure returns (uint256 out) {
 
 谈到库，另外一个绕不开的话题就是怎么引用第三方现成的库合约，这就需要包管理器(package manager), Java有Maven, Javascript 有NPM, Solidity 用啥呢? 下节分解.
 
+### 2024.10.01
+
+#### 18 Import
+
+上一个章节提到了库合约，要使用库合约，肯定是要和包管理器结合，需要一种方式来把库合约引入进来。
+
+在 Solidity 比较流行的一种包管理方式是使用 NPM, 类似本地开发，安装 `OpenZeppelin` 的库:
+
+```sh
+npm install @openzeppelin/contracts
+```
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+
+contract MyContract {
+    using SafeMath for uint256;
+    // Your code
+}
+
+```
+
+或者像Golang 那样，通过 http/https 链接来直接引入资源，但是这种方式有个缺点就是没有版本机制，也就是如果依赖的库合约文件升级了，那么你就直接引用了最新的库合约，可能引入了 breaking change, 所以使用 full url 引入库合约的时候，就要小心一些。
+
+```
+// 通过网址引用
+import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol'; // Address.sol 文件一旦更新，就会直接导入最新文件
+```
+
+除了NPM之外，还有其他的Solidity 包管理器，如 `ethPM` 和 `DappTools`.
+
 <!-- Content_END -->

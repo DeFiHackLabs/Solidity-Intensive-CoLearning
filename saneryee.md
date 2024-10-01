@@ -50,6 +50,126 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 ## Notes
 
 <!-- Content_START -->
+
+### 2024.10.01
+
+Day 7
+
+WTF Academy Solidity 101 27_ABIEncode, 28_Hash, 29_Selector
+
+ABI encode
+- has 4 parameters, can use only some of them
+- `abi.encode`: 32-bytes
+- `abi.encodePacked`: compacts encoding
+- `abi.encodeWithSignature`: first parameter - `function signatures`
+- `abi.encodeWithSelector`: first parameter - `function selector`
+
+ABI decode
+- `abi.decode`: decode the data of `abi.encode`
+
+ABI Scenarios:
+
+1. low-level call
+
+   ```solidity
+      bytes4 selector = contract.getValue.selector;
+
+      bytes memory data = abi.encodeWithSelector(selector, _x);
+      (bool success, bytes memory returnedData) = address(contract).staticcall(data);
+      require(success);
+
+      return abi.decode(returnedData, (uint256));
+   ```
+2. enthers.js
+
+   ```
+      const wavePortalContract = new ethers.Contract(contractAddress, contractABI, signer);
+      /*
+         * Call the getAllWaves method from your Smart Contract
+         */
+      const waves = await wavePortalContract.getAllWaves();
+   ```
+
+3. non-open contract, call non signature functions
+   
+   ```
+      bytes memory data = abi.encodeWithSelector(bytes4(0x533ba33a));
+
+      (bool success, bytes memory returnedData) = address(contract).staticcall(data);
+      require(success);
+
+      return abi.decode(returnedData, (uint256));
+   ```
+
+Hash
+
+- Generate a uinque identifier of the data
+  ```
+      function hash(
+         uint _num,
+         string memory _string,
+         address _addr
+         ) public pure returns (bytes32) {
+            return keccak256(abi.encodePacked(_num, _string, _addr));
+         }
+  ```
+
+Selector
+
+```solidity
+
+    // 1. elementary parameters selector
+    // Input：param1: 1，param2: 0
+    // elementaryParamSelector(uint256,bool) : 0x3ec37834
+    function elementaryParamSelector(uint256 param1, bool param2) external returns(bytes4       selectorWithElementaryParam){
+        emit SelectorEvent(this.elementaryParamSelector.selector);
+        return bytes4(keccak256("elementaryParamSelector(uint256,bool)"));
+    }
+
+    // 2. fixed size parameters selector
+    // Input： param1: [1,2,3]
+    // fixedSizeParamSelector(uint256[3]) : 0xead6b8bd
+    function fixedSizeParamSelector(uint256[3] memory param1) external returns(bytes4 selectorWithFixedSizeParam){
+        emit SelectorEvent(this.fixedSizeParamSelector.selector);
+        return bytes4(keccak256("fixedSizeParamSelector(uint256[3])"));
+    }
+
+    // 3. non-fixed size parameters selector
+    // Input： param1: [1,2,3]， param2: "abc"
+    // nonFixedSizeParamSelector(uint256[],string) : 0xf0ca01de
+    function nonFixedSizeParamSelector(uint256[] memory param1,string memory param2) external returns(bytes4 selectorWithNonFixedSizeParam){
+        emit SelectorEvent(this.nonFixedSizeParamSelector.selector);
+        return bytes4(keccak256("nonFixedSizeParamSelector(uint256[],string)"));
+    }
+
+
+   // 4.
+   contract DemoContract {
+       // empty contract
+   }
+
+   contract Selector{
+       // Struct User
+       struct User {
+           uint256 uid;
+           bytes name;
+       }
+       // Enum School
+       enum School { SCHOOL1, SCHOOL2, SCHOOL3 }
+       ...
+       // mapping parmeters selector
+       // Input：demo: 0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99， user: [1, "0xa0b1"], count: [1,2,3], mySchool: 1
+       // mappingParamSelector(address,(uint256,bytes),uint256[],uint8) : 0xe355b0ce
+       function mappingParamSelector(DemoContract demo, User memory user, uint256[] memory count, School mySchool) external returns(bytes4 selectorWithMappingParam){
+           emit SelectorEvent(this.mappingParamSelector.selector);
+           return bytes4(keccak256("mappingParamSelector(address,(uint256,bytes),uint256[],uint8)"));
+       }
+       ...
+   }
+```
+
+---
+
 ### 2024.09.30
 
 Day 6
@@ -67,7 +187,7 @@ Opinion of `SELFDESTRUCT` change after Cancun Update
 - Simply transferring funds is often sufficient to mitigate risks, without the need to completely destroy the contract.
 - The recent update represents a refinement of the `SELFDESTRUCT` functionality, striking a balance between risk migitgation and practical utility.
 
-
+---
 ### 2024.09.28
 Day 5
 WTF Academy Solidity 101 20-23

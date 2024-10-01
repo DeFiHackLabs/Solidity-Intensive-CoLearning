@@ -58,6 +58,14 @@ key只允許內建型態，value可以使用自定義struct
 ### 2024.09.30
 變數的初始值，delete操作符可以讓變數恢復初始值。
 
+### 2024.10.01
+設置常數有兩種 constant, immutable，immutable可以在 constructor才指定。
+指定常數可以省gas。
+string和 bytes不能用 immutable修飾。
+
+string public immutable _string = "Hello Web3! 0923-2"; => X
+TypeError: Immutable variables cannot have a non-value type.
+
 
 
 <!-- Content_END -->
