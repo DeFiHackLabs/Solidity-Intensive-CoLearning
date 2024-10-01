@@ -659,7 +659,219 @@ End of WTF Solidity 101
 
 ### 2024.09.30
 
+#### Chapter 16: Function overloading
+
+Solidity allow function overloading, same function name but different parameters
+
+```
+function input(uint256 _number) external {
+  ...
+}
+
+function input(string memory _str) external {
+  ...
+}
+```
+
+Although both function share the same name, but due to different parameters, the functions will have different function signature/selector.
+
+**_Notes_**: `modifier` cannot be overloading like function
+
+**Argument matching**
+
+```
+function input(uint256 _number) external {
+  ...
+}
+
+function input(uint32 _number) external {
+
+}
+```
+
+The contract is able to compile, but when call data meet both function's parameter, for example: `50`, error prompted.
+
+#### Chapter 17: Library Contract
+
+`library` use to reduce code redundancy and gas usage.
+
+The different:
+
+- Cannot contain state variable
+- Cannot inherit other contract or to inherit by other contract
+- Cannot receive native currency, eg: ETH
+- Cannot be destroy
+
+- `public` and `private` functions in the library contract will trigger `delegatecall` when calling
+- `internal` functions won't trigger
+- `private` functions able to call by other functions within library contract
+
+Some commonly used library:
+
+- [String](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Strings.sol)
+- [Address](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol)
+- [Arrays](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Arrays.sol)
+
+Usage
+
+```
+contract Lending {
+  using Strings for uint256; // using A for B;
+
+  function convert(uint256 _number) public pure returns (string memory) {
+    return _number.toHexString();
+  }
+}
+```
+
+or
+
+```
+contract Lending {
+  function convert(uint256 _number) public pure returns (string memory) {
+    return Strings.toHexString(_number); // call directly
+  }
+}
+```
+
+#### Chapter 18: Import
+
+`import` allow contract to refer content of another contracts, maximize reusability and contract security
+
+How to:
+
+```
+File
+├── Other.sol
+└── MyContract.sol
+
+/* ------------------ */
+import './Other.sol';
+
+contract MyContract {
+  ...
+}
+```
+
+or (Source URL)
+
+```
+import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+```
+
+or (`npm`)
+
+```
+import '@openzeppelin/contracts/access/Ownable.sol';
+```
+
+or (Directive import)
+
+```
+import {Other} from './Other.sol';
+```
+
 ### 2024.10.01
+
+#### Chapter 19: Receive & Fallback
+
+Solidity have two special function, `receive()` and `fallback()`, can be used to:
+
+- Receive native currency like ETH
+- Fallback call from undefined function calling
+- `receive()` introduced after `0.6.x`
+
+`receive()`
+
+- Called when contract receive `ETH` directly via transfer, etc
+- Each contract can have maximum 1 `receive()` function
+
+```
+receive() external payable {
+  // do something
+}
+```
+
+- `receive()` doesn't need to include `function` keyword, must not contain `parameters` and return values
+- `receive()` not recommend to have complex logic, the default spendable gas for transfer/send ETH usually limit to `2300` only, complex computation in `receive()` might cause `Out of Gas` error.
+
+```
+event Received(address sender, uint256 amount);
+
+receive() external payable {
+  emit Received(msg.sender, msg.value);
+}
+```
+
+- `event` can be added into `receive()` function
+
+`fallback()`
+
+- Trigger when undefined function called, can also use to receive `ETH`
+
+```
+event FallbackTriggered(address sender, uint256 amount, bytes data);
+
+fallback() external payable {
+  emit FallbackTriggered(msg.sender, msg.value, msg.data);
+}
+```
+
+- `fallback()` doesn't need to include `function` keyword, must have visibility of `external`
+
+How it works
+
+```
+fallback() or receive()?
+        Receive ETH
+              |
+       msg.data empty？
+            /  \
+          Yes   No
+          /      \
+receive() exist?  fallback()
+        / \
+      Yes  No
+      /     \
+receive()   fallback()
+```
+
+- Contract without `receive()` or `payable fallback()` will not able to received `ETH`, transfer transaction will executed but failed
+
+#### Chapter 20: Transfer ETH
+
+There are 3 way to transfer `ETH` in contract
+
+- `call()` <- Recommended
+  - No gas limit
+  - Transaction will still executed even failed to call
+  - Have return values of `(bool, bytes)` which `bool` indicate calling failed or successful, `bytes` is data return
+- `transfer()`
+  - Gas limit `2300`, if recipient is contract and it's `fallback()` or `receive()` is complex, transfer will fail
+  - Transaction will revert if transfer failed
+- `send()`
+  - Gas limit `2300`, if recipient is contract and it's `fallback()` or `receive()` is complex, send will fail
+  - Transaction will still executed even failed to send, can capture with return `bool` value
+
+```
+function callTx(address payable _to) external payable {
+  (bool success, ) = _to.call{value: msg.value}("");
+  if(!success) {
+    revert CallFailed();
+  }
+}
+
+function transferETH(address payable _to) external payable {
+  _to.transfer(msg.value);
+}
+
+function sendETH(address payable _to) external payable {
+  bool success = _to.send(msg.value);
+  if(!success) {
+    revert SendFailed();
+  }
+}
+```
 
 ### 2024.10.02
 
@@ -680,6 +892,10 @@ End of WTF Solidity 101
 ### 2024.10.10
 
 <!-- Content_END -->
+
+```
+
+```
 
 ```
 

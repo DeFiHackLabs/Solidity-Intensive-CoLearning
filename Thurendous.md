@@ -990,4 +990,27 @@ function transferOwner3(uint256 tokenId, address newOwner) public {
 我们可以看到，这里的error方法的gas是最少的。其次是assert，require方法消耗的gas最多！
 assert在0.8.0之后的版本之中，不会消耗掉所有的剩余gas而是和revert一样，回滚然后返还gas给用户。
 
+#### 函数重载
+
+函数重载是指在同一个合约中，可以有多个函数名相同但参数类型或数量不同的函数。
+
+```solidity
+function myFunction(uint256 a) public pure returns (uint256) {
+    return a * 2;
+}
+```
+
+注意solidity不允许修饰器重载。
+
+
+
+### 2024.10.2
+
+(Day 9)
+
+学习笔记
+
+
+
+
 <!-- Content_END -->

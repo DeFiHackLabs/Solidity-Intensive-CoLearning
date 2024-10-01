@@ -208,5 +208,36 @@ function fe() external{} // external空白函数
      - `using for`: `using Strings for uint256;`
      - `Strings.toHexString(_number);`
 
+### 2024.10.01
+1. `import`:
+   - 通过网址引用: `import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';`
+   - 通过npm导入: `import '@openzeppelin/contracts/access/Ownable.sol';`
+   - 通过全局符号导入: `import {Yeye} from './Yeye.sol';`
+2. `receive()`
+   - 声明: 与普通方法不同，不使用`function`关键字: `receive() external payable { }`
+   - `receive()`函数不能有任何的参数，不能返回任何值，必须包含external和payable.
+   - 如果调用方通过`send`, `transfer`来向目标合约转移eth, 那么gas将限制在2300以内，因此如果`receive`的逻辑太复杂会出现`out of gas`异常
+   - 通过`call`来转移eth, 则可以指定gas
+
+3. `fallback`
+   - 声明: `fallback() external payable { }`
+   - 当合约被调用不存在的函数时会被触发。
+4. 二者关系
+```
+触发fallback() 还是 receive()?
+           接收ETH
+              |
+         msg.data是空？
+            /  \
+          是    否
+          /      \
+receive()存在?   fallback()
+        / \
+       是  否
+      /     \
+receive()   fallback()
+
+```
+
 
 <!-- Content_END -->

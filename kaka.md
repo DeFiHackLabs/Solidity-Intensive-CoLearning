@@ -275,5 +275,12 @@ function (<parameter types>) {internal|external} [pure|view|payable] [returns (<
 
 在调用函数时，可以指定gas和要发送的ether：`this.f{gas: 10, value: 800}();`
 
+### 2024.10.01
+**学习内容：**<br>
+ERC, Ethereum Request for Comments. 即：以太坊征求意见。是以太坊开发者的协议提案，是以太坊智能合约开发人员使用的技术文档，为以太坊生态系统中的特定用户组提供方法、创新、研究和特征的规范。这些文档通常由开发人员创建，并且包含有关协议规范和合约说明的信息。
+
+任何人都可以创建ERC，但它需要通过以太坊改进提案（EIP）的流程。
+
+常见：ERC-20、ERC-777为同质化代币标准，ERC-721、ERC-1155为非同质化代币标准。
 
 <!-- Content_END -->
