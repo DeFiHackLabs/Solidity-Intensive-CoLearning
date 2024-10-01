@@ -480,7 +480,9 @@ function setXTransferETH(address otherContract, uint256 x) payable external{
 - call 是 address 類型的低級成員函數, 用來與其他合約交互, 返回值為(bool, bytes memory), 對應 call 是否成功和目標函數的返回值
 - call 通過觸發 fallback 或 receive 函數發送 eth 的方法
 - 不要用 call 調用另一個合約, 當調用不安全的合約函數時, 就會把主動權給了對方, 建議方法是聲明合約變量後調用函數 
-- 使用規則, 目標合約地址.call(自節碼), 自節碼是利用結構化編碼函數 abi.encodeWithSignature("函數簽名", 逗號分隔具體參數)
+- 使用規則, 目標合約地址.call(自節碼), 自節碼是利用結構化編碼函數 abi.encodeWithSignature("函數簽名", 逗號分隔具體參數),ex: abi.encodeWithSignature("f(uint256, address)", _x, _addr)
+
+- 使用規則2, call 在調用合約時可以指定交易發送的 eth 數量和 gas 數量, 目標合約地址.call{value: 發送數量, gas: gas數量}(字節碼);
 
 
 
