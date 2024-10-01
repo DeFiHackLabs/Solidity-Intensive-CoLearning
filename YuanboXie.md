@@ -296,4 +296,292 @@ import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contr
 import '@openzeppelin/contracts/access/Ownable.sol';
 ```
 
+### 2024.09.29
+- [102-19] 接收 ETH
+    - Solidity支持两种特殊的回调函数，receive()和fallback(),主要用于两种场景：1）接收 ETH；2）处理合约中不存在的函数调用（代理合约 proxy contract）;
+    - 注意：在Solidity 0.6.x版本之前，语法上只有 fallback() 函数，用来接收用户发送的ETH时调用以及在被调用函数签名没有匹配到时，来调用。 0.6版本之后，Solidity才将 fallback() 函数拆分成 receive() 和 fallback() 两个函数。
+    - receive()
+        - 一个合约最多有一个receive()函数,receive() external payable { ... }。receive()函数不能有任何的参数，不能返回任何值，必须包含external和payable。
+        - receive()最好不要执行太多的逻辑因为如果别人用send和transfer方法发送ETH的话，gas会限制在2300，receive()太复杂可能会触发Out of Gas报错；如果用call就可以自定义gas执行更复杂的逻辑。
+    - fallback()
+        - fallback()函数会在调用合约不存在的函数时被触发。可用于接收ETH，也可以用于代理合约proxy contract。一般也会用payable修饰。
+    - 【提醒】有些恶意合约，会在receive()/fallback() 函数嵌入恶意消耗gas的内容或者使得执行故意失败的代码，导致一些包含退款和转账逻辑的合约不能正常工作，因此写包含退款等逻辑的合约时候，一定要注意这种情况。
+    - receive() vs fallback()
+        - receive和fallback都能够用于接收ETH，他们触发的规则如下：
+        ```
+        触发fallback() 还是 receive()?
+                接收ETH
+                    |
+                msg.data是空？
+                    /  \
+                是    否
+                /      \
+        receive()存在?   fallback()
+                / \
+            是  否
+            /     \
+        receive()   fallback()
+        ```
+        - receive()和payable fallback()均不存在的时候，向合约直接发送ETH将会报错（但可以通过合约里带有payable的其他函数发送ETH）。
+- [102-20] 发送ETH:transfer()，send()和call()
+    - transfer
+        - 接收方地址.tranfer(eth_amount)
+        - gas limit 2300
+        - 转账失败会 revert
+    - send 【不推荐】
+        - 接收方地址.send(eth_amount)
+        - gas limit 2300
+        - 转账失败不会 revert
+        - 返回值：bool
+    - call
+        - 接收方地址.call{value: eth_amount}("")
+        - 无 gas 限制
+        - 转账失败不会 revert
+        - call()的返回值是(bool, bytes)
+    - 一个习题：EOA调用合约A的sendeth函数给合约b发eth，合约a、b均无eth。这里的执行逻辑是先把交易带的eth加到合约a上，所以sendeth不会revert。
+- [102-21] 调用其他合约
+    - 传入合约地址：OtherContract(_Address).setX(x);
+    - 合约变量：OtherContract _Address （本质上还是address）
+
+### 2024.09.30
+
+- [102-22] Call
+    - call 是address类型的低级成员函数，它用来与其他合约交互。它的返回值为(bool, bytes memory)，分别对应call是否成功以及目标函数的返回值。
+    - 不推荐用call来调用另一个合约，可能会导致安全问题。推荐的方法仍是声明合约变量后调用函数。
+    ```solidity
+    目标合约地址.call(字节码);
+    目标合约地址.call{value:发送数额, gas:gas数额}(字节码);
+    // 字节码计算：abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)
+    ```
+- [102-23] Delegatecall 【重要‼️】
+    - delegate中是委托/代表的意思，那么delegatecall委托了什么？
+        - 当用户A通过合约B来call合约C的时候，执行的是合约C的函数，上下文(Context，可以理解为包含变量和状态的环境)也是合约C的：msg.sender是B的地址，并且如果函数改变一些状态变量，产生的效果会作用于合约C的变量上;
+        - 当用户A通过合约B来delegatecall合约C的时候，执行的是合约C的函数，但是上下文仍是合约B的：msg.sender是A的地址，并且如果函数改变一些状态变量，产生的效果会作用于合约B的变量上;
+        - 一个很好的比喻：
+        > 一个投资者（用户A）把他的资产（B合约的状态变量）都交给一个风险投资代理（C合约）来打理。执行的是风险投资代理的函数，但是改变的是资产的状态。
+    ```solidity
+    目标合约地址.delegatecall(二进制编码);
+    ```
+    - delegatecall在调用合约时可以指定交易发送的gas，但不能指定发送的ETH数额
+    - 注意：delegatecall有安全隐患，使用时要保证当前合约和目标合约的状态变量存储结构相同，并且目标合约安全，不然会造成资产损失。
+    - 使用场景：
+        - 代理合约（Proxy Contract）：将智能合约的存储合约和逻辑合约分开：代理合约（Proxy Contract）存储所有相关的变量，并且保存逻辑合约的地址；所有函数存在逻辑合约（Logic Contract）里，通过delegatecall执行。当升级时，只需要将代理合约指向新的逻辑合约即可。
+        - EIP-2535 Diamonds（钻石）：钻石是一个支持构建可在生产中扩展的模块化智能合约系统的标准。钻石是具有多个实施合约的代理合约。 [link](https://eip2535diamonds.substack.com/p/introduction-to-the-diamond-standard)
+- [102-24] 在合约中创建新合约：Create
+    - `Contract x = new Contract{value: _value}(params)`
+    - 使用场景：去中心化交易所 uniswap 利用工厂合约（PairFactory）创建了无数个币对合约（Pair）： [code](https://github.com/Uniswap/v2-core/tree/master/contracts)
+        - UniswapV2Pair: 币对合约，用于管理币对地址、流动性、买卖。
+        - UniswapV2Factory: 工厂合约，用于创建新的币对，并管理币对地址。
+
+### 2024.10.01
+
+- [102-25] 在合约中创建新合约：Create2
+    - CREATE2 操作码使我们在智能合约部署在以太坊网络之前就能预测合约的地址。CREATE2 的目的是为了让合约地址独立于未来的事件。
+    - 用CREATE2创建的合约地址由4个部分决定：`Contract x = new Contract{salt: _salt, value: _value}(params)`
+        - 0xFF：一个常数，避免和CREATE冲突
+        - CreatorAddress: 调用 CREATE2 的当前合约（创建合约）地址。
+        - salt（盐）：一个创建者指定的bytes32类型的值，它的主要目的是用来影响新创建的合约的地址。
+        - initcode: 新合约的初始字节码（合约的Creation Code和构造函数的参数）。
+    - 提前计算地址：
+        - 无参数：
+        ```solidity
+        // 计算合约地址方法 hash()
+        predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+            bytes1(0xff),
+            address(this),
+            salt,
+            keccak256(type(Pair).creationCode)
+        )))));
+        ```
+        - 有参数：
+        ```solidity
+        predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+                bytes1(0xff),
+                address(this),
+                salt,
+                keccak256(abi.encodePacked(type(Pair).creationCode, abi.encode(address(this))))
+            )))));
+        ```
+    - 使用场景：
+        - 交易所为新用户预留创建钱包合约地址。
+    - Create VS Create2
+        - create: `新地址 = hash(创建者地址, nonce)`。由于nonce不确定（你不知道你是第几个，因为别人也可能在调用）所以无法预测地址。
+        - create2: `新地址 = hash("0xFF",创建者地址, salt, initcode)`。新合约的地址由创建者地址、salt值(一个256位的值)、合约字节码计算得出。可以预测出创造出的合约地址。
+- [102-26] 删除合约：selfdestruct `selfdestruct(_addr)；`
+    - selfdestruct 命令可以用来删除智能合约，并将该合约剩余ETH转到指定地址。selfdestruct 是为了应对合约出错的极端情况而设计的。它最早被命名为 suicide，但是这个词太敏感，改名为 selfdestruct。在 [v0.8.18](https://soliditylang.org/blog/2023/02/01/solidity-0.8.18-release-announcement/) 版本中，selfdestruct 关键字被标记为「不再建议使用」，在一些情况下它会导致预期之外的合约语义，但由于目前还没有代替方案，目前只是对开发者做了编译阶段的警告，相关内容可以查看 [EIP-6049](https://eips.ethereum.org/EIPS/eip-6049)。
+    - 在以太坊坎昆（Cancun）升级中，EIP-6780 被纳入升级以实现对 Verkle Tree 更好的支持。EIP-6780 减少了 SELFDESTRUCT 操作码的功能。根据提案描述，当前 SELFDESTRUCT 仅会被用来将合约中的 ETH 转移到指定地址，而原先的删除功能只有在合约创建-自毁这两个操作处在同一笔交易时才能生效。所以目前来说：
+        - 已经部署的合约无法被SELFDESTRUCT了。
+        - 如果要使用原先的SELFDESTRUCT功能，必须在同一笔交易中创建并SELFDESTRUCT。
+- [102-27] ABI编码解码
+    - ABI (Application Binary Interface，应用二进制接口)是与以太坊智能合约交互的标准。数据基于他们的类型编码；并且由于编码后不包含类型信息，解码时需要注明它们的类型。 [docs-abi_spec](https://learnblockchain.cn/docs/solidity/abi-spec.html)
+    - 编码：
+        - abi.encode: 非紧凑编码，每个类型的数据都填充到32bytes，与合约交互要用这个
+        - abi.encodePacked：紧凑编码，用于算hash，长度比abi.encode短很多
+        - abi.encodeWithSignature：与abi.encode功能类似，只不过第一个参数为函数签名。等同于在abi.encode编码结果前加上了4字节的函数选择器。`result = abi.encodeWithSignature("foo(uint256,address,string,uint256[2])", x, addr, name, array);`
+        - abi.encodeWithSelector：与abi.encodeWithSignature功能类似，只不过第一个参数为函数选择器,`result = abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array);`
+    - 解码：abi.decode
+        - `(dx, daddr, dname, darray) = abi.decode(data, (uint, address, string, uint[2]));`
+
+### 2024.10.02
+
+- [102-28] Hash
+    - 一个好的哈希函数应该具有以下几个特性：
+        - 单向性：从输入的消息到它的哈希的正向运算简单且唯一确定，而反过来非常难，只能靠暴力枚举。
+        - 灵敏性：输入的消息改变一点对它的哈希改变很大。
+        - 高效性：从输入的消息到哈希的运算高效。
+        - 均一性：每个哈希值被取到的概率应该基本相等。
+        - 抗碰撞性：
+            - 弱抗碰撞性：给定一个消息x，找到另一个消息x'，使得hash(x) = hash(x')是困难的。
+            - 强抗碰撞性：找到任意x和x'，使得hash(x) = hash(x')是困难的。
+    - `哈希 = keccak256(数据);`
+    - SHA3由keccak标准化而来，在很多场合下Keccak和SHA3是同义词，但在2015年8月SHA3最终完成标准化时，NIST调整了填充算法。所以SHA3就和keccak计算的结果不一样。以太坊在开发的时候sha3还在标准化中，所以采用了keccak，所以Ethereum和Solidity智能合约代码中的SHA3是指Keccak256，而不是标准的NIST-SHA3，为了避免混淆，直接在合约代码中写成Keccak256是最清晰的。
+    - 使用场景：
+        - 生成数据唯一标识：`keccak256(abi.encodePacked(_num, _string, _addr))`
+- [102-29] 选择器
+    - 调用智能合约时，本质上是向目标合约发送了一段 calldata。sg.data 是 Solidity 中的一个全局变量，值为完整的 calldata。
+    - 在函数签名中，uint 和 int 要写为 uint256 和 int256。
+    - 计算 method id 时，需要通过函数名和函数的参数类型来计算。在Solidity中，函数的参数类型主要分为：基础类型参数，固定长度类型参数，可变长度类型参数和映射类型参数。
+        - `bytes4(keccak256("elementaryParamSelector(uint256,bool)"))`
+        - `bytes4(keccak256("fixedSizeParamSelector(uint256[3])"))`
+        - `bytes4(keccak256("nonFixedSizeParamSelector(uint256[],string)"))`
+        - 映射类型参数通常有：contract、enum、struct等。在计算method id时，需要将该类型转化成为ABI类型。
+        ```solidity
+        contract DemoContract {
+            // empty contract
+        }
+
+        contract Selector{
+            // Struct User
+            struct User {
+                uint256 uid;
+                bytes name;
+            }
+            // Enum School
+            enum School { SCHOOL1, SCHOOL2, SCHOOL3 }
+            ...
+            // mapping（映射）类型参数selector
+            // 输入：demo: 0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99， user: [1, "0xa0b1"], count: [1,2,3], mySchool: 1
+            // mappingParamSelector(address,(uint256,bytes),uint256[],uint8) : 0xe355b0ce
+            function mappingParamSelector(DemoContract demo, User memory user, uint256[] memory count, School mySchool) external returns(bytes4 selectorWithMappingParam){
+                emit SelectorEvent(this.mappingParamSelector.selector);
+                return bytes4(keccak256("mappingParamSelector(address,(uint256,bytes),uint256[],uint8)"));
+            }
+            ...
+        }
+        ```
+- [102-30] Try Catch
+    - Solidity 0.6 版本添加了 try-catch。try-catch 只能被用于 external 函数或创建合约时 constructor（被视为 external 函数）的调用。
+    ```solidity
+    try externalContract.f() {
+        // call成功的情况下 运行一些代码
+    } catch {
+        // call失败的情况下 运行一些代码
+    }
+
+    try externalContract.f() returns(returnType val) {
+        // call成功的情况下 try模块中可以使用返回的变量,如果是创建合约，那么返回值是新创建的合约变量。
+    } catch {
+        // call失败的情况下 运行一些代码
+    }
+
+    try externalContract.f() returns(returnType){
+        // call成功的情况下 运行一些代码
+    } catch Error(string memory /*reason*/) {
+        // 捕获revert("reasonString") 和 require(false, "reasonString")
+    } catch Panic(uint /*errorCode*/) {
+        // 捕获Panic导致的错误 例如assert失败 溢出 除零 数组访问越界
+    } catch (bytes memory /*lowLevelData*/) {
+        // 如果发生了revert且上面2个异常类型匹配都失败了 会进入该分支
+        // 例如revert() require(false) revert自定义类型的error
+    }
+    ```
+    - 可以使用this.f()来替代externalContract.f()，this.f()也被视作为外部调用，但不可在构造函数中使用，因为此时合约还未创建。
+    - try 代码块内的 revert 不会被 catch 本身捕获。
+
 <!-- Content_END -->
+
+### 2024.10.03
+
+- [103-31] ERC20
+- [103-32] 代币水龙头
+- [103-33] 空投合约
+
+### 2024.10.04
+
+- [103-34] ERC721
+- [103-35] 荷兰拍卖
+- [103-36] 默克尔树
+
+### 2024.10.05
+
+- [103-37] 数字签名
+- [103-38] NFT交易所
+- [103-39] 链上随机数
+
+### 2024.10.06
+
+- [103-40] ERC1155
+- [103-41] WETH
+- [103-42] 分账
+
+### 2024.10.07
+
+- [103-43] 线性释放
+- [103-44] 代币锁
+- [103-45] 时间锁
+
+### 2024.10.08
+
+- [103-46] 代理合约
+- [103-47] 可升级合约
+- [103-48] 透明代理
+
+### 2024.10.09
+
+- [103-49] 通用可升级代理
+- [103-50] 多签钱包
+- [103-51] ERC4626代币化金库标准
+
+### 2024.10.10
+
+- [103-52] EIP712 类型化数据签名
+- [103-53] ERC-2612 ERC20Permit
+- [103-54] 跨链桥
+
+### 2024.10.11
+
+- [103-55] 多重调用
+- [103-56] 去中心化交易所
+- [103-57] 闪电贷
+
+### 2024.10.12
+
+- [104-S01] 重入攻击
+- [104-S02] 选择器碰撞
+- [104-S03] 中心化风险
+
+### 2024.10.13
+
+- [104-S04] 权限管理漏洞
+- [104-S05] 整型溢出
+- [104-S06] 签名重放
+
+### 2024.10.14
+
+- [104-S07] 坏随机数
+- [104-S08] 绕过合约检查
+- [104-S09] 拒绝服务
+
+### 2024.10.15
+
+- [104-S10] 貔貅
+- [104-S11] 抢先交易
+- [104-S12] tx.origin 钓鱼攻击
+
+### 2024.10.16
+
+- [104-S13] 未检查的低级调用
+- [104-S14] 操纵区块时间
+- [104-S15] 操纵预言机
+- [104-S16] NFT重入攻击
+- [104-S17] “跨服”重入攻击

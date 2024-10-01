@@ -91,4 +91,11 @@ mapping(uint => address) public i2addr;
 + 宣告過但還沒被賦值的變數都有預設值。可用`getter()`驗證初始值。
 + 怎麼變回初始值? `delete a`會讓a的值變回初始值。
 
+### 2024.10.01
+學習內容: `9.Constant和immutable`
++ 和其他程式語言相同，constant不可變，immutable可變。
++ constant宣告時須先初始化(賦值)，immutable則不用。
+
+
+
 <!-- Content_END -->

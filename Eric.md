@@ -72,6 +72,15 @@ day08:
 
 
 
+### 2024.10.01
+
+day09:
+
+[WTF Academy Solidity 102 17-18 Note](/content/Eric/109.md)
+
+
+
+
 
 
 

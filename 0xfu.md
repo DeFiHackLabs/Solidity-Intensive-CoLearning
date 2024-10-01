@@ -337,4 +337,52 @@ contract SignatureNFT is ERC721 {
 ###
 
 
+
+### 2024.09.30
+
+
+#### NFT 交易所
+
+用Solidity搭建一个零手续费的NFT交易所
+- 卖家：出售NFT的一方，可以挂单list、撤单revoke、修改价格update。
+- 买家：购买NFT的一方，可以购买purchase。
+- 订单：卖家发布的NFT链上订单，一个系列的同一tokenId最多存在一个订单，其中包含挂单价格price和持有人owner信息。当一个订单交易完成或被撤单后，其中信息清零。
+
+
+#### 合约事件
+
+```Solidity
+event List(address indexed seller, address indexed nftAddr, uint256 indexed tokenId, uint256 price);
+event Purchase(address indexed buyer, address indexed nftAddr, uint256 indexed tokenId, uint256 price);
+event Revoke(address indexed seller, address indexed nftAddr, uint256 indexed tokenId);
+event Update(address indexed seller, address indexed nftAddr, uint256 indexed tokenId, uint256 newPrice);
+```
+
+###
+
+
+### 2024.10.1
+
+#### 随机数
+
+由于以太坊上所有数据都是公开透明（public）且确定性（deterministic）的，没法像其他编程语言一样给
+开发者提供生成随机数的方法，在web3上可以使用链上或链下方法生成随机数。
+
+
+#### 链上随机数生成
+可以将一些链上的全局变量作为种子，利用keccak256()哈希函数来获取伪随机数。
+
+```Solidity
+function getRandomOnchain() public view returns(uint256){
+    bytes32 randomBytes = keccak256(abi.encodePacked(block.timestamp, msg.sender, blockhash(block.number-1)));
+
+    return uint256(randomBytes);
+}
+```
+这种方法因为使用的种子数据都是公开的， 所以使用者可以预测出这些种子生成的随机数, 其次旷工可以操纵 blockhash 和 
+block.timestamp 使得生成的随机数符合他的利益。
+
+###
+
+
 <!-- Content_END -->
