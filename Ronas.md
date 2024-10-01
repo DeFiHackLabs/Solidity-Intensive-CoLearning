@@ -344,4 +344,34 @@ timezone: Asia/Shanghai
             f(50);
             ```
 
+### 2024.10.01
+
+> 進度: Solidity 102 17~18
+
+- 庫合約 (Library)
+    ```
+    library Strings {
+    }
+    ```
+    - 性質
+        - 不能有狀態變數
+        - 不能繼承或被繼承
+        - 不能接收發送 ETH
+        - 不可被銷毀
+    - `public` 或 `external` 的函數, 會觸發 `delegatecall`
+    - 語法
+        ```
+        using Strings for uint256;
+        function getString1(uint256 _number) public pure returns(string memory){
+            return _number.toHexString();
+        }
+
+        function getString2(uint256 _number) public pure returns(string memory){
+            return Strings.toHexString(_number);
+        }
+        ```
+
+- 引入外部合約 (import)
+    > https://docs.soliditylang.org/en/latest/path-resolution.html#imports
+
 <!-- Content_END -->
