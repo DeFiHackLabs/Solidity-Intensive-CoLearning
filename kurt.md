@@ -342,6 +342,50 @@ Keccak256函数是Solidity中最常用的哈希函数，用法非常简单：
 
 29. 函数选择器Selector
 
+### 2024.10.02
+30. Try Catch
 
+在Solidity中，try-catch只能被用于external函数或创建合约时constructor（被视为external函数）的调用。基本语法如下：
+```
+try externalContract.f() {
+    // call成功的情况下 运行一些代码
+} catch {
+    // call失败的情况下 运行一些代码
+}
+```
+其中externalContract.f()是某个外部合约的函数调用，try模块在调用成功的情况下运行，而catch模块则在调用失败时运行。
+
+同样可以使用this.f()来替代externalContract.f()，this.f()也被视作为外部调用，但不可在构造函数中使用，因为此时合约还未创建。
+
+如果调用的函数有返回值，那么必须在try之后声明returns(returnType val)，并且在try模块中可以使用返回的变量；如果是创建合约，那么返回值是新创建的合约变量。
+```
+try externalContract.f() returns(returnType val){
+    // call成功的情况下 运行一些代码
+} catch {
+    // call失败的情况下 运行一些代码
+}
+```
+
+另外，catch模块支持捕获特殊的异常原因：
+```
+try externalContract.f() returns(returnType){
+    // call成功的情况下 运行一些代码
+} catch Error(string memory /*reason*/) {
+    // 捕获revert("reasonString") 和 require(false, "reasonString")
+} catch Panic(uint /*errorCode*/) {
+    // 捕获Panic导致的错误 例如assert失败 溢出 除零 数组访问越界
+} catch (bytes memory /*lowLevelData*/) {
+    // 如果发生了revert且上面2个异常类型匹配都失败了 会进入该分支
+    // 例如revert() require(false) revert自定义类型的error
+}
+```
+### 2024.10.03
+### 2024.10.04
+### 2024.10.05
+### 2024.10.06
+### 2024.10.07
+### 2024.10.08
+### 2024.10.09
+### 2024.10.10
     
 <!-- Content_END -->
