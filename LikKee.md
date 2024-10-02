@@ -952,8 +952,8 @@ Address A -call-> Contract B -delegatecall-> Contract C
                 msg.value=A                 msg.value=A
 
 
-// Example (value and gas are optional)
-(bool success, bytes memory data) = someContract.delegatecall{value: 1 ether}(
+// Example
+(bool success, bytes memory data) = someContract.delegatecall(
   abi.encodeWithSignature("someFunction(uint256)", 100)
 );
 ```
@@ -979,11 +979,3 @@ Address A -call-> Contract B -delegatecall-> Contract C
 ### 2024.10.10
 
 <!-- Content_END -->
-
-```
-
-```
-
-```
-
-```
