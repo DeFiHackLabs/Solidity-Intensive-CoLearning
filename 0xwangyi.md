@@ -251,3 +251,21 @@ Solidity 102-23 delegatecall
 5 在代理合约中，储存所有相关的变量的是代理合约，储存所有函数的是逻辑合约，同时代理合约delegatecall逻辑合约
 6 代理合约Proxy Contracts
 <!-- Content_END -->
+<!-- Content_START -->
+### 2024.10.02
+Day10 
+Solidity 102-24 在合约中创建新合约
+1 solidity中新建合约的关键字是：new
+2 一个工厂合约PairFactory创建Pair合约的最大数量一般由PairFactory合约逻辑决定
+3 params是parameters缩写，参数
+
+Solidity 102-25 Create2
+1 Create2与Create的不同之处在于：Create2可以让合约地址独立于未来的事件
+2 nonce随机数，是number only used once缩写，防止攻击，确保每个操作唯一，并且通常递增
+3 salt是一个随机生成的值，增加随机性，避免生成相同输出而使用
+4 initcode 是合约的初始化代码，它包含合约的字节码和构造函数参数，用于部署时生成合约的最终逻辑
+
+Solidity 102-26 删除合约
+1 删除合约的命令，现在常用：selfdestruct
+2 坎昆升级后，合约依然存在，只是将合约包含的eth转移到指定地址，而合约依然能够调用
+<!-- Content_END -->

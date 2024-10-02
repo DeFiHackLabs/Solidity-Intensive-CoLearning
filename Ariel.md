@@ -355,11 +355,24 @@ Solidity三种抛出异常的方法：error，require和assert
    Create2：更安全的使用Create2 EVM opcode
    Arrays：跟数组相关的库合约
 
-### 2024.10.
+### 2024.10.2
 
-學習內容：WTF #18
+學習內容：WTF #18 
 
-# 18:
+# 18:import
+4種:
+ // 通过文件相对位置import
+import './Yeye.sol';
+// 通过`全局符号`导入特定的合约
+import {Yeye} from './Yeye.sol';
+// 通过网址引用
+import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+// 引用OpenZeppelin合约
+import '@openzeppelin/contracts/access/Ownable.sol';
+
+contract Import {
+    // 成功导入Address库
+    }
 
 
 <!-- Content_END -->

@@ -1,5 +1,5 @@
+cache/
 lib/
-script/
-test/
+out/
 
 *.txt
