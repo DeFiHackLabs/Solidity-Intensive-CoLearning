@@ -112,5 +112,12 @@ Arrays：跟数组相关的库合约
 7. 字节码 = abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)
 8. 函数签名为"函数名（逗号分隔的参数类型）"。例如abi.encodeWithSignature("f(uint256,address)", _x, _addr)
 9. call不是调用合约的推荐方法，因为不安全。但他能让我们在不知道源代码和ABI的情况下调用目标合约，很有用。
-   
+
+### 2024.10.02
+1. 此时，调用合约B中的callSetVars，传入参数为合约C地址和10。运行后，合约C中的状态变量将被修改：num被改为10，sender变为合约B的地址
+2. 由于是delegatecall，上下文为合约B。在运行后，合约B中的状态变量将被修改：num被改为100，sender变为你的钱包地址。合约C中的状态变量不会被修改。
+3. B call C，上下文为C；而B delegatecall C，上下文为B
+4. delegatecall在调用合约时可以指定交易发送的gas，但不能指定发送的ETH数额
+5. create的用法很简单，就是new一个合约，并传入新合约构造函数所需的参数：Contract x = new Contract{value: _value}(params)
+6. 其中Contract是要创建的合约名，x是合约对象（地址），如果构造函数是payable，可以创建时转入_value数量的ETH，params是新合约构造函数的参数。
 <!-- Content_END -->

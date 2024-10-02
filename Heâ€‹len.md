@@ -15,6 +15,41 @@ timezone: Asia/Shanghai
 ## Notes
 
 <!-- Content_START -->
+### 2024.10.01
+
+## 4. 定長字節數組（Fixed-Length Byte Arrays）
+
+在 Solidity 中，字節數組分為兩種類型：
+
+(1)`定長字節數組`（Fixed-Length Byte Arrays）：其`大小`在宣告後`不能`改變，屬於`值類`型。常見的類型有 `bytes1`, `bytes8`, `bytes32` 等。
+
+(2)`不定長字節數組`（Dynamically Sized Byte Arrays）：其大小可以在`程式運行`時`改變`，屬於`引用`類型，主要類型是 `bytes`。
+範例
+```solidity
+// 固定長度的字節數組
+bytes32 public _byte32 = "MiniSolidity"; 
+bytes1 public _byte = _byte32[0];  // 取得 _byte32 的第一個字節
+```
+在這段程式碼中：
+(1) 變數 _byte32 以字節的方式存儲了字串 MiniSolidity，若將其轉換成 16 進制表示，結果為：
+結果為：
+```solidity
+0x4d696e69536f6c69646974790000000000000000000000000000000000000000
+```
+這表示字串以 bytes32 的格式儲存，_byte 變數的值為 _byte32 的第一個字節，即 0x4d，這是字母 M 的 16 進制 ASCII 編碼。
+
+(2) 取出第二個字節：
+```
+bytes1 public _byte2 = _byte32[1];  // 取得第二個字節，結果為 0x69 (字母 'i')
+```
+(3) 創建 16 字節數組：
+
+```solidity
+bytes16 public _byte16 = "Hello, World!";
+```
+_byte16 將會儲存前 16 個字節，並補零至 16 個字節長。
+
+
 ### 2024.09.30
 ## 3. 地址類型（Address）
 在 Solidity 中，address 是一種專門用於儲存以太坊地址的資料類型。地址類型有兩種類型：

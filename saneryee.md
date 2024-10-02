@@ -50,7 +50,24 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 ## Notes
 
 <!-- Content_START -->
+### 2024.10.02
 
+Day 8
+
+WTF Academy Solidity 101 30_TryCatch, 31_ERC20
+
+Try Catch
+- `external` or `public` function
+- call `constructor` when creating contracts
+
+ERC20
+
+- User's `ERC20Token` store in `mapping(address => uint256) public override balanceOf;` in the ERC20 contract
+  - Any transaction of erc20 tokens is an increase or decrease of this mapping `balanceOf`.
+
+- first `appprover` next `transferFrom`
+
+---
 ### 2024.10.01
 
 Day 7
@@ -63,6 +80,7 @@ ABI encode
 - `abi.encodePacked`: compacts encoding
 - `abi.encodeWithSignature`: first parameter - `function signatures`
 - `abi.encodeWithSelector`: first parameter - `function selector`
+- `abi.encodeCall`: Syntactic sugar vesion of `abi.encodeWithSelector` and `abi.encodeWithSignature`
 
 ABI decode
 - `abi.decode`: decode the data of `abi.encode`
@@ -99,6 +117,57 @@ ABI Scenarios:
       require(success);
 
       return abi.decode(returnedData, (uint256));
+   ```
+4. The most commonly used method in projects is `abi.encodeCall`. 
+   Its advantage is that, compared to `abi.encodeWithSignature` and `abi.encodeWithSelector`, `abi.encodeCall` automatically checks the function signature and parameters at compile time, preventing spelling mistakes and parameter type mismatches. `abi.encodeWithSignature` dynamically accepts a string to represent the function signature, so when you use `abi.encodeWithSignature`, the compiler does not check if the function name or parameters are correct, as it treats the string as regular input data.
+
+   ```solidity
+   // SPDX-License-Identifier: MIT
+   pragma solidity ^0.8.26;
+
+   interface IERC20 {
+      function transfer(address, uint256) external;
+   }
+
+   contract Token {
+      function transfer(address, uint256) external {}
+   }
+
+   contract AbiEncode {
+      function test(address _contract, bytes calldata data) external {
+         (bool ok,) = _contract.call(data);
+         require(ok, "call failed");
+      }
+
+      function encodeWithSignature(address to, uint256 amount)
+         external
+         pure
+         returns (bytes memory)
+      {
+         // Typo is not checked - "transfer(address, uint)"
+         return abi.encodeWithSignature("transfer(address,uint256)", to, amount);
+      }
+
+      function encodeWithSelector(address to, uint256 amount)
+         external
+         pure
+         returns (bytes memory)
+      {
+         // Type is not checked - (IERC20.transfer.selector, true, amount)
+         return abi.encodeWithSelector(IERC20.transfer.selector, to, amount);
+      }
+
+      function encodeCall(address to, uint256 amount)
+         external
+         pure
+         returns (bytes memory)
+      {
+         // Typo and type errors will not compile
+         return abi.encodeCall(IERC20.transfer, (to, amount));
+      }
+   }
+
+
    ```
 
 Hash

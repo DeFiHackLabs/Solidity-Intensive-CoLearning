@@ -830,6 +830,161 @@ contract B {
 
 ### 2024.09.30
 
+24. 合约中创建合约
+
+- 以 uniswap V2 为例
+
+```solidity
+contract Pair{ //交易对合约，管理币对的地址
+    address public factory; // *工厂合约地址
+    address public token0; // 代币1
+    address public token1; // 代币2
+
+    constructor() payable {
+        factory = msg.sender;
+    }
+
+    // called once by the factory at time of deployment
+    function initialize(address _token0, address _token1) external {
+        require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
+        token0 = _token0;
+        token1 = _token1;
+    }
+}
+
+
+contract PairFactory{//工厂合约，用来创建新交易对
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair(address tokenA, address tokenB) external returns (address pairAddr) {
+        // 创建新合约
+        Pair pair = new Pair();
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+}
+```
+
+### 2024.10.01
+
+25. create2
+
+- create 地址的计算：新地址 = hash(创建者地址, nonce)  
+  因为 nonce 会随时间而改变，所以 create 的新合约地址不好预测
+- create2 的地址计算：  
+  新地址 = hash("0xFF",创建者地址, salt, initcode)
+  - 0xFF：一个常数，避免和 CREATE 冲突
+  - salt（盐）：一个创建者指定的 bytes32 类型的值，它的主要目的是用来影响新创建的合约的地址。
+  - initcode: 新合约的初始字节码（合约的 Creation Code 和构造函数的参数）
+- 使用：Contract x = new Contract{salt: \_salt, value: \_value}(params)
+- Uinswap V2 实际上用的 create2 来实现
+
+```solidity
+contract Pair{
+    address public factory; // 工厂合约地址
+    address public token0; // 代币1
+    address public token1; // 代币2
+
+    constructor() payable {
+        factory = msg.sender;
+    }
+
+    // called once by the factory at time of deployment
+    function initialize(address _token0, address _token1) external {
+        require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
+        token0 = _token0;
+        token1 = _token1;
+    }
+}
+
+
+contract PairFactory2{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair2(address tokenA, address tokenB) external returns (address pairAddr) {
+        require(tokenA != tokenB, 'IDENTICAL_ADDRESSES'); //避免tokenA和tokenB相同产生的冲突
+        // 用tokenA和tokenB地址计算salt
+        (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); //将tokenA和tokenB按大小排序
+        bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+        // 用create2部署新合约
+        Pair pair = new Pair{salt: salt}();
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+
+    // 用来验证提前计算pair合约地址是否正确
+    function calculateAddr(address tokenA, address tokenB) public view returns(address predictedAddress){
+        require(tokenA != tokenB, 'IDENTICAL_ADDRESSES'); //避免tokenA和tokenB相同产生的冲突
+        // 计算用tokenA和tokenB地址计算salt
+        (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); //将tokenA和tokenB按大小排序
+        bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+        // 计算合约地址方法 hash()
+        predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+            bytes1(0xff),
+            address(this),
+            salt,
+            keccak256(type(Pair).creationCode)
+            )))));
+    }
+
+}
+
+```
+
+### 2024.10.02
+
+26. 删除合约
+
+- selfdestruct 编译阶段会告警，不建议使用，[EIP6049](https://eips.ethereum.org/EIPS/eip-6049)
+
+- 坎昆升级[EIP6780](https://eips.ethereum.org/EIPS/eip-6780)减少了 SELFDESTRUCT 操作码的功能，当前 SELFDESTRUCT 仅会被用来将合约中的 ETH 转移到指定地址，而原先的删除功能只有在合约创建-自毁这两个操作处在同一笔交易时才能生效。
+
+- 举例
+
+```solidity
+contract DeleteContract {
+    //在坎昆升级前可以完成合约的自毁，在坎昆升级后仅能实现内部ETH余额的转移
+    uint public value = 10;
+    constructor() payable {}
+    receive() external payable {}
+
+    function deleteContract() external {
+        // 调用selfdestruct销毁合约，并把剩余的ETH转给msg.sender
+        selfdestruct(payable(msg.sender));
+    }
+
+    function getBalance() external view returns(uint balance){
+        balance = address(this).balance;
+    }
+}
+```
+
+### 2024.10.03
+
+### 2024.10.04
+
+### 2024.10.05
+
+### 2024.10.06
+
+### 2024.10.07
+
+### 2024.10.08
+
+### 2024.10.09
+
 <!-- Content_END -->
 
 ```
