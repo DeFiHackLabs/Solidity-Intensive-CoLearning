@@ -945,6 +945,46 @@ contract PairFactory2{
 
 ### 2024.10.02
 
+26. 删除合约
+
+- selfdestruct 编译阶段会告警，不建议使用，[EIP6049](https://eips.ethereum.org/EIPS/eip-6049)
+
+- 坎昆升级[EIP6780](https://eips.ethereum.org/EIPS/eip-6780)减少了 SELFDESTRUCT 操作码的功能，当前 SELFDESTRUCT 仅会被用来将合约中的 ETH 转移到指定地址，而原先的删除功能只有在合约创建-自毁这两个操作处在同一笔交易时才能生效。
+
+- 举例
+
+```solidity
+contract DeleteContract {
+    //在坎昆升级前可以完成合约的自毁，在坎昆升级后仅能实现内部ETH余额的转移
+    uint public value = 10;
+    constructor() payable {}
+    receive() external payable {}
+
+    function deleteContract() external {
+        // 调用selfdestruct销毁合约，并把剩余的ETH转给msg.sender
+        selfdestruct(payable(msg.sender));
+    }
+
+    function getBalance() external view returns(uint balance){
+        balance = address(this).balance;
+    }
+}
+```
+
+### 2024.10.03
+
+### 2024.10.04
+
+### 2024.10.05
+
+### 2024.10.06
+
+### 2024.10.07
+
+### 2024.10.08
+
+### 2024.10.09
+
 <!-- Content_END -->
 
 ```
