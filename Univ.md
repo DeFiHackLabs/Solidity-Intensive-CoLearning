@@ -348,7 +348,7 @@ function test() public pure returns (uint256) {
 - 修改算法，使 j 的最小值不會小於 0，從而避免 underflow 錯誤。
 
 錯誤版
-ˋˋˋSolidity
+```solidity
 function insertionSortWrong(uint[] memory a) public pure returns(uint[] memory) {    
     for (uint i = 1;i < a.length;i++){
         uint temp = a[i];
@@ -364,7 +364,7 @@ function insertionSortWrong(uint[] memory a) public pure returns(uint[] memory) 
 ˋˋˋ
 
 正確版
-ˋˋˋSolidity
+```solidity
 function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
     // note that uint can not take negative value
     for (uint i = 1;i < a.length;i++){
