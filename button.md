@@ -17,6 +17,9 @@ timezone: Asia/Shanghai
 ## Notes
 
 <!-- Content_START -->
+### 2024.10.02
+学习 接收和发送eth
+
 ### 2024.10.01
 学习 库合约的使用方法。
 
