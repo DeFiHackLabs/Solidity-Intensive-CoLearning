@@ -1280,6 +1280,25 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     }
     ```
 - [103-39] 链上随机数
+    - 由于以太坊上所有数据都是公开透明（public）且确定性（deterministic）的，它没法像其他编程语言一样给开发者提供生成随机数的方法。
+    - 链上（哈希函数）：将一些链上的全局变量作为种子，利用keccak256()哈希函数来获取伪随机数。这是因为哈希函数具有灵敏性和均一性，可以得到“看似”随机的结果。
+    ```solidity
+    function getRandomOnchain() public view returns(uint256){
+        // remix运行blockhash会报错
+        bytes32 randomBytes = keccak256(abi.encodePacked(block.timestamp, msg.sender, blockhash(block.number-1)));
+        return uint256(randomBytes);
+    }
+    ```
+    注意:，这个方法并不安全：首先，block.timestamp，msg.sender和blockhash(block.number-1)这些变量都是公开的，使用者可以预测出用这些种子生成出的随机数，并挑出他们想要的随机数执行合约。其次，矿工可以操纵blockhash和block.timestamp，使得生成的随机数符合他的利益。攻击[例子](https://forum.openzeppelin.com/t/understanding-the-meebits-exploit/8281)。
+    - 链下（chainlink预言机）随机数生成：在链下生成随机数，然后通过预言机把随机数上传到链上。Chainlink 提供 VRF（可验证随机函数）服务，链上开发者可以支付 LINK 代币来获取随机数。
+        - 用户合约继承VRFConsumerBaseV2；
+        - 订阅chainlink，合约部署后，需要把合约加入到Subscription的Consumers中，才能发送申请；
+        - 用户合约申请随机数；
+        - Chainlink节点链下生成随机数和数字签名，并发送给 VRF 合约；
+        - VRF合约验证签名有效性；
+        - 用户合约接收并使用随机数；
+    - 注意: 用户申请随机数时调用的requestRandomness()和VRF合约返回随机数时调用的回退函数fulfillRandomness()是两笔交易，调用者分别是用户合约和VRF合约，后者比前者晚几分钟（不同链延迟不一样）。
+    - 完整代码参考: [code1](https://github.com/AmazingAng/WTF-Solidity/blob/main/39_Random/Random.sol) [code2](https://github.com/AmazingAng/WTF-Solidity/blob/main/39_Random/RandomNumberConsumer.sol)
 
 ### 2024.10.06
 
