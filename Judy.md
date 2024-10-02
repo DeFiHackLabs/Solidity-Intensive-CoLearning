@@ -1424,4 +1424,94 @@ function test() public pure returns(uint256){
 2. **節省 Gas**：這些變量不會儲存在永久性 `storage` 中，因此不需要消耗額外的存儲資源。這可以顯著降低合約的部署和執行成本。特別是 `constant`，其值直接嵌入到合約的字節碼中，這進一步提升了效率。
 3. **代碼的可讀性和明確性**：通過明確標記某些變量為不可變，可以幫助開發者更好地理解合約的邏輯和設計意圖，並使代碼更加易於維護。
 
+### 2024.10.02
+#### 控制流 ＆ 插入排序
+1. if - else
+
+```solidity
+contract ExampleContract {
+    function isPositive(int number) external pure returns (bool) {
+        if (number > 0) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+}
+```
+
+2. for 迴圈
+
+```solidity
+contract ExampleContract {
+	function addSum() external pure returns (uint) {
+		uint sum = 0;
+		for (uint i = 0; i < 10; i++) {
+			sum = sum + i;
+		}
+		return sum;
+	}
+}
+```
+
+![image](https://github.com/user-attachments/assets/6bef0c89-81c3-454b-abe0-2b443b3798b0)
+
+
+3. while
+
+```solidity
+contract ExampleContract {
+    function addSum() external pure returns (uint) {
+        uint sum = 0;
+        uint n = 0;
+        while(n < 10){
+            sum = sum + n;
+            n ++;
+        }
+        return sum;
+    }
+}
+```
+
+![image](https://github.com/user-attachments/assets/7eed044d-2b05-4527-a6e4-67526721759c)
+
+
+4. do while(至少執行一次do)
+
+```solidity
+contract ExampleContract {
+    function addSum() external pure returns (uint) {
+        uint sum = 0;
+        uint n = 0;
+        do {
+            sum += n;
+            n++;
+        }while(n < 10);
+        return sum;
+    }
+}
+```
+
+![image](https://github.com/user-attachments/assets/652c58f5-da50-414c-ab58-f623aca62d92)
+
+
+1. 跳出當前循環用 `break`，跳到下一個循環用 `continue`
+
+- 練習：以 solidity 寫 insertion sort
+
+```solidity
+function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
+    // note that uint can not take negative value
+    for (uint i = 1;i < a.length;i++){
+        uint temp = a[i];
+        uint j=i;
+        while( (j >= 1) && (temp < a[j-1])){
+            a[j] = a[j-1];
+            j--;
+        }
+        a[j] = temp;
+    }
+    return(a);
+}
+```
 <!-- Content_END -->

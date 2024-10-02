@@ -174,5 +174,72 @@ storage（合约的状态变量）赋值给本地storage（函数里的）,memor
     }
 -  Revert
     -  revert("Error message");
+### 2024.10.02
+- 写了简单的实现erc20接口的合约和faucet 合约 ，并通过remix测试合约功能
+```solidity
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0 <0.9.0;
+import "./IERC20.sol";
 
+contract Faucet {
+    event  SendToken(address indexed _to, uint indexed_value);
+    address public tokenAddress;
+    uint public amount=1000;
+    mapping(address=>bool) public requestedAddresses;
+    constructor(address _tokenAddress){
+        tokenAddress = _tokenAddress;
+    }
+    function requestTokens() external returns (bool) {
+        require(!requestedAddresses[msg.sender],"fuck you looser!");
+        IERC20 tokens = IERC20(tokenAddress);
+        require(tokens.balanceOf(address(this))>=amount,":(");
+        tokens.transfer(msg.sender, amount);
+        requestedAddresses[msg.sender] = true;
+        emit SendToken(msg.sender, amount);
+        return true;
+    }
+}
+contract MyTokenTest is IERC20 {
+    mapping (address => uint256) public override balanceOf;
+    mapping (address => mapping (address => uint256)) public override allowance;
+    uint256 public override totalSupply;
+    string public name ;
+    string public symbol ;
+    uint8 public decimals = 18;
+    constructor(string memory _name, string memory _symbol, uint256 _initialSupply) {
+        name = _name;
+        symbol = _symbol;//不能用this.name=_name;
+        totalSupply = _initialSupply ;
+    }
+    function transfer(address reciver, uint256 _value) public override returns (bool) {
+        balanceOf[msg.sender] -= _value;
+        balanceOf[reciver] += _value;
+        emit Transfer(msg.sender, reciver, _value);
+        return true;
+    }
+    function approve(address _spender, uint256 _value) public override returns (bool) {
+        allowance[msg.sender][_spender] = _value;
+        emit Approval(msg.sender, _spender, _value);
+        return true;
+    }
+    function transferFrom(address _from, address _to, uint256 _value) public override returns (bool success) {
+        require(allowance[_from][msg.sender] >= _value);
+        allowance[_from][msg.sender] -= _value;
+        balanceOf[_from] -= _value;
+        balanceOf[_to] += _value;
+        return true;
+    }
+    function mint(uint _value) external {
+        balanceOf[msg.sender] += _value;
+        totalSupply += _value;
+        emit Transfer(address(0), msg.sender, _value);
+    }
+    function burn(uint _value) external {
+        balanceOf[msg.sender] -= _value;
+        totalSupply -= _value;
+        emit Transfer(msg.sender, address(0), _value);
+    }
+
+}
+```
 <!-- Content_END -->
