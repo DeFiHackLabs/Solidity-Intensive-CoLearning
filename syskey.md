@@ -1582,4 +1582,76 @@ timezone: Asia/Shanghai
         }
         ```
 ###
+
+### 2024.10.02
+
+学习内容:
+1. 第三十一讲
+
+    - `ERC20` 是以太坊上的代币标准，它实现了代币转账的基本逻辑。
+    
+        - 账户余额(balanceOf())
+
+        - 转账(transfer())
+
+        - 授权转账(transferFrom())
+
+        - 授权(approve())
+
+        - 代币总供给(totalSupply())
+
+        - 授权转账额度(allowance())
+
+        - 代币信息（可选）：名称(name())，代号(symbol())，小数位数(decimals())
+
+    - `IERC20` 代币标准的接口合约，规定了`ERC20`代币需要实现的函数和事件。 
+
+        - `function totalSupply() external view returns (uint256);`
+
+        - `function balanceOf(address account) external view returns (uint256);`
+
+        - `function transfer(address to, uint256 amount) external returns (bool);`
+
+        - `function allowance(address owner, address spender) external view returns (uint256);`
+
+        - `function approve(address spender, uint256 amount) external returns (bool);`
+
+        - `function transferFrom(address from, address to, uint256 amount) external returns (bool);`
+
+2. 第三十二讲
+
+    - `ERC20`水龙头合约。实现思路：将`ERC20-Token`转移到合约中，用户可以通过与合约的特定函数交互，进而获取免费的`ERC20-Token`。
+
+        ```Solidity
+        // SPDX-License-Identifier: MIT
+
+        // ERC20 代币水龙头合约
+        contract TokenFaucet {
+
+            uint256 public tokenAmount = 100; // 每次领取的代币数量
+            address public erc20Token;   // ERC20 代币合约地址
+            mapping(address => bool) public hasClaimedTokens;   // 记录已经领取过代币的地址
+
+            // TokenDispensed 事件    
+            event TokenDispensed(address indexed recipient, uint256 indexed amount); 
+
+            // 部署时设置 ERC20 代币合约地址
+            constructor(address _erc20Token) {
+                erc20Token = _erc20Token; // 设置 ERC20 代币合约地址
+            }
+
+            // 用户领取代币的函数
+            function claimTokens() external {
+                require(!hasClaimedTokens[msg.sender], "每个地址只能领取一次代币!"); // 每个地址只能领取一次代币
+                IERC20 token = IERC20(erc20Token); // 创建 IERC20 合约实例
+                require(token.balanceOf(address(this)) >= tokenAmount, "水龙头中代币不足!"); // 水龙头中代币不足
+
+                token.transfer(msg.sender, tokenAmount); // 将代币发送给请求者
+                hasClaimedTokens[msg.sender] = true; // 标记该地址已领取代币
+                
+                emit TokenDispensed(msg.sender, tokenAmount); // 触发 TokenDispensed 事件
+            }
+        }
+        ```
+###
 <!-- Content_END -->

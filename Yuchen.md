@@ -946,5 +946,65 @@ function getString2(uint256 _number) public pure returns(string memory){
 * `Create2`：更安全的使用`Create2 EVM opcode`。
 * `Arrays`：跟數組相關的庫合約。
 
+### 2024.10.02
+#### `import`
+`import`可以用來在一個文件中引用另一個文件的內容，提高程式的可重用性、組織性。  
+
+**用法：**  
+* 通過源文件相對位置導入：  
+    ```Solidity
+    文件结构
+    ├── Import.sol
+    └── Yeye.sol
+
+    // 通过文件相对位置import
+    import './Yeye.sol';
+    ```
+* 通過源文件網址導入網上合約的全局符號：  
+    ```Solidity
+    // 通过网址引用
+    import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+    ```
+* 通過`npm`的目錄導入：  
+    ```Solidity
+    import '@openzeppelin/contracts/access/Ownable.sol';
+    ```
+* 通過指定`全局符號`導入合約特定的全局符號。  
+    ```Solidity
+    import {Yeye} from './Yeye.sol';
+    ```
+<img src="https://github.com/user-attachments/assets/b89ea127-e9a5-4d3f-bd5e-3997e88a4a32" height="400px" width="600px" />  
+
+> Q：Solidity中import的作用是：
+>
+> A. 导入其他合约中的接口  
+> B. 导入其他合约中的私有变量  
+> **C. 导入其他合约中的全局符号**  
+> D. 导入其他合约中的内部变量  
+> 
+> Ans：import 可以導入所有全局可用的符號（如函數、結構、事件等），這是最全面的描述。
+
+> Q：import导入文件中的全局符号可以单独指定其中的：
+> 
+> A. 合约  
+> B. 纯函数  
+> C. 结构体类型  
+> **D. 以上都可以**
+>
+> Ans：  
+> A. 合約：可以單獨導入合約，例如 import {Yeye} from "./Yeye.sol";。
+> 
+> B. 纯函数：可以導入純函數（如果存在），例如 import {someFunction} from "./SomeLib.sol";。
+> 
+> C. 结构体类型：結構體類型也可以單獨導入，例如 import {SomeStruct} from "./SomeStruct.sol";。
+
+> Q：被导入文件中的全局符号想要被其他合约单独导入，应该怎么编写？
+> 
+> A. 将合约结构包含  
+> B. 包含在合约结构中  
+> **C. 与合约并列在文件结构中** 
+> 
+> Ans：在 Solidity 中，如果你想要導入某個文件中的全局符號（例如合約、函數、結構體等），這些符號必須在文件的最外層與合約並列定義，而不是在合約內部。這樣才能被其他合約單獨導入。 
+
 
 <!-- Content_END -->

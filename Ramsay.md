@@ -723,4 +723,102 @@ import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contr
 
 除了NPM之外，还有其他的Solidity 包管理器，如 `ethPM` 和 `DappTools`.
 
+### 2024.10.02
+#### 19 Receive/Fallback
+
+在最差情况下, `receive` 函数只有大概2300 gas可用，没有太多余地做打日志之外的操作。按照官方文档的说法，下面的操作会消耗超过2300 gas：
+1. 向链上写入数据
+2. 创建合约
+3. 调用会消耗大量 gas 的外部函数
+4. 发送 Ether. （没错，这意味着你无法在接收 Ether 的函数里面发送 Ether, 不然你大概率会因为 out of gas 被接收失败）
+
+虽然 `receive` 和 `fallback` 函数都可以用来接收 Ether, 但是使用 `fallback` 来处理接受 Ether 并不是推荐的做法，顾名思义， `fallback` 函数应该处理的是兜底的失败逻辑，而不是处理正常的接收逻辑。
+
+就类似于不应该依赖 `try/catch` 来处理正常的逻辑分支。
+
+上文提到，没有 `receive` 和 `fallback` 函数是无法接收 Ether, 但是凡事也有例外，也有一种特殊情况，就是作为矿工奖励的接收方(coinbase transaction), 你没有 `receive` 和 `fallback` 函数也能接收 Ether, 这是 by design 的功能，因为 EVM 的标准并没有声明应该如何处理这种转账，所以合约无法拒绝。
+
+强塞进来的钱，想拒绝都没有办法。
+
+按照 EVM 的规定，发送Ether时，`msg.data` 应该是为空的，所以这就是为什么 `msg.data`为空且存在 `receive()` 时，会触发 `receive()`
+
+#### 20 SendETH
+
+Solidity 有三个函数可以用来发送 Ether: 
+1. `transfer`: 有 2300 gas 限制, 合约的`fallback()`或`receive()`函数不能实现太复杂的逻辑; 转账失败会自动回滚.
+2. `send`: 有 2300 gas 限制, 合约的`fallback()`或`receive()`函数不能实现太复杂的逻辑; 转账失败不会自动回滚，需要判断转账结果
+3. `call`: 无gas限制, 可以支持对方合约`fallback()`或`receive()`函数实现复杂逻辑; 转账失败不会自动回滚，需要判断转账结果
+
+推荐使用 `call` 来发送Ether，除了gas无限制的优点外，还有一个课程未提及的点, 就是在2019年12月的Istanbul Hardfork后, `transfer` 和 `send` 变成没有那么安全了，而 `call` 可搭配防重入锁来抵御重入攻击。
+
+所谓的重入攻击，指的是有合约A（受害者）和合约B(攻击者):
+1. 合约A调用合约B
+2. 在合约A的调用完成前，合约B反过来调用合约A
+3. 这样就会形成递归调用，就有可能把合约A的钱耗高，或者出现预期外的情况。
+
+以代码为例，结合前文学到的 `fallback` 函数:
+
+```solidity
+// Vulnerable Contract A
+contract VictimContract {
+    mapping(address => uint) public balances;
+
+    function withdraw() public {
+        uint balance = balances[msg.sender];
+        (bool success, ) = msg.sender.call{value: balance}("");
+        require(success);
+        balances[msg.sender] = 0;
+    }
+}
+
+// Attacker Contract B
+contract AttackerContract {
+    VictimContract public victim;
+
+    constructor(address _victimAddress) {
+        victim = VictimContract(_victimAddress);
+    }
+
+    fallback() external payable {
+        if (address(victim).balance >= 1 ether) {
+            victim.withdraw();
+        }
+    }
+
+    function attack() external payable {
+        victim.withdraw();
+    }
+}
+```
+
+1. 攻击者调用合约B的 `attack` 函数
+2. `attack` 函数调用合约A的 `withdraw` 函数
+3. 因为没有定义 `receive` 函数，合约A给合约B转账的时候，就会调用到合约B的 `fallback` 
+4. 当合约A调用合约B的 `fallback` 函数，函数还没有返回，也就是合约A的`withdraw` 还没有结束, `fallback` 再次调用合约A的 `withdraw` 函数
+5. 循环调用，直到耗尽合约A的所有资金为止。
+
+2016年导致 Ethereum 分裂成 Ethereum classic 和 Ethereum 的DAO 攻击就是重入攻击.
+
+而在调用 `call` 时，配合防重入的 modifier，就能抵御这样的攻击：
+
+```solidity
+bool private locked;
+
+modifier noReentrant() {
+    require(!locked, "No re-entrancy");
+    locked = true;
+    _;
+    locked = false;
+}
+
+---
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+
+contract SafeEtherTransfer is ReentrancyGuard {
+    function sendEther(address payable _to, uint256 _amount) public nonReentrant {
+        (bool success, ) = _to.call{value: _amount}("");
+        require(success, "Transfer failed.");
+    }
+}
+```
 <!-- Content_END -->

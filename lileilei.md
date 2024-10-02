@@ -713,4 +713,25 @@ encodePacked 常用来取hash值
 encodeWithSelector和encodeWithSignature一样，但是select在选择方法时更精准
 
 
+
+
+### 2024.10.01
+
+contract hashTest{
+
+    bytes32 msg2= keccak256(abi.encode(0xAA));
+    function hh(string memory name,address addr,uint num)public  pure returns(bytes32){
+        return keccak256(abi.encodePacked(name,addr,num));
+    }
+
+
+    function weak(address addr,uint256 num) public  view returns(bool){
+         return keccak256(abi.encodePacked(addr,num)) == msg2;
+    }
+
+    function strong(string memory str1,string memory str2) public pure returns(bool){
+        return keccak256(abi.encodePacked(str1)) ==keccak256(abi.encodePacked(str2));
+    }
+}
+hash常用来做数字唯一标识和安全加密
 <!-- Content_END -->

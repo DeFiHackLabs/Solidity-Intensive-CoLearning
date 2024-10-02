@@ -354,4 +354,24 @@ We can emit events in functions. In the following example, each time the _transf
     }
 ```
 ###
+### 2024.10.01
+Inheritance
+Inheritance is one of the core concepts in object-oriented programming, which can significantly reduce code redundancy. It is a mechanism where you can to derive a class from another class for a hierarchy of classes that share a set of attributes and methods. In solidity, smart contracts can be viewed objects, which supports inheritance.
+
+Rules
+There are two important keywards for inheritance in Solidity:
+
+virtual: If the functions in the parent contract are expected to be overridden in its child contracts, they should be declared as virtual.
+
+override：If the functions in the child contract override the functions in its parent contract, they should be declared as override
+###
+### 2024.10.02
+Abstract contract
+If a contract contains at least one unimplemented function (no contents in the function body {}), it must be labeled as abstract; Otherwise it will not compile. Moreover, the unimplemented function needs to be labeled as virtual. Take our previous Insertion Sort Contract as an example, if we haven't figured out how to implement the insertion sort function, we can mark the contract as abstract, and let others overwrite it in the future.
+```
+abstract contract InsertionSort{
+    function insertionSort(uint[] memory a) public pure virtual returns(uint[] memory);
+}
+```
+###
 <!-- Content_END -->
