@@ -235,3 +235,37 @@ Solidity 102-21 调用其他合约
 3 UI = user interface 用户界面
 4 interface 接口 （关键字interface表示你定义了一个接口）
 <!-- Content_END -->
+<!-- Content_START -->
+### 2024.10.01
+Day9
+Solidity 102-22 call
+1 call 是address类型的低级成员函数，它用来与其他合约交互。它的返回值为(bool, bytes memory)，分别对应call是否成功以及目标函数的返回值
+2 ABI（Application Binary Interface，应用二进制接口） 是合约与外界（如用户或其他合约）之间交互的标准接口
+3 address类型主要内置函数有：transfer，send，call
+
+Solidity 102-23 delegatecall
+1 delegate是address类型的成员函数
+2 当用户A通过合约B来delegatecall合约C时，执行了C的函数，语境（上下文）是B，msg.sender和msg.value来自A，并且如果函数改变一些状态变量，产生的效果会作用于B的变量上（B call C，上下文为C；B delegatecall C，上下文为B；这就是call和delegate区别）
+3 delegatecall在调用合约时候：可以指定交易发送的gas，但不可以指定发送的eth数额
+4 使用delegatecall对当前合约和目标合约的状态变量要求是：变量名，变量类型，声明顺序都必须相同
+5 在代理合约中，储存所有相关的变量的是代理合约，储存所有函数的是逻辑合约，同时代理合约delegatecall逻辑合约
+6 代理合约Proxy Contracts
+<!-- Content_END -->
+<!-- Content_START -->
+### 2024.10.02
+Day10 
+Solidity 102-24 在合约中创建新合约
+1 solidity中新建合约的关键字是：new
+2 一个工厂合约PairFactory创建Pair合约的最大数量一般由PairFactory合约逻辑决定
+3 params是parameters缩写，参数
+
+Solidity 102-25 Create2
+1 Create2与Create的不同之处在于：Create2可以让合约地址独立于未来的事件
+2 nonce随机数，是number only used once缩写，防止攻击，确保每个操作唯一，并且通常递增
+3 salt是一个随机生成的值，增加随机性，避免生成相同输出而使用
+4 initcode 是合约的初始化代码，它包含合约的字节码和构造函数参数，用于部署时生成合约的最终逻辑
+
+Solidity 102-26 删除合约
+1 删除合约的命令，现在常用：selfdestruct
+2 坎昆升级后，合约依然存在，只是将合约包含的eth转移到指定地址，而合约依然能够调用
+<!-- Content_END -->

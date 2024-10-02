@@ -825,10 +825,96 @@ function changeOwner(address _newOwner) external onlyOwner {
 In this `changeOwner` function, the owner of the contract can be changed, but only if the function is called by the current owner. If anyone else tries to call it, the function will revert and throw an error. This is a common way to control access and permissions in smart contracts.
 
 
+### 2024.10.02
+Testing deployment by Truffle on the terminal. 
+
+```solidity
+const GreeterContract = artifacts.require("Greeter");
+
+module.exports = function(deployer) {
+  deployer.deploy(GreeterContract);
+}
+```
+Hello World! in javascript. 
+
+```javascript
+describe("greet()", () => {
+  it("returns 'Hello, World!'", async () => {
+    const greeter = await GreeterContract.deployed();
+    const expected = "Hello, World!";
+    const actual = await greeter.greet();
+
+    assert.equal(actual, expected, "greeted with 'Hello, World!'");
+  });
+});
+```
+Adding the greet function to Greeter
+
+```solidity
+
+
+pragma solidity ^0.8.0;
+
+contract Greeter {
+
+    function greet() external pure returns(string memory) {
+        return "Hello, World!";
+    }
+```
+**Overloading**, allow different types of parameters in function, but not for modifier. 
+
+```solidity
+function saySomething() public pure returns(string memory){
+    return("Nothing");
+}
+
+function saySomething(string memory something) public pure returns(string memory){
+    return(something);
+}
 ```
 
+**Argument Matching**, in overloading if the  ****
 
+```solidity
+function f(uint8 _in) public pure returns (uint8 out) {
+    out = _in;
+}
 
+function f(uint256 _in) public pure returns (uint256 out) {
+    out = _in;
+}
+```
+
+**Library**
+
+1. using for A(library) for B(to any type)
+
+庫A中的函數會自動添加為B類變量的成員（？）
+
+```solidity
+// 利用using for指令
+using Strings for uint256;
+function getString1(uint256 _number) public pure returns(string memory){
+    // 库合约中的函数会自动添加为uint256型变量的成员
+    return _number.toHexString();
+}
+```
+
+1. 通过库合约名称调用函数
+
+```solidity
+// 直接通过库合约名调用
+function getString2(uint256 _number) public pure returns(string memory){
+    return Strings.toHexString(_number);
+}
+```
+
+Common library:
+
+1. [**Strings**](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Strings.sol)：将**`uint256`**转换为**`String`**
+2. [**Address**](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Address.sol)：判断某个地址是否为合约地址
+3. [**Create2**](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Create2.sol)：更安全的使用**`Create2 EVM opcode`**
+4. [**Arrays**](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Arrays.sol)：跟数组相关的库合约
 
 
 <!-- Content_END -->
