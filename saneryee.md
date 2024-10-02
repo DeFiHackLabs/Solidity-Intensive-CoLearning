@@ -50,6 +50,113 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 ## Notes
 
 <!-- Content_START -->
+### 2024.10.03
+
+Day 9
+
+WTF Academy Solidity 101 32_Faucet, 33_Airdrop
+
+
+Mitigate DOS Attack for `Airdrop.sol`
+
+1. Removed the direct transfer logic in the `multiTransferETH` function, replacing it with a record of the ETH amount due to each address.
+2. Added a `withdrawETH` function, impllement the **pull payment pattern**. This allows recipients to withdraw their ETH themselves, rather than the contract actively sending it.
+3. In the `multiTransferToken` function, we now check the success of each transfer and emit an event if it fails.
+4. Added events `TransferFailed` and `WithdrawnFromFailedList` to log important state changes.
+5. Added a `receive` function to enable the contract to receive ETH.
+6. Renamed `failTransferList` to `failedTransfers` and made it public for easier querying.
+7. In `multiTransferToken`, changed `>` to `>=` to allow for exact allowance amounts.
+
+```
+// SPDX-License-Identifier: MIT
+// By 0xAA (Improved by Assistant)
+pragma solidity ^0.8.21;
+
+import "./IERC20.sol";
+
+/// @notice Contract for airdropping ERC20 tokens and ETH to multiple addresses
+contract Airdrop {
+    mapping(address => uint) public failedTransfers;
+    
+    event TransferFailed(address indexed recipient, uint256 amount);
+    event WithdrawnFromFailedList(address indexed recipient, address indexed to, uint256 amount);
+
+    /// @notice Transfer ERC20 tokens to multiple addresses, requires prior approval
+    ///
+    /// @param _token Address of the ERC20 token to transfer
+    /// @param _addresses Array of recipient addresses
+    /// @param _amounts Array of token amounts to transfer (corresponds to each address)
+    function multiTransferToken(
+        address _token,
+        address[] calldata _addresses,
+        uint256[] calldata _amounts
+    ) external {
+        require(
+            _addresses.length == _amounts.length,
+            "Lengths of Addresses and Amounts NOT EQUAL"
+        );
+        IERC20 token = IERC20(_token);
+        uint _amountSum = getSum(_amounts);
+        require(
+            token.allowance(msg.sender, address(this)) >= _amountSum,
+            "Insufficient allowance"
+        );
+
+        for (uint256 i; i < _addresses.length; i++) {
+            bool success = token.transferFrom(msg.sender, _addresses[i], _amounts[i]);
+            if (!success) {
+                emit TransferFailed(_addresses[i], _amounts[i]);
+            }
+        }
+    }
+
+    /// @notice Initiate ETH transfer to multiple addresses
+    /// @dev Uses pull payment pattern to avoid DOS attacks
+    function multiTransferETH(
+        address[] calldata _addresses,
+        uint256[] calldata _amounts
+    ) public payable {
+        require(
+            _addresses.length == _amounts.length,
+            "Lengths of Addresses and Amounts NOT EQUAL"
+        );
+        uint _amountSum = getSum(_amounts);
+        require(msg.value == _amountSum, "Transfer amount error");
+
+        for (uint256 i = 0; i < _addresses.length; i++) {
+            failedTransfers[_addresses[i]] += _amounts[i];
+        }
+    }
+
+    /// @notice Allows recipients to withdraw their ETH
+    /// @param _to Address to receive the withdrawn ETH
+    function withdrawETH(address payable _to) public {
+        uint amount = failedTransfers[msg.sender];
+        require(amount > 0, "No ETH to withdraw");
+        
+        failedTransfers[msg.sender] = 0;
+        
+        (bool success, ) = _to.call{value: amount}("");
+        require(success, "ETH transfer failed");
+        
+        emit WithdrawnFromFailedList(msg.sender, _to, amount);
+    }
+
+    /// @notice Function to sum an array of uint256
+    function getSum(uint256[] calldata _arr) public pure returns (uint sum) {
+        for (uint i = 0; i < _arr.length; i++) {
+            sum += _arr[i];
+        }
+    }
+
+    /// @notice Allows the contract to receive ETH
+    receive() external payable {}
+}
+```
+(Claude helped with code modification)
+
+
+---
 ### 2024.10.02
 
 Day 8
