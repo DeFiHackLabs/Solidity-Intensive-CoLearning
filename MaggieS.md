@@ -312,7 +312,16 @@ I recognize that I'm still a Solidity Baby.
 
 Answer the questions later. GN~
 
+It is easy to have ambiguity when discussing some topics in this way.  
+
+I mean, I have seen the picture that solidity was so cute when he was a child.  
+
+I'm willing to witness and company, the growth of some little solidity, again.
+
+
 Q1:
+
+
 
 Q2:
 
