@@ -668,4 +668,52 @@ contract JdCalculator is EBusinessCalculator{
             }
         ```
 
+   ### 2024.10.02
+
+學習內容:
+
+- [x] import关键字
+    - 通过源文件相对位置引入：import './A.sol';
+    - 通过源文件网络地址引入：import 'https://github.com/xxx/xxx/xxx/A.sol';
+    - 通过npm目录导入源文件：import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+    - 导入特定的内容：import {A, B, C} from './A.sol';
+  
+- [x] 接收ETH
+    - receive函数
+        - 一个合约最多有一个receive函数
+        - 声明不需要function关键字
+        - 不能有任何参数和返回值
+        - 必须包含payable和external
+        - receive函数不应该有复杂逻辑
+    - fallback函数
+        - 一个合约最多有一个fallback函数
+        - 不能有任何参数和返回值
+        - 必须包含payable和external
+        - 不需要function关键字
+        - msg为空且存在receive函数时调用receive函数
+        - msg不为空或者不存在receive函数时调用fallback函数
+        - fallback函数必须是payable
+receive函数和fallback函数都不存在的时候 直接向合约发送ETH会报错。但是可以通过其他payable函数发送ETH。
+
+ * 在恶意合约中，可能存在嵌入恶意消耗gas的内容或者直接让转账失败的代码，导致一些退款、转账等操作失败，造成合约不能正常工作 。所以在写合约的时候一定要注意这种情况
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract MyReceiveAndFallbackContract{
+    event ReceiveEvent(address sender, uint256 balance);
+    event FallbackEvent(address sender, uint256 balance, bytes data);
+    receive() external payable {
+        emit ReceiveEvent(msg.sender, msg.value);
+     }
+
+     fallback() external payable{
+        emit FallbackEvent(msg.sender, msg.value, msg.data);
+     }
+
+}
+```
+
+
 <!-- Content_END -->
