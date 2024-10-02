@@ -361,7 +361,7 @@ function insertionSortWrong(uint[] memory a) public pure returns(uint[] memory) 
     }
     return(a);
 }
-ˋˋˋ
+```
 
 正確版
 ```solidity
@@ -378,7 +378,7 @@ function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
     }
     return(a);
 }
-ˋˋˋ
+```
 
 ### 2024.10.02
 ## 11_Modifier
