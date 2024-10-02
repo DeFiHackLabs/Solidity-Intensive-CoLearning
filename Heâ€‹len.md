@@ -15,6 +15,88 @@ timezone: Asia/Shanghai
 ## Notes
 
 <!-- Content_START -->
+### 2024.10.02
+1. 執行Poolin運算
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+contract ValueTypes{
+    // 布尔值
+    bool public _bool = true;
+    // 布尔运算
+    bool public _bool1 = !_bool; //取非
+    bool public _bool2 = _bool && _bool1; //与(&&（邏輯與，AND） && 是邏輯與運算符，當兩個操作數都為 true 時，結果才是 true。如果任一操作數為)
+    bool public _bool3 = _bool || _bool1; //或( || 是邏輯或運算符，只要任一操作數為 true，結果就是 true。只有當兩個操作數都為 false 時，結果才是 false)
+    bool public _bool4 = _bool == _bool1; //相等(用來判斷兩個pool是否相等。如果兩者相等，結果為 true，否則為 false。)
+    bool public _bool5 = _bool != _bool1; //不相等
+
+
+    // 整数
+    int public _int = -1;
+    uint public _uint = 1;
+    uint256 public _number = 20220330;
+    // 整数运算
+    uint256 public _number1 = _number + 1; // +，-，*，/
+    uint256 public _number2 = 2**2; // 指数
+    uint256 public _number3 = 7 % 2; // 取余数
+    bool public _numberbool = _number2 > _number3; // 比大小
+
+
+    // 地址
+    address public _address = 0x7A58c0Be72BE218B41C608b7Fe7C5bB630736C71;
+    address payable public _address1 = payable(_address); // payable address，可以转账、查余额
+    // 地址类型的成员
+    uint256 public balance = _address1.balance; // balance of address
+    
+    
+    // 固定长度的字节数组
+    bytes32 public _byte32 = "MiniSolidity"; // bytes32: 0x4d696e69536f6c69646974790000000000000000000000000000000000000000
+    bytes1 public _byte = _byte32[0]; // bytes1: 0x4d
+    
+    
+    // Enum
+    // 将uint 0， 1， 2表示为Buy, Hold, Sell
+    enum ActionSet { Buy, Hold, Sell }
+    // 创建enum变量 action
+    ActionSet action = ActionSet.Buy;
+
+    // enum可以和uint显式的转换
+    function enumToUint() external view returns(uint){
+        return uint(action);
+    }
+}
+```
+2.# Solidity 函數基礎
+
+Solidity 語言中的函數非常靈活，可以執行各種複雜的操作。
+
+### 函數的結構
+這裡是 Solidity 中函數的基本格式。接下來逐項解釋（方括號中的關鍵字是可選的）：
+
+function：函數的關鍵字，用來聲明函數。
+<function name>：函數名稱。
+(<parameter types>)：圓括號中是函數的參數類型和名稱（輸入到函數的變量）。
+{internal|external|public|private}：函數的可見性修飾符，共有 4 種：
+public：內部和外部都可以訪問。
+private：只能從合約內部訪問，繼承的合約無法使用。
+external：只能從合約外部訪問，但可以用 this.f() 在內部調用（f 是函數名稱）。
+internal：只能從合約內部訪問，繼承的合約可以使用。
+注意 1：所有函數都需要明確指定可見性，沒有默認值。
+
+注意 2：public、private 和 internal 也可用於修飾狀態變量。public 變量會自動生成同名的 getter 函數。
+
+[pure|view|payable]：這些關鍵字決定函數的行為：
+
+pure：函數既不能讀取也不能寫入狀態變量。
+view：函數可以讀取狀態變量，但不能寫入。
+payable：允許函數接收以太幣（ETH）。
+[returns (<return types>)]：函數的返回值類型和名稱。
+
+
+```solidity
+function <function name>(<parameter types>) {internal|external|public|private} [pure|view|payable] [returns (<return types>)]
+這裡是 Solidity 中函數的基本格式。接下來逐項解釋（方括號中的關鍵字是可選的）：
+
 ### 2024.10.01
 
 ## 4. 定長字節數組（Fixed-Length Byte Arrays）

@@ -385,4 +385,54 @@ block.timestamp 使得生成的随机数符合他的利益。
 ###
 
 
+
+### 2024.10.2
+
+#### ERC1155 
+
+
+以太坊EIP1155提出了一个多代币标准ERC1155，允许一个合约包含多个同质化和非同质化代币。ERC1155在GameFi应用最多，
+Decentraland、Sandbox等知名链游都使用它。
+
+
+在ERC1155中，每一种代币都有一个id作为唯一标识，每个id对应一种代币。这样代币种类就可以非同质的在同一个合约里
+管理了，并且每种代币都有一个网址uri来存储它的元数据，类似ERC721的tokenURI。
+
+
+#### ERC1155的元数据接口合约IERC1155MetadataURI
+
+```Solidity
+interface IERC1155MetadataURI is IERC1155 {
+    /**
+     * @dev 返回第`id`种类代币的URI
+     */
+    function uri(uint256 id) external view returns (string memory);
+}
+
+```
+
+如果某个id对应的代币总量为1，就是非同质化代币；如果某个id对应的代币总量大于1，就是同质化代币，因为这些代币都
+分享同一个id，类似ERC20。
+
+
+#### IERC1155 合约
+
+IERC1155接口合约抽象了EIP1155需要实现的功能，其中包含4个事件和6个函数。与ERC721不同，因为ERC1155包含多类代币，它实
+现了批量转账和批量余额查询，可以一次操作多种代币。
+
+
+
+#### ERC1155 接收合约
+
+与ERC721标准类似，为了避免代币被转入黑洞合约，ERC1155要求代币接收合约继承IERC1155Receiver并实现两个接收函数：
+
+- onERC1155Received()：单币转账接收函数，接受ERC1155安全转账safeTransferFrom 需要实现并返回自己的选择器0xf23a6e61。
+
+- onERC1155BatchReceived()：多币转账接收函数，接受ERC1155安全多币转账safeBatchTransferFrom 需要实现并返回自己的选择器0xbc197c81。
+
+
+###
+
+
+
 <!-- Content_END -->

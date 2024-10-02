@@ -67,6 +67,30 @@ timezone: Asia/Shanghai
       2 delete a会让变量a的值变为初始值
 
 
-   
+### 2024.10.02
+
+1 学习了101 第九章 常数 constant和immutable
+  知识点
+   1 不能在初始化后更改数值。这样做的好处是提升合约的安全性并节省gas。
+   2 只有数值变量可以声明constant和immutable；string和bytes可以声明为constant，但不能为immutable
+   3 初始化之后，尝试改变它的值，会编译不通
+
+   第十章  控制流
+  知识点
+  1  学习了 if-else  for循环 while循环 do-while循环 三元运算符
+  2 插入算法中，变量j有可能会取到-1，引起报错
+
+  第十一章 构造函数和修饰器
+  
+  1  构造函数（constructor），每个合约可以定义一个，并在部署合约的时候自动运行一次。它可以用来初始化合约的一些参数
+  2  修饰器 modifier 的主要使用场景是运行函数前的检查，减少代码冗余。
+
+
+
+
+
+
+
+
 
 <!-- Content_END -->

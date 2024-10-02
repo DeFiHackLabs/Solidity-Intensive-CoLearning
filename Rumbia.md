@@ -459,4 +459,60 @@ switch (expression) {
 }
 ```
 ###
+###  2024.10.01
+# 一、构造函数
+- 构造函数是在合约创建时被自动调用的特殊函数，用于初始化合约的状态变量。
+- 可以设置合约的初始状态，例如初始化变量的值、设置权限等。
+- 确保合约在创建时处于一个合理的初始状态，方便后续的使用和交互。
+
+```solidity
+    contract MyContract {
+        uint public myVariable;
+
+        constructor(uint _initialValue) {
+            myVariable = _initialValue;
+        }
+    }
+```
+
+# 二、修饰器
+修饰器是一种可以用来修改函数行为的特殊函数。它可以在函数执行前或执行后添加额外的逻辑。
+
+- 可以实现代码的复用，避免在多个函数中重复编写相同的逻辑。
+- 可以对函数的输入参数进行验证，提高合约的安全性。
+- 可以在函数执行前后记录日志、进行权限检查等操作。
+
+```solidity
+    modifier onlyOwner {
+        require(msg.sender == owner, "Only the owner can call this function.");
+        _;
+    }
+    function myFunction() onlyOwner {
+        // Function body
+    }
+//带有onlyOwner修饰符的函数只能被owner地址调用
+```
+- 多个修饰器的使用：可以在一个函数上同时使用多个修饰器，它们会按照顺序依次执行。
+
+```solidity
+    modifier modifier1 {
+        // Modifier 1 logic
+        _;
+    }
+
+    modifier modifier2 {
+        // Modifier 2 logic
+        _;
+    }
+
+    function myFunction() modifier1 modifier2 {
+        // Function body
+    }
+```
++ myFunction函数会先执行modifier1的逻辑，然后执行modifier2的逻辑，最后执行函数本身的逻辑。
+
+
+### 
+
+
 <!-- Content_END -->

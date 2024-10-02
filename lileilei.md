@@ -734,4 +734,18 @@ contract hashTest{
     }
 }
 hash常用来做数字唯一标识和安全加密
+
+### 2024.10.01
+contract selectorTest{
+    function noParam() external pure returns(bytes4){
+        return bytes4(keccak256("noParam()"));
+    }
+
+    function selecttor() public{
+        bytes memory data = abi.encodeWithSelector(bytes4(keccak256("noParam()")));
+        bytes memory data3 = abi.encodeWithSelector(0xc2cfaca2);
+       (bool success,bytes memory data2) = address(this).call(abi.encodeWithSelector(0xc2cfaca2));
+    }
+abi.encodeWithSelector 需要先算出被调用方法的hash值,上边结果是一致的
+    
 <!-- Content_END -->

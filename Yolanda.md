@@ -93,4 +93,14 @@ timezone: Asia/Shanghai
 2. 用immutable（不變量）聲明的變量可在聲明時初始化，或在合約構造時初始化
 
 
+### 2024.10.02
+1. 控制流
+2. if-else條件語句
+3. for循環
+4. while循環
+5. do-while循環
+6. 三元運算符
+7. 插入排序
+
+
 <!-- Content_END -->

@@ -1054,4 +1054,117 @@ contract people is Adam, Eve {
 ```
 在這個範例中，呼叫合約 `people` 中的 `super.bar()` 會依序呼叫 Eve、Adam，最後是 God 合約。雖然 Eve、Adam 都是 God 的子合約，但整個過程中 God 合約只會被呼叫一次。原因是 Solidity 借鑒了 Python 的方式，強制一個由基類構成的 DAG（有向無環圖）使其保證一個特定的順序。
 ![](https://i.imgur.com/aYgBLGw.png)
+
+### 2024.10.02
+# 抽象合約
+如果一個智能合約至少有一個未實現的函數，即某個函數缺少主體 {} 中的內容，則必須將該合約標為 `abstract`，不然編譯會報錯。另外，未實現的函數需要加 `virtual`，以便子合約重寫。如果我們還沒想好具體怎麼實現函數，那麼可以把合約標為 `abstract`，之後讓別人補寫上。例如插入排序函數可以先用 `abstract` 標示：
+```
+abstract contract InsertSort{
+    function insertSort(uint[] memory a) public pure virtual returns(uint[] memory);
+}
+```
+抽象合約範例：
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+abstract contract Base{
+    string public name = "Base";
+    function getAlias() public pure virtual returns(string memory);
+}
+
+contract BaseImpl is Base {
+    function getAlias() public pure override returns(string memory){
+        return "BaseTmpl";
+    }
+}
+```
+![](https://i.imgur.com/DILmo5F.png)
+抽象合約是不能部署的，要選擇非抽象合約部署。
+# 介面
+介面類似於抽象合約，但它不實現任何功能。
+## 介面規則
+1. 不能包含狀態變數
+2. 不能包含建構子
+3. 不能繼承除介面外的其他合約
+4. 所有函數都必須是 `external` 且不能有函數本體 `{}`
+5. 繼承介面的非抽象合約必須實作介面定義的所有功能
+雖然介面不實作任何功能，但它非常重要，是智能合約的骨架，定義了合約的功能以及如何觸發它們。
+
+如果智能合約實現了某種介面（例如ERC20或ERC721），其他 Dapps 和智能合約就知道如何與它互動。因為介面提供了兩個重要的資訊：
+1. 合約裡每個函數的 `bytes4` 選擇器，以及函數簽章 `<函數名稱>(每個參數型別)`。
+2. 介面 id（[ERC-165](https://eips.ethereum.org/EIPS/eip-165)）。
+介面與合約 ABI（Application Binary Interface）等價，可以互相轉換。編譯介面可以得到合約的 ABI，利用 [abi-to-sol 工具](https://gnidan.github.io/abi-to-sol/)，也可以將 `ABI json` 檔轉換為`介面 sol` 檔。
+
+以 ERC721 介面合約 IERC721 為例，它定義了 3 個 event 和 9 個 function，所有 ERC721 標準的 NFT 都實作了這些函數。介面和常規合約的區別在於每個函數都以 `;` 代替函數本體 `{ }` 結尾。
+```
+interface IERC721 is IERC165{
+    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+    event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
+    event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
+    function balanceOf(address owner) external view returns (uint256 balance);
+    function ownerOf(uint256 tokenId) external view returns (address owner);
+    function safeTransferFrom(address from, address to, uint256 tokenId) external;
+    function TransferFrom(address from, address to, uint256 tokenId) external;
+    function approve(address to, uint256 tokenId) external;
+    function getApproved(uint tokenId) external view returns (address operator);
+    function setApprovalForAll(address operator, bool _approved) external;
+    function isApprovedForAll(address owner, address operator) external view returns (bool);
+    function safeTransferFrom(address from, address to, uint256 tokenId, bytes calldata data) external;
+}
+```
+
+### IERC 721 事件
+* `Transfer` 事件：在轉帳時被釋放，記錄代幣的發出地址 `from` ，接收地址 `to` 和 `tokenId`。
+* `Approval` 事件：在授權時被釋放，記錄授權地址 `owner`，被授權地址 `approved` 和 `tokenId`。
+* `ApprovalForAll` 事件：在批量授權時被釋放，記錄批量授權的發出地址 `owner`，被授權地址 `operator` 和是否授權的 `approved`。
+
+### IERC 721 函數
+* `balanceOf`：傳回某地址的 NFT 持有量 `balance`。
+* `ownerOf`：回傳某 `tokenId` 的主人 `owner`。
+* `transferFrom`：普通轉賬，參數為轉出地址 `from`，接收地址 `to` 和 `tokenId`。
+* `safeTransferFrom`：安全轉帳（如果接收方是合約位址，會要求實作 `ERC721Receiver` 介面）。
+* `approve`：授權另一個位址使用你的 NFT。參數為被授權位址 `approve` 和 `tokenId`。
+* `getApproved`：查詢 `tokenId` 被批准給了哪個位址。
+* `setApprovedForAll`：將自己持有的該系列 NFT 批次授權給某個地址 `operator`。
+* `isApprovedForAll`：查詢某位址的 NFT 是否大量授權給了另一個 `operator` 位址。
+* `safeTransferFrom`：安全轉帳的重載函數，參數裡包含了 `data`。
+
+### 介面的使用時機
+如果我們知道一個合約實現了 `IERC721` 介面，我們不需要知道它具體程式碼實現，就可以與它互動。
+
+[無聊猿](https://startingedu.com/bayc/) `BAYC` 屬於 `ERC721` 代幣，實現了 `IERC721` 介面的功能。我們不需要知道它的原始碼，只要知道它的合約地址，用 `IERC721` 介面就可以與它互動，例如用 `balanceOf()` 來查詢某個地址的 `BAYC` 餘額，用 `safeTransferFrom()` 來轉帳 `BAYC`。
+```
+contract interactBAYC{
+    // 利用BAYC位址建立介面合約變數（在 ETH 主網）
+    IERC721 BAYC = IERC721(0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D);
+    
+    // 透過介面呼叫 BAYC 的 balanceOf() 查詢持倉量
+    function balanceOfBAYC(address owner) external view returns (uint256 balance){
+        return BAYC.balanceOf(owner);
+    }
+    
+    // 透過介面呼叫 BAYC 的 safeTransferFrom() 安全轉賬
+    function safeTransferFromBAYC(address from, address to, uint256 tokenId) external {
+        BAYC.safeTransferFrom(from, to, tokenId);
+    }
+}
+```
+介面範例：
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+interface Base{
+    function getFirstName() external pure returns(string memory);
+    function getLastName() external pure returns(string memory);
+}
+contract BaseImpl is Base{
+    function getFirstName() external pure override returns(string memory){
+        return "Amazing";
+    }
+    function getLastName() external pure override returns(string memory){
+        return "Ang";
+    }
+}
+```
+![](https://i.imgur.com/UEpvrS1.png)
 <!-- Content_END -->
