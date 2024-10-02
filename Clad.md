@@ -515,6 +515,13 @@ function setXTransferETH(address otherContract, uint256 x) payable external{
 安全注意
 - 使用時要確保當前合約和目標合約的狀態變數儲存結構相同, 並且目標合約安全, 不然會造成資產損失
 
+#### 在合約中創建新合約
+寫法
+Contract 要創建的合約名, x 合約對象(地址), 如果構造函數是 payable 可以創建時轉入 _value 數量的 eth, params 新合約構造函數的參數 
+```Solidity
+Contract x = new Contract{value: _value}(params)
+```
+
 
 
 
