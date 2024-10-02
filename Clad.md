@@ -496,8 +496,24 @@ function setXTransferETH(address otherContract, uint256 x) payable external{
 安全注意
 - 不要用 call 調用另一個合約, 當調用不安全的合約函數時, 就會把主動權給對方, 建議方法是聲明合約變數後調用函數
 
+### 2024.10.2
+學習內容  
+筆記:  
 
+#### Delegatecall
+功用
+- 與 call 類似, 地址類型的低級成員函數
+- delegatecall 在調用合約時可以指定交易發送的 gas, 但不能指定發送的 eth
+- 智能合約將儲存合約和邏輯合約分開
+  代理合約儲存所有相關變數, 並且保存邏輯合約的地址; 邏輯合約儲存所有函數, 通過 delegate 執行
+- EIP-2535 Diamonds 鑽石, 鑽石是具有多個實施合約的代理合約
+  
+寫法
+- 目標合約地址.delegatecall(二進制編碼)
+- 二進制編碼 利用結構化編碼函數獲得, abi.encodeWithSignature("簽名函數", 具體參數)
 
+安全注意
+- 使用時要確保當前合約和目標合約的狀態變數儲存結構相同, 並且目標合約安全, 不然會造成資產損失
 
 
 
