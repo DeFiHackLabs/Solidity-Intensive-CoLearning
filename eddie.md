@@ -15,6 +15,21 @@ timezone: Asia/Shanghai
 ## Notes
 <!-- Content_START -->
 
+### 2024.10.01
+
+WTF103章节内容: 空投合约
+
+#### 笔记
+
+- 空投合约
+    
+    _to.call(value:amount){””}
+    这里的value默认单位为wei，如果需要发送ether，可以amount * 1 ether 来进行换算
+
+- 相关代码
+
+    [airdrop合约](https://github.com/eddiehsu66/SolidityCase/tree/main/Airdrop)
+
 ### 2024.09.30
 
 WTF103章节内容：ERC20、代币水龙头

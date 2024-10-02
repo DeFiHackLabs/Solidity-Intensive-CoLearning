@@ -143,14 +143,103 @@ storage（合约的状态变量）赋值给本地storage（函数里的）,memor
 - ABI编码
     -  ABI（Application Binary Interface）是以太坊和其他区块链平台中用于定义智能合约与外部应用程序（如前端、其他合约）之间交互的规范。
     -  abi.encode, 
-    -  abi.encodePacked, //压缩数据，无法正常吉奥胡
+    -  abi.encodePacked, //压缩数据，无法正常交互
     -  abi.encodeWithSignature, 
     -  abi.encodeWithSelector
     -  abi.encodeWithSelector(bytes4(0x533ba33a));**通过abi函数选择器，address(contract).staticcall(data)来调用相关函数**
 -  Hash
     -  生成数据唯一标识
     -  Solidity使用keccak256，返回一个32字节的哈希值。
-    
 
+### 2024.10.01
+-  Selector
+    -  4字节的函数选择器，**也就是8个16进制位**，用于标识函数
+    - msg.data 储存完整的calldata
+    -  bytes4(keccak256("transfer       (address,uint256)"))
+    - 映射类型参数 contract、enum、struct等，需要将该类型转化成为ABI类型。如：结构体User需要转化为tuple类型(uint256,bytes)，枚举类型School需要转化为uint8
+-  call
+    -  address(contract).call(data)
+    -  address(contract).call{value: 1 ether}(data)
+    -  address(contract).call{gas: 100000}(data)
+- Try Catch
+    -  try address(contract).call(data) returns (bool success, bytes memory returnData) {
+        // 处理返回值
+    } catch Error(string memory reason) {
+        // 处理错误
+         // catch失败的 revert() 和 require()
+    } catch (bytes memory) {
+        // 处理其他类型的错误
+        // catch失败的 assert()
 
+    }
+-  Revert
+    -  revert("Error message");
+### 2024.10.02
+- 写了简单的实现erc20接口的合约和faucet 合约 ，并通过remix测试合约功能
+```solidity
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0 <0.9.0;
+import "./IERC20.sol";
+
+contract Faucet {
+    event  SendToken(address indexed _to, uint indexed_value);
+    address public tokenAddress;
+    uint public amount=1000;
+    mapping(address=>bool) public requestedAddresses;
+    constructor(address _tokenAddress){
+        tokenAddress = _tokenAddress;
+    }
+    function requestTokens() external returns (bool) {
+        require(!requestedAddresses[msg.sender],"fuck you looser!");
+        IERC20 tokens = IERC20(tokenAddress);
+        require(tokens.balanceOf(address(this))>=amount,":(");
+        tokens.transfer(msg.sender, amount);
+        requestedAddresses[msg.sender] = true;
+        emit SendToken(msg.sender, amount);
+        return true;
+    }
+}
+contract MyTokenTest is IERC20 {
+    mapping (address => uint256) public override balanceOf;
+    mapping (address => mapping (address => uint256)) public override allowance;
+    uint256 public override totalSupply;
+    string public name ;
+    string public symbol ;
+    uint8 public decimals = 18;
+    constructor(string memory _name, string memory _symbol, uint256 _initialSupply) {
+        name = _name;
+        symbol = _symbol;//不能用this.name=_name;
+        totalSupply = _initialSupply ;
+    }
+    function transfer(address reciver, uint256 _value) public override returns (bool) {
+        balanceOf[msg.sender] -= _value;
+        balanceOf[reciver] += _value;
+        emit Transfer(msg.sender, reciver, _value);
+        return true;
+    }
+    function approve(address _spender, uint256 _value) public override returns (bool) {
+        allowance[msg.sender][_spender] = _value;
+        emit Approval(msg.sender, _spender, _value);
+        return true;
+    }
+    function transferFrom(address _from, address _to, uint256 _value) public override returns (bool success) {
+        require(allowance[_from][msg.sender] >= _value);
+        allowance[_from][msg.sender] -= _value;
+        balanceOf[_from] -= _value;
+        balanceOf[_to] += _value;
+        return true;
+    }
+    function mint(uint _value) external {
+        balanceOf[msg.sender] += _value;
+        totalSupply += _value;
+        emit Transfer(address(0), msg.sender, _value);
+    }
+    function burn(uint _value) external {
+        balanceOf[msg.sender] -= _value;
+        totalSupply -= _value;
+        emit Transfer(msg.sender, address(0), _value);
+    }
+
+}
+```
 <!-- Content_END -->

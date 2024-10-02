@@ -478,6 +478,94 @@ timezone: Asia/Shanghai
 
 ---
 
+### 2024.10.02
+
+#### 学习内容 13. 继承
+
+1. 继承规则
+
+    - virturl:父合约中的函数,如果希望子合约重写,需要加上 virtual 关键字
+
+    - override:子合约重写了父合约中的函数,需要加上 override 关键字
+
+    - 用 override 修饰 public 变量,会重写与变量同名的 getter 函数
+
+        - ```solidity
+            mapping(address => uint256) public override balanceOf;
+            ```
+
+2. 简单继承
+
+    - Yeye合约,方法添加 virtual 关键字
+    - `contract Baba is Yeye` Baba 合约使用 `is` 关键字
+
+3. 多重继承
+
+    - solidity 中合约可以继承多个合约
+    - 继承时,按辈分高低从左向右排列 `contract Erzi is Yeye, Baba`
+    - 如果某函数在多个继承合约都存在,则子合约中必须重写
+    - 子合约重写`父合约中都重名的函数`时,override 关键字后面加上所有父合约名字 `override(Yeye,Baba)`
+
+4. 修饰器的继承
+
+    - Modifier可以被继承,添加 virtual 和 override 关键字;
+    - 子合约也可以在代码中修改Modifier
+
+5. 构造函数的继承
+
+    - ```solidity
+        // 构造函数的继承
+        abstract contract A {
+            uint public a;
+        
+            constructor(uint _a) {
+                a = _a;
+            }
+        }
+        ```
+
+    - ```solidity
+    // 在继承时声明父构造函数的参数   
+        contract B is A(1) {}
+      ```
+
+    - ```solidity
+        // 在子合约的构造函数中声明构造函数的参数
+        contract C is A {
+            constructor(uint _c) A(_c * _c) {}
+        }
+        ```
+        
+    - 
+
+6. 调用父合约的函数
+
+    - 直接调用: `父合约名.函数名()`
+    - super 关键字: `super.函数名()` ,super 是最右边的父合约(继承关系最近)
+
+7. 钻石继承
+
+    - 钻石继承（菱形继承）指一个派生类同时有两个或两个以上的基类
+    - 在多重+菱形继承链条上使用`super`关键字时，需要注意的是使用`super`会调用继承链条上的每一个合约的相关函数，而不是只调用最近的父合约。
+    - 钻石顶部的合约只被调用一次.
+        - 原因是`Solidity`借鉴了Python的方式，强制一个由基类构成的DAG（有向无环图）使其保证一个特定的顺序
+
+8. 合约部署-继承
+
+    - ![image-20241002143753122](content/Aris/image-20241002143753122.png)
+
+9. 合约部署-修饰器
+
+    - ![image-20241002144111654](content/Aris/image-20241002144111654.png)
+
+10. 合约部署-钻石继承
+
+    - ![image-20241002144424758](content/Aris/image-20241002144424758.png)
+
+11. 第 13 节测验得分: 100, 答案: ABBBACC
+
+---
+
 
 
 

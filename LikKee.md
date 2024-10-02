@@ -773,6 +773,106 @@ import {Other} from './Other.sol';
 
 ### 2024.10.01
 
+#### Chapter 19: Receive & Fallback
+
+Solidity have two special function, `receive()` and `fallback()`, can be used to:
+
+- Receive native currency like ETH
+- Fallback call from undefined function calling
+- `receive()` introduced after `0.6.x`
+
+`receive()`
+
+- Called when contract receive `ETH` directly via transfer, etc
+- Each contract can have maximum 1 `receive()` function
+
+```
+receive() external payable {
+  // do something
+}
+```
+
+- `receive()` doesn't need to include `function` keyword, must not contain `parameters` and return values
+- `receive()` not recommend to have complex logic, the default spendable gas for transfer/send ETH usually limit to `2300` only, complex computation in `receive()` might cause `Out of Gas` error.
+
+```
+event Received(address sender, uint256 amount);
+
+receive() external payable {
+  emit Received(msg.sender, msg.value);
+}
+```
+
+- `event` can be added into `receive()` function
+
+`fallback()`
+
+- Trigger when undefined function called, can also use to receive `ETH`
+
+```
+event FallbackTriggered(address sender, uint256 amount, bytes data);
+
+fallback() external payable {
+  emit FallbackTriggered(msg.sender, msg.value, msg.data);
+}
+```
+
+- `fallback()` doesn't need to include `function` keyword, must have visibility of `external`
+
+How it works
+
+```
+fallback() or receive()?
+        Receive ETH
+              |
+       msg.data empty？
+            /  \
+          Yes   No
+          /      \
+receive() exist?  fallback()
+        / \
+      Yes  No
+      /     \
+receive()   fallback()
+```
+
+- Contract without `receive()` or `payable fallback()` will not able to received `ETH`, transfer transaction will executed but failed
+
+#### Chapter 20: Transfer ETH
+
+There are 3 way to transfer `ETH` in contract
+
+- `call()` <- Recommended
+  - No gas limit
+  - Transaction will still executed even failed to call
+  - Have return values of `(bool, bytes)` which `bool` indicate calling failed or successful, `bytes` is data return
+- `transfer()`
+  - Gas limit `2300`, if recipient is contract and it's `fallback()` or `receive()` is complex, transfer will fail
+  - Transaction will revert if transfer failed
+- `send()`
+  - Gas limit `2300`, if recipient is contract and it's `fallback()` or `receive()` is complex, send will fail
+  - Transaction will still executed even failed to send, can capture with return `bool` value
+
+```
+function callTx(address payable _to) external payable {
+  (bool success, ) = _to.call{value: msg.value}("");
+  if(!success) {
+    revert CallFailed();
+  }
+}
+
+function transferETH(address payable _to) external payable {
+  _to.transfer(msg.value);
+}
+
+function sendETH(address payable _to) external payable {
+  bool success = _to.send(msg.value);
+  if(!success) {
+    revert SendFailed();
+  }
+}
+```
+
 ### 2024.10.02
 
 ### 2024.10.03
@@ -792,6 +892,10 @@ import {Other} from './Other.sol';
 ### 2024.10.10
 
 <!-- Content_END -->
+
+```
+
+```
 
 ```
 

@@ -546,4 +546,42 @@ contract Sender {
 
 ###
 
+### 2024.10.01
+
+#### 调用已部署合约
+
+核心逻辑就是，通过获取已部署合约的实例，调用实例中的方法。
+
+获取已部署合约的方式：
+
+1. conractName(contractAddress).f(x)
+2. contract.f(x)
+
+这就要求，调用方要获得已调用方的合约代码(接口)信息。
+
+这就引出了另外一个call的方式，他也能够做到调用第三方合约，而且，它并不需要知道调用方的合约源代码或者接口(abi)信息。
+
+```solidity
+(bool success,bytes memory data) = address.call(abi.encodeWithSignature("func(address,uint)",address,uint);
+```
+
+> 通过call来调用第三方合约，推荐的方法就是通过已知合约代码信息的方式来调用，通过call的方式来调用是不推荐的。且容易出现风险。
+
+###
+
+### 2024.10.02
+
+#### delegateCall
+
+跟call的核心区别是上下文。delegateCall的上下文是调用方，而call的上下文是被调用方。
+
+结合其他高级语言来理解，delegateCall实际上更类似于调用另一个实体类的方法，我可以利用这个实体类的各个静态参数，但是不会改变他们，我改变的只是调用者本身的信息。
+
+限制：
+
+1. 调用方、被调用方的参数必须完全一致，即使是顺序也需要一致。
+
+从这些方面理解，delegateCall调用的，就是一个可变更的，执行逻辑。
+
+###
 <!-- Content_END -->

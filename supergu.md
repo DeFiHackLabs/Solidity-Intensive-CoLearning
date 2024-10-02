@@ -136,6 +136,52 @@ timezone: Asia/Shanghai
 | storage = storage | Y | 
 | storage = memory | N |
 | memory = storage | N | 
-| memory = memory | N |
+| memory = memory | Y |
+
+**Key principle**: same data location then pass by reference
+
+### 2024.10.01
+
+#### Chapter 6: Array & Struct
+
+- Arrays
+   - Bytes array
+      - `bytes1[]` - dynamic array of single bytes, e.g. [0x01, 0x02, 0x03]
+      - `bytes` - dynamic array of multiple bytes, e.g. 0x0102030405
+   - `memory` arrays
+      - array size fixed after creation, but can be dynamic at creation
+      - e.g. `uint[2] memory a = [uint(1), 2]` or `uint[] memory a = new uint[](2)`
+
+- struct
+   
+   ```solidity
+   struct Student{
+        uint256 id;
+        uint256 score; 
+   }
+
+   Student student;
+
+   function initStudent1() external{
+      Student storage _student = student; // assign a copy of student
+      _student.id = 11;
+      _student.score = 100;
+   }
+
+   // Method 2: Directly refer to the struct of the state variable
+   function initStudent2() external{
+      student.id = 1;
+      student.score = 80;
+   }
+   // Method 3: struct constructor
+   function initStudent3() external {
+      student = Student(3, 90);
+   }
+   
+   // Method 4: key value
+   function initStudent4() external {
+      student = Student({id: 4, score: 60});
+   }
+   ```
 
 <!-- Content_END -->

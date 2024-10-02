@@ -643,4 +643,46 @@ C. `map.push(_Key, _Value);`
 solidity 当中仅有动态数组支持 `push` 操作。
 
 
+
+### 2024.10.01
+#### 学习笔记
+
+
+ 4.在如下的合约中，我们定义了四个 immutable 的变量 y1, y2, y3, y4。
+
+```
+uint256 immutable y1;
+address immutable y2;
+address immutable y3;
+uint256 immutable y4;
+constructor (uint256 _y4){
+    y1 = block.number;
+    y2 = address(this);
+    y3 = msg.sender;
+    y4 = _y4;
+}
+```
+
+
+其中，确实有必要在构造函数 constructor 中才赋值的一项是：
+
+选择一个答案
+
+A. y1
+
+B. y2
+
+C. y3
+
+D. y4
+
+返回上一题
+
+答案为 y4 。
+
+```
+这里强调下关于编译时便定义的这个概念：像block.number、address(this)、msg.sender这些都是在编译时就会获取的，所以不用再去在构造函数的时候去赋值。
+```
+
+
 <!-- Content_END -->

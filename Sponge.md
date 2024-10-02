@@ -17,32 +17,35 @@ timezone: Asia/Shanghai
 
 ### 2024.09.23
 - 天氣:晴
-- [學習紀錄Day1](https://github.com/SpC242/Solidity-CoLearning/blob/main/Day1.md) 
+- [學習紀錄Day01](https://github.com/SpC242/Solidity-CoLearning/blob/main/Day01.md) 
 
 ### 2024.09.24
 - 天氣:雨
-- [學習紀錄Day2](https://github.com/SpC242/Solidity-CoLearning/blob/main/Day2.md)
+- [學習紀錄Day02](https://github.com/SpC242/Solidity-CoLearning/blob/main/Day02.md)
 
 ### 2024.09.25
 - 天氣:晴
-- [學習紀錄Day3](https://github.com/SpC242/Solidity-CoLearning/blob/main/Day3.md)
+- [學習紀錄Day03](https://github.com/SpC242/Solidity-CoLearning/blob/main/Day03.md)
 
 ### 2024.09.26
 - 天氣:晴
-- [學習紀錄Day4](https://github.com/SpC242/Solidity-CoLearning/blob/main/Day4.md)
+- [學習紀錄Day04](https://github.com/SpC242/Solidity-CoLearning/blob/main/Day04.md)
 
 ### 2024.09.27
 - 天氣:晴
-- [學習紀錄Day5](https://github.com/SpC242/Solidity-CoLearning/blob/main/Day5.md)
+- [學習紀錄Day05](https://github.com/SpC242/Solidity-CoLearning/blob/main/Day05.md)
 
 ### 2024.09.28
 - 天氣:晴
-- [學習紀錄Day6](https://github.com/SpC242/Solidity-CoLearning/blob/main/Day6.md)
+- [學習紀錄Day06](https://github.com/SpC242/Solidity-CoLearning/blob/main/Day06.md)
 
 ### 2024.10.01
 - 天氣:陰
-- [學習紀錄Day7](https://github.com/SpC242/Solidity-CoLearning/blob/main/Day7.md)
+- [學習紀錄Day07](https://github.com/SpC242/Solidity-CoLearning/blob/main/Day07.md)
 
+### 2024.10.02
+- 天氣:雨
+- [學習紀錄Day08](https://github.com/SpC242/Solidity-CoLearning/blob/main/Day08.md)
 
 
 <!-- Content_END -->
