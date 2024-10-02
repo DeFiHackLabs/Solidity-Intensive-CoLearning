@@ -323,6 +323,7 @@ Q1:If you want to be a solidity security auditor, to what extent should you lear
 There are so many details about Solidity in security audit reports,just like:
 
 5.Unsafe array's length manipulation 
+
 ● contracts/ComptrollerG4.sol [Line: 220-220] 
 ● contracts/Comptroller.sol [Line: 226-226 ] 
 ● contracts/ComptrollerG2.sol [Line: 220-220 ] 
@@ -336,7 +337,9 @@ The length of the dynamic array is changed directly. In this case, the appearanc
 ● Use .push() (instead of .length++) to write to the end of the dynamic array. 
 ● Starting with version 0.5.0 of the Solidity compiler, use .pop() (instead of .length--) to delete the last element of the dynamic array.
 
-6.Using approve function of the ERC-20 token standard The approve function of ERC-20 is vulnerable. Using front-running attack one can spend approved tokens before change of allowance value. 
+6.Using approve function of the ERC-20 token standard 
+
+The approve function of ERC-20 is vulnerable. Using front-running attack one can spend approved tokens before change of allowance value. 
 ● contracts/CErc20Delegator.sol [line: 183-186] 
 ● contracts/CToken.sol [line: 158-163] 
 
@@ -354,6 +357,7 @@ State variable, .balance, or .length of non-memory array is used in the conditio
 Recommendation: If a state variable, .balance, or .length is used several times, holding its value in a local variable is more gas efficient. If .length of calldata-array is placed into a local variable, the optimisation will be less significant.
 
 8.Overpowered role 
+
 ● contracts/SimplePriceOracle.sol [Line: 44-47, 25-42] 
 
 This function is callable only from one address. Therefore, the system depends heavily on this address. In this case, there are scenarios that may lead to undesirable consequences for investors, e.g. if the private key of this address becomes compromised. 
@@ -390,28 +394,47 @@ I hate you...you're distracting me!
 
 Q1：How To Write A Good Audit Report(1.0)?
 
-1.Introduction: This section sets the stage for the audit report. Introduce the auditing team, including their credentials and expertise. Emphasize the importance of the audit process and its role in enhancing the security of smart contracts. Clearly state the purpose of the audit and the methodologies employed in the analysis.
+1.Introduction: 
 
-2.Project Description: Provide a comprehensive overview of the project being audited. Detail the audit methodology, outlining the techniques and tools used during the evaluation. Specify the type of smart contracts that were audited, the programming language they are written in, and their ecosystem. Include information such as the project repository link, GitHub commit hash, documentation sources, unit testing details, project website, and audit submission and completion dates. 
+This section sets the stage for the audit report. Introduce the auditing team, including their credentials and expertise. Emphasize the importance of the audit process and its role in enhancing the security of smart contracts. Clearly state the purpose of the audit and the methodologies employed in the analysis.
 
-3.Contracts In Scope: Define the scope of the audit by listing the smart contracts that were audited. 
+2.Project Description: '
 
-4.Executive Summary: Write a concise summary of the audit process, including details about the evaluation criteria, audit dates, and the auditors involved. Provides an overview of the vulnerabilities discovered, categorizing them based on severity levels. Highlight the number of issues found, resolved, and acknowledged during the audit.
+Provide a comprehensive overview of the project being audited. Detail the audit methodology, outlining the techniques and tools used during the evaluation. Specify the type of smart contracts that were audited, the programming language they are written in, and their ecosystem. Include information such as the project repository link, GitHub commit hash, documentation sources, unit testing details, project website, and audit submission and completion dates. 
 
-5.Severity Definitions: Define the severity levels used in the report and explain clearly what each level signifies, making it easier for readers to comprehend the implications of identified vulnerabilities.
+3.Contracts In Scope: 
+
+Define the scope of the audit by listing the smart contracts that were audited. 
+
+4.Executive Summary: 
+
+Write a concise summary of the audit process, including details about the evaluation criteria, audit dates, and the auditors involved. Provides an overview of the vulnerabilities discovered, categorizing them based on severity levels. Highlight the number of issues found, resolved, and acknowledged during the audit.
+
+5.Severity Definitions: 
+
+Define the severity levels used in the report and explain clearly what each level signifies, making it easier for readers to comprehend the implications of identified vulnerabilities.
 
 
 Q2: How To Write A Good Audit Report(2.0)?
 
-6.Audit Overview: This section should include a security score that captures the overall security posture of the smart contracts. Evaluate the code and documentation quality, summarizing the strengths and weaknesses observed during the analysis. It should also provide a high-level view of the security status, serving as a quick reference point for the readers.
+6.Audit Overview: 
 
-7.Audit Findings: Dive deep into the vulnerabilities and issues identified during the audit. Provide a detailed account of each vulnerability, explaining its nature, potential impact, and the steps required to reproduce it. Categorize the vulnerabilities based on severity levels, emphasizing critical issues requiring immediate attention. Use code snippets and examples to illustrate the vulnerabilities, enhancing the clarity of your explanations.
+This section should include a security score that captures the overall security posture of the smart contracts. Evaluate the code and documentation quality, summarizing the strengths and weaknesses observed during the analysis. It should also provide a high-level view of the security status, serving as a quick reference point for the readers.
 
-8.Recommendations: For each identified vulnerability, offer clear and actionable recommendations for resolution or mitigation. Detail the steps that developers should take to address the issues effectively. Provide code snippets, if applicable, and best practices that can be employed to improve the security of the smart contracts. Ensure the recommendations are practical, feasible, and tailored to the project's context.
+7.Audit Findings: 
 
-9.Disclaimer: In this section, include a disclaimer outlining the limitations of the audit and the scope of the auditing team's responsibilities. While the audit aims to enhance security, it cannot guarantee absolute immunity from all potential threats. Highlight the collaborative nature of security, emphasizing the importance of continuous vigilance and proactive measures from the development team.
+Dive deep into the vulnerabilities and issues identified during the audit. Provide a detailed account of each vulnerability, explaining its nature, potential impact, and the steps required to reproduce it. Categorize the vulnerabilities based on severity levels, emphasizing critical issues requiring immediate attention. Use code snippets and examples to illustrate the vulnerabilities, enhancing the clarity of your explanations.
+
+8.Recommendations: 
+
+For each identified vulnerability, offer clear and actionable recommendations for resolution or mitigation. Detail the steps that developers should take to address the issues effectively. Provide code snippets, if applicable, and best practices that can be employed to improve the security of the smart contracts. Ensure the recommendations are practical, feasible, and tailored to the project's context.
+
+9.Disclaimer: 
+
+In this section, include a disclaimer outlining the limitations of the audit and the scope of the auditing team's responsibilities. While the audit aims to enhance security, it cannot guarantee absolute immunity from all potential threats. Highlight the collaborative nature of security, emphasizing the importance of continuous vigilance and proactive measures from the development team.
 
 10.In Conclusion 
+
 Effective documentation, comments, and reporting are essential for smart contracts. They help developers understand and verify contract functions, facilitate auditing and debugging, and allow stakeholders to monitor performance, fostering trust and accountability in the blockchain ecosystem. This is why smart contract audits, bug bounties, and reviews are crucial in every stage of development. They increase the number of eyes scouting for vulnerabilities and decrease the chance of critical vulnerabilities slipping through.
 Stay safe. 
 
