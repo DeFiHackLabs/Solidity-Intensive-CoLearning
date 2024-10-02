@@ -328,6 +328,7 @@ Q2:
 ### 2024.10.02
 
 Wow～so long
+
 I hate you...you're distracting me!
 
 Q1：
