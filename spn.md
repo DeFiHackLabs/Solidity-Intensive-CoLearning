@@ -52,7 +52,10 @@ timezone: Asia/Shanghai
 [16-18](https://github.com/spn21/web3-learning/tree/main/solidity_review/src)
 [test](https://github.com/spn21/web3-learning/tree/main/solidity_review/test)
 
-### 2024.09.29
+### 2024.09.30
 [19-22](https://github.com/spn21/web3-learning/tree/main/solidity_review/src)
+
+### 2024.10.02
+[23-25](https://github.com/spn21/web3-learning/tree/main/solidity_review/src)
 
 <!-- Content_END -->
