@@ -948,8 +948,44 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     ```
     - ERC721标准仍在不断发展中，目前比较流行的版本为ERC721Enumerable（提高NFT可访问性）和ERC721A（节约铸造gas）。
 - [103-35] 荷兰拍卖
+    - 荷兰拍卖（Dutch Auction）是一种特殊的拍卖形式。 亦称“减价拍卖”，它是指拍卖标的的竞价由高到低依次递减直到第一个竞买人应价（达到或超过底价）时击槌成交的一种拍卖【标高价逐步减价，直到有人买】。很多 NFT 通过荷兰拍卖发售。
+        - 荷兰拍卖的价格由最高慢慢下降，能让项目方获得最大的收入。
+        - 拍卖持续较长时间（通常6小时以上），可以避免gas war。
+    - 完整代码：[code](https://github.com/AmazingAng/WTF-Solidity/blob/main/35_DutchAuction/DutchAuction.sol)
+    ```solidity
+    uint256 public constant COLLECTOIN_SIZE = 10000; // NFT总数
+    uint256 public constant AUCTION_START_PRICE = 1 ether; // 起拍价(最高价)
+    uint256 public constant AUCTION_END_PRICE = 0.1 ether; // 结束价(最低价/地板价)
+    uint256 public constant AUCTION_TIME = 10 minutes; // 拍卖时间，为了测试方便设为10分钟
+    uint256 public constant AUCTION_DROP_INTERVAL = 1 minutes; // 每过多久时间，价格衰减一次
+    uint256 public constant AUCTION_DROP_PER_STEP =
+        (AUCTION_START_PRICE - AUCTION_END_PRICE) /
+        (AUCTION_TIME / AUCTION_DROP_INTERVAL); // 每次价格衰减步长
+    
+    uint256 public auctionStartTime; // 拍卖开始时间戳
+    string private _baseTokenURI;   // metadata URI
+    uint256[] private _allTokens; // 记录所有存在的tokenId 
+    ````
+    - 拍卖逻辑
+    ```solidity
+    // 获取拍卖实时价格
+    function getAuctionPrice()
+        public
+        view
+        returns (uint256)
+    {
+        if (block.timestamp < auctionStartTime) {
+        return AUCTION_START_PRICE;
+        }else if (block.timestamp - auctionStartTime >= AUCTION_TIME) {
+        return AUCTION_END_PRICE;
+        } else {
+        uint256 steps = (block.timestamp - auctionStartTime) /
+            AUCTION_DROP_INTERVAL;
+        return AUCTION_START_PRICE - (steps * AUCTION_DROP_PER_STEP);
+        }
+    }
+    ```
 - [103-36] 默克尔树
-
 ### 2024.10.05
 
 - [103-37] 数字签名
