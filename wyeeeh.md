@@ -518,10 +518,11 @@ contract MappingExample {
   - `int` 初始值为 `0`
   - `bool` 初始值为 `false`
   - `address` 初始值为 `address(0)`
-  - `bytes` 初始值为 `bytes("")`
-  - `string` 初始值为 `""`
+  - `bytes1` 到 `bytes32`（固定大小的 bytes）：0x00（对应长度的字节）
   - `enum` 初始值为 `0`
 - 引用类型初始值
+  - `bytes` 初始值为 `bytes("")`
+  - `string` 初始值为 `""`
   - `struct` 初始值为 `struct` 的默认值
   - `array` 初始值为 `array(length => 0)`，即`[]`
   - `mapping` 初始值为 `mapping(key => value)` 的默认值
@@ -536,7 +537,69 @@ contract MappingExample {
 - bytes1的初始值是`0x00`
 
 ### 2024.10.01
-#### WTF Academy Solidity 101.9 常数
+#### WTF Academy Solidity 101.9 常数 constant和immutable
+- 这两个关键字在 Solidity 中都用于定义不可修改的变量，但它们有一些显著区别。
+##### Constant
+- **定义**: `constant` 变量必须在声明时就初始化，之后不能再改变其值。如果尝试修改，编译将失败。
+- **存储**: `constant` 变量的值会在编译时被硬编码进字节码中，因此它们不占用合约的存储空间。这也意味着这些值不会因为部署合约而消耗额外的 `gas`。
+- **应用场景**: 适用于那些在合约整个生命周期内都不会改变的常量值。
 
+##### Immutable
+- **定义**: `immutable` 变量与 `constant` 变量类似，它们的值也不可修改，但 `immutable` 变量可以在**构造函数中**进行初始化（赋值），而不必在声明时直接赋值。这使得 `immutable` 变量更加灵活。
+- **存储**: 与 `constant` 不同，`immutable` 变量的值会被保存在合约的存储空间中。虽然它们在合约运行时不可修改，但因为它们的值是在部署时动态确定的，所以需要消耗 `gas` 来存储。
+- **应用场景**: 当变量的值需要在部署时根据某些条件动态决定（如部署合约时的区块号或合约地址），但在合约运行期间又不希望这些值被修改时，适合使用 `immutable`。
+
+  ```Solidity
+  contract MyContract {
+      uint256 public immutable DEPLOY_BLOCK;
+      address public immutable OWNER;
+
+      constructor() {
+          DEPLOY_BLOCK = block.number;  // 部署时的区块号
+          OWNER = msg.sender;           // 部署合约的地址
+      }
+  }
+  ```
+  在这个例子中，`DEPLOY_BLOCK` 和 `OWNER` 是 `immutable` 变量，它们的值在合约部署时由 `constructor` 初始化，并且一旦赋值就不能再改变。
+
+##### **`constant` vs `immutable` 的具体区别**
+
+| 特性 | `constant` | `immutable` |
+| --- | --- | --- |
+| **赋值时机** | 必须在声明时赋值 | 可以在声明时或构造函数中赋值 |
+| **修改** | 无法修改 | 在构造函数中初始化后无法修改 |
+| **存储位置** | 编译时直接写入字节码，不占用存储空间 | 值存储在合约存储中，部署时确定，消耗少量 `gas` |
+| **使用场景** | 用于固定的、绝对不变的常量值 | 用于部署时动态确定、之后不可更改的值 |
+
+##### 测验结果
+- 80/100
+- 100/100
+
+##### 测验错题
+**`immutable` 变量不能在声明时通过字符串字面量初始化**
+- 在声明 `immutable` 变量时，如果试图直接用字符串（如 `"hello world"`）进行初始化，会报错。原因是 `string` 是一种 **引用类型**，它的值在内存或存储中会涉及更多的动态分配。
+- `immutable` 变量的初始化需要在**运行时**进行，比如通过构造函数或函数调用来赋值。而**字符串字面量**在 Solidity 中不能直接作为 `immutable` 变量的初始化值，因为这种分配在编译期间还不能确定最终的内存位置。
+
+**错误示例**
+
+```solidity
+// 报错：immutable 变量不能通过字符串字面量初始化
+string immutable myString = "hello world";
+```
+**引用类型需要在构造函数或通过计算赋值**
+- 由于 `immutable` 变量的初始化要在**运行时**进行，因此在声明引用类型的 `immutable` 变量时，应该通过构造函数初始化，而不是直接在声明时赋值。
+
+**正确示例**
+
+```solidity
+contract MyContract {
+    string immutable myString;
+
+    // 通过构造函数初始化 immutable 变量
+    constructor(string memory _input) {
+        myString = _input;
+    }
+}
+```
 
 <!-- Content_END -->
