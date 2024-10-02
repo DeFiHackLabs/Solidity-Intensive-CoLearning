@@ -687,5 +687,49 @@ D. y4
 
 ### 2024.10.02
 #### 学习笔记
+在 Solidity 中，virtual 关键字用于声明一个函数可以被继承的合约中的子合约重写。它通常与 override 一起使用，后者在子合约中重写父合约中的函数时需要。
+
+用法背景
+在 Solidity 中，合约是可以继承的，子合约可以继承父合约的函数、状态变量等。但是，默认情况下，父合约中的函数是不可被重写的。如果你希望允许子合约重写某个函数，那么你需要在父合约的函数定义中使用 virtual 关键字。
+
+```
+pragma solidity ^0.8.0;
+
+contract Parent {
+    function sayHello() public pure virtual returns (string memory) {
+        return "Hello from Parent";
+    }
+}
+
+contract Child is Parent {
+    function sayHello() public pure override returns (string memory) {
+        return "Hello from Child";
+    }
+}
+
+```
+
+在这个例子中：
+
+Parent 合约中的 sayHello 函数被声明为 virtual，这意味着它可以被子合约重写。
+Child 合约继承了 Parent 合约，并且通过使用 override 关键字对 sayHello 函数进行了重写。
+
+
+
+`很多时候写一些函数的时候并不确定后续这个函数是否需要被重写，那么我可以写最初的合约的时候把所有合约都加一个virtual关键字么`
+
+
+在 Solidity 中，你可以在编写初始合约时将所有函数声明为 virtual，以允许将来有可能重写这些函数。但是，这样做有一些权衡和注意事项：
+
+优点
+灵活性：将函数标记为 virtual 后，未来子合约可以根据需要自由地进行重写，增加了代码的扩展性。
+简化继承设计：如果你不确定哪些函数在未来可能需要重写，提前使用 virtual 可以避免以后修改父合约代码的麻烦，减少升级合约的复杂性。
+缺点
+安全性隐患：允许函数被重写可能会引入潜在的安全问题，尤其是对于一些关键功能。如果某些函数意外地被重写，可能会导致不可预料的行为。
+代码可读性降低：如果所有函数都标记为 virtual，可能让其他开发人员误以为这些函数应该被重写，增加了代码的复杂性和混乱感。
+开发成本：默认所有函数可以被重写可能会导致设计不清晰，使得后续代码维护更加困难。通常，只有明确需要扩展的函数才应该标记为 virtual。
+设计建议
+最小权限原则：仅在你确定某个函数需要被重写时才添加 virtual，这符合 Solidity 安全开发的最佳实践。
+分层设计：对于需要扩展的功能，可以将它们放在特定的合约中，并明确标记为 virtual，而非随意为所有函数添加这个关键字。
 
 <!-- Content_END -->
