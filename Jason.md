@@ -919,4 +919,144 @@ function f(uint256 _in) public pure returns (uint256 out) {
 
 函數重載是Solidity中一個強大的特性，能夠大大提高代碼的表達能力和靈活性。然而，它也需要謹慎使用，以確保代碼的清晰度和可維護性。通過合理運用函數重載，開發者可以編寫出更加優雅和高效的智能合約.
 
+### 2024.10.03
+
+## 庫合約(Library)簡介
+庫合約是 Solidity 中一種特殊的合約,主要用於提高代碼重用性和降低 gas 消耗。它本質上是一系列函數的集合,由經驗豐富的開發者創建,我們可以直接使用這些現成的功能。
+
+庫合約與普通合約的主要區別:
+
+1. 不能有狀態變量
+2. 不能繼承或被繼承  
+3. 不能接收以太幣
+4. 不能被銷毀
+
+使用庫合約的好處是"站在巨人的肩膀上",我們可以利用前人的智慧,無需重複造輪子。
+我們只需要知道什麼情況該用什麼庫合約。常用的有：
+Strings：將uint256轉換為String
+Address：判斷某個地址是否為合約地址
+Create2：更安全的使用Create2 EVM opcode
+Arrays：跟數組相關的庫合約
+
+## Strings 庫合約示例
+
+Strings 庫提供了將 uint256 轉換為 string 的功能。主要包含兩個函數:
+
+1. `toString()`: 將 uint256 轉為十進制 string
+2. `toHexString()`: 將 uint256 轉為十六進制 string
+
+## 如何使用庫合約
+
+有兩種主要方法使用庫合約:
+
+1. 使用 `using for` 指令:
+
+```solidity
+using Strings for uint256;
+
+function getString1(uint256 _number) public pure returns(string memory){
+    return _number.toHexString();
+}
+```
+
+2. 直接通過庫合約名稱調用:
+
+```solidity
+function getString2(uint256 _number) public pure returns(string memory){
+    return Strings.toHexString(_number);
+}
+```
+
+## 補充思考
+1. **性能考量**: 庫合約可以提高代碼重用性,但過度使用可能導致合約變得複雜。在決定是否使用庫時,要權衡代碼簡潔性和 gas 消耗。
+
+2. **安全性**: 使用知名的、經過審計的庫可以提高合約的安全性。但同時也要注意,依賴外部庫可能引入潛在的風險。
+
+3. **版本控制**: 在使用庫時,要注意版本兼容性。Solidity 的更新可能會影響庫的行為。
+
+4. **自定義庫**: 雖然大多數情況下使用現有庫就足夠了,但了解如何創建自己的庫也是很有價值的技能。
+
+5. **gas 優化**: 庫合約中的 internal 函數會被內聯到調用合約中,這可以節省 gas。而 public 和 external 函數則會觸發 delegatecall,可能增加 gas 消耗。
+
+6. **跨合約調用**: 庫合約提供了一種在不同合約間共享代碼的方式,這對於構建模塊化和可維護的 DApp 非常有用。
+
+總的來說,庫合約是 Solidity 中一個強大的工具,能夠幫助開發者編寫更高效、更安全的智能合約。初學者應該熟悉常用的庫合約,並學會如何在自己的項目中合理使用它們。
+
+# 題目與解析
+## Q1
+通過庫合約名稱直接調用 toHexString() 函數的正確寫法是：
+
+```solidity
+// 直接通过库合约名调用    
+function getString2(uint256 _number) public pure returns(string memory){
+    return Strings.toHexString(_number);
+}
+```
+
+這裡的解釋是：
+
+1. `Strings` 是庫合約的名稱。
+
+2. `toHexString` 是 Strings 庫中的函數，用於將 uint256 轉換為十六進制的字符串表示。
+
+3. `_number` 是作為參數傳遞給 toHexString 函數的 uint256 值。
+
+這種調用方式直接使用庫合約的名稱 `Strings`，後面接上要調用的函數 `toHexString`，然後在括號內傳入參數 `_number`。
+
+這種方法的特點和優勢：
+
+1. **明確性**：這種調用方式非常清晰，可以直接看出我們在調用哪個庫的哪個函數。
+
+2. **靈活性**：不需要使用 `using for` 指令，可以在需要時隨時調用庫函數。
+
+3. **可讀性**：對於不熟悉代碼的人來說，這種方式可能更容易理解庫函數的來源。
+
+4. **避免命名衝突**：如果有多個庫定義了同名函數，這種方式可以明確指定使用哪個庫的函數。
+
+需要注意的是，在使用這種方法之前，確保你已經正確地導入了 Strings 庫。通常，你需要在合約文件的開頭加上類似這樣的導入語句：
+
+```solidity
+import "@openzeppelin/contracts/utils/Strings.sol";
+```
+
+或者如果 Strings 庫在同一個項目中的其他文件裡，你可能需要使用相對路徑來導入。
+
+這種直接通過庫名調用的方式和使用 `using for` 指令的方式在功能上是等價的，選擇哪種方式主要取決於個人偏好和項目的編碼風格。
+
+## Q2
+根據您的描述和提供的代碼片段，正確的填空應該是：
+
+```solidity
+// 利用using for指令
+using Strings for uint256;
+function getString1(uint256 _number) public pure returns(string memory){
+    return _number.toHexString();
+}
+```
+
+這裡的解釋是：
+
+1. `using Strings for uint256;` 這行代碼將 Strings 庫的所有函數附加到 uint256 類型上。
+
+2. 這意味著我們可以直接在 uint256 類型的變量上調用 Strings 庫中的函數，就像它們是 uint256 的成員函數一樣。
+
+3. `_number` 是一個 uint256 類型的參數。
+
+4. `.toHexString()` 是直接在 `_number` 上調用的，因為我們已經使用 `using for` 指令將這個函數附加到了 uint256 類型上。
+
+這種方法的優點是使代碼更加簡潔和直觀。它允許我們像調用對象的方法一樣調用庫函數，這在某些情況下可以提高代碼的可讀性。
+
+需要注意的是：
+
+1. 使用這種方法時，`_number` 會自動作為 `toHexString()` 函數的第一個參數。
+
+2. 如果 `toHexString()` 函數需要額外的參數，可以在 `.toHexString()` 後的括號中添加。
+
+3. 這種方法和直接通過庫名調用（如 `Strings.toHexString(_number)`）在功能上是完全等同的，只是語法和使用方式不同。
+
+4. 使用 `using for` 指令可以讓代碼更加簡潔，特別是當你需要多次調用同一個庫的函數時。
+
+總的來說，這種方法展示了 Solidity 中庫使用的靈活性，允許開發者根據自己的偏好和項目需求選擇最合適的使用方式。
+
+
 <!-- Content_END -->
