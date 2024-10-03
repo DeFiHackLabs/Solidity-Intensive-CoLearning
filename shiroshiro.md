@@ -109,6 +109,18 @@ adding mapping pair by _Var[_Key] = _Value
 
 #### principle of mapping
 
+doesnt store key or length info
+uses keccak256(key) as offset ?
 
+#### 08 initla value
+
+getter func => var()
+deleting a var will reset it to default
+
+### 2024.10.03
+
+#### why mapping?
+efficient memory space and fast access
+like hash tables
 
 <!-- Content_END -->

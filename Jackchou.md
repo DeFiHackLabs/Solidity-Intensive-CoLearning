@@ -374,4 +374,11 @@ abstract contract InsertionSort{
 }
 ```
 ###
+### 2024.10.03
+Errors
+Solidity has many functions for error handling. Errors can occur at compile time or runtime.
+
+Error
+error statement is a new feature in solidity 0.8. It saves gas and informs users why the operation failed. It is the recommended way to throw error in solidity. Custom errors are defined using the error statement, which can be used inside and outside of contracts. Below, we created a TransferNotOwner error, which will throw an error when the caller is not the token owner during transfer:
+###
 <!-- Content_END -->

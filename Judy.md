@@ -1514,4 +1514,96 @@ function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
     return(a);
 }
 ```
+### 2024.10.03
+#### 建構函數與修飾器
+### 1. 建構函數（Constructor）
+
+建構函數是智能合約的特殊函數，它在合約**部署**時被自動執行。
+
+主要用來設置合約的初始狀態，例如設定初始變數值、初始化合約的擁有者等。
+
+### 特點：
+
+- **自動執行**：當合約被部署（即在區塊鏈上創建合約實例）時，建構函數會自動執行一次。
+- **命名方式**：在 Solidity 0.4.22 版本及更早版本，建構函數的名字必須和合約的名字相同；在 Solidity 0.4.22 之後，使用 `constructor` 關鍵字定義建構函數。
+- **無法重複調用**：建構函數只能執行一次，合約部署後無法再次被調用。
+
+```solidity
+contract MyContract {
+	address public owner;
+	
+	// 建構函數
+	constructor() {
+	    owner = msg.sender; // 將合約的擁有者設置為部署者
+	}
+}
+```
+
+### 2. 修飾器（Modifier）
+
+修飾器是一個可以用來**修改或限制**函數行為的程式塊。
+
+它們主要用來進行條件檢查或邏輯控制，並且通常在需要對函數執行前進行一些前置條件檢查的場景下使用。
+
+### 特點：
+
+- **函數前置條件**：修飾器可以在函數執行之前檢查條件，若條件不符合，可以阻止函數執行。
+- **代碼復用**：透過修飾器，可以避免在多個函數中重複寫相同的檢查代碼。
+- **`_` 符號**：修飾器中的 `_` 表示函數本身的邏輯會在修飾器檢查通過後的這個位置執行。
+
+```solidity
+contract MyContract {
+	address public owner;
+	
+	// 修飾器：檢查調用者是否為擁有者
+	modifier onlyOwner() {
+	    require(msg.sender == owner, "You are not the owner");
+	    _; // 在此處執行原本的函數邏輯
+	}
+	
+	// 建構函數
+	constructor() {
+	    owner = msg.sender; // 設置合約的擁有者為部署者
+	}
+	
+	// 含有modifier方法
+	// 只有當前調用者為擁有者時，才能執行此函數
+	function changeOwner(address newOwner) external onlyOwner{
+      owner = newOwner;
+  }
+}
+```
+
+在這個例子中，`onlyOwner` 修飾器檢查當前調用者是否是合約的擁有者。
+
+如果條件不滿足，會拋出錯誤並阻止函數執行。
+
+這樣可以保證特定`Function` 只有合約的擁有者才能調用。
+
+- 起始合約 owner
+    
+    ![image](https://github.com/user-attachments/assets/f51d8d7e-bf63-4802-816f-2ccd71616f4d)
+
+    
+- 非該合約 owner 呼叫 `changeOwner` 時
+    
+    ![image](https://github.com/user-attachments/assets/c40af1fe-fcba-4d4a-a77f-62108379663a)
+
+    
+- 該合約 owner 呼叫 `changeOwner` 時
+    
+    ![image](https://github.com/user-attachments/assets/b859a581-ec39-44c0-b2ea-ee0d025eea44)
+
+    
+
+### 3. 修飾器的應用場景
+
+- **權限控制**：如 `onlyOwner` 檢查，確保只有特定人員能執行某些操作。
+- **狀態檢查**：檢查合約當前的狀態是否允許執行特定函數，如某種狀態值。
+- **防止重入攻擊**：修飾器可以用來防範 Solidity 中常見的重入攻擊（reentrancy attack），即在函數調用過程中，惡意合約再次調用相同函數，導致合約邏輯被惡意多次執行。
+
+### 總結
+
+- **建構函數**：在合約部署時執行，用於初始化合約的狀態。
+- **修飾器**：用來修改函數執行行為，主要用於檢查條件並控制函數執行。
 <!-- Content_END -->

@@ -374,4 +374,56 @@ timezone: Asia/Shanghai
 - 引入外部合約 (import)
     > https://docs.soliditylang.org/en/latest/path-resolution.html#imports
 
+### 2024.10.02
+
+> 進度: Solidity 102 19
+
+- 回調函數 (Callback function) `fallback` 以及 `receive`
+    - 版本沿革
+        - 0.6 版本前, 只有 `fallback()` 函數
+        - 0.6 版本後, 多出 `receive()` 拆分原本 `fallback()` 功能
+    - 負責處理以下兩種情況 (不應也不能在合約裡被呼叫)
+        - 接收 ETH 時調用
+        - 被呼叫的函數簽名不存在時
+    - `receive`
+        - 語法
+            ```
+            receive() external payable { ... }
+            ```
+            - 不用 `function` 關鍵字
+            - 必須為 `external payable`
+            - 無參數、無回傳值
+    - `fallback`
+        - 語法
+            ```
+            fallback() external payable { ... }
+            ```
+            - 必須為 `external`, 通常也會用 `payable` 修飾
+    - 接收 ETH 時觸發方式
+        - 條件1: `msg.data` 是否為空, 非空執行 `fallback()`
+        - 條件2: `receive()` 是否存在, 不存在執行 `fallback()`
+        - `receive()`, `payable fallback()` 都不存在時, 向合約發送 ETH 將會報錯
+
+- 發送 ETH
+    - `transfer`
+        ```
+        _to.transfer(amount);
+        ```
+        - 有 `gas` 限制 (2300), 遇到目標合約回調函數過於複雜很容易超過
+        - 失敗會自動 revert
+    - `send`
+        ```
+        _to.send(amount);
+        ```
+        - 有 `gas` 限制 (2300)
+        - 失敗不會自動 revert, 會回傳 `bool` (`true` or `false`) 代表成功或失敗
+    - `call`
+        ```
+        (bool success,) = _to.call{value: amount}("");
+        ```
+        - 無 `gas` 限制
+        - 失敗不會自動 revert, 會回傳 `(bool, bytes)`
+    - 選擇 
+        - `call` > `transfer` > `send`
+
 <!-- Content_END -->
