@@ -845,7 +845,7 @@ There are 3 way to transfer `ETH` in contract
 - `call()` <- Recommended
   - No gas limit
   - Transaction will still executed even failed to call
-  - Have return values of `(bool, bytes)` which `bool` indicate calling failed or successful, `bytes` is data return
+  - Have return values of `(bool, bytes memory)` which `bool` indicate calling failed or successful, `bytes` is data return
 - `transfer()`
   - Gas limit `2300`, if recipient is contract and it's `fallback()` or `receive()` is complex, transfer will fail
   - Transaction will revert if transfer failed
@@ -875,7 +875,171 @@ function sendETH(address payable _to) external payable {
 
 ### 2024.10.02
 
+#### Chapter 21: Call to Other Contract
+
+In Solidity, one contract able to call another contract deployed or contract going to deploy where contract address to update later once deployed.
+
+```
+contract Target {
+  function echo() external pure returns (bool) {
+    return true;
+  }
+
+  function deposit() external payable {
+    ...
+  }
+}
+
+contract Source {
+  function callToAddress(address _target) external view returns (bool) {
+    return Target(_target).echo();
+  }
+
+  function callToContract(Target _target) external view returns (bool) {
+    return _target.echo();
+  }
+
+  function callToVariable(address _target) external view returns (bool) {
+    Target target = Target(_target);
+    return target.echo();
+  }
+
+  function callToPayable(address _target) external payable {
+    Target(_target).deposit{value: msg.value}("");
+  }
+}
+```
+
+#### Chapter 22: Call
+
+`call` is low level function of `address` variable. This function will return `(bool, bytes memory)`, which `bool` indicate calling failed or successful, `bytes` is data return.
+
+- `call` is recommended way to trigger `fallback` or `receive` when transferring `ETH`
+- However `call` is not recommended to use for calling another contract, especially to an unknown/malicious contract
+-
+
+```
+bytes someBytes = abi.encodeWithSignature("functionName(params, ...)", params, ...);
+
+someContract.call(someBytes); // Call without value (ETH)
+someContract.call{value: wei, gas: wei}(someBytes); // value and gas are optional
+
+// Call function with 1 ETH and capture return values
+(bool success, bytes memory data) = someContract.call{value: 1 ether}(
+  abi.encodeWithSignature("someFunction(uint256)", 100)
+);
+```
+
+- `call` will go to `fallback` if the function calling does not exist.
+
+#### Chapter 23: Delegatecall
+
+`delegatecall` is also a low level function of `address` variable.
+
+- delegate call able to forward the context of origin to another contract, eg
+
+```
+// call
+Address A -call-> Contract B -call-> Contract C
+===============================================
+                context=B            context=C
+                msg.sender=A         msg.sender=B
+                msg.value=A          msg.value=B
+
+// delegatecall
+Address A -call-> Contract B -delegatecall-> Contract C
+=======================================================
+                context=B                    context=B
+                msg.sender=A                 msg.sender=A
+                msg.value=A                  msg.value=A
+
+
+// Example
+(bool success, bytes memory data) = someContract.delegatecall(
+  abi.encodeWithSignature("someFunction(uint256)", 100)
+);
+```
+
+- Can specific `gas` but not `value`
+
+- When to use:
+  - Proxy contract: Which usually separate into State Contract and Logic Contract. All the functions of Logic Contract can call to State Contract through `delegatecall`. Thus Logic Contract can be update/replace when needed.
+  - [EIP-2535](https://eips.ethereum.org/EIPS/eip-2535): Also known as Diamonds, Multi-Facet Proxy. The smart contract is modular that can be extended after deployment.
+
 ### 2024.10.03
+
+#### Chapter 24: Contract Factory
+
+In Solidity, both EOA and Contract can also create/deploy new Contract. The most popular contract factory is Uniswap's `PairFactory`, which create a smart contract contain two tokens, eg: `USDT/PEPE`.
+
+- There are two ways to create new contract from a contract:
+  - CREATE
+  ```
+  Contract x = new Contract{value: _value}(params);
+  // Contract: Name of new contract
+  // x: New contract variable
+  // value: To transfer ETH into new contract if new contract's constructor is payable
+  // params: Parameters of new contract's constructor
+  ```
+  - CREATE2
+
+How address calculated by CREATE
+
+```
+new_contract_address = hash(creator_address, nonce);
+// creator_address can be EOA or contract
+```
+
+- `nonce` after the transaction count of EOA, or contract created count for contract, increase by 1 every tx/contract made
+- The address of new contract is hard to predict as nonce might change often
+
+#### Chapter 25: CREATE2
+
+How address calculated by CREATE2:
+
+```
+new_contract_address = hash("0xFF", creator_address, salt, initcode);
+// 0xFF: A constant to differentiate from CREATE
+// creator_address: The address of contract called CREATE2
+// salt: A bytes32 variable prefix by creator
+// initcode: New contract byte code with the constructor arguments and logic included
+```
+
+How to use:
+
+```
+Contract x = new Contract{salt: _salt, value: _value}(params);
+```
+
+Example WITH constructor parameters:
+
+```
+bytes32 salt = heccak256(abi.encodePacked(params...));
+
+NewContract nc = new NewContract{salt: salt}();
+
+address predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+        bytes1(0xff),
+        address(this),
+        salt,
+        keccak256(type(NewContract).creationCode)
+        )))));
+```
+
+Example WITH constructor parameters:
+
+```
+bytes32 salt = heccak256(abi.encodePacked(params...));
+
+NewContract nc = new NewContract{salt: salt}(constructorParams...);
+
+address predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+        bytes1(0xff),
+        address(this),
+        salt,
+        keccak256(abi.encodePacked(type(NewContract).creationCode, abi.encode(constructorParams...)))
+        )))));
+```
 
 ### 2024.10.04
 
@@ -892,11 +1056,3 @@ function sendETH(address payable _to) external payable {
 ### 2024.10.10
 
 <!-- Content_END -->
-
-```
-
-```
-
-```
-
-```

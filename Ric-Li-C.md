@@ -142,4 +142,12 @@ Yes 75%
 
 的学习
 
+### 2024.10.02
+
+Add source codes for 36.MerkleTree and its tests
+
+### 2024.10.03
+
+Add source codes for 35.DutchAuction and its tests
+
 <!-- Content_END -->
