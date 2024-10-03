@@ -376,7 +376,7 @@ timezone: Asia/Shanghai
 
 ### 2024.10.02
 
-> 進度: Solidity 102 19
+> 進度: Solidity 102 19~20
 
 - 回調函數 (Callback function) `fallback` 以及 `receive`
     - 版本沿革
@@ -425,5 +425,39 @@ timezone: Asia/Shanghai
         - 失敗不會自動 revert, 會回傳 `(bool, bytes)`
     - 選擇 
         - `call` > `transfer` > `send`
+
+
+### 2024.10.03
+
+> 進度: Solidity 102 21
+
+- 呼叫已布署的合約的做法
+    - 傳入地址, 將地址強轉型為目標合約
+        ```
+        function callSetX(address _Address, uint256 x) external{
+            OtherContract(_Address).setX(x);
+        }
+
+        function callGetX(OtherContract _Address) external view returns(uint x){
+            x = _Address.getX();
+        }
+        ```
+    - 運用合約變數
+        ```
+        function callGetX2(address _Address) external view returns(uint x){
+            OtherContract oc = OtherContract(_Address);
+            x = oc.getX();
+        }
+        ```
+- 呼叫目標合約 `payable` 函數發送 ETH 語法
+    ```
+    _Name(_Address).f{value: _Value}()
+    ```
+    - e.g.
+        ```
+        function setXTransferETH(address otherContract, uint256 x) payable external{
+            OtherContract(otherContract).setX{value: msg.value}(x);
+        }
+        ```
 
 <!-- Content_END -->
