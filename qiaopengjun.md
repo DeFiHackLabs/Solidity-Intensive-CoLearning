@@ -504,11 +504,78 @@ ABI的使用场景
 
 ### 2024.10.02
 
-笔记内容
+哈希函数（hash function）是一个密码学概念，它可以将任意长度的消息转换为一个固定长度的值，这个值也称作哈希（hash）
+哈希 = keccak256(数据);
+SHA3和keccak计算的结果不一样
+以太坊在开发的时候sha3还在标准化中，所以采用了keccak，所以Ethereum和Solidity智能合约代码中的SHA3是指Keccak256，而不是标准的NIST-SHA3，为了避免混淆，直接在合约代码中写成Keccak256是最清晰的。
+
+```solidity
+function hash(
+    uint _num,
+    string memory _string,
+    address _addr
+    ) public pure returns (bytes32) {
+    return keccak256(abi.encodePacked(_num, _string, _addr));
+}
+```
+
+当我们调用智能合约时，本质上是向目标合约发送了一段calldata，在remix中发送一次交易后，可以在详细信息中看见input即为此次交易的calldata
+发送的calldata中前4个字节是selector（函数选择器）
+msg.data是Solidity中的一个全局变量，值为完整的calldata（调用函数时传入的数据）
+其实calldata就是告诉智能合约，我要调用哪个函数，以及参数是什么。
+method id定义为函数签名的Keccak哈希后的前4个字节，当selector与method id相匹配时，即表示调用该函数
+函数签名，为"函数名（逗号分隔的参数类型)"
+在同一个智能合约中，不同的函数有不同的函数签名，因此我们可以通过函数签名来确定要调用哪个函数
+注意，在函数签名中，uint和int要写为uint256和int256。
+
+```solidity
+function mintSelector() external pure returns(bytes4 mSelector){
+    return bytes4(keccak256("mint(address)"));
+}
+```
+
+由于计算method id时，需要通过函数名和函数的参数类型来计算。在Solidity中，函数的参数类型主要分为：基础类型参数，固定长度类型参数，可变长度类型参数和映射类型参数。
+映射类型参数通常有：contract、enum、struct等。在计算method id时，需要将该类型转化成为ABI类型。
+
+在Solidity中，try-catch只能被用于external函数或创建合约时constructor（被视为external函数）的调用。基本语法如下：
+
+try externalContract.f() {
+    // call成功的情况下 运行一些代码
+} catch {
+    // call失败的情况下 运行一些代码
+}
+同样可以使用this.f()来替代externalContract.f()，this.f()也被视作为外部调用，但不可在构造函数中使用，因为此时合约还未创建。
+如果调用的函数有返回值，那么必须在try之后声明returns(returnType val)，并且在try模块中可以使用返回的变量；如果是创建合约，那么返回值是新创建的合约变量。
+在Solidity使用try-catch来处理智能合约运行中的异常：
+
+只能用于外部合约调用和合约创建。
+如果try执行成功，返回变量必须声明，并且与返回的变量类型相同。
+ try-catch可以捕获什么异常？
+ revert()
+
+ require()
+
+ assert()
+ 异常返回值类型为bytes的是 assert()
+try-catch捕获到异常后不会使try-catch所在的方法调用失败
+try代码块内的revert是不会被catch本身捕获？
 
 ### 2024.10.03
 
-笔记内容
+ERC20是以太坊上的代币标准，来自2015年11月V神参与的EIP20。它实现了代币转账的基本逻辑：
+
+账户余额(balanceOf())
+转账(transfer())
+授权转账(transferFrom())
+授权(approve())
+代币总供给(totalSupply())
+授权转账额度(allowance())
+代币信息（可选）：名称(name())，代号(symbol())，小数位数(decimals())
+IERC20是ERC20代币标准的接口合约，规定了ERC20代币需要实现的函数和事件。
+函数分为内部和外部两个内容，一个重点是实现，另一个是对外接口，约定共同数据
+IERC20定义了2个事件：Transfer事件和Approval事件，分别在转账和授权时被释放
+注意：用override修饰public变量，会重写继承自父合约的与变量同名的getter函数，比如IERC20中的balanceOf()函数。
+<https://www.wtf.academy/docs/solidity-103/ERC20/>
 
 ### 2024.10.04
 

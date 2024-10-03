@@ -825,10 +825,243 @@ function changeOwner(address _newOwner) external onlyOwner {
 In this `changeOwner` function, the owner of the contract can be changed, but only if the function is called by the current owner. If anyone else tries to call it, the function will revert and throw an error. This is a common way to control access and permissions in smart contracts.
 
 
+### 2024.10.02
+Testing deployment by Truffle on the terminal. 
+
+```solidity
+const GreeterContract = artifacts.require("Greeter");
+
+module.exports = function(deployer) {
+  deployer.deploy(GreeterContract);
+}
+```
+Hello World! in javascript. 
+
+```javascript
+describe("greet()", () => {
+  it("returns 'Hello, World!'", async () => {
+    const greeter = await GreeterContract.deployed();
+    const expected = "Hello, World!";
+    const actual = await greeter.greet();
+
+    assert.equal(actual, expected, "greeted with 'Hello, World!'");
+  });
+});
+```
+Adding the greet function to Greeter
+
+```solidity
+
+
+pragma solidity ^0.8.0;
+
+contract Greeter {
+
+    function greet() external pure returns(string memory) {
+        return "Hello, World!";
+    }
+```
+**Overloading**, allow different types of parameters in function, but not for modifier. 
+
+```solidity
+function saySomething() public pure returns(string memory){
+    return("Nothing");
+}
+
+function saySomething(string memory something) public pure returns(string memory){
+    return(something);
+}
 ```
 
+**Argument Matching**, in overloading if the  ****
 
+```solidity
+function f(uint8 _in) public pure returns (uint8 out) {
+    out = _in;
+}
 
+function f(uint256 _in) public pure returns (uint256 out) {
+    out = _in;
+}
+```
+
+**Library**
+
+1. using for A(library) for B(to any type)
+
+庫A中的函數會自動添加為B類變量的成員（？）
+
+```solidity
+// 利用using for指令
+using Strings for uint256;
+function getString1(uint256 _number) public pure returns(string memory){
+    // 库合约中的函数会自动添加为uint256型变量的成员
+    return _number.toHexString();
+}
+```
+
+1. 通过库合约名称调用函数
+
+```solidity
+// 直接通过库合约名调用
+function getString2(uint256 _number) public pure returns(string memory){
+    return Strings.toHexString(_number);
+}
+```
+
+Common library:
+
+1. [**Strings**](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Strings.sol)：将**`uint256`**转换为**`String`**
+2. [**Address**](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Address.sol)：判断某个地址是否为合约地址
+3. [**Create2**](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Create2.sol)：更安全的使用**`Create2 EVM opcode`**
+4. [**Arrays**](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Arrays.sol)：跟数组相关的库合约
+### 2024.10.03
+
+複習。
+
+三元运算符（Ternary Operator）: 它可以在一行中实现 `if-else` 的功能。
+
+```solidity
+规则**条件? 条件为真的表达式:条件为假的表达式**。此运算符经常用作**if**语句的快捷方式。
+*// 三元运算符 ternary/conditional operator*
+function ternaryTest(uint256 x, uint256 y) public pure returns(uint256){    
+		*// return the max of x and y*    
+		return x >= y ? x: y; 
+}
+```
+
+Constructor 一個合約會自動運行一次。用來初始化合約的個別參數。
+
+```solidity
+prgma solidity ^0.8.21;
+contract Parents {
+		// 與合約名Parent同名的函數就是構造函數
+		function Parents () public {
+		}
+}
+```
+
+modifier
+
+- 可以用来声明函数某些特性
+- 主要使用场景是运行函数前的检查
+- 可以减少代码冗余
+- modifier类似面向对象编程中的decorator
+
+---
+
+### 1. `transfer(address,uint256)` 的函数选择器
+
+- 函数签名：`transfer(address,uint256)`
+- 通过 `keccak256` 进行哈希处理，结果是：
+    
+    ```solidity
+    keccak256("transfer(address,uint256)") = 0xa9059cbb00000000000000000000000000000000000000000000000000000000
+    ```
+    
+- 取前4个字节：
+    
+    ```solidity
+    0xa9059cbb
+    ```
+    
+
+因此，`transfer(address,uint256)` 的函数选择器是 **`0xa9059cbb`**。
+
+---
+
+### 2. `transferFrom(address,address,uint256)` 的函数选择器
+
+- 函数签名：`transferFrom(address,address,uint256)`
+- 通过 `keccak256` 进行哈希处理，结果是：
+    
+    ```solidity
+    keccak256("transferFrom(address,address,uint256)") = 0x23b872dd00000000000000000000000000000000000000000000000000000000
+    ```
+    
+- 取前4个字节：
+    
+    ```solidity
+    0x23b872dd
+    ```
+    
+
+因此，`transferFrom(address,address,uint256)` 的函数选择器是 **`0x23b872dd`**。
+
+---
+
+### 结论
+
+- `transfer(address,uint256)` 的函数选择器是 **`0xa9059cbb`**
+- `transferFrom(address,address,uint256)` 的函数选择器是 **`0x23b872dd`**
+
+两个函数的函数选择器是不同的，因为它们的签名不同。
+
+### 函数签名的作用
+
+Solidity 编译器会根据函数签名生成一个 **函数选择器（Function Selector）**，这个选择器是合约调用时用于识别不同函数的。通过对函数签名进行 `keccak256` 哈希，然后截取哈希值的前 4 个字节，得到函数选择器。
+
+### 函数签名的例子
+
+### 1. `transfer(address,uint256)`
+
+- 函数名称：`transfer`
+- 参数类型列表：`address,uint256`
+
+这个函数的签名就是：
+
+```scss
+scss
+複製程式碼
+transfer(address,uint256)
+
+```
+
+### 2. `transferFrom(address,address,uint256)`
+
+- 函数名称：`transferFrom`
+- 参数类型列表：`address,address,uint256`
+
+这个函数的签名是：
+
+```css
+css
+複製程式碼
+transferFrom(address,address,uint256)
+
+```
+
+### 生成函数选择器的步骤
+
+函数选择器由函数签名生成。步骤如下：
+
+1. 从函数签名构建字符串，例如：`transfer(address,uint256)`。
+2. 通过 `keccak256` 对这个字符串进行哈希计算，生成一个 32 字节的哈希值。
+3. 取哈希值的前 4 个字节，这就是函数的选择器。
+
+例如：
+
+```solidity
+solidity
+複製程式碼
+keccak256("transfer(address,uint256)") = 0xa9059cbb00000000000000000000000000000000000000000000000000000000
+
+```
+
+函数选择器就是：
+
+```
+複製程式碼
+0xa9059cbb
+
+```
+
+### 注意
+
+1. **函数名称相同，但参数类型不同**：即使函数名称相同，参数的类型或数量不同，它们的函数选择器也会不同。例如：
+    - `foo(uint256 a)` 和 `foo(uint256 a, uint256 b)` 是不同的函数，它们有不同的签名，因此会有不同的选择器。
+2. **参数类型相同但名称不同**：如果两个函数的名称相同、参数类型相同（即使参数名称不同），它们会有相同的选择器。例如：
+    - `bar(address to, uint256 amount)` 和 `bar(address receiver, uint256 value)` 的函数签名是一样的，因为参数类型完全相同，生成的选择器也相同。
 
 
 <!-- Content_END -->

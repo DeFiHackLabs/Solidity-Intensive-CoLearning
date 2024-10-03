@@ -53,4 +53,8 @@ solidity-102学习：delegateCall、删除合约、ABI编码解码
 
 solidity-102学习
 
+### 2024.10.02
+
+solidity-102学习，及rust学习
+
 <!-- Content_END -->

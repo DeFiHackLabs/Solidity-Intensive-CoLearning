@@ -365,4 +365,13 @@ virtual: If the functions in the parent contract are expected to be overridden i
 
 override：If the functions in the child contract override the functions in its parent contract, they should be declared as override
 ###
+### 2024.10.02
+Abstract contract
+If a contract contains at least one unimplemented function (no contents in the function body {}), it must be labeled as abstract; Otherwise it will not compile. Moreover, the unimplemented function needs to be labeled as virtual. Take our previous Insertion Sort Contract as an example, if we haven't figured out how to implement the insertion sort function, we can mark the contract as abstract, and let others overwrite it in the future.
+```
+abstract contract InsertionSort{
+    function insertionSort(uint[] memory a) public pure virtual returns(uint[] memory);
+}
+```
+###
 <!-- Content_END -->

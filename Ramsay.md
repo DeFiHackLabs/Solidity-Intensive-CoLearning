@@ -821,4 +821,44 @@ contract SafeEtherTransfer is ReentrancyGuard {
     }
 }
 ```
+
+### 2024.10.03
+#### 21 CallContract
+
+> 没有谁是一座孤岛. ——John Donn
+
+每个人都与他人相互关联，缺一不可，合约也类似，单个的合约并不能发挥太大的作用，只有多个合约相互组合，才能构建出复杂，强大的DAPP。
+
+在微服务的视角，想要调用微服务中某个提供特定功能的服务，只需要知道 host + port 就可以发起调用(先不考虑授权机制)，而在 solidity 的世界，只需要知道合约的地址或者通过 import 引入其他合约就能发起调用，合约地址就是已部署合约的唯一标识。
+
+```solidity
+contract Callee {
+    uint256 public x;
+
+    function setX(uint256 _x) public returns (uint256) {
+        x = _x;
+        return x;
+    }
+}
+
+contract Caller {
+    function setX(Callee _callee, uint256 _x) public {
+        uint256 x = _callee.setX(_x);
+    }
+
+    function setXFromAddress(address _addr, uint256 _x) public {
+        Callee callee = Callee(_addr);
+        callee.setX(_x);
+    }
+
+}
+
+```
+
+假设合约 `Callee` 部署在地址 `0xd9145CCE52D386f254917e481eB44e9943F39138`, `Caller` 想要调用它，只需要 `setXFromAddress(0xd9145CCE52D386f254917e481eB44e9943F39138, 256)`, 就能发起调用.
+
+或者 `setX(0xd9145CCE52D386f254917e481eB44e9943F39138, 256)`, Solidity 会把地址转换成合约 `Callee` 的引用，然后再发起调用。
+
+除去通过地址或者合约引用发起调用， Solidity 还支持通过之前学过的，用来转账的 `call` 函数来调用其他合约，但是函数比较底层，一般不推荐用来调用其他合约.
+
 <!-- Content_END -->

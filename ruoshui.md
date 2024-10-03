@@ -568,4 +568,162 @@ contract Call{
     }
 }
 ```
+### 2024.10.02
+1、`delegatecall` 示例，和 `call` 不一样，`delegatecall` 在调用合约时可以指定交易发送的gas，但不能指定发送的ETH数额
+
+```solidity
+// delegatecall和call类似，都是低级函数
+// call: B call C, 上下文为 C (msg.sender = B, C中的状态变量受影响)
+// delegatecall: B delegatecall C, 上下文为B (msg.sender = A, B中的状态变量受影响)
+// 注意B和C的数据存储布局必须相同！变量类型、声明的前后顺序要相同，不然会搞砸合约。
+
+// 被调用的合约C
+contract C {
+    uint public num;
+    address public sender;
+
+    function setVars(uint _num) public payable {
+        num = _num;
+        sender = msg.sender;
+    }
+}
+
+// 发起delegatecall的合约B
+contract B {
+    uint public num;
+    address public sender;
+
+    // 通过call来调用C的setVars()函数，将改变合约C里的状态变量
+    function callSetVars(address _addr, uint _num) external payable{
+        // call setVars()
+        (bool success, bytes memory data) = _addr.call(
+            abi.encodeWithSignature("setVars(uint256)", _num)
+        );
+    }
+    // 通过delegatecall来调用C的setVars()函数，将改变合约B里的状态变量
+    function delegatecallSetVars(address _addr, uint _num) external payable{
+        // delegatecall setVars()
+        (bool success, bytes memory data) = _addr.delegatecall(
+            abi.encodeWithSignature("setVars(uint256)", _num)
+        );
+    }
+}
+```
+
+2、用 `create` 方法在合约中创建新合约，实际上就是 `new` 一个新合约
+
+```solidity
+// Contract 是要创建的合约名，x 是合约对象（地址），如果构造函数是 payable，可以创建时转入 _value 数量的 ETH，params 是新合约构造函数的参数。
+Contract x = new Contract{value: _value}(params)
+```
+极简 Uniswap 示例
+
+```solidity
+contract Pair{
+    address public factory; // 工厂合约地址
+    address public token0; // 代币1
+    address public token1; // 代币2
+
+    constructor() payable {
+        factory = msg.sender;
+    }
+
+    // called once by the factory at time of deployment
+    function initialize(address _token0, address _token1) external {
+        require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
+        token0 = _token0;
+        token1 = _token1;
+    }
+}
+
+contract PairFactory{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair(address tokenA, address tokenB) external returns (address pairAddr) {
+        // 创建新合约
+        Pair pair = new Pair(); 
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+}
+```
+
+3、用 `CREATE2` 方法在合约中创建新合约，同 `CREATE` 类似，只不过要多传一个 `salt` 参数
+```solidity
+// 其中 Contract 是要创建的合约名，x 是合约对象（地址），_salt 是指定的盐；如果构造函数是 payable，可以创建时转入 _value 数量的 ETH ，params 是新合约构造函数的参数。
+Contract x = new Contract{salt: _salt, value: _value}(params)
+```
+用 `CREATE2` 方法极简 Uniswap 示例
+```solidity
+contract Pair{
+    address public factory; // 工厂合约地址
+    address public token0; // 代币1
+    address public token1; // 代币2
+
+    constructor() payable {
+        factory = msg.sender;
+    }
+
+    // called once by the factory at time of deployment
+    function initialize(address _token0, address _token1) external {
+        require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
+        token0 = _token0;
+        token1 = _token1;
+    }
+}
+
+contract PairFactory2{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair2(address tokenA, address tokenB) external returns (address pairAddr) {
+        require(tokenA != tokenB, 'IDENTICAL_ADDRESSES'); //避免tokenA和tokenB相同产生的冲突
+        // 计算用tokenA和tokenB地址计算salt
+        (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); //将tokenA和tokenB按大小排序
+        bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+        // 用create2部署新合约
+        Pair pair = new Pair{salt: salt}(); 
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+
+    // 提前计算pair合约地址
+    function calculateAddr(address tokenA, address tokenB) public view returns(address predictedAddress){
+        require(tokenA != tokenB, 'IDENTICAL_ADDRESSES'); //避免tokenA和tokenB相同产生的冲突
+        // 计算用tokenA和tokenB地址计算salt
+        (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); //将tokenA和tokenB按大小排序
+        bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+        // 计算合约地址方法 hash()
+        predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+            bytes1(0xff),
+            address(this),
+            salt,
+            keccak256(type(Pair).creationCode)
+        )))));
+
+        // 例如当create2合约时：
+        // Pair pair = new Pair{salt: salt}(address(this));
+        // 计算时，需要将参数和initcode一起进行打包：
+        // predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+        //         bytes1(0xff),
+        //         address(this),
+        //         salt,
+        //         keccak256(abi.encodePacked(type(Pair).creationCode, abi.encode(address(this))))
+        // )))));
+    }
+}
+```
+
+
 <!-- Content_END -->
