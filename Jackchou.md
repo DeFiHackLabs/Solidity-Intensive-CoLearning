@@ -384,6 +384,6 @@ error statement is a new feature in solidity 0.8. It saves gas and informs users
 ### 2024.10.04
   start to read Solidity 102
   day11:
-  [WTF Academy Solidity 102 16 Note](/content/0xRory/111.md)
+  [WTF Academy Solidity 102 16 Note](/content/jackchou/102.md)
 ###
 <!-- Content_END -->
