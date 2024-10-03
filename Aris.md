@@ -566,6 +566,56 @@ timezone: Asia/Shanghai
 
 ---
 
+### 2024.10.03
+
+#### 学习内容 14. 抽象合约和接口
+
+1. 抽象合约
+    - 如果一个智能合约里至少有一个未实现的函数，即某个函数缺少主体`{}`中的内容，则必须将该合约标为`abstract`，不然编译会报错;
+
+    - 未实现的函数需要加`virtual`，以便子合约重写;
+
+2. 接口
+    - 不能包含状态变量
+    - 不能包含构造函数
+    - 不能继承除接口外的其他合约
+    - 所有函数都必须是external且不能有函数体
+    - 继承接口的非抽象合约必须实现接口定义的所有功能
+    - 虽然接口不实现任何功能，但它非常重要。接口是智能合约的骨架，定义了合约的功能以及如何触发它们
+        - 合约里每个函数的`bytes4`选择器，以及函数签名`函数名(每个参数类型）`;
+        - 接口id
+
+    - 接口与合约`ABI`（Application Binary Interface）等价，可以相互转换;
+
+3. IERC721 事件
+    - `ransfer`事件：在转账时被释放，记录代币的发出地址`from`，接收地址`to`和`tokenId`。
+    - `Approval`事件：在授权时被释放，记录授权地址`owner`，被授权地址`approved`和`tokenId`。
+    - `ApprovalForAll`事件：在批量授权时被释放，记录批量授权的发出地址`owner`，被授权地址`operator`和授权与否的`approved`。
+
+4. IERC721 接口
+    - `balanceOf`：返回某地址的NFT持有量`balance`。
+    - `ownerOf`：返回某`tokenId`的主人`owner`。
+    - `transferFrom`：普通转账，参数为转出地址`from`，接收地址`to`和`tokenId`。
+    - `safeTransferFrom`：安全转账（如果接收方是合约地址，会要求实现`ERC721Receiver`接口）。参数为转出地址`from`，接收地址`to`和`tokenId`。
+    - `approve`：授权另一个地址使用你的NFT。参数为被授权地址`approve`和`tokenId`。
+    - `getApproved`：查询`tokenId`被批准给了哪个地址。
+    - `setApprovalForAll`：将自己持有的该系列NFT批量授权给某个地址`operator`。
+    - `isApprovedForAll`：查询某地址的NFT是否批量授权给了另一个`operator`地址。
+    - `safeTransferFrom`：安全转账的重载函数，参数里面包含了`data`。
+
+5. 什么时候使用接口
+    - 如果我们知道一个合约实现了标准接口，我们不需要知道它具体代码实现，就可以与它交互。
+
+6. 合约部署-接口
+    - ![image-20241003082730554](content/Aris/image-20241003082730554.png)
+
+7. 合约部署-抽象合约
+    - ![image-20241003082910336](content/Aris/image-20241003082910336.png)
+
+8. 第 14 节测验得分: 100, 答案: ABEEAAA
+
+---
+
 
 
 
