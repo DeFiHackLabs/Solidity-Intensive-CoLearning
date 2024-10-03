@@ -15,6 +15,55 @@ timezone: Asia/Shanghai
 ## Notes
 <!-- Content_START -->
 
+### 2024.10.02
+
+WTF103章节内容：ERC721
+
+#### 笔记
+
+- IERC165
+检查一个智能合约是否支持ERC721的接口
+    
+    ```solidity
+    //ERC721中实现该接口
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool)
+        {
+            return
+                interfaceId == type(IERC721).interfaceId ||
+                interfaceId == type(IERC165).interfaceId;
+        }
+    ```
+    
+- 确保目标合约实现了onERC721Received()函数
+    
+    ```solidity
+    function _checkOnERC721Received(address operator,address from,address to,uint256 tokenId,bytes memory data) internal {
+        if (to.code.length > 0) {
+            try IERC721Receiver(to).onERC721Received(operator, from, tokenId, data) returns (bytes4 retval) {
+                if (retval != IERC721Receiver.onERC721Received.selector) {
+                //利用函数选择器来验证，对to地址进行强制转换
+                    revert IERC721Errors.ERC721InvalidReceiver(to);
+                }
+            } catch (bytes memory reason) {
+                if (reason.length == 0) {
+                    // non-IERC721Receiver implementer
+                    revert IERC721Errors.ERC721InvalidReceiver(to);
+                } else {
+                    /// 用汇编抛出更详细和自定义的错误信息
+                    assembly {
+                        revert(add(32, reason), mload(reason))
+                    }
+                }
+            }
+        }
+    }
+    ```
+    
+- 相关代码
+
+    [erc721](https://github.com/eddiehsu66/SolidityCase/tree/main/ERC721)
+
+
 ### 2024.10.01
 
 WTF103章节内容: 空投合约

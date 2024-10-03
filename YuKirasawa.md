@@ -124,4 +124,80 @@ mapping、array 等变长数据结构会使用 hash 确定真实的存储位置�
 
 - `abi.decode` 用于解码 `abi.encode` 生成的二进制编码，将它还原成原本的参数。
 
+### 2024.10.01
+
+#### ether 的发送方式
+
+主要有三种方法可以发送 ether：`transfer`, `send` 和 `call`。由于 `transfer`, `send` 都不能调整 gas (均为 2300 gas 的定值)，目前仅推荐使用 `call`
+
+同时，由于 `call` 没有对 gas 的严格限制，合约开发者需要通过代码上的设计避免重入攻击。
+
+ether 主要有三种单位，转换比例为
+
+```solidity
+assert(1 wei == 1);
+assert(1 gwei == 1e9);
+assert(1 ether == 1e18);
+```
+
+发送和接收 ether 的示例代码如下
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.26;
+
+contract ReceiveEther {
+    /*
+    Which function is called, fallback() or receive()?
+
+           send Ether
+               |
+         msg.data is empty?
+              / \
+            yes  no
+            /     \
+    receive() exists?  fallback()
+         /   \
+        yes   no
+        /      \
+    receive()   fallback()
+    */
+
+    // Function to receive Ether. msg.data must be empty
+    receive() external payable {}
+
+    // Fallback function is called when msg.data is not empty
+    fallback() external payable {}
+
+    function getBalance() public view returns (uint256) {
+        return address(this).balance;
+    }
+}
+
+contract SendEther {
+    function sendViaTransfer(address payable _to) public payable {
+        // This function is no longer recommended for sending Ether.
+        _to.transfer(msg.value);
+    }
+
+    function sendViaSend(address payable _to) public payable {
+        // Send returns a boolean value indicating success or failure.
+        // This function is not recommended for sending Ether.
+        bool sent = _to.send(msg.value);
+        require(sent, "Failed to send Ether");
+    }
+
+    function sendViaCall(address payable _to) public payable {
+        // Call returns a boolean value indicating success or failure.
+        // This is the current recommended method to use.
+        (bool sent, bytes memory data) = _to.call{value: msg.value}("");
+        require(sent, "Failed to send Ether");
+    }
+}
+```
+
+### 2024.10.02
+
+今天学习了 103 的 35. 荷兰拍卖
+
 <!-- Content_END -->

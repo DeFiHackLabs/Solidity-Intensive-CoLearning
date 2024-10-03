@@ -62,4 +62,8 @@ LFG～～～～～ 會完成的
 
 [**WTF Solidity 極簡入門：15. 異常**](<content/Haoder/md/115.md>)
 
+### 2024.10.02
+
+[**WTF Solidity 極簡入門：16. 函數重載**](<content/Haoder/md/216.md>)
+
 <!-- Content_END -->

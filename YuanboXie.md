@@ -422,14 +422,83 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     - 解码：abi.decode
         - `(dx, daddr, dname, darray) = abi.decode(data, (uint, address, string, uint[2]));`
 
-<!-- Content_END -->
-
-
 ### 2024.10.02
 
 - [102-28] Hash
+    - 一个好的哈希函数应该具有以下几个特性：
+        - 单向性：从输入的消息到它的哈希的正向运算简单且唯一确定，而反过来非常难，只能靠暴力枚举。
+        - 灵敏性：输入的消息改变一点对它的哈希改变很大。
+        - 高效性：从输入的消息到哈希的运算高效。
+        - 均一性：每个哈希值被取到的概率应该基本相等。
+        - 抗碰撞性：
+            - 弱抗碰撞性：给定一个消息x，找到另一个消息x'，使得hash(x) = hash(x')是困难的。
+            - 强抗碰撞性：找到任意x和x'，使得hash(x) = hash(x')是困难的。
+    - `哈希 = keccak256(数据);`
+    - SHA3由keccak标准化而来，在很多场合下Keccak和SHA3是同义词，但在2015年8月SHA3最终完成标准化时，NIST调整了填充算法。所以SHA3就和keccak计算的结果不一样。以太坊在开发的时候sha3还在标准化中，所以采用了keccak，所以Ethereum和Solidity智能合约代码中的SHA3是指Keccak256，而不是标准的NIST-SHA3，为了避免混淆，直接在合约代码中写成Keccak256是最清晰的。
+    - 使用场景：
+        - 生成数据唯一标识：`keccak256(abi.encodePacked(_num, _string, _addr))`
 - [102-29] 选择器
+    - 调用智能合约时，本质上是向目标合约发送了一段 calldata。sg.data 是 Solidity 中的一个全局变量，值为完整的 calldata。
+    - 在函数签名中，uint 和 int 要写为 uint256 和 int256。
+    - 计算 method id 时，需要通过函数名和函数的参数类型来计算。在Solidity中，函数的参数类型主要分为：基础类型参数，固定长度类型参数，可变长度类型参数和映射类型参数。
+        - `bytes4(keccak256("elementaryParamSelector(uint256,bool)"))`
+        - `bytes4(keccak256("fixedSizeParamSelector(uint256[3])"))`
+        - `bytes4(keccak256("nonFixedSizeParamSelector(uint256[],string)"))`
+        - 映射类型参数通常有：contract、enum、struct等。在计算method id时，需要将该类型转化成为ABI类型。
+        ```solidity
+        contract DemoContract {
+            // empty contract
+        }
+
+        contract Selector{
+            // Struct User
+            struct User {
+                uint256 uid;
+                bytes name;
+            }
+            // Enum School
+            enum School { SCHOOL1, SCHOOL2, SCHOOL3 }
+            ...
+            // mapping（映射）类型参数selector
+            // 输入：demo: 0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99， user: [1, "0xa0b1"], count: [1,2,3], mySchool: 1
+            // mappingParamSelector(address,(uint256,bytes),uint256[],uint8) : 0xe355b0ce
+            function mappingParamSelector(DemoContract demo, User memory user, uint256[] memory count, School mySchool) external returns(bytes4 selectorWithMappingParam){
+                emit SelectorEvent(this.mappingParamSelector.selector);
+                return bytes4(keccak256("mappingParamSelector(address,(uint256,bytes),uint256[],uint8)"));
+            }
+            ...
+        }
+        ```
 - [102-30] Try Catch
+    - Solidity 0.6 版本添加了 try-catch。try-catch 只能被用于 external 函数或创建合约时 constructor（被视为 external 函数）的调用。
+    ```solidity
+    try externalContract.f() {
+        // call成功的情况下 运行一些代码
+    } catch {
+        // call失败的情况下 运行一些代码
+    }
+
+    try externalContract.f() returns(returnType val) {
+        // call成功的情况下 try模块中可以使用返回的变量,如果是创建合约，那么返回值是新创建的合约变量。
+    } catch {
+        // call失败的情况下 运行一些代码
+    }
+
+    try externalContract.f() returns(returnType){
+        // call成功的情况下 运行一些代码
+    } catch Error(string memory /*reason*/) {
+        // 捕获revert("reasonString") 和 require(false, "reasonString")
+    } catch Panic(uint /*errorCode*/) {
+        // 捕获Panic导致的错误 例如assert失败 溢出 除零 数组访问越界
+    } catch (bytes memory /*lowLevelData*/) {
+        // 如果发生了revert且上面2个异常类型匹配都失败了 会进入该分支
+        // 例如revert() require(false) revert自定义类型的error
+    }
+    ```
+    - 可以使用this.f()来替代externalContract.f()，this.f()也被视作为外部调用，但不可在构造函数中使用，因为此时合约还未创建。
+    - try 代码块内的 revert 不会被 catch 本身捕获。
+
+<!-- Content_END -->
 
 ### 2024.10.03
 

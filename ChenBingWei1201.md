@@ -650,6 +650,125 @@ This works because `address(0)` is a known constant value, and you're assigning 
 
 </details>
 
+### 2024.10.02
+<details>
+<summary>10. Control Flow</summary>
+
+#### Control Flow
+Solidity's control flow is similar to other languages, mainly including the following components:
+
+1. `if`-`else`
+```solidity
+function ifElseTest(uint256 _number) public pure returns(bool){
+    if(_number == 0){
+    return(true);
+    }else{
+    return(false);
+    }
+}
+```
+2. `for` loop
+```solidity
+function forLoopTest() public pure returns(uint256){
+    uint sum = 0;
+    for(uint i = 0; i < 10; i++){
+    sum += i;
+    }
+    return(sum);
+}
+```
+3. `while` loop
+```solidity
+function whileTest() public pure returns(uint256){
+    uint sum = 0;
+    uint i = 0;
+    while(i < 10){
+    sum += i;
+    i++;
+    }
+    return(sum);
+}
+```
+4. `do-while` loop
+```solidity
+function doWhileTest() public pure returns(uint256){
+    uint sum = 0;
+    uint i = 0;
+    do{
+    sum += i;
+    i++;
+    }while(i < 10);
+    return(sum);
+}
+```
+5. Conditional (`ternary`) operator
+
+The `ternary` operator is the only operator in Solidity that accepts three operands：a condition followed by a question mark (`?`), then an expression `x` to execute if the condition is true followed by a colon (`:`), and finally the expression `y` to execute if the condition is false: `condition ? x : y`.
+
+This operator is frequently used as an alternative to an `if`-`else` statement.
+
+// ternary/conditional operator
+function ternaryTest(uint256 x, uint256 y) public pure returns(uint256){
+    // return the max of x and y
+    return x >= y ? x: y; 
+}
+
+In addition, there are `continue` (immediately enter the next loop) and `break` (break out of the current loop) keywords that can be used.
+
+#### Solidity Implementation of Insertion Sort
+
+##### Insertion Sort
+
+The sorting algorithm solves the problem of arranging an unordered set of numbers from small to large, for example, sorting `[2, 5, 3, 1]` to `[1, 2, 3, 5]`. Insertion Sort (InsertionSort) is the simplest and first sorting algorithm that most developers learn in their computer science class. The logic of InsertionSort:
+1. from the beginning of the array x to the end, compare the element x[i] with the element in front of it x[i-1]; if x[i] is smaller, switch their positions, compare it with x[i-2], and continue this process. 
+
+##### Solidity Implementation (with Bug)
+Python version of Insertion Sort takes up 9 lines. Let's rewrite it into Solidity by replacing `functions`, `variables`, and `loops` with solidity syntax accordingly. It only takes up 9 lines of code:
+```solidity
+    // Insertion Sort (Wrong version）
+    function insertionSortWrong(uint[] memory a) public pure returns(uint[] memory) {
+        for (uint i = 1;i < a.length;i++){
+            uint temp = a[i];
+            uint j=i-1;
+            while( (j >= 0) && (temp < a[j])){
+                a[j+1] = a[j];
+                j--;
+            }
+            a[j+1] = temp;
+        }
+        return(a);
+    }
+```
+But when we compile the modified version and try to sort `[2, 5, 3, 1]`. BOOM! There are bugs! After 3-hour debugging, I still could not find where the bug was. I googled "Solidity insertion sort", and found that all the insertion algorithms written with Solidity are all wrong, such as: [Sorting in Solidity without Comparison](https://medium.com/coinmonks/sorting-in-solidity-without-comparison-4eb47e04ff0d)
+
+##### Solidity Implementation (Correct)
+
+The most commonly used variable type in Solidity is `uint`, which represent a non-negative integer. If it takes a negative value, we will encounter an `underflow` error. In the above code, the variable `j` will get `-1`, causing the bug.
+
+So, we need to add `1` to `j` so it can never take a negative value. The correct insertion sort solidity code:
+```solidity
+    // Insertion Sort（Correct Version）
+    function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
+        // note that uint can not take negative value
+        for (uint i = 1;i < a.length;i++){
+            uint temp = a[i];
+            uint j=i;
+            while( (j >= 1) && (temp < a[j-1])){
+                a[j] = a[j-1];
+                j--;
+            }
+            a[j] = temp;
+        }
+        return(a);
+    }
+```
+
+#### Summary
+
+In this lecture, I learned control flow in Solidity and wrote a simple but bug-prone sorting algorithm. Solidity looks simple but have many traps. Every month, projects get hacked and lose millions of dollars because of small bugs in the smart contract. To write a safe contract, we need to master the basics of the Solidity and keep practicing.
+
+</details>
+
 ###
 
 <!-- Content_END -->

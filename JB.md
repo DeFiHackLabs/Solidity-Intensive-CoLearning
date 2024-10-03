@@ -395,5 +395,134 @@ contract test_Constant{
 
 ![image](https://github.com/user-attachments/assets/86f4b104-dd02-4b3d-b8fe-ca99d662520d)
 
+### 2024.10.01
+学习了循环。
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract control_test{
+    uint constant phone_number = 88996958;
+
+    //if-else
+
+    function control(uint256 number) public pure returns(bool bo) {
+        if (number == 0) {
+            return true;
+        } else if (number == 4){
+            bo ==false;
+        } else  bo == false;
+    }
+
+    //for loop
+    function for_test() public  pure returns(uint result) {
+        uint sum = 0;
+        for (uint i = 0; i<=100; i++){
+        sum += i;
+        }
+        return sum;
+    }
+
+    //while
+    function while_test() public pure returns(uint sum_) {
+        uint i = 0;
+        uint sum = 0;
+        while (i < 100) {
+            sum += i;
+            i++;
+        }
+        sum_ = sum;
+    }
+
+    //do while loop
+
+    function do_while_test() public pure returns (uint do_while_result){
+        uint sum = 0;
+        uint i = 0;
+        do {
+            sum += i;
+        } while(i<100);
+        return sum;
+    }
+
+    function ternary_test(uint x, uint y) public pure returns(uint){
+        
+        return x > y ? x:y;
+    
+    }
+
+    //插入排序
+    function sort_test(uint[] memory array) public  pure  returns(uint256[] memory ) {
+        for (uint i =1; i < 100; i++){
+            uint temp = array[i];
+            uint j = i;
+            while (j > 0 && array[i] > array[j-1]) {
+                array[i] = array[j-1];
+                j--;
+            }
+            array[j] = temp;
+            
+        }
+        return array;
+    }
+
+    function test_insert_sort() public pure {
+        uint256[] memory array;
+        array[0] = 9;
+        array[1] = 6;
+        array[2] = 7;
+        array[3] = 9;
+        array[4] = 0;
+        sort_test(array);
+    }
+
+
+}
+![image](https://github.com/user-attachments/assets/1fdc7eef-f909-47db-bc5c-8b805a12bbda)
+
+### 2024.10.02
+1. 解决了上次遇到的局部变量中用memory声明的数组不能传入参数的问题。
+   //插入排序
+    function sort_test(uint[] memory array) public  pure  returns(uint[] memory ) {
+        for (uint i =1; i < array.length;i++){
+            uint temp = array[i];
+            uint j = i;
+            while ((j > 0) && (temp < array[j-1])) {
+                array[j] = array[j-1];
+                j--;
+            }
+            array[j] = temp;
+        }
+        return array;
+    }
+    function test_insert_sort() public pure returns(uint[] memory) {
+        uint[] memory array = new uint[](5);
+        array[0] = 9;
+        array[1] = 6;
+        array[2] = 7;
+        array[3] = 9;
+        array[4] = 0;
+        sort_test(array);
+        return array;
+    }
+   2. 练习了构造方法和modifier 修饰关键字
+      // SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract test_contructor{
+    address public _address;
+
+    constructor (address inital_address) {
+        _address = inital_address;
+    }
+
+    modifier onlyOwner {
+        require(msg.sender == _address);// f检查调用者是否为owner
+            _; //if it is true, then continue
+    }
+
+    function changeOwner(address  change_address) external onlyOwner{
+        _address = change_address;
+    }
+}
 
 <!-- Content_END -->

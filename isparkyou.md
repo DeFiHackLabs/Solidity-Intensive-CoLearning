@@ -2427,7 +2427,1244 @@ contract DutchAuction is Ownable, ERC721 {
     }
 ```
 
+### 2024.10.1
+### Merkel Tree
 
+![image](https://github.com/user-attachments/assets/e2eaab42-5ed0-4726-8da7-62916f43edf3)
+Merkle Tree允许对大型数据结构的内容进行有效和安全的验证（Merkle Proof）。对于有N个叶子结点的Merkle Tree，在已知root根值的情况下，验证某个数据是否有效（属于Merkle Tree叶子结点）只需要ceil(log₂N)个数据（也叫proof），非常高效。
+
+![image](https://github.com/user-attachments/assets/8308df8e-c571-4550-8315-58ea509490d9)
+
+**利用MerkleProof库来验证
+```
+library MerkleProof {
+    /**
+     * @dev 当通过`proof`和`leaf`重建出的`root`与给定的`root`相等时，返回`true`，数据有效。
+     * 在重建时，叶子节点对和元素对都是排序过的。
+     */
+    function verify(
+        bytes32[] memory proof,
+        bytes32 root,
+        bytes32 leaf
+    ) internal pure returns (bool) {
+        return processProof(proof, leaf) == root;
+    }
+
+    /**
+     * @dev Returns 通过Merkle树用`leaf`和`proof`计算出`root`. 当重建出的`root`和给定的`root`相同时，`proof`才是有效的。
+     * 在重建时，叶子节点对和元素对都是排序过的。
+     */
+    function processProof(bytes32[] memory proof, bytes32 leaf) internal pure returns (bytes32) {
+        bytes32 computedHash = leaf;
+        for (uint256 i = 0; i < proof.length; i++) {
+            computedHash = _hashPair(computedHash, proof[i]);
+        }
+        return computedHash;
+    }
+
+    // Sorted Pair Hash
+    function _hashPair(bytes32 a, bytes32 b) private pure returns (bytes32) {
+        return a < b ? keccak256(abi.encodePacked(a, b)) : keccak256(abi.encodePacked(b, a));
+    }
+}
+```
+**verify()函数**：利用proof数来验证leaf是否属于根为root的Merkle Tree中，如果是，则返回true。它调用了processProof()函数。
+**processProof()函数**：利用proof和leaf依次计算出Merkle Tree的root。它调用了_hashPair()函数。
+**_hashPair()函数**：用keccak256()函数计算非根节点对应的两个子节点的哈希（排序后）。
+
+### 利用MerkleTree发放NFT白名单
+```
+contract MerkleTree is ERC721 {
+    bytes32 immutable public root; // Merkle树的根
+    mapping(address => bool) public mintedAddress;   // 记录已经mint的地址
+
+    // 构造函数，初始化NFT合集的名称、代号、Merkle树的根
+    constructor(string memory name, string memory symbol, bytes32 merkleroot)
+    ERC721(name, symbol)
+    {
+        root = merkleroot;
+    }
+
+    // 利用Merkle树验证地址并完成mint
+    function mint(address account, uint256 tokenId, bytes32[] calldata proof)
+    external
+    {
+        require(_verify(_leaf(account), proof), "Invalid merkle proof"); // Merkle检验通过
+        require(!mintedAddress[account], "Already minted!"); // 地址没有mint过
+        _mint(account, tokenId); // mint
+        mintedAddress[account] = true; // 记录mint过的地址
+    }
+
+    // 计算Merkle树叶子的哈希值
+    function _leaf(address account)
+    internal pure returns (bytes32)
+    {
+        return keccak256(abi.encodePacked(account));
+    }
+
+    // Merkle树验证，调用MerkleProof库的verify()函数
+    function _verify(bytes32 leaf, bytes32[] memory proof)
+    internal view returns (bool)
+    {
+        return MerkleProof.verify(proof, root, leaf);
+    }
+}
+```
+
+### 数字签名
+**双椭圆曲线数字签名算法（ECDSA）**，基于双椭圆曲线“私钥-公钥”对的数字签名算法。它主要起到了三个作用：
+1. 身份认证：证明签名方是私钥的持有人。
+2. 不可否认：发送方不能否认发送过这个消息。
+3. 完整性：通过验证针对传输消息生成的数字签名，可以验证消息是否在传输过程中被篡改。
+
+### ECDSA合约
+ECDSA标准中包含两个部分：
+1. 签名者利用私钥（隐私的）对消息（公开的）创建签名（公开的）。
+2. 其他人使用消息（公开的）和签名（公开的）恢复签名者的公钥（公开的）并验证签名。
+
+#### 创建签名
+1. 打包消息
+被签名的消息是一组数据的keccak256哈希，为bytes32类型。
+```
+    /*
+     * 将mint地址（address类型）和tokenId（uint256类型）拼成消息msgHash
+     * _account: 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4
+     * _tokenId: 0
+     * 对应的消息msgHash: 0x1bf2c0ce4546651a1a2feb457b39d891a6b83931cc2454434f39961345ac378c
+     */
+    function getMessageHash(address _account, uint256 _tokenId) public pure returns(bytes32){
+        return keccak256(abi.encodePacked(_account, _tokenId));
+    }
+```
+2. 计算以太坊签名信息
+消息可以是能被执行的交易，也可以是其他任何形式。为了避免用户误签了恶意交易，EIP191提倡在消息前加上"\x19Ethereum Signed Message:\n32"字符，并再做一次keccak256哈希，作为以太坊签名消息。经过toEthSignedMessageHash()函数处理后的消息，不能被用于执行交易:
+```
+    /**
+     * @dev 返回 以太坊签名消息
+     * `hash`：消息
+     * 遵从以太坊签名标准：https://eth.wiki/json-rpc/API#eth_sign[`eth_sign`]
+     * 以及`EIP191`:https://eips.ethereum.org/EIPS/eip-191`
+     * 添加"\x19Ethereum Signed Message:\n32"字段，防止签名的是可执行交易。
+     */
+    function toEthSignedMessageHash(bytes32 hash) public pure returns (bytes32) {
+        // 哈希的长度为32
+        return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash));
+    }
+```
+3. 利用钱包签名
+metamask的personal_sign方法会自动把消息转换为以太坊签名消息，然后发起签名。所以我们只需要输入消息和签名者钱包account即可。
+4. 利用web3.py签名
+```
+from web3 import Web3, HTTPProvider
+from eth_account.messages import encode_defunct
+
+private_key = "0x227dbb8586117d55284e26620bc76534dfbd2394be34cf4a09cb775d593b6f2b"
+address = "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"
+rpc = 'https://rpc.ankr.com/eth'
+w3 = Web3(HTTPProvider(rpc))
+
+#打包信息
+msg = Web3.solidity_keccak(['address','uint256'], [address,0])
+print(f"消息：{msg.hex()}")
+#构造可签名信息
+message = encode_defunct(hexstr=msg.hex())
+#签名
+signed_message = w3.eth.account.sign_message(message, private_key=private_key)
+print(f"签名：{signed_message['signature'].hex()}")
+```
+#### 验证签名
+验证者需要拥有消息，签名，和签名使用的公钥。我们能验证签名的原因是只有私钥的持有者才能够针对交易生成这样的签名，而别人不能。
+5. 通过签名和消息回复公钥
+签名是由数学算法生成的。这里我们使用的是rsv签名，签名中包含r, s, v三个值的信息。而后，我们可以通过r, s, v及以太坊签名消息来求得公钥。
+```
+    // @dev 从_msgHash和签名_signature中恢复signer地址
+    function recoverSigner(bytes32 _msgHash, bytes memory _signature) internal pure returns (address){
+        // 检查签名长度，65是标准r,s,v签名的长度
+        require(_signature.length == 65, "invalid signature length");
+        bytes32 r;
+        bytes32 s;
+        uint8 v;
+        // 目前只能用assembly (内联汇编)来从签名中获得r,s,v的值
+        assembly {
+            /*
+            前32 bytes存储签名的长度 (动态数组存储规则)
+            add(sig, 32) = sig的指针 + 32
+            等效为略过signature的前32 bytes
+            mload(p) 载入从内存地址p起始的接下来32 bytes数据
+            */
+            // 读取长度数据后的32 bytes
+            r := mload(add(_signature, 0x20))
+            // 读取之后的32 bytes
+            s := mload(add(_signature, 0x40))
+            // 读取最后一个byte
+            v := byte(0, mload(add(_signature, 0x60)))
+        }
+        // 使用ecrecover(全局函数)：利用 msgHash 和 r,s,v 恢复 signer 地址
+        return ecrecover(_msgHash, v, r, s);
+    }
+```
+6. 对比公钥并验证签名
+```
+    /**
+     * @dev 通过ECDSA，验证签名地址是否正确，如果正确则返回true
+     * _msgHash为消息的hash
+     * _signature为签名
+     * _signer为签名地址
+     */
+    function verify(bytes32 _msgHash, bytes memory _signature, address _signer) internal pure returns (bool) {
+        return recoverSigner(_msgHash, _signature) == _signer;
+    }
+```
+
+### 利用签名发放白名单
+NFT项目方可以利用ECDSA的这个特性发放白名单。由于签名是链下的，不需要gas，因此这种白名单发放模式比Merkle Tree模式还要经济。方法非常简单，项目方利用项目方账户把白名单发放地址签名（可以加上地址可以铸造的tokenId）。然后mint的时候利用ECDSA检验签名是否有效，如果有效，则给他mint。
+SignatureNFT合约实现了利用签名发放NFT白名单。
+```
+contract SignatureNFT is ERC721 {
+    address immutable public signer; // 签名地址
+    mapping(address => bool) public mintedAddress;   // 记录已经mint的地址
+
+    // 构造函数，初始化NFT合集的名称、代号、签名地址
+    constructor(string memory _name, string memory _symbol, address _signer)
+    ERC721(_name, _symbol)
+    {
+        signer = _signer;
+    }
+
+    // 利用ECDSA验证签名并mint
+    function mint(address _account, uint256 _tokenId, bytes memory _signature)
+    external
+    {
+        bytes32 _msgHash = getMessageHash(_account, _tokenId); // 将_account和_tokenId打包消息
+        bytes32 _ethSignedMessageHash = ECDSA.toEthSignedMessageHash(_msgHash); // 计算以太坊签名消息
+        require(verify(_ethSignedMessageHash, _signature), "Invalid signature"); // ECDSA检验通过
+        require(!mintedAddress[_account], "Already minted!"); // 地址没有mint过
+        _mint(_account, _tokenId); // mint
+        mintedAddress[_account] = true; // 记录mint过的地址
+    }
+
+    /*
+     * 将mint地址（address类型）和tokenId（uint256类型）拼成消息msgHash
+     * _account: 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4
+     * _tokenId: 0
+     * 对应的消息: 0x1bf2c0ce4546651a1a2feb457b39d891a6b83931cc2454434f39961345ac378c
+     */
+    function getMessageHash(address _account, uint256 _tokenId) public pure returns(bytes32){
+        return keccak256(abi.encodePacked(_account, _tokenId));
+    }
+
+    // ECDSA验证，调用ECDSA库的verify()函数
+    function verify(bytes32 _msgHash, bytes memory _signature)
+    public view returns (bool)
+    {
+        return ECDSA.verify(_msgHash, _signature, signer);
+    }
+}
+```
+由于签名是链下的，不需要gas，因此这种白名单发放模式比Merkle Tree模式还要经济；
+但由于用户要请求中心化接口去获取签名，不可避免的牺牲了一部分去中心化；
+额外还有一个好处是白名单可以动态变化，而不是提前写死在合约里面了，因为项目方的中心化后端接口可以接受任何新地址的请求并给予白名单签名。
+
+### NFT交易所
+```
+// 事件
+    event List(address indexed seller, address indexed nftAddr, uint256 indexed tokenId, uint256 price);
+    event Purchase(address indexed buyer, address indexed nftAddr, uint256 indexed tokenId, uint256 price);
+    event Revoke(address indexed seller, address indexed nftAddr, uint256 indexed tokenId);    
+    event Update(address indexed seller, address indexed nftAddr, uint256 indexed tokenId, uint256 newPrice);
+// 订单
+    // 定义order结构体
+    struct Order{
+        address owner;
+        uint256 price; 
+    }
+    // NFT Order映射
+    mapping(address => mapping(uint256 => Order)) public nftList;
+// 回退函数
+fallback() external payable{}
+// onERC721Received
+contract NFTSwap is IERC721Receiver{
+
+    // 实现{IERC721Receiver}的onERC721Received，能够接收ERC721代币
+    function onERC721Received(
+        address operator,
+        address from,
+        uint tokenId,
+        bytes calldata data
+    ) external override returns (bytes4){
+        return IERC721Receiver.onERC721Received.selector;
+    }
+
+// 交易
+    // 挂单: 卖家上架NFT，合约地址为_nftAddr，tokenId为_tokenId，价格_price为以太坊（单位是wei）
+    function list(address _nftAddr, uint256 _tokenId, uint256 _price) public{
+        IERC721 _nft = IERC721(_nftAddr); // 声明IERC721接口合约变量
+        require(_nft.getApproved(_tokenId) == address(this), "Need Approval"); // 合约得到授权
+        require(_price > 0); // 价格大于0
+
+        Order storage _order = nftList[_nftAddr][_tokenId]; //设置NF持有人和价格
+        _order.owner = msg.sender;
+        _order.price = _price;
+        // 将NFT转账到合约
+        _nft.safeTransferFrom(msg.sender, address(this), _tokenId);
+
+        // 释放List事件
+        emit List(msg.sender, _nftAddr, _tokenId, _price);
+    }
+    // 撤单： 卖家取消挂单
+    function revoke(address _nftAddr, uint256 _tokenId) public {
+        Order storage _order = nftList[_nftAddr][_tokenId]; // 取得Order        
+        require(_order.owner == msg.sender, "Not Owner"); // 必须由持有人发起
+        // 声明IERC721接口合约变量
+        IERC721 _nft = IERC721(_nftAddr);
+        require(_nft.ownerOf(_tokenId) == address(this), "Invalid Order"); // NFT在合约中
+        
+        // 将NFT转给卖家
+        _nft.safeTransferFrom(address(this), msg.sender, _tokenId);
+        delete nftList[_nftAddr][_tokenId]; // 删除order
+      
+        // 释放Revoke事件
+        emit Revoke(msg.sender, _nftAddr, _tokenId);
+    }
+    // 调整价格: 卖家调整挂单价格
+    function update(address _nftAddr, uint256 _tokenId, uint256 _newPrice) public {
+        require(_newPrice > 0, "Invalid Price"); // NFT价格大于0
+        Order storage _order = nftList[_nftAddr][_tokenId]; // 取得Order        
+        require(_order.owner == msg.sender, "Not Owner"); // 必须由持有人发起
+        // 声明IERC721接口合约变量
+        IERC721 _nft = IERC721(_nftAddr);
+        require(_nft.ownerOf(_tokenId) == address(this), "Invalid Order"); // NFT在合约中
+        
+        // 调整NFT价格
+        _order.price = _newPrice;
+      
+        // 释放Update事件
+        emit Update(msg.sender, _nftAddr, _tokenId, _newPrice);
+    }
+    // 购买: 买家购买NFT，合约为_nftAddr，tokenId为_tokenId，调用函数时要附带ETH
+    function purchase(address _nftAddr, uint256 _tokenId) payable public {
+        Order storage _order = nftList[_nftAddr][_tokenId]; // 取得Order        
+        require(_order.price > 0, "Invalid Price"); // NFT价格大于0
+        require(msg.value >= _order.price, "Increase price"); // 购买价格大于标价
+        // 声明IERC721接口合约变量
+        IERC721 _nft = IERC721(_nftAddr);
+        require(_nft.ownerOf(_tokenId) == address(this), "Invalid Order"); // NFT在合约中
+
+        // 将NFT转给买家
+        _nft.safeTransferFrom(address(this), msg.sender, _tokenId);
+        // 将ETH转给卖家，多余ETH给买家退款
+        payable(_order.owner).transfer(_order.price);
+        payable(msg.sender).transfer(msg.value-_order.price);
+
+        delete nftList[_nftAddr][_tokenId]; // 删除order
+
+        // 释放Purchase事件
+        emit Purchase(msg.sender, _nftAddr, _tokenId, _order.price);
+    }
+```
+
+### 2024.10.2
+### 链上随机数
+#### 链上随机数生成
+可以将一些链上的全局变量作为种子，利用keccak256()哈希函数来获取伪随机数。这是因为哈希函数具有灵敏性和均一性，可以得到“看似”随机的结果。
+```
+    /** 
+    * 链上伪随机数生成
+    * 利用keccak256()打包一些链上的全局变量/自定义变量
+    * 返回时转换成uint256类型
+    */
+    function getRandomOnchain() public view returns(uint256){
+        // remix运行blockhash会报错
+        bytes32 randomBytes = keccak256(abi.encodePacked(block.timestamp, msg.sender, blockhash(block.number-1)));
+        
+        return uint256(randomBytes);
+    }
+```
+**这个方法并不安全：**
+首先，block.timestamp，msg.sender和blockhash(block.number-1)这些变量都是公开的，使用者可以预测出用这些种子生成出的随机数，并挑出他们想要的随机数执行合约。
+其次，矿工可以操纵blockhash和block.timestamp，使得生成的随机数符合他的利益。
+
+#### 链下随机数生成
+可以在链下生成随机数，然后通过预言机把随机数上传到链上。Chainlink提供VRF（可验证随机函数）服务，链上开发者可以支付LINK代币来获取随机数。
+![image](https://github.com/user-attachments/assets/a3885099-af43-4bd2-a318-21eea746a7af)
+1. 申请Subscription并转入Link代币
+2. 用户合约继承VRFConsumerBaseV2
+3. 用户合约申请随机数
+4. Chainlink节点链下生成随机数和数字签名，并发送给VRF合约
+5. VRF合约验证签名有效性
+6. 用户合约接收并使用随机数
+
+#### tokenId随机铸造的NFT
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+import "https://github.com/AmazingAng/WTF-Solidity/blob/main/34_ERC721/ERC721.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
+import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
+
+contract Random is ERC721, VRFConsumerBaseV2{
+    // NFT相关
+    uint256 public totalSupply = 100; // 总供给
+    uint256[100] public ids; // 用于计算可供mint的tokenId
+    uint256 public mintCount; // 已mint数量
+
+    // chainlink VRF参数
+    
+    //VRFCoordinatorV2Interface
+    VRFCoordinatorV2Interface COORDINATOR;
+    
+    /**
+     * 使用chainlink VRF，构造函数需要继承 VRFConsumerBaseV2
+     * 不同链参数填的不一样
+     * 网络: Sepolia测试网
+     * Chainlink VRF Coordinator 地址: 0x8103B0A8A00be2DDC778e6e7eaa21791Cd364625
+     * LINK 代币地址: 0x01BE23585060835E02B77ef475b0Cc51aA1e0709
+     * 30 gwei Key Hash: 0x474e34a077df58807dbe9c96d3c009b23b3c6d0cce433e59bbf5b34f823bc56c
+     * Minimum Confirmations 最小确认块数 : 3 （数字大安全性高，一般填12）
+     * callbackGasLimit gas限制 : 最大 2,500,000
+     * Maximum Random Values 一次可以得到的随机数个数 : 最大 500          
+     */
+    address vrfCoordinator = 0x8103B0A8A00be2DDC778e6e7eaa21791Cd364625;
+    bytes32 keyHash = 0x474e34a077df58807dbe9c96d3c009b23b3c6d0cce433e59bbf5b34f823bc56c;
+    uint16 requestConfirmations = 3;
+    uint32 callbackGasLimit = 1_000_000;
+    uint32 numWords = 1;
+    uint64 subId;
+    uint256 public requestId;
+    
+    // 记录VRF申请标识对应的mint地址
+    mapping(uint256 => address) public requestToSender;
+
+    constructor(uint64 s_subId) 
+        VRFConsumerBaseV2(vrfCoordinator)
+        ERC721("WTF Random", "WTF"){
+            COORDINATOR = VRFCoordinatorV2Interface(vrfCoordinator);
+            subId = s_subId;
+    }
+
+    /** 
+    * 输入uint256数字，返回一个可以mint的tokenId
+    * 算法过程可理解为：totalSupply个空杯子（0初始化的ids）排成一排，每个杯子旁边放一个球，编号为[0, totalSupply - 1]。
+    每次从场上随机拿走一个球（球可能在杯子旁边，这是初始状态；也可能是在杯子里，说明杯子旁边的球已经被拿走过，则此时新的球从末尾被放到了杯子里）
+    再把末尾的一个球（依然是可能在杯子里也可能在杯子旁边）放进被拿走的球的杯子里，循环totalSupply次。相比传统的随机排列，省去了初始化ids[]的gas。
+    */
+    function pickRandomUniqueId(uint256 random) private returns (uint256 tokenId) {
+        //先计算减法，再计算++, 关注(a++，++a)区别
+        uint256 len = totalSupply - mintCount++; // 可mint数量
+        require(len > 0, "mint close"); // 所有tokenId被mint完了
+        uint256 randomIndex = random % len; // 获取链上随机数
+
+        //随机数取模，得到tokenId，作为数组下标，同时记录value为len-1，如果取模得到的值已存在，则tokenId取该数组下标的value
+        tokenId = ids[randomIndex] != 0 ? ids[randomIndex] : randomIndex; // 获取tokenId
+        ids[randomIndex] = ids[len - 1] == 0 ? len - 1 : ids[len - 1]; // 更新ids 列表
+        ids[len - 1] = 0; // 删除最后一个元素，能返还gas
+    }
+
+    /** 
+    * 链上伪随机数生成
+    * keccak256(abi.encodePacked()中填上一些链上的全局变量/自定义变量
+    * 返回时转换成uint256类型
+    */
+    function getRandomOnchain() public view returns(uint256){
+        /*
+         * 本例链上随机只依赖区块哈希，调用者地址，和区块时间，
+         * 想提高随机性可以再增加一些属性比如nonce等，但是不能根本上解决安全问题
+         */
+        bytes32 randomBytes = keccak256(abi.encodePacked(blockhash(block.number-1), msg.sender, block.timestamp));
+        return uint256(randomBytes);
+    }
+
+    // 利用链上伪随机数铸造NFT
+    function mintRandomOnchain() public {
+        uint256 _tokenId = pickRandomUniqueId(getRandomOnchain()); // 利用链上随机数生成tokenId
+        _mint(msg.sender, _tokenId);
+    }
+
+    /** 
+     * 调用VRF获取随机数，并mintNFT
+     * 要调用requestRandomness()函数获取，消耗随机数的逻辑写在VRF的回调函数fulfillRandomness()中
+     * 调用前，需要在Subscriptions中转入足够的Link
+     */
+    function mintRandomVRF() public {
+        // 调用requestRandomness获取随机数
+        requestId = COORDINATOR.requestRandomWords(
+            keyHash,
+            subId,
+            requestConfirmations,
+            callbackGasLimit,
+            numWords
+        );
+        requestToSender[requestId] = msg.sender;
+    }
+
+    /**
+     * VRF的回调函数，由VRF Coordinator调用
+     * 消耗随机数的逻辑写在本函数中
+     */
+    function fulfillRandomWords(uint256 requestId, uint256[] memory s_randomWords) internal override{
+        address sender = requestToSender[requestId]; // 从requestToSender中获取minter用户地址
+        uint256 tokenId = pickRandomUniqueId(s_randomWords[0]); // 利用VRF返回的随机数生成tokenId
+        _mint(sender, tokenId);
+    }
+```
+
+### ERC1155
+允许一个合约包含多个同质化和非同质化代币。ERC1155在GameFi应用最多
+在ERC721中，每个代币都有一个tokenId作为唯一标识，每个tokenId只对应一个代币；而在ERC1155中，每一种代币都有一个id作为唯一标识，每个id对应一种代币。这样，代币种类就可以非同质的在同一个合约里管理了，并且每种代币都有一个网址uri来存储它的元数据，类似ERC721的tokenURI。
+
+如果某个id对应的代币总量为1，那么它就是非同质化代币，类似ERC721；如果某个id对应的代币总量大于1，那么他就是同质化代币，因为这些代币都分享同一个id，类似ERC20。
+
+#### IERC1155接口合约
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "https://github.com/AmazingAng/WTF-Solidity/blob/main/34_ERC721/IERC165.sol";
+
+/**
+ * @dev ERC1155标准的接口合约，实现了EIP1155的功能
+ * 详见：https://eips.ethereum.org/EIPS/eip-1155[EIP].
+ */
+interface IERC1155 is IERC165 {
+    /**
+     * @dev 单类代币转账事件
+     * 当`value`个`id`种类的代币被`operator`从`from`转账到`to`时释放.
+     */
+    event TransferSingle(address indexed operator, address indexed from, address indexed to, uint256 id, uint256 value);
+
+    /**
+     * @dev 批量代币转账事件
+     * ids和values为转账的代币种类和数量数组
+     */
+    event TransferBatch(
+        address indexed operator,
+        address indexed from,
+        address indexed to,
+        uint256[] ids,
+        uint256[] values
+    );
+
+    /**
+     * @dev 批量授权事件
+     * 当`account`将所有代币授权给`operator`时释放
+     */
+    event ApprovalForAll(address indexed account, address indexed operator, bool approved);
+
+    /**
+     * @dev 当`id`种类的代币的URI发生变化时释放，`value`为新的URI
+     */
+    event URI(string value, uint256 indexed id);
+
+    /**
+     * @dev 持仓查询，返回`account`拥有的`id`种类的代币的持仓量
+     */
+    function balanceOf(address account, uint256 id) external view returns (uint256);
+
+    /**
+     * @dev 批量持仓查询，`accounts`和`ids`数组的长度要想等。
+     */
+    function balanceOfBatch(address[] calldata accounts, uint256[] calldata ids)
+        external
+        view
+        returns (uint256[] memory);
+
+    /**
+     * @dev 批量授权，将调用者的代币授权给`operator`地址。
+     * 释放{ApprovalForAll}事件.
+     */
+    function setApprovalForAll(address operator, bool approved) external;
+
+    /**
+     * @dev 批量授权查询，如果授权地址`operator`被`account`授权，则返回`true`
+     * 见 {setApprovalForAll}函数.
+     */
+    function isApprovedForAll(address account, address operator) external view returns (bool);
+
+    /**
+     * @dev 安全转账，将`amount`单位`id`种类的代币从`from`转账给`to`.
+     * 释放{TransferSingle}事件.
+     * 要求:
+     * - 如果调用者不是`from`地址而是授权地址，则需要得到`from`的授权
+     * - `from`地址必须有足够的持仓
+     * - 如果接收方是合约，需要实现`IERC1155Receiver`的`onERC1155Received`方法，并返回相应的值
+     */
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 id,
+        uint256 amount,
+        bytes calldata data
+    ) external;
+
+    /**
+     * @dev 批量安全转账
+     * 释放{TransferBatch}事件
+     * 要求：
+     * - `ids`和`amounts`长度相等
+     * - 如果接收方是合约，需要实现`IERC1155Receiver`的`onERC1155BatchReceived`方法，并返回相应的值
+     */
+    function safeBatchTransferFrom(
+        address from,
+        address to,
+        uint256[] calldata ids,
+        uint256[] calldata amounts,
+        bytes calldata data
+    ) external;
+}
+```
+**IERC1155事件**
+TransferSingle事件：单类代币转账事件，在单币种转账时释放。
+TransferBatch事件：批量代币转账事件，在多币种转账时释放。
+ApprovalForAll事件：批量授权事件，在批量授权时释放。
+URI事件：元数据地址变更事件，在uri变化时释放。
+**IERC1155函数**
+balanceOf()：单币种余额查询，返回account拥有的id种类的代币的持仓量。
+balanceOfBatch()：多币种余额查询，查询的地址accounts数组和代币种类ids数组的长度要相等。
+setApprovalForAll()：批量授权，将调用者的代币授权给operator地址。。
+isApprovedForAll()：查询批量授权信息，如果授权地址operator被account授权，则返回true。
+safeTransferFrom()：安全单币转账，将amount单位id种类的代币从from地址转账给to地址。如果to地址是合约，则会验证是否实现了onERC1155Received()接收函数。
+safeBatchTransferFrom()：安全多币转账，与单币转账类似，只不过转账数量amounts和代币种类ids变为数组，且长度相等。如果to地址是合约，则会验证是否实现了onERC1155BatchReceived()接收函数。
+
+#### ERC1155接收合约
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "https://github.com/AmazingAng/WTF-Solidity/blob/main/34_ERC721/IERC165.sol";
+
+/**
+ * @dev ERC1155接收合约，要接受ERC1155的安全转账，需要实现这个合约
+ */
+interface IERC1155Receiver is IERC165 {
+    /**
+     * @dev 接受ERC1155安全转账`safeTransferFrom` 
+     * 需要返回 0xf23a6e61 或 `bytes4(keccak256("onERC1155Received(address,address,uint256,uint256,bytes)"))`
+     */
+    function onERC1155Received(
+        address operator,
+        address from,
+        uint256 id,
+        uint256 value,
+        bytes calldata data
+    ) external returns (bytes4);
+
+    /**
+     * @dev 接受ERC1155批量安全转账`safeBatchTransferFrom` 
+     * 需要返回 0xbc197c81 或 `bytes4(keccak256("onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)"))`
+     */
+    function onERC1155BatchReceived(
+        address operator,
+        address from,
+        uint256[] calldata ids,
+        uint256[] calldata values,
+        bytes calldata data
+    ) external returns (bytes4);
+}
+```
+
+#### ERC1155主合约
+**ERC1155变量**
+ERC1155主合约包含4个状态变量：
+
+name：代币名称
+symbol：代币代号
+_balances：代币持仓映射，记录代币种类id下某地址account的持仓量balances。
+_operatorApprovals：批量授权映射，记录持有地址给另一个地址的授权情况。
+
+**ERC1155函数**
+ERC1155主合约包含16个函数：
+
+构造函数：初始化状态变量name和symbol。
+supportsInterface()：实现ERC165标准，声明它支持的接口，供其他合约检查。
+balanceOf()：实现IERC1155的balanceOf()，查询持仓量。与ERC721标准不同，这里需要输入查询的持仓地址account以及币种id。
+balanceOfBatch()：实现IERC1155的balanceOfBatch()，批量查询持仓量。
+setApprovalForAll()：实现IERC1155的setApprovalForAll()，批量授权，释放ApprovalForAll事件。
+isApprovedForAll()：实现IERC1155的isApprovedForAll()，查询批量授权信息。
+safeTransferFrom()：实现IERC1155的safeTransferFrom()，单币种安全转账，释放TransferSingle事件。与ERC721不同，这里不仅需要填发出方from，接收方to，代币种类id，还需要填转账数额amount。
+safeBatchTransferFrom()：实现IERC1155的safeBatchTransferFrom()，多币种安全转账，释放TransferBatch事件。
+_mint()：单币种铸造函数。
+_mintBatch()：多币种铸造函数。
+_burn()：单币种销毁函数。
+_burnBatch()：多币种销毁函数。
+_doSafeTransferAcceptanceCheck：单币种转账的安全检查，被safeTransferFrom()调用，确保接收方为合约的情况下，实现了onERC1155Received()函数。
+_doSafeBatchTransferAcceptanceCheck：多币种转账的安全检查，，被safeBatchTransferFrom调用，确保接收方为合约的情况下，实现了onERC1155BatchReceived()函数。
+uri()：返回ERC1155的第id种代币存储元数据的网址，类似ERC721的tokenURI。
+baseURI()：返回baseURI，uri就是把baseURI和id拼接在一起，需要开发重写。
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "./IERC1155.sol";
+import "./IERC1155Receiver.sol";
+import "./IERC1155MetadataURI.sol";
+import "https://github.com/AmazingAng/WTF-Solidity/blob/main/34_ERC721/Address.sol";
+import "https://github.com/AmazingAng/WTF-Solidity/blob/main/34_ERC721/String.sol";
+import "https://github.com/AmazingAng/WTF-Solidity/blob/main/34_ERC721/IERC165.sol";
+
+/**
+ * @dev ERC1155多代币标准
+ * 见 https://eips.ethereum.org/EIPS/eip-1155
+ */
+contract ERC1155 is IERC165, IERC1155, IERC1155MetadataURI {
+    using Address for address; // 使用Address库，用isContract来判断地址是否为合约
+    using Strings for uint256; // 使用String库
+    // Token名称
+    string public name;
+    // Token代号
+    string public symbol;
+    // 代币种类id 到 账户account 到 余额balances 的映射
+    mapping(uint256 => mapping(address => uint256)) private _balances;
+    // address 到 授权地址 的批量授权映射
+    mapping(address => mapping(address => bool)) private _operatorApprovals;
+
+    /**
+     * 构造函数，初始化`name` 和`symbol`, uri_
+     */
+    constructor(string memory name_, string memory symbol_) {
+        name = name_;
+        symbol = symbol_;
+    }
+
+    /**
+     * @dev See {IERC165-supportsInterface}.
+     */
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return
+            interfaceId == type(IERC1155).interfaceId ||
+            interfaceId == type(IERC1155MetadataURI).interfaceId ||
+            interfaceId == type(IERC165).interfaceId;
+    }
+
+    /**
+     * @dev 持仓查询 实现IERC1155的balanceOf，返回account地址的id种类代币持仓量。
+     */
+    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {
+        require(account != address(0), "ERC1155: address zero is not a valid owner");
+        return _balances[id][account];
+    }
+
+    /**
+     * @dev 批量持仓查询
+     * 要求:
+     * - `accounts` 和 `ids` 数组长度相等.
+     */
+    function balanceOfBatch(address[] memory accounts, uint256[] memory ids)
+        public view virtual override
+        returns (uint256[] memory)
+    {
+        require(accounts.length == ids.length, "ERC1155: accounts and ids length mismatch");
+        uint256[] memory batchBalances = new uint256[](accounts.length);
+        for (uint256 i = 0; i < accounts.length; ++i) {
+            batchBalances[i] = balanceOf(accounts[i], ids[i]);
+        }
+        return batchBalances;
+    }
+
+    /**
+     * @dev 批量授权，调用者授权operator使用其所有代币
+     * 释放{ApprovalForAll}事件
+     * 条件：msg.sender != operator
+     */
+    function setApprovalForAll(address operator, bool approved) public virtual override {
+        require(msg.sender != operator, "ERC1155: setting approval status for self");
+        _operatorApprovals[msg.sender][operator] = approved;
+        emit ApprovalForAll(msg.sender, operator, approved);
+    }
+
+    /**
+     * @dev 查询批量授权.
+     */
+    function isApprovedForAll(address account, address operator) public view virtual override returns (bool) {
+        return _operatorApprovals[account][operator];
+    }
+
+    /**
+     * @dev 安全转账，将`amount`单位的`id`种类代币从`from`转账到`to`
+     * 释放 {TransferSingle} 事件.
+     * 要求:
+     * - to 不能是0地址.
+     * - from拥有足够的持仓量，且调用者拥有授权
+     * - 如果 to 是智能合约, 他必须支持 IERC1155Receiver-onERC1155Received.
+     */
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 id,
+        uint256 amount,
+        bytes memory data
+    ) public virtual override {
+        address operator = msg.sender;
+        // 调用者是持有者或是被授权
+        require(
+            from == operator || isApprovedForAll(from, operator),
+            "ERC1155: caller is not token owner nor approved"
+        );
+        require(to != address(0), "ERC1155: transfer to the zero address");
+        // from地址有足够持仓
+        uint256 fromBalance = _balances[id][from];
+        require(fromBalance >= amount, "ERC1155: insufficient balance for transfer");
+        // 更新持仓量
+        unchecked {
+            _balances[id][from] = fromBalance - amount;
+        }
+        _balances[id][to] += amount;
+        // 释放事件
+        emit TransferSingle(operator, from, to, id, amount);
+        // 安全检查
+        _doSafeTransferAcceptanceCheck(operator, from, to, id, amount, data);    
+    }
+
+    /**
+     * @dev 批量安全转账，将`amounts`数组单位的`ids`数组种类代币从`from`转账到`to`
+     * 释放 {TransferSingle} 事件.
+     * 要求:
+     * - to 不能是0地址.
+     * - from拥有足够的持仓量，且调用者拥有授权
+     * - 如果 to 是智能合约, 他必须支持 IERC1155Receiver-onERC1155BatchReceived.
+     * - ids和amounts数组长度相等
+     */
+    function safeBatchTransferFrom(
+        address from,
+        address to,
+        uint256[] memory ids,
+        uint256[] memory amounts,
+        bytes memory data
+    ) public virtual override {
+        address operator = msg.sender;
+        // 调用者是持有者或是被授权
+        require(
+            from == operator || isApprovedForAll(from, operator),
+            "ERC1155: caller is not token owner nor approved"
+        );
+        require(ids.length == amounts.length, "ERC1155: ids and amounts length mismatch");
+        require(to != address(0), "ERC1155: transfer to the zero address");
+
+        // 通过for循环更新持仓  
+        for (uint256 i = 0; i < ids.length; ++i) {
+            uint256 id = ids[i];
+            uint256 amount = amounts[i];
+
+            uint256 fromBalance = _balances[id][from];
+            require(fromBalance >= amount, "ERC1155: insufficient balance for transfer");
+            unchecked {
+                _balances[id][from] = fromBalance - amount;
+            }
+            _balances[id][to] += amount;
+        }
+
+        emit TransferBatch(operator, from, to, ids, amounts);
+        // 安全检查
+        _doSafeBatchTransferAcceptanceCheck(operator, from, to, ids, amounts, data);    
+    }
+
+    /**
+     * @dev 铸造
+     * 释放 {TransferSingle} 事件.
+     */
+    function _mint(
+        address to,
+        uint256 id,
+        uint256 amount,
+        bytes memory data
+    ) internal virtual {
+        require(to != address(0), "ERC1155: mint to the zero address");
+
+        address operator = msg.sender;
+
+        _balances[id][to] += amount;
+        emit TransferSingle(operator, address(0), to, id, amount);
+
+        _doSafeTransferAcceptanceCheck(operator, address(0), to, id, amount, data);
+    }
+
+    /**
+     * @dev 批量铸造
+     * 释放 {TransferBatch} 事件.
+     */
+    function _mintBatch(
+        address to,
+        uint256[] memory ids,
+        uint256[] memory amounts,
+        bytes memory data
+    ) internal virtual {
+        require(to != address(0), "ERC1155: mint to the zero address");
+        require(ids.length == amounts.length, "ERC1155: ids and amounts length mismatch");
+
+        address operator = msg.sender;
+
+        for (uint256 i = 0; i < ids.length; i++) {
+            _balances[ids[i]][to] += amounts[i];
+        }
+
+        emit TransferBatch(operator, address(0), to, ids, amounts);
+
+        _doSafeBatchTransferAcceptanceCheck(operator, address(0), to, ids, amounts, data);
+    }
+
+    /**
+     * @dev 销毁
+     */
+    function _burn(
+        address from,
+        uint256 id,
+        uint256 amount
+    ) internal virtual {
+        require(from != address(0), "ERC1155: burn from the zero address");
+
+        address operator = msg.sender;
+
+        uint256 fromBalance = _balances[id][from];
+        require(fromBalance >= amount, "ERC1155: burn amount exceeds balance");
+        unchecked {
+            _balances[id][from] = fromBalance - amount;
+        }
+
+        emit TransferSingle(operator, from, address(0), id, amount);
+    }
+
+    /**
+     * @dev 批量销毁
+     */
+    function _burnBatch(
+        address from,
+        uint256[] memory ids,
+        uint256[] memory amounts
+    ) internal virtual {
+        require(from != address(0), "ERC1155: burn from the zero address");
+        require(ids.length == amounts.length, "ERC1155: ids and amounts length mismatch");
+
+        address operator = msg.sender;
+
+        for (uint256 i = 0; i < ids.length; i++) {
+            uint256 id = ids[i];
+            uint256 amount = amounts[i];
+
+            uint256 fromBalance = _balances[id][from];
+            require(fromBalance >= amount, "ERC1155: burn amount exceeds balance");
+            unchecked {
+                _balances[id][from] = fromBalance - amount;
+            }
+        }
+
+        emit TransferBatch(operator, from, address(0), ids, amounts);
+    }
+
+    // @dev ERC1155的安全转账检查
+    function _doSafeTransferAcceptanceCheck(
+        address operator,
+        address from,
+        address to,
+        uint256 id,
+        uint256 amount,
+        bytes memory data
+    ) private {
+        if (to.isContract()) {
+            try IERC1155Receiver(to).onERC1155Received(operator, from, id, amount, data) returns (bytes4 response) {
+                if (response != IERC1155Receiver.onERC1155Received.selector) {
+                    revert("ERC1155: ERC1155Receiver rejected tokens");
+                }
+            } catch Error(string memory reason) {
+                revert(reason);
+            } catch {
+                revert("ERC1155: transfer to non-ERC1155Receiver implementer");
+            }
+        }
+    }
+
+    // @dev ERC1155的批量安全转账检查
+    function _doSafeBatchTransferAcceptanceCheck(
+        address operator,
+        address from,
+        address to,
+        uint256[] memory ids,
+        uint256[] memory amounts,
+        bytes memory data
+    ) private {
+        if (to.isContract()) {
+            try IERC1155Receiver(to).onERC1155BatchReceived(operator, from, ids, amounts, data) returns (
+                bytes4 response
+            ) {
+                if (response != IERC1155Receiver.onERC1155BatchReceived.selector) {
+                    revert("ERC1155: ERC1155Receiver rejected tokens");
+                }
+            } catch Error(string memory reason) {
+                revert(reason);
+            } catch {
+                revert("ERC1155: transfer to non-ERC1155Receiver implementer");
+            }
+        }
+    }
+
+    /**
+     * @dev 返回ERC1155的id种类代币的uri，存储metadata，类似ERC721的tokenURI.
+     */
+    function uri(uint256 id) public view virtual override returns (string memory) {
+        string memory baseURI = _baseURI();
+        return bytes(baseURI).length > 0 ? string(abi.encodePacked(baseURI, id.toString())) : "";
+    }
+
+    /**
+     * 计算{uri}的BaseURI，uri就是把baseURI和tokenId拼接在一起，需要开发重写.
+     */
+    function _baseURI() internal view virtual returns (string memory) {
+        return "";
+    }
+}
+```
+
+#### 魔改BAYC
+```
+// SPDX-License-Identifier: MIT
+// by 0xAA
+pragma solidity ^0.8.21;
+
+import "./ERC1155.sol";
+
+contract BAYC1155 is ERC1155{
+    uint256 constant MAX_ID = 10000; 
+    // 构造函数
+    constructor() ERC1155("BAYC1155", "BAYC1155"){
+    }
+
+    //BAYC的baseURI为ipfs://QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/ 
+    function _baseURI() internal pure override returns (string memory) {
+        return "ipfs://QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/";
+    }
+    
+    // 铸造函数
+    function mint(address to, uint256 id, uint256 amount) external {
+        // id 不能超过10,000
+        require(id < MAX_ID, "id overflow");
+        _mint(to, id, amount, "");
+    }
+
+    // 批量铸造函数
+    function mintBatch(address to, uint256[] memory ids, uint256[] memory amounts) external {
+        // id 不能超过10,000
+        for (uint256 i = 0; i < ids.length; i++) {
+            require(ids[i] < MAX_ID, "id overflow");
+        }
+        _mintBatch(to, ids, amounts, "");
+    }
+}
+```
+
+### WETH
+以太币本身并不符合ERC20标准。WETH的开发是为了提高区块链之间的互操作性 ，并使ETH可用于去中心化应用程序（dApps）。它就像是给原生代币穿了一件智能合约做的衣服：穿上衣服的时候，就变成了WETH，符合ERC20同质化代币标准，可以跨链，可以用于dApp；脱下衣服，它可1:1兑换ETH。
+
+#### WETH合约
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+contract WETH is ERC20{
+    // 事件：存款和取款
+    event  Deposit(address indexed dst, uint wad);
+    event  Withdrawal(address indexed src, uint wad);
+
+    // 构造函数，初始化ERC20的名字和代号
+    constructor() ERC20("WETH", "WETH"){
+    }
+
+    // 回调函数，当用户往WETH合约转ETH时，会触发deposit()函数
+    fallback() external payable {
+        deposit();
+    }
+    // 回调函数，当用户往WETH合约转ETH时，会触发deposit()函数
+    receive() external payable {
+        deposit();
+    }
+
+    // 存款函数，当用户存入ETH时，给他铸造等量的WETH
+    function deposit() public payable {
+        _mint(msg.sender, msg.value);
+        emit Deposit(msg.sender, msg.value);
+    }
+
+    // 提款函数，用户销毁WETH，取回等量的ETH
+    function withdraw(uint amount) public {
+        require(balanceOf(msg.sender) >= amount);
+        _burn(msg.sender, amount);
+        payable(msg.sender).transfer(amount);
+        emit Withdrawal(msg.sender, amount);
+    }
+}
+```
+
+### 分账
+#### 分账合约
+分账合约(PaymentSplit)具有以下几个特点：
+1. 在创建合约时定好分账受益人payees和每人的份额shares。
+2. 份额可以是相等，也可以是其他任意比例。
+3. 在该合约收到的所有ETH中，每个受益人将能够提取与其分配的份额成比例的金额。
+4.分账合约遵循Pull Payment模式，付款不会自动转入账户，而是保存在此合约中。受益人通过调用release()函数触发实际转账。
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+/**
+ * 分账合约 
+ * @dev 这个合约会把收到的ETH按事先定好的份额分给几个账户。收到ETH会存在分账合约中，需要每个受益人调用release()函数来领取。
+ */
+contract PaymentSplit{
+    // 事件
+    event PayeeAdded(address account, uint256 shares); // 增加受益人事件
+    event PaymentReleased(address to, uint256 amount); // 受益人提款事件
+    event PaymentReceived(address from, uint256 amount); // 合约收款事件
+
+uint256 public totalShares; // 总份额
+    uint256 public totalReleased; // 总支付
+
+    mapping(address => uint256) public shares; // 每个受益人的份额
+    mapping(address => uint256) public released; // 支付给每个受益人的金额
+    address[] public payees; // 受益人数组
+
+    /**
+     * @dev 初始化受益人数组_payees和分账份额数组_shares
+     * 数组长度不能为0，两个数组长度要相等。_shares中元素要大于0，_payees中地址不能为0地址且不能有重复地址
+     */
+    constructor(address[] memory _payees, uint256[] memory _shares) payable {
+        // 检查_payees和_shares数组长度相同，且不为0
+        require(_payees.length == _shares.length, "PaymentSplitter: payees and shares length mismatch");
+        require(_payees.length > 0, "PaymentSplitter: no payees");
+        // 调用_addPayee，更新受益人地址payees、受益人份额shares和总份额totalShares
+        for (uint256 i = 0; i < _payees.length; i++) {
+            _addPayee(_payees[i], _shares[i]);
+        }
+    }
+
+    /**
+     * @dev 回调函数，收到ETH释放PaymentReceived事件
+     */
+    receive() external payable virtual {
+        emit PaymentReceived(msg.sender, msg.value);
+    }
+
+    /**
+     * @dev 为有效受益人地址_account分帐，相应的ETH直接发送到受益人地址。任何人都可以触发这个函数，但钱会打给account地址。
+     * 调用了releasable()函数。
+     */
+    function release(address payable _account) public virtual {
+        // account必须是有效受益人
+        require(shares[_account] > 0, "PaymentSplitter: account has no shares");
+        // 计算account应得的eth
+        uint256 payment = releasable(_account);
+        // 应得的eth不能为0
+        require(payment != 0, "PaymentSplitter: account is not due payment");
+        // 更新总支付totalReleased和支付给每个受益人的金额released
+        totalReleased += payment;
+        released[_account] += payment;
+        // 转账
+        _account.transfer(payment);
+        emit PaymentReleased(_account, payment);
+    }
+
+    /**
+     * @dev 计算一个账户能够领取的eth。
+     * 调用了pendingPayment()函数。
+     */
+    function releasable(address _account) public view returns (uint256) {
+        // 计算分账合约总收入totalReceived
+        uint256 totalReceived = address(this).balance + totalReleased;
+        // 调用_pendingPayment计算account应得的ETH
+        return pendingPayment(_account, totalReceived, released[_account]);
+    }
+
+    /**
+     * @dev 根据受益人地址`_account`, 分账合约总收入`_totalReceived`和该地址已领取的钱`_alreadyReleased`，计算该受益人现在应分的`ETH`。
+     */
+    function pendingPayment(
+        address _account,
+        uint256 _totalReceived,
+        uint256 _alreadyReleased
+    ) public view returns (uint256) {
+        // account应得的ETH = 总应得ETH - 已领到的ETH
+        return (_totalReceived * shares[_account]) / totalShares - _alreadyReleased;
+    }
+
+    /**
+     * @dev 新增受益人_account以及对应的份额_accountShares。只能在构造器中被调用，不能修改。
+     */
+    function _addPayee(address _account, uint256 _accountShares) private {
+        // 检查_account不为0地址
+        require(_account != address(0), "PaymentSplitter: account is the zero address");
+        // 检查_accountShares不为0
+        require(_accountShares > 0, "PaymentSplitter: shares are 0");
+        // 检查_account不重复
+        require(shares[_account] == 0, "PaymentSplitter: account already has shares");
+        // 更新payees，shares和totalShares
+        payees.push(_account);
+        shares[_account] = _accountShares;
+        totalShares += _accountShares;
+        // 释放增加受益人事件
+        emit PayeeAdded(_account, _accountShares);
+    }
+```
+
+### 线性释放
+### 代币归属条款Token Vesting
+线性释放指的是代币在归属期内匀速释放。
+```
+contract TokenVesting {
+    // 事件
+    event ERC20Released(address indexed token, uint256 amount); // 提币事件
+
+    // 状态变量
+    mapping(address => uint256) public erc20Released; // 代币地址->释放数量的映射，记录已经释放的代币
+    address public immutable beneficiary; // 受益人地址
+    uint256 public immutable start; // 起始时间戳
+    uint256 public immutable duration; // 归属期
+
+    /**
+     * @dev 初始化受益人地址，释放周期(秒), 起始时间戳(当前区块链时间戳)
+     */
+    constructor(
+        address beneficiaryAddress,
+        uint256 durationSeconds
+    ) {
+        require(beneficiaryAddress != address(0), "VestingWallet: beneficiary is zero address");
+        beneficiary = beneficiaryAddress;
+        start = block.timestamp;
+        duration = durationSeconds;
+    }
+
+    /**
+     * @dev 受益人提取已释放的代币。
+     * 调用vestedAmount()函数计算可提取的代币数量，然后transfer给受益人。
+     * 释放 {ERC20Released} 事件.
+     */
+    function release(address token) public {
+        // 调用vestedAmount()函数计算可提取的代币数量
+        uint256 releasable = vestedAmount(token, uint256(block.timestamp)) - erc20Released[token];
+        // 更新已释放代币数量   
+        erc20Released[token] += releasable; 
+        // 转代币给受益人
+        emit ERC20Released(token, releasable);
+        IERC20(token).transfer(beneficiary, releasable);
+    }
+
+    /**
+     * @dev 根据线性释放公式，计算已经释放的数量。开发者可以通过修改这个函数，自定义释放方式。
+     * @param token: 代币地址
+     * @param timestamp: 查询的时间戳
+     */
+    function vestedAmount(address token, uint256 timestamp) public view returns (uint256) {
+        // 合约里总共收到了多少代币（当前余额 + 已经提取）
+        uint256 totalAllocation = IERC20(token).balanceOf(address(this)) + erc20Released[token];
+        // 根据线性释放公式，计算已经释放的数量
+        if (timestamp < start) {
+            return 0;
+        } else if (timestamp > start + duration) {
+            return totalAllocation;
+        } else {
+            return (totalAllocation * (timestamp - start)) / duration;
+        }
+    }
+```
 
 
 

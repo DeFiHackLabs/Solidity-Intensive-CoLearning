@@ -337,4 +337,102 @@ contract SignatureNFT is ERC721 {
 ###
 
 
+
+### 2024.09.30
+
+
+#### NFT 交易所
+
+用Solidity搭建一个零手续费的NFT交易所
+- 卖家：出售NFT的一方，可以挂单list、撤单revoke、修改价格update。
+- 买家：购买NFT的一方，可以购买purchase。
+- 订单：卖家发布的NFT链上订单，一个系列的同一tokenId最多存在一个订单，其中包含挂单价格price和持有人owner信息。当一个订单交易完成或被撤单后，其中信息清零。
+
+
+#### 合约事件
+
+```Solidity
+event List(address indexed seller, address indexed nftAddr, uint256 indexed tokenId, uint256 price);
+event Purchase(address indexed buyer, address indexed nftAddr, uint256 indexed tokenId, uint256 price);
+event Revoke(address indexed seller, address indexed nftAddr, uint256 indexed tokenId);
+event Update(address indexed seller, address indexed nftAddr, uint256 indexed tokenId, uint256 newPrice);
+```
+
+###
+
+
+### 2024.10.1
+
+#### 随机数
+
+由于以太坊上所有数据都是公开透明（public）且确定性（deterministic）的，没法像其他编程语言一样给
+开发者提供生成随机数的方法，在web3上可以使用链上或链下方法生成随机数。
+
+
+#### 链上随机数生成
+可以将一些链上的全局变量作为种子，利用keccak256()哈希函数来获取伪随机数。
+
+```Solidity
+function getRandomOnchain() public view returns(uint256){
+    bytes32 randomBytes = keccak256(abi.encodePacked(block.timestamp, msg.sender, blockhash(block.number-1)));
+
+    return uint256(randomBytes);
+}
+```
+这种方法因为使用的种子数据都是公开的， 所以使用者可以预测出这些种子生成的随机数, 其次旷工可以操纵 blockhash 和 
+block.timestamp 使得生成的随机数符合他的利益。
+
+###
+
+
+
+### 2024.10.2
+
+#### ERC1155 
+
+
+以太坊EIP1155提出了一个多代币标准ERC1155，允许一个合约包含多个同质化和非同质化代币。ERC1155在GameFi应用最多，
+Decentraland、Sandbox等知名链游都使用它。
+
+
+在ERC1155中，每一种代币都有一个id作为唯一标识，每个id对应一种代币。这样代币种类就可以非同质的在同一个合约里
+管理了，并且每种代币都有一个网址uri来存储它的元数据，类似ERC721的tokenURI。
+
+
+#### ERC1155的元数据接口合约IERC1155MetadataURI
+
+```Solidity
+interface IERC1155MetadataURI is IERC1155 {
+    /**
+     * @dev 返回第`id`种类代币的URI
+     */
+    function uri(uint256 id) external view returns (string memory);
+}
+
+```
+
+如果某个id对应的代币总量为1，就是非同质化代币；如果某个id对应的代币总量大于1，就是同质化代币，因为这些代币都
+分享同一个id，类似ERC20。
+
+
+#### IERC1155 合约
+
+IERC1155接口合约抽象了EIP1155需要实现的功能，其中包含4个事件和6个函数。与ERC721不同，因为ERC1155包含多类代币，它实
+现了批量转账和批量余额查询，可以一次操作多种代币。
+
+
+
+#### ERC1155 接收合约
+
+与ERC721标准类似，为了避免代币被转入黑洞合约，ERC1155要求代币接收合约继承IERC1155Receiver并实现两个接收函数：
+
+- onERC1155Received()：单币转账接收函数，接受ERC1155安全转账safeTransferFrom 需要实现并返回自己的选择器0xf23a6e61。
+
+- onERC1155BatchReceived()：多币转账接收函数，接受ERC1155安全多币转账safeBatchTransferFrom 需要实现并返回自己的选择器0xbc197c81。
+
+
+###
+
+
+
 <!-- Content_END -->
