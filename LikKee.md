@@ -659,11 +659,387 @@ End of WTF Solidity 101
 
 ### 2024.09.30
 
+#### Chapter 16: Function overloading
+
+Solidity allow function overloading, same function name but different parameters
+
+```
+function input(uint256 _number) external {
+  ...
+}
+
+function input(string memory _str) external {
+  ...
+}
+```
+
+Although both function share the same name, but due to different parameters, the functions will have different function signature/selector.
+
+**_Notes_**: `modifier` cannot be overloading like function
+
+**Argument matching**
+
+```
+function input(uint256 _number) external {
+  ...
+}
+
+function input(uint32 _number) external {
+
+}
+```
+
+The contract is able to compile, but when call data meet both function's parameter, for example: `50`, error prompted.
+
+#### Chapter 17: Library Contract
+
+`library` use to reduce code redundancy and gas usage.
+
+The different:
+
+- Cannot contain state variable
+- Cannot inherit other contract or to inherit by other contract
+- Cannot receive native currency, eg: ETH
+- Cannot be destroy
+
+- `public` and `private` functions in the library contract will trigger `delegatecall` when calling
+- `internal` functions won't trigger
+- `private` functions able to call by other functions within library contract
+
+Some commonly used library:
+
+- [String](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Strings.sol)
+- [Address](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol)
+- [Arrays](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Arrays.sol)
+
+Usage
+
+```
+contract Lending {
+  using Strings for uint256; // using A for B;
+
+  function convert(uint256 _number) public pure returns (string memory) {
+    return _number.toHexString();
+  }
+}
+```
+
+or
+
+```
+contract Lending {
+  function convert(uint256 _number) public pure returns (string memory) {
+    return Strings.toHexString(_number); // call directly
+  }
+}
+```
+
+#### Chapter 18: Import
+
+`import` allow contract to refer content of another contracts, maximize reusability and contract security
+
+How to:
+
+```
+File
+├── Other.sol
+└── MyContract.sol
+
+/* ------------------ */
+import './Other.sol';
+
+contract MyContract {
+  ...
+}
+```
+
+or (Source URL)
+
+```
+import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+```
+
+or (`npm`)
+
+```
+import '@openzeppelin/contracts/access/Ownable.sol';
+```
+
+or (Directive import)
+
+```
+import {Other} from './Other.sol';
+```
+
 ### 2024.10.01
+
+#### Chapter 19: Receive & Fallback
+
+Solidity have two special function, `receive()` and `fallback()`, can be used to:
+
+- Receive native currency like ETH
+- Fallback call from undefined function calling
+- `receive()` introduced after `0.6.x`
+
+`receive()`
+
+- Called when contract receive `ETH` directly via transfer, etc
+- Each contract can have maximum 1 `receive()` function
+
+```
+receive() external payable {
+  // do something
+}
+```
+
+- `receive()` doesn't need to include `function` keyword, must not contain `parameters` and return values
+- `receive()` not recommend to have complex logic, the default spendable gas for transfer/send ETH usually limit to `2300` only, complex computation in `receive()` might cause `Out of Gas` error.
+
+```
+event Received(address sender, uint256 amount);
+
+receive() external payable {
+  emit Received(msg.sender, msg.value);
+}
+```
+
+- `event` can be added into `receive()` function
+
+`fallback()`
+
+- Trigger when undefined function called, can also use to receive `ETH`
+
+```
+event FallbackTriggered(address sender, uint256 amount, bytes data);
+
+fallback() external payable {
+  emit FallbackTriggered(msg.sender, msg.value, msg.data);
+}
+```
+
+- `fallback()` doesn't need to include `function` keyword, must have visibility of `external`
+
+How it works
+
+```
+fallback() or receive()?
+        Receive ETH
+              |
+       msg.data empty？
+            /  \
+          Yes   No
+          /      \
+receive() exist?  fallback()
+        / \
+      Yes  No
+      /     \
+receive()   fallback()
+```
+
+- Contract without `receive()` or `payable fallback()` will not able to received `ETH`, transfer transaction will executed but failed
+
+#### Chapter 20: Transfer ETH
+
+There are 3 way to transfer `ETH` in contract
+
+- `call()` <- Recommended
+  - No gas limit
+  - Transaction will still executed even failed to call
+  - Have return values of `(bool, bytes memory)` which `bool` indicate calling failed or successful, `bytes` is data return
+- `transfer()`
+  - Gas limit `2300`, if recipient is contract and it's `fallback()` or `receive()` is complex, transfer will fail
+  - Transaction will revert if transfer failed
+- `send()`
+  - Gas limit `2300`, if recipient is contract and it's `fallback()` or `receive()` is complex, send will fail
+  - Transaction will still executed even failed to send, can capture with return `bool` value
+
+```
+function callTx(address payable _to) external payable {
+  (bool success, ) = _to.call{value: msg.value}("");
+  if(!success) {
+    revert CallFailed();
+  }
+}
+
+function transferETH(address payable _to) external payable {
+  _to.transfer(msg.value);
+}
+
+function sendETH(address payable _to) external payable {
+  bool success = _to.send(msg.value);
+  if(!success) {
+    revert SendFailed();
+  }
+}
+```
 
 ### 2024.10.02
 
+#### Chapter 21: Call to Other Contract
+
+In Solidity, one contract able to call another contract deployed or contract going to deploy where contract address to update later once deployed.
+
+```
+contract Target {
+  function echo() external pure returns (bool) {
+    return true;
+  }
+
+  function deposit() external payable {
+    ...
+  }
+}
+
+contract Source {
+  function callToAddress(address _target) external view returns (bool) {
+    return Target(_target).echo();
+  }
+
+  function callToContract(Target _target) external view returns (bool) {
+    return _target.echo();
+  }
+
+  function callToVariable(address _target) external view returns (bool) {
+    Target target = Target(_target);
+    return target.echo();
+  }
+
+  function callToPayable(address _target) external payable {
+    Target(_target).deposit{value: msg.value}("");
+  }
+}
+```
+
+#### Chapter 22: Call
+
+`call` is low level function of `address` variable. This function will return `(bool, bytes memory)`, which `bool` indicate calling failed or successful, `bytes` is data return.
+
+- `call` is recommended way to trigger `fallback` or `receive` when transferring `ETH`
+- However `call` is not recommended to use for calling another contract, especially to an unknown/malicious contract
+-
+
+```
+bytes someBytes = abi.encodeWithSignature("functionName(params, ...)", params, ...);
+
+someContract.call(someBytes); // Call without value (ETH)
+someContract.call{value: wei, gas: wei}(someBytes); // value and gas are optional
+
+// Call function with 1 ETH and capture return values
+(bool success, bytes memory data) = someContract.call{value: 1 ether}(
+  abi.encodeWithSignature("someFunction(uint256)", 100)
+);
+```
+
+- `call` will go to `fallback` if the function calling does not exist.
+
+#### Chapter 23: Delegatecall
+
+`delegatecall` is also a low level function of `address` variable.
+
+- delegate call able to forward the context of origin to another contract, eg
+
+```
+// call
+Address A -call-> Contract B -call-> Contract C
+===============================================
+                context=B            context=C
+                msg.sender=A         msg.sender=B
+                msg.value=A          msg.value=B
+
+// delegatecall
+Address A -call-> Contract B -delegatecall-> Contract C
+=======================================================
+                context=B                    context=B
+                msg.sender=A                 msg.sender=A
+                msg.value=A                  msg.value=A
+
+
+// Example
+(bool success, bytes memory data) = someContract.delegatecall(
+  abi.encodeWithSignature("someFunction(uint256)", 100)
+);
+```
+
+- Can specific `gas` but not `value`
+
+- When to use:
+  - Proxy contract: Which usually separate into State Contract and Logic Contract. All the functions of Logic Contract can call to State Contract through `delegatecall`. Thus Logic Contract can be update/replace when needed.
+  - [EIP-2535](https://eips.ethereum.org/EIPS/eip-2535): Also known as Diamonds, Multi-Facet Proxy. The smart contract is modular that can be extended after deployment.
+
 ### 2024.10.03
+
+#### Chapter 24: Contract Factory
+
+In Solidity, both EOA and Contract can also create/deploy new Contract. The most popular contract factory is Uniswap's `PairFactory`, which create a smart contract contain two tokens, eg: `USDT/PEPE`.
+
+- There are two ways to create new contract from a contract:
+  - CREATE
+  ```
+  Contract x = new Contract{value: _value}(params);
+  // Contract: Name of new contract
+  // x: New contract variable
+  // value: To transfer ETH into new contract if new contract's constructor is payable
+  // params: Parameters of new contract's constructor
+  ```
+  - CREATE2
+
+How address calculated by CREATE
+
+```
+new_contract_address = hash(creator_address, nonce);
+// creator_address can be EOA or contract
+```
+
+- `nonce` after the transaction count of EOA, or contract created count for contract, increase by 1 every tx/contract made
+- The address of new contract is hard to predict as nonce might change often
+
+#### Chapter 25: CREATE2
+
+How address calculated by CREATE2:
+
+```
+new_contract_address = hash("0xFF", creator_address, salt, initcode);
+// 0xFF: A constant to differentiate from CREATE
+// creator_address: The address of contract called CREATE2
+// salt: A bytes32 variable prefix by creator
+// initcode: New contract byte code with the constructor arguments and logic included
+```
+
+How to use:
+
+```
+Contract x = new Contract{salt: _salt, value: _value}(params);
+```
+
+Example WITH constructor parameters:
+
+```
+bytes32 salt = heccak256(abi.encodePacked(params...));
+
+NewContract nc = new NewContract{salt: salt}();
+
+address predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+        bytes1(0xff),
+        address(this),
+        salt,
+        keccak256(type(NewContract).creationCode)
+        )))));
+```
+
+Example WITH constructor parameters:
+
+```
+bytes32 salt = heccak256(abi.encodePacked(params...));
+
+NewContract nc = new NewContract{salt: salt}(constructorParams...);
+
+address predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+        bytes1(0xff),
+        address(this),
+        salt,
+        keccak256(abi.encodePacked(type(NewContract).creationCode, abi.encode(constructorParams...)))
+        )))));
+```
 
 ### 2024.10.04
 
@@ -680,7 +1056,3 @@ End of WTF Solidity 101
 ### 2024.10.10
 
 <!-- Content_END -->
-
-```
-
-```

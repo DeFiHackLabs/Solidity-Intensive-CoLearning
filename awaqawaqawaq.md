@@ -131,4 +131,115 @@ storage（合约的状态变量）赋值给本地storage（函数里的）,memor
         initcode: 新合约的初始字节码（合约的Creation Code和构造函数的参数）。
     - 新地址 = hash("0xFF",创建者地址, salt, initcode)
     - Contract x = new Contract{salt: _salt, value: _value}(params)
+### 2024.09.30
+- selfdestruct
+    -  selfdestruct命令可以用来删除智能合约，并将该合约剩余ETH转到指定地址。
+    - 在以太坊坎昆（Cancun）升级中，EIP-6780被纳入升级以实现对Verkle Tree更好的支持。EIP-6780减少了SELFDESTRUCT操作码的功能。 **已经部署的合约无法被SELFDESTRUCT了。 如果要使用原先的SELFDESTRUCT功能，必须在同一笔交易中创建并SELFDESTRUCT。**
+    - selfdestruct(payable(msg.sender));
+    - 使用selfdestruct()函数删除合约时，合约中的所有状态变量都会被删除，但合约中的函数仍然可以访问这些状态变量。因此，在删除合约之前，应该确保所有状态变量都被正确地处理。
+    - 对外提供合约销毁接口时，最好设置为只有合约所有者可以调用，可以使用函数修饰符onlyOwner进行函数声明。
+    当合约中有selfdestruct功能时常常会带来安全问题和信任问题，合约中的selfdestruct功能会为攻击者打开攻击向量(例如使用selfdestruct向一个合约频繁转入token进行攻击，这将大大节省了GAS的费用，虽然很少人这么做)，此外，此功能还会降低用户对合约的信心。
+
+- ABI编码
+    -  ABI（Application Binary Interface）是以太坊和其他区块链平台中用于定义智能合约与外部应用程序（如前端、其他合约）之间交互的规范。
+    -  abi.encode, 
+    -  abi.encodePacked, //压缩数据，无法正常交互
+    -  abi.encodeWithSignature, 
+    -  abi.encodeWithSelector
+    -  abi.encodeWithSelector(bytes4(0x533ba33a));**通过abi函数选择器，address(contract).staticcall(data)来调用相关函数**
+-  Hash
+    -  生成数据唯一标识
+    -  Solidity使用keccak256，返回一个32字节的哈希值。
+
+### 2024.10.01
+-  Selector
+    -  4字节的函数选择器，**也就是8个16进制位**，用于标识函数
+    - msg.data 储存完整的calldata
+    -  bytes4(keccak256("transfer       (address,uint256)"))
+    - 映射类型参数 contract、enum、struct等，需要将该类型转化成为ABI类型。如：结构体User需要转化为tuple类型(uint256,bytes)，枚举类型School需要转化为uint8
+-  call
+    -  address(contract).call(data)
+    -  address(contract).call{value: 1 ether}(data)
+    -  address(contract).call{gas: 100000}(data)
+- Try Catch
+    -  try address(contract).call(data) returns (bool success, bytes memory returnData) {
+        // 处理返回值
+    } catch Error(string memory reason) {
+        // 处理错误
+         // catch失败的 revert() 和 require()
+    } catch (bytes memory) {
+        // 处理其他类型的错误
+        // catch失败的 assert()
+
+    }
+-  Revert
+    -  revert("Error message");
+### 2024.10.02
+- 写了简单的实现erc20接口的合约和faucet 合约 ，并通过remix测试合约功能
+```solidity
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0 <0.9.0;
+import "./IERC20.sol";
+
+contract Faucet {
+    event  SendToken(address indexed _to, uint indexed_value);
+    address public tokenAddress;
+    uint public amount=1000;
+    mapping(address=>bool) public requestedAddresses;
+    constructor(address _tokenAddress){
+        tokenAddress = _tokenAddress;
+    }
+    function requestTokens() external returns (bool) {
+        require(!requestedAddresses[msg.sender],"fuck you looser!");
+        IERC20 tokens = IERC20(tokenAddress);
+        require(tokens.balanceOf(address(this))>=amount,":(");
+        tokens.transfer(msg.sender, amount);
+        requestedAddresses[msg.sender] = true;
+        emit SendToken(msg.sender, amount);
+        return true;
+    }
+}
+contract MyTokenTest is IERC20 {
+    mapping (address => uint256) public override balanceOf;
+    mapping (address => mapping (address => uint256)) public override allowance;
+    uint256 public override totalSupply;
+    string public name ;
+    string public symbol ;
+    uint8 public decimals = 18;
+    constructor(string memory _name, string memory _symbol, uint256 _initialSupply) {
+        name = _name;
+        symbol = _symbol;//不能用this.name=_name;
+        totalSupply = _initialSupply ;
+    }
+    function transfer(address reciver, uint256 _value) public override returns (bool) {
+        balanceOf[msg.sender] -= _value;
+        balanceOf[reciver] += _value;
+        emit Transfer(msg.sender, reciver, _value);
+        return true;
+    }
+    function approve(address _spender, uint256 _value) public override returns (bool) {
+        allowance[msg.sender][_spender] = _value;
+        emit Approval(msg.sender, _spender, _value);
+        return true;
+    }
+    function transferFrom(address _from, address _to, uint256 _value) public override returns (bool success) {
+        require(allowance[_from][msg.sender] >= _value);
+        allowance[_from][msg.sender] -= _value;
+        balanceOf[_from] -= _value;
+        balanceOf[_to] += _value;
+        return true;
+    }
+    function mint(uint _value) external {
+        balanceOf[msg.sender] += _value;
+        totalSupply += _value;
+        emit Transfer(address(0), msg.sender, _value);
+    }
+    function burn(uint _value) external {
+        balanceOf[msg.sender] -= _value;
+        totalSupply -= _value;
+        emit Transfer(msg.sender, address(0), _value);
+    }
+
+}
+```
 <!-- Content_END -->

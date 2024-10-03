@@ -324,6 +324,300 @@ timezone: Asia/Shanghai
 
 ---
 
+### 2024.09.30
+
+#### 学习内容 10. 控制流，用Solidity实现插入排序
+
+1. 控制流
+
+    - if-else
+
+    - for
+
+    - while
+
+    - do-while
+
+    - 三元运算符
+
+    - 循环中有 continue 和 break 关键字
+
+2. solidity 插入排序
+
+    - solidity 中 uint 是正整数,无法取到负值,否则报 underflow 错误
+
+    - ```solidity
+        function insertionSort(
+                uint[] memory a
+            ) public pure returns (uint[] memory) {
+                for (uint i = 1; i < a.length; i++) {
+                    uint temp = a[i];
+                    uint j = i;
+                    while ((j >= 1) && (temp < a[j - 1])) {
+                        a[j] = a[j - 1];
+                        j--;
+                    }
+                    a[j] = temp;
+                }
+                return (a);
+            }
+        ```
+
+    - 
+
+3. 合约部署
+
+    - ![image-20240930160402267](content/Aris/image-20240930160402267.png)
+
+4. 第 10 节测验得分: 100, 答案: CBAEDABC
+
+#### 学习内容 11. 构造函数和修饰器
+
+1. 构造函数
+
+    - constructor,特殊函数,合约中只有一个,且部署合约时只允许一次;
+
+    - 构造函数中可以初始化合约的参数;
+
+2. 修饰器
+
+    - modifier,声明函数拥有的特性,见到代码冗余
+
+    - ```solidity
+        // 定义modifier
+        modifier onlyOwner {
+           require(msg.sender == owner); // 检查调用者是否为owner地址
+           _; // 如果是的话，继续运行函数主体；否则报错并revert交易
+        }
+        ```
+
+    - 
+
+3. 合约部署
+
+    - ![image-20240930162152729](content/Aris/image-20240930162152729.png)
+
+4. 第 11 节测验得分: 100, 答案: BBADB
+
+---
+
+### 2024.10.01
+
+#### 学习内容 12. 事件
+
+1. 事件
+
+    - solidity 中的事件是 evm 上日志的抽象
+
+        - 响应: 应用程序可以通过 RPC 接口订阅和监听这些事件,并做出相应;
+
+        - 经济: 事件是 EVM 上比较经济的存储数据的方式,每个大约消耗 2000gas;(链上存储一个新变量最少 20000gas)
+
+    - 声明事件
+
+        - 事件的声明由 event 关键字开头,事件名,括号中是变量类型和变量名;
+
+        - ```solidity
+            event Transfer(address indexed from, address indexed to, uint256 value);
+            ```
+
+            - from: 代币转账地址
+            - to: 代币接收地址
+            - value: 转账数量
+
+        - indexed 关键字: 保存在 EVM 日志的 topics 中,方便检索;
+
+    - 释放事件
+
+        - 使用 emit 释放事件
+
+        - ```solidity
+            emit Transfer(from, to, amount);
+            ```
+
+2. EVM 日志 Log
+
+    - 日志包含 主题topics 和数据(data)两部分
+
+    - ![image-20241001090753640](content/Aris/image-20241001090753640.png)
+
+    - 主题 topics
+
+        - 日志第一部分是主题数组,用于描述事件,最大 4;
+
+            - 第一个元素是事件签名哈希
+
+                - ```solidity
+                    keccak256("Transfer(address,address,uint256)")
+                    //0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+                    ```
+
+            - 主题能包含最多 3 个 indexed 参数 (事件参数中标记 indexed 的from,to)
+
+            - indexed 标记的参数是索引"键",方便搜索.
+
+            - 每个 indexed 参数大小固定 256 比特,超过(例如字符串)则自动计算哈希存储在主题中;
+
+    - 数据 data
+
+        - 事件中不带 indexed 的参数存储在 data 部分,可以理解为"值";
+        - data 变量不能被直接检索,但可以存储任意大小的数据;
+        - 因此一般 data 部分可以存储复杂的数据结构(例如数组,字符串)
+            - 因为这些数据超过了256比特，即使存储在事件的 `topics` 部分中，也是以哈希的方式存储。
+
+        - data 部分的变量数据存储消耗的 gas 比 topics 少.
+
+3. 合约部署
+
+    - ![image-20241001090658062](content/Aris/image-20241001090658062.png)
+
+4. 第 12 节测验得分: 100, 答案: CABBA
+
+    - ![image-20241001091555412](content/Aris/image-20241001091555412.png)
+
+
+---
+
+### 2024.10.02
+
+#### 学习内容 13. 继承
+
+1. 继承规则
+
+    - virturl:父合约中的函数,如果希望子合约重写,需要加上 virtual 关键字
+
+    - override:子合约重写了父合约中的函数,需要加上 override 关键字
+
+    - 用 override 修饰 public 变量,会重写与变量同名的 getter 函数
+
+        - ```solidity
+            mapping(address => uint256) public override balanceOf;
+            ```
+
+2. 简单继承
+
+    - Yeye合约,方法添加 virtual 关键字
+    - `contract Baba is Yeye` Baba 合约使用 `is` 关键字
+
+3. 多重继承
+
+    - solidity 中合约可以继承多个合约
+    - 继承时,按辈分高低从左向右排列 `contract Erzi is Yeye, Baba`
+    - 如果某函数在多个继承合约都存在,则子合约中必须重写
+    - 子合约重写`父合约中都重名的函数`时,override 关键字后面加上所有父合约名字 `override(Yeye,Baba)`
+
+4. 修饰器的继承
+
+    - Modifier可以被继承,添加 virtual 和 override 关键字;
+    - 子合约也可以在代码中修改Modifier
+
+5. 构造函数的继承
+
+    - ```solidity
+        // 构造函数的继承
+        abstract contract A {
+            uint public a;
+        
+            constructor(uint _a) {
+                a = _a;
+            }
+        }
+        ```
+
+    - ```solidity
+    // 在继承时声明父构造函数的参数   
+        contract B is A(1) {}
+      ```
+
+    - ```solidity
+        // 在子合约的构造函数中声明构造函数的参数
+        contract C is A {
+            constructor(uint _c) A(_c * _c) {}
+        }
+        ```
+        
+    - 
+
+6. 调用父合约的函数
+
+    - 直接调用: `父合约名.函数名()`
+    - super 关键字: `super.函数名()` ,super 是最右边的父合约(继承关系最近)
+
+7. 钻石继承
+
+    - 钻石继承（菱形继承）指一个派生类同时有两个或两个以上的基类
+    - 在多重+菱形继承链条上使用`super`关键字时，需要注意的是使用`super`会调用继承链条上的每一个合约的相关函数，而不是只调用最近的父合约。
+    - 钻石顶部的合约只被调用一次.
+        - 原因是`Solidity`借鉴了Python的方式，强制一个由基类构成的DAG（有向无环图）使其保证一个特定的顺序
+
+8. 合约部署-继承
+
+    - ![image-20241002143753122](content/Aris/image-20241002143753122.png)
+
+9. 合约部署-修饰器
+
+    - ![image-20241002144111654](content/Aris/image-20241002144111654.png)
+
+10. 合约部署-钻石继承
+
+    - ![image-20241002144424758](content/Aris/image-20241002144424758.png)
+
+11. 第 13 节测验得分: 100, 答案: ABBBACC
+
+---
+
+### 2024.10.03
+
+#### 学习内容 14. 抽象合约和接口
+
+1. 抽象合约
+    - 如果一个智能合约里至少有一个未实现的函数，即某个函数缺少主体`{}`中的内容，则必须将该合约标为`abstract`，不然编译会报错;
+
+    - 未实现的函数需要加`virtual`，以便子合约重写;
+
+2. 接口
+    - 不能包含状态变量
+    - 不能包含构造函数
+    - 不能继承除接口外的其他合约
+    - 所有函数都必须是external且不能有函数体
+    - 继承接口的非抽象合约必须实现接口定义的所有功能
+    - 虽然接口不实现任何功能，但它非常重要。接口是智能合约的骨架，定义了合约的功能以及如何触发它们
+        - 合约里每个函数的`bytes4`选择器，以及函数签名`函数名(每个参数类型）`;
+        - 接口id
+
+    - 接口与合约`ABI`（Application Binary Interface）等价，可以相互转换;
+
+3. IERC721 事件
+    - `ransfer`事件：在转账时被释放，记录代币的发出地址`from`，接收地址`to`和`tokenId`。
+    - `Approval`事件：在授权时被释放，记录授权地址`owner`，被授权地址`approved`和`tokenId`。
+    - `ApprovalForAll`事件：在批量授权时被释放，记录批量授权的发出地址`owner`，被授权地址`operator`和授权与否的`approved`。
+
+4. IERC721 接口
+    - `balanceOf`：返回某地址的NFT持有量`balance`。
+    - `ownerOf`：返回某`tokenId`的主人`owner`。
+    - `transferFrom`：普通转账，参数为转出地址`from`，接收地址`to`和`tokenId`。
+    - `safeTransferFrom`：安全转账（如果接收方是合约地址，会要求实现`ERC721Receiver`接口）。参数为转出地址`from`，接收地址`to`和`tokenId`。
+    - `approve`：授权另一个地址使用你的NFT。参数为被授权地址`approve`和`tokenId`。
+    - `getApproved`：查询`tokenId`被批准给了哪个地址。
+    - `setApprovalForAll`：将自己持有的该系列NFT批量授权给某个地址`operator`。
+    - `isApprovedForAll`：查询某地址的NFT是否批量授权给了另一个`operator`地址。
+    - `safeTransferFrom`：安全转账的重载函数，参数里面包含了`data`。
+
+5. 什么时候使用接口
+    - 如果我们知道一个合约实现了标准接口，我们不需要知道它具体代码实现，就可以与它交互。
+
+6. 合约部署-接口
+    - ![image-20241003082730554](content/Aris/image-20241003082730554.png)
+
+7. 合约部署-抽象合约
+    - ![image-20241003082910336](content/Aris/image-20241003082910336.png)
+
+8. 第 14 节测验得分: 100, 答案: ABEEAAA
+
+---
+
+
+
 
 
 <!-- Content_END -->

@@ -505,8 +505,234 @@ contract MappingExample {
 }
 
 ```
+##### 测验结果
+- 100/100
 
 ### 2024.09.30
 #### WTF Academy Solidity 101.8 变量初始值
+
+##### 变量初始值
+- 在Solidity中，声明但没赋值的变量都有它的初始值或默认值。
+- 值类型初始值
+  - `uint` 初始值为 `0`
+  - `int` 初始值为 `0`
+  - `bool` 初始值为 `false`
+  - `address` 初始值为 `address(0)`
+  - `bytes1` 到 `bytes32`（固定大小的 bytes）：0x00（对应长度的字节）
+  - `enum` 初始值为 `0`
+- 引用类型初始值
+  - `bytes` 初始值为 `bytes("")`
+  - `string` 初始值为 `""`
+  - `struct` 初始值为 `struct` 的默认值
+  - `array` 初始值为 `array(length => 0)`，即`[]`
+  - `mapping` 初始值为 `mapping(key => value)` 的默认值
+  
+- `delete a`会让变量a的值变为初始值
+
+##### 测验结果
+- 80/100
+- 100/100
+
+##### 测验错题
+- bytes1的初始值是`0x00`
+
+### 2024.10.01
+#### WTF Academy Solidity 101.9 常数 constant和immutable
+- 这两个关键字在 Solidity 中都用于定义不可修改的变量，但它们有一些显著区别。
+##### Constant
+- **定义**: `constant` 变量必须在声明时就初始化，之后不能再改变其值。如果尝试修改，编译将失败。
+- **存储**: `constant` 变量的值会在编译时被硬编码进字节码中，因此它们不占用合约的存储空间。这也意味着这些值不会因为部署合约而消耗额外的 `gas`。
+- **应用场景**: 适用于那些在合约整个生命周期内都不会改变的常量值。
+
+##### Immutable
+- **定义**: `immutable` 变量与 `constant` 变量类似，它们的值也不可修改，但 `immutable` 变量可以在**构造函数中**进行初始化（赋值），而不必在声明时直接赋值。这使得 `immutable` 变量更加灵活。
+- **存储**: 与 `constant` 不同，`immutable` 变量的值会被保存在合约的存储空间中。虽然它们在合约运行时不可修改，但因为它们的值是在部署时动态确定的，所以需要消耗 `gas` 来存储。
+- **应用场景**: 当变量的值需要在部署时根据某些条件动态决定（如部署合约时的区块号或合约地址），但在合约运行期间又不希望这些值被修改时，适合使用 `immutable`。
+
+  ```Solidity
+  contract MyContract {
+      uint256 public immutable DEPLOY_BLOCK;
+      address public immutable OWNER;
+
+      constructor() {
+          DEPLOY_BLOCK = block.number;  // 部署时的区块号
+          OWNER = msg.sender;           // 部署合约的地址
+      }
+  }
+  ```
+  在这个例子中，`DEPLOY_BLOCK` 和 `OWNER` 是 `immutable` 变量，它们的值在合约部署时由 `constructor` 初始化，并且一旦赋值就不能再改变。
+
+##### **`constant` vs `immutable` 的具体区别**
+
+| 特性 | `constant` | `immutable` |
+| --- | --- | --- |
+| **赋值时机** | 必须在声明时赋值 | 可以在声明时或构造函数中赋值 |
+| **修改** | 无法修改 | 在构造函数中初始化后无法修改 |
+| **存储位置** | 编译时直接写入字节码，不占用存储空间 | 值存储在合约存储中，部署时确定，消耗少量 `gas` |
+| **使用场景** | 用于固定的、绝对不变的常量值 | 用于部署时动态确定、之后不可更改的值 |
+
+##### 测验结果
+- 80/100
+- 100/100
+
+##### 测验错题
+**`immutable` 变量不能在声明时通过字符串字面量初始化**
+- 在声明 `immutable` 变量时，如果试图直接用字符串（如 `"hello world"`）进行初始化，会报错。原因是 `string` 是一种 **引用类型**，它的值在内存或存储中会涉及更多的动态分配。
+- `immutable` 变量的初始化需要在**运行时**进行，比如通过构造函数或函数调用来赋值。而**字符串字面量**在 Solidity 中不能直接作为 `immutable` 变量的初始化值，因为这种分配在编译期间还不能确定最终的内存位置。
+
+**错误示例**
+
+```solidity
+// 报错：immutable 变量不能通过字符串字面量初始化
+string immutable myString = "hello world";
+```
+**引用类型需要在构造函数或通过计算赋值**
+- 由于 `immutable` 变量的初始化要在**运行时**进行，因此在声明引用类型的 `immutable` 变量时，应该通过构造函数初始化，而不是直接在声明时赋值。
+
+**正确示例**
+
+```solidity
+contract MyContract {
+    string immutable myString;
+
+    // 通过构造函数初始化 immutable 变量
+    constructor(string memory _input) {
+        myString = _input;
+    }
+}
+```
+### 2024.10.02
+#### WTF Academy Solidity 101.10 控制流
+
+##### 逻辑控制
+  1. `if-else`判断
+      - **Solidity** 的 `if-else` 语法和 **Python** 几乎完全一样，只是需要使用 **大括号 `{}`** 来包围代码块，而 **Python** 是通过缩进来表示代码块的。
+        ```Solidity
+        // Solidity
+        if (condition) {
+            // 如果条件为真，执行此代码块
+        } else {
+            // 否则，执行此代码块
+        }
+        ```
+        ```python
+        # Python
+        if condition:
+            # 如果条件为真，执行此代码块
+        else:
+            # 否则，执行此代码块
+        ```
+  2. `for`循环
+      - **Solidity** 使用 C 风格的 `for` 循环，需要明确地指定初始化、条件和增量/减量表达式。
+        - 在 Solidity 中，循环条件 `(i < 10)` 每次迭代都会被检查，而增量 `i++` 在每次循环结束时执行。变量类型如 `uint` 必须在循环前定义。
+      - **Python** 的 `for` 循环通常用于遍历列表或迭代器，语法更简洁。
+        ```solidity
+        // Solidity
+        for (uint i = 0; i < 10; i++) {
+            // 在每次迭代时，执行此代码块
+        }
+        ```
+
+        **Python 示例**：
+
+        ```python
+        # Python
+        for i in range(10):
+            # 在每次迭代时，执行此代码块
+        ```
+  3. `while`循环
+      - **Solidity** 和 **Python** 的 `while` 循环也是相似的，但 **Solidity** 需要用 `{}` 来定义代码块。
+        ```solidity
+        // Solidity
+        uint i = 0;
+        while (i < 10) {
+            // 执行代码块
+            i++;
+        }
+        ```
+        ```python
+        # Python
+        i = 0
+        while i < 10:
+            # 执行代码块
+            i += 1
+
+      ```
+  4. `do-while`循环
+      - **Solidity** 中有 `do-while` 循环，这是 **Python** 没有的语法结构。`do-while` 循环会先执行一次循环体，然后再检查条件。
+        - **`do-while` 的特点**：即使条件最开始不成立，代码块也会执行一次。
+        ```solidity
+        // Solidity
+        uint i = 0;
+        do {
+            // 先执行一次代码块
+            i++;
+        } while (i < 10);
+
+        ```
+  5. 三元运算符
+      - **Solidity** 和 **Python** 都支持三元运算符，但写法不同。三元运算符允许简洁地表达 `if-else` 语句。
+      - **Solidity** 采用 C 风格的语法，`? :` 用来表示条件语句，而 **Python** 则是用 `if-else` 的自然语言表达。
+        ```solidity
+        // Solidity
+        uint max = (x >= y) ? x : y;
+        ```
+        ```python
+        # Python
+        max = x if x >= y else y
+        ```
+
+##### 控制流与插入排序
+```solidity
+function insertionSort(uint[] memory a) public pure returns (uint[] memory) {
+    for (uint i = 1; i < a.length; i++) {  // for循环：从第2个元素开始逐个比较
+        uint temp = a[i];  // 当前需要插入的值
+        uint j = i;        // j 用来记录当前元素的插入位置
+
+        // while循环：将当前元素与前面的已经排序部分逐个比较
+        while ((j >= 1) && (temp < a[j - 1])) {
+            a[j] = a[j - 1];  // 如果当前元素小于前一个元素，前一个元素向后移
+            j--;  // j 递减，继续向前比较
+        }
+
+        // 插入到正确位置
+        a[j] = temp;
+    }
+
+    return a;
+}
+
+```
+1. **`for` 循环**：
+    - 这段代码使用了 `for` 循环从数组的第二个元素（`i = 1`）开始，逐个将元素与前面的元素进行比较。
+    - 每次循环的迭代，都会从 `a[i]` 取出当前要插入的值，并通过 `while` 循环找到合适的位置插入。
+2. **`while` 循环**：
+    - `while` 循环是插入排序的核心部分，它通过不断递减 `j`，将当前要插入的元素（`temp`）与前面的元素逐一比较。
+    - 当 `temp < a[j - 1]` 时，意味着 `temp` 需要插入在 `a[j - 1]` 的前面，因此要将 `a[j - 1]` 向后移动一位。
+    - 当 `while` 条件不满足时（即 `temp >= a[j - 1]`），循环结束，此时 `temp` 被插入到正确的位置。
+3. **控制循环中的变量**：
+    - 在 **Solidity** 中，`uint` 是无符号整数，因此 `j` 不能小于 0，这就是为什么我们要确保 `j >= 1` 的原因，避免下溢错误（underflow）。
+    - 每次迭代，`temp` 会被插入到合适的位置，直到所有元素都被正确排序。
+4. **注意事项**
+    - **Solidity** 需要显式定义变量类型（如 `uint`），而 **Python** 是动态类型的，不需要显式声明。
+    - **`uint` 类型的处理**：在 **Solidity** 中，由于 `uint` 是无符号整数，不能为负数，所以在控制流的设计上要格外小心，避免出现下溢错误。而 **Python** 中，整数可以是负数。
+
+##### 测验结果
+- 87/100
+- 100/100
+
+##### 测验错题
+- 正确的排序算法
+
+### 2024.10.03
+#### WTF Academy Solidity 101.11 构造函数和修饰器
+
+##### 笔记
+
+
+##### 测验结果
+
+
+##### 测验错题
 
 <!-- Content_END -->

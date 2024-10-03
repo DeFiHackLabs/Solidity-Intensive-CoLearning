@@ -86,5 +86,23 @@ mapping(uint => address) public i2addr;
 ```
 + 心得: 這章有講到mapping規則和原理但我對其沒感覺，之後再回頭看。
 
+### 2024.09.30
+學習內容: `8.Initial Value`
++ 宣告過但還沒被賦值的變數都有預設值。可用`getter()`驗證初始值。
++ 怎麼變回初始值? `delete a`會讓a的值變回初始值。
+
+### 2024.10.01
+學習內容: `9.Constant和immutable`
++ 和其他程式語言相同，constant不可變，immutable可變。
++ constant宣告時須先初始化(賦值)，immutable則不用。
+
+### 2024.10.02
+學習內容: `10.Insertion Sort`
++ 作者特別強調90%的人在Solidity寫插入算法都會出錯。
++ A: 情境: 若宣告`uinit j=i-1`，則當`j=0`時會出錯`underflow`，原因是`uinit是正整數不得為0`
++ 介紹`if-else`,`for`,`while`,`do-while`
++ 介紹三元運算符:`條件?真表達式:假表達式`
+
++ 心得: 不一定要是插入排序，只要是uint的值切記不得為0。
 
 <!-- Content_END -->

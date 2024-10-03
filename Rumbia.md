@@ -371,4 +371,148 @@ delete a会让变量a的值变为初始值。
 
 
 ###
+
+###  2024.09.30
+# constant and immutable 
++ Constant常量和immutable不变量 使用变量声明这俩关键字后，不能在初始化函数之后更改数值
++ 提高**合约安全性**
++ **节省gas**
+
+## constant
+- 必须在声明的时候初始化，之后也不能改变！！
+- 尝试改变就会报错！
+```solidity
+
+uint constant a=99;
+uint constant address=0x0x0000000000000000000000000000000000000078;
+
+```
+# immutable
++ 可以在声明时 或者 在 构造函数**constuctor**中初始化
+``` solidity
+contract MyContract {
+    uint immutable c;
+
+    constructor(uint _value) {
+        c = _value;
+    }
+}
+
++ 可以使用全局变量例如**address(this)**，**block.number **或者自定义的函数给immutable变量初始化
+
+```
+
+###
+
+###  2024.10.01
+# 控制流
+
+## 一、条件语句（if-else）
+
+```solidity
+if (condition) {
+    // 条件为真时执行的代码
+} else {
+    // 条件为假时执行的代码
+}
+```
+
+## 二、循环语句（for、while、do-while）
+### 1. for 循环
+```solidity
+for (initialization; condition; increment) {
+    // 循环体代码
+}
+```
++ initialization：初始化循环变量。
++ condition：循环继续的条件。
++ increment：在每次循环迭代后执行的操作，通常用于更新循环变量。
+### 2. while 循环
+```solidity
+
+while (condition) {
+    // 循环体代码
+}
+```
++ 只要条件为真，就会一直执行循环体。
+### 3. do-while 循环
+```solidity
+
+do {
+    // 循环体代码
+} while (condition);
+```
++ 先执行一次循环体，然后再检查条件是否为真，如果为真则继续循环。
+
+## 三、开关语句（switch）
+```solidity
+
+switch (expression) {
+    case value1:
+        // 当 expression 等于 value1 时执行的代码
+        break;
+    case value2:
+        // 当 expression 等于 value2 时执行的代码
+        break;
+    default:
+        // 当 expression 不等于任何 case 值时执行的代码
+}
+```
+###
+###  2024.10.01
+# 一、构造函数
+- 构造函数是在合约创建时被自动调用的特殊函数，用于初始化合约的状态变量。
+- 可以设置合约的初始状态，例如初始化变量的值、设置权限等。
+- 确保合约在创建时处于一个合理的初始状态，方便后续的使用和交互。
+
+```solidity
+    contract MyContract {
+        uint public myVariable;
+
+        constructor(uint _initialValue) {
+            myVariable = _initialValue;
+        }
+    }
+```
+
+# 二、修饰器
+修饰器是一种可以用来修改函数行为的特殊函数。它可以在函数执行前或执行后添加额外的逻辑。
+
+- 可以实现代码的复用，避免在多个函数中重复编写相同的逻辑。
+- 可以对函数的输入参数进行验证，提高合约的安全性。
+- 可以在函数执行前后记录日志、进行权限检查等操作。
+
+```solidity
+    modifier onlyOwner {
+        require(msg.sender == owner, "Only the owner can call this function.");
+        _;
+    }
+    function myFunction() onlyOwner {
+        // Function body
+    }
+//带有onlyOwner修饰符的函数只能被owner地址调用
+```
+- 多个修饰器的使用：可以在一个函数上同时使用多个修饰器，它们会按照顺序依次执行。
+
+```solidity
+    modifier modifier1 {
+        // Modifier 1 logic
+        _;
+    }
+
+    modifier modifier2 {
+        // Modifier 2 logic
+        _;
+    }
+
+    function myFunction() modifier1 modifier2 {
+        // Function body
+    }
+```
++ myFunction函数会先执行modifier1的逻辑，然后执行modifier2的逻辑，最后执行函数本身的逻辑。
+
+
+### 
+
+
 <!-- Content_END -->

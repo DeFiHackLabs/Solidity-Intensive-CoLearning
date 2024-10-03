@@ -59,4 +59,12 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 [Note for Solidity 101 Ch8-9](https://warp-icecream-5ae.notion.site/Ch8-9-10e6892cc8a68065a1d7c73973f9b1c8) 
 ### 2024.09.27
 [Note for Solidity 101 Ch8-10](https://warp-icecream-5ae.notion.site/Ch8-9-10e6892cc8a68065a1d7c73973f9b1c8) 
+### 2024.09.30
+[Note for Solidity 101 Ch11-12](https://warp-icecream-5ae.notion.site/Ch11-12-10f6892cc8a680a58593e4e02ef164b7) 
+### 2024.10.01
+[Note for Solidity 101 Ch13-15](https://warp-icecream-5ae.notion.site/CH13-15-1136892cc8a680b98828ff1d89d5051e) 
+### 2024.10.02
+[Note for Solidity 102 Ch16](https://warp-icecream-5ae.notion.site/CH16-1136892cc8a680e7833dc9fe54521046) <br>
+reviewed Solidity 101 ch13-15 and refined the previous note
+
 <!-- Content_END -->

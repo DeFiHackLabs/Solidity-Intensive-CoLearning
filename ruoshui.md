@@ -364,7 +364,366 @@ function saySomething(string memory something) public pure returns(string memory
     return(something);
 }
 ```
+### 2024.09.29
+29号的笔记找不到了，学了库合约和 `import`的使用，贴两段昨天的练习代码
 
-### 
+```solidity
+
+import "@openzeppelin/contracts/utils/Strings.sol";
+
+// 用函数调用另一个库合约
+contract UseLibrary{    
+    // 利用using for操作使用库
+    using Strings for uint256;
+    function getString1(uint256 _number) public pure returns(string memory){
+        // 库函数会自动添加为uint256型变量的成员
+        return _number.toHexString();
+    }
+
+    // 直接通过库合约名调用
+    function getString2(uint256 _number) public pure returns(string memory){
+        return Strings.toHexString(_number);
+    }
+}
+```
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+// 通过文件相对位置import
+import './Yeye.sol';
+// 通过`全局符号`导入特定的合约
+import {Yeye} from './Yeye.sol';
+// 通过网址引用
+import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+// 引用OpenZeppelin合约
+import '@openzeppelin/contracts/access/Ownable.sol';
+
+contract UseImport {
+    // 成功导入Address库
+    using Address for address;
+    // 声明yeye变量
+    Yeye yeye = new Yeye();
+
+    // 测试是否能调用yeye的函数
+    function test() external{
+        yeye.hip();
+    }
+}
+```
+### 2024.09.30
+1、`solidity` 中有两个特殊的函数 `receive` 和 `fallback` 用于接收 `ETH` 和简单逻辑处理，均不需要 `function` 关键字
+
+区别：合约接收 `ETH` 时，`msg.data` 为空且存在 `receive()` 时，会触发 `receive()`；`msg.data` 不为空或不存在 `receive()` 时，会触发 `fallback()`，此时 `fallback()` 必须为 `payable`。
+
+`receive()` 和 `payable fallback()` 均不存在的时候，向合约直接发送 `ETH` 将会报错（你仍可以通过带有 `payable` 的函数向合约发送ETH）。
+
+2、三种发送 ETH 方法
+
+- `call`没有`gas`限制，最为灵活，是最提倡的方法；
+- `transfer`有`2300 gas`限制，但是发送失败会自动`revert`交易，是次优选择；
+- `send`有`2300 gas`限制，而且发送失败不会自动`revert`交易，几乎没有人用它。
+  
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+// 3种方法发送ETH
+// transfer: 2300 gas, revert
+// send: 2300 gas, return bool
+// call: all gas, return (bool, data)
+
+error SendFailed(); // 用send发送ETH失败error
+error CallFailed(); // 用call发送ETH失败error
+
+contract SendETH {
+    // 构造函数，payable使得部署的时候可以转eth进去
+    constructor() payable{}
+    // receive方法，接收eth时被触发
+    receive() external payable{}
+
+    // 用transfer()发送ETH
+    function transferETH(address payable _to, uint256 amount) external payable{
+        _to.transfer(amount);
+    }
+
+    // send()发送ETH
+    function sendETH(address payable _to, uint256 amount) external payable{
+        // 处理下send的返回值，如果失败，revert交易并发送error
+        bool success = _to.send(amount);
+        if(!success){
+            revert SendFailed();
+        }
+    }
+
+    // call()发送ETH
+    function callETH(address payable _to, uint256 amount) external payable{
+        // 处理下call的返回值，如果失败，revert交易并发送error
+        (bool success,) = _to.call{value: amount}("");
+        if(!success){
+            revert CallFailed();
+        }
+    }
+}
+
+contract ReceiveETH {
+    // 收到eth事件，记录amount和gas
+    event Log(uint amount, uint gas);
+
+    // receive方法，接收eth时被触发
+    receive() external payable{
+        emit Log(msg.value, gasleft());
+    }
+    
+    // 返回合约ETH余额
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+}
+```
+### 2024.10.01
+1、通过目标合约代码或接口，调用目标合约的函数
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract OtherContract {
+    uint256 private _x = 0; // 状态变量x
+    // 收到eth事件，记录amount和gas
+    event Log(uint amount, uint gas);
+    
+    // 返回合约ETH余额
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+
+    // 可以调整状态变量_x的函数，并且可以往合约转ETH (payable)
+    function setX(uint256 x) external payable{
+        _x = x;
+        // 如果转入ETH，则释放Log事件
+        if(msg.value > 0){
+            emit Log(msg.value, gasleft());
+        }
+    }
+
+    // 读取x
+    function getX() external view returns(uint x){
+        x = _x;
+    }
+}
+
+contract CallContract{
+    function callSetX(address _Address, uint256 x) external{
+        OtherContract(_Address).setX(x);
+    }
+
+    function callGetX(OtherContract _Address) external view returns(uint x){
+        x = _Address.getX();
+    }
+
+    function callGetX2(address _Address) external view returns(uint x){
+        OtherContract oc = OtherContract(_Address);
+        x = oc.getX();
+    }
+
+    function setXTransferETH(address otherContract, uint256 x) payable external{
+        OtherContract(otherContract).setX{value: msg.value}(x);
+    }
+}
+```
+2、利用 `call` 调用其他合约
+```solidity
+
+contract Call{
+    // 定义Response事件，输出call返回的结果success和data
+    event Response(bool success, bytes data);
+
+    function callSetX(address payable _addr, uint256 x) public payable {
+        // call setX()，同时可以发送ETH
+        (bool success, bytes memory data) = _addr.call{value: msg.value}(
+            abi.encodeWithSignature("setX(uint256)", x)
+        );
+
+        emit Response(success, data); //释放事件
+    }
+
+    function callGetX(address _addr) external returns(uint256){
+        // call getX()
+        (bool success, bytes memory data) = _addr.call(
+            abi.encodeWithSignature("getX()")
+        );
+
+        emit Response(success, data); //释放事件
+        return abi.decode(data, (uint256));
+    }
+
+    function callNonExist(address _addr) external{
+        // call 不存在的函数，call仍能执行成功，并返回success，但其实调用的目标合约fallback函数。
+        (bool success, bytes memory data) = _addr.call(
+            abi.encodeWithSignature("foo(uint256)")
+        );
+
+        emit Response(success, data); //释放事件
+    }
+}
+```
+### 2024.10.02
+1、`delegatecall` 示例，和 `call` 不一样，`delegatecall` 在调用合约时可以指定交易发送的gas，但不能指定发送的ETH数额
+
+```solidity
+// delegatecall和call类似，都是低级函数
+// call: B call C, 上下文为 C (msg.sender = B, C中的状态变量受影响)
+// delegatecall: B delegatecall C, 上下文为B (msg.sender = A, B中的状态变量受影响)
+// 注意B和C的数据存储布局必须相同！变量类型、声明的前后顺序要相同，不然会搞砸合约。
+
+// 被调用的合约C
+contract C {
+    uint public num;
+    address public sender;
+
+    function setVars(uint _num) public payable {
+        num = _num;
+        sender = msg.sender;
+    }
+}
+
+// 发起delegatecall的合约B
+contract B {
+    uint public num;
+    address public sender;
+
+    // 通过call来调用C的setVars()函数，将改变合约C里的状态变量
+    function callSetVars(address _addr, uint _num) external payable{
+        // call setVars()
+        (bool success, bytes memory data) = _addr.call(
+            abi.encodeWithSignature("setVars(uint256)", _num)
+        );
+    }
+    // 通过delegatecall来调用C的setVars()函数，将改变合约B里的状态变量
+    function delegatecallSetVars(address _addr, uint _num) external payable{
+        // delegatecall setVars()
+        (bool success, bytes memory data) = _addr.delegatecall(
+            abi.encodeWithSignature("setVars(uint256)", _num)
+        );
+    }
+}
+```
+
+2、用 `create` 方法在合约中创建新合约，实际上就是 `new` 一个新合约
+
+```solidity
+// Contract 是要创建的合约名，x 是合约对象（地址），如果构造函数是 payable，可以创建时转入 _value 数量的 ETH，params 是新合约构造函数的参数。
+Contract x = new Contract{value: _value}(params)
+```
+极简 Uniswap 示例
+
+```solidity
+contract Pair{
+    address public factory; // 工厂合约地址
+    address public token0; // 代币1
+    address public token1; // 代币2
+
+    constructor() payable {
+        factory = msg.sender;
+    }
+
+    // called once by the factory at time of deployment
+    function initialize(address _token0, address _token1) external {
+        require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
+        token0 = _token0;
+        token1 = _token1;
+    }
+}
+
+contract PairFactory{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair(address tokenA, address tokenB) external returns (address pairAddr) {
+        // 创建新合约
+        Pair pair = new Pair(); 
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+}
+```
+
+3、用 `CREATE2` 方法在合约中创建新合约，同 `CREATE` 类似，只不过要多传一个 `salt` 参数
+```solidity
+// 其中 Contract 是要创建的合约名，x 是合约对象（地址），_salt 是指定的盐；如果构造函数是 payable，可以创建时转入 _value 数量的 ETH ，params 是新合约构造函数的参数。
+Contract x = new Contract{salt: _salt, value: _value}(params)
+```
+用 `CREATE2` 方法极简 Uniswap 示例
+```solidity
+contract Pair{
+    address public factory; // 工厂合约地址
+    address public token0; // 代币1
+    address public token1; // 代币2
+
+    constructor() payable {
+        factory = msg.sender;
+    }
+
+    // called once by the factory at time of deployment
+    function initialize(address _token0, address _token1) external {
+        require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
+        token0 = _token0;
+        token1 = _token1;
+    }
+}
+
+contract PairFactory2{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair2(address tokenA, address tokenB) external returns (address pairAddr) {
+        require(tokenA != tokenB, 'IDENTICAL_ADDRESSES'); //避免tokenA和tokenB相同产生的冲突
+        // 计算用tokenA和tokenB地址计算salt
+        (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); //将tokenA和tokenB按大小排序
+        bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+        // 用create2部署新合约
+        Pair pair = new Pair{salt: salt}(); 
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+
+    // 提前计算pair合约地址
+    function calculateAddr(address tokenA, address tokenB) public view returns(address predictedAddress){
+        require(tokenA != tokenB, 'IDENTICAL_ADDRESSES'); //避免tokenA和tokenB相同产生的冲突
+        // 计算用tokenA和tokenB地址计算salt
+        (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); //将tokenA和tokenB按大小排序
+        bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+        // 计算合约地址方法 hash()
+        predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+            bytes1(0xff),
+            address(this),
+            salt,
+            keccak256(type(Pair).creationCode)
+        )))));
+
+        // 例如当create2合约时：
+        // Pair pair = new Pair{salt: salt}(address(this));
+        // 计算时，需要将参数和initcode一起进行打包：
+        // predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+        //         bytes1(0xff),
+        //         address(this),
+        //         salt,
+        //         keccak256(abi.encodePacked(type(Pair).creationCode, abi.encode(address(this))))
+        // )))));
+    }
+}
+```
+
 
 <!-- Content_END -->

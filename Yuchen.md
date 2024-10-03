@@ -785,5 +785,226 @@ ex.定義`TransferNotOwner`異常，當用戶不是貨幣`owner`時轉帳會拋�
 * `assert`方法`gas`消耗：24473  
 `error`方法`gas`消耗最少，`require`方法消耗最多，因此在求最小`gas`消耗下可以多加使用`error`。
 
+### 2024.10.01
+
+#### 重載`overload`
+重載意即名稱相同但輸入參數類型不同的函數可以同時存在，且視為不同的函數。  
+```Solidity
+function saySomething() public pure returns(string memory){
+    return("Nothing");
+}
+
+function saySomething(string memory something) public pure returns(string memory){
+    return(something);
+}
+```  
+#### 實參匹配`Argument Matching`  
+在呼叫`overload`函數時，會把輸入的實際參數和函數參數的變量做匹配。若出現多個匹配的重載函數，會報錯。  
+ex.若呼叫`f()`，且傳入`50`，因為`50`可以被轉換為`uint8`，也可以被轉換為`uint256`，因此會報錯。
+```Solidity
+function f(uint8 _in) public pure returns (uint8 out) {
+    out = _in;
+}
+
+function f(uint256 _in) public pure returns (uint256 out) {
+    out = _in;
+}
+```
+
+> Solidity中是否允许修饰器（modifier）> 重载？  
+> 选择一个答案  
+> A. 允许
+> B. 不允许
+>
+> ANS：B. 不允许  
+>解釋：
+>Solidity 中不允許修飾器（modifier）重載。修飾器是用來修改函數行為的一段代碼邏輯，它不能像函數那樣通過不同的參數來進行重載。每個修飾器必須有唯一的名稱，且不能有相同名稱但不同參數的多個修飾器。
+
+> 下面两个函数的函数选择器是否相同？
+> ```solidity
+> function f(uint8 _in) public pure returns (uint8 out) { 
+> out = _in; 
+> } 
+>
+> function f(uint256 _in) public pure returns (uint256 out) { 
+> out = _in; 
+> }
+> 
+> A. 相同
+> B. 不相同
+> ANS:B
+
+#### 庫合約
+為一種特殊的合約，目的是為了提升程式的復用性和減少gas。庫合約是一系列的函數合集。  
+* 相較普通合約的特殊點：
+    1. 不能存在狀態變量
+    2. 不能繼承或被繼承
+    3. 不能接收以太幣
+    4. 不可以被銷毀  
+
+庫合約中函數的可見性若被設為`public`或`external`，則在呼叫函數時會觸發一次`delegatecall`。設為`internal`，則不會引起。設為`private`的函數僅能在庫合約中可見。
+
+#### Strings庫合約
+`Strings庫合約`是將`uint256`類型轉換為`string`類型的程式庫。  
+
+ex.以下的程式主要包含兩個函數，`toString()`將`uint256`轉換為`string`，`toHexString()`將`uint256`轉換為`16進制`，再轉換為`string`。  
+```Solidity
+library Strings {
+    bytes16 private constant _HEX_SYMBOLS = "0123456789abcdef";
+
+    /**
+     * @dev Converts a `uint256` to its ASCII `string` decimal representation.
+     */
+    function toString(uint256 value) public pure returns (string memory) {
+        // Inspired by OraclizeAPI's implementation - MIT licence
+        // https://github.com/oraclize/ethereum-api/blob/b42146b063c7d6ee1358846c198246239e9360e8/oraclizeAPI_0.4.25.sol
+
+        if (value == 0) {
+            return "0";
+        }
+        uint256 temp = value;
+        uint256 digits;
+        while (temp != 0) {
+            digits++;
+            temp /= 10;
+        }
+        bytes memory buffer = new bytes(digits);
+        while (value != 0) {
+            digits -= 1;
+            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
+            value /= 10;
+        }
+        return string(buffer);
+    }
+
+    /**
+     * @dev Converts a `uint256` to its ASCII `string` hexadecimal representation.
+     */
+    function toHexString(uint256 value) public pure returns (string memory) {
+        if (value == 0) {
+            return "0x00";
+        }
+        uint256 temp = value;
+        uint256 length = 0;
+        while (temp != 0) {
+            length++;
+            temp >>= 8;
+        }
+        return toHexString(value, length);
+    }
+
+    /**
+     * @dev Converts a `uint256` to its ASCII `string` hexadecimal representation with fixed length.
+     */
+    function toHexString(uint256 value, uint256 length) public pure returns (string memory) {
+        bytes memory buffer = new bytes(2 * length + 2);
+        buffer[0] = "0";
+        buffer[1] = "x";
+        for (uint256 i = 2 * length + 1; i > 1; --i) {
+            buffer[i] = _HEX_SYMBOLS[value & 0xf];
+            value >>= 4;
+        }
+        require(value == 0, "Strings: hex length insufficient");
+        return string(buffer);
+    }
+}
+```
+
+#### 如何使用庫合約
+1. 利用using for指令：  
+`using A for B;`，用於附加合約(從庫A)到任何類型(B)。執行完畢後，庫A中的函數會自動添加為B類型變量的成員，並可以直接呼叫。  
+```Solidity
+// 利用using for指令
+using Strings for uint256;
+function getString1(uint256 _number) public pure returns(string memory){
+    // 库合约中的函数会自动添加为uint256型变量的成员
+    return _number.toHexString();
+}
+```
+
+2. 通過庫合約名稱呼叫函數：
+```Solidity
+// 直接通过库合约名调用
+function getString2(uint256 _number) public pure returns(string memory){
+    return Strings.toHexString(_number);
+}
+```
+
+> Q：库合约和普通合约的区别，下列描述错误的是：  
+> 
+> A. 库合约不能存在状态变量  
+> B. 库合约不能继承  
+> C. 库合约可以被继承  
+> D. 库合约不能被销毁  
+> 
+> A：C，庫合約不能被繼承，這使得它與普通合約不同。
+
+
+**常用庫合約**  
+* `Strings`：將`uint256`轉換為`String`。
+* `Address`：判斷某個地址是否為合約的地址。
+* `Create2`：更安全的使用`Create2 EVM opcode`。
+* `Arrays`：跟數組相關的庫合約。
+
+### 2024.10.02
+#### `import`
+`import`可以用來在一個文件中引用另一個文件的內容，提高程式的可重用性、組織性。  
+
+**用法：**  
+* 通過源文件相對位置導入：  
+    ```Solidity
+    文件结构
+    ├── Import.sol
+    └── Yeye.sol
+
+    // 通过文件相对位置import
+    import './Yeye.sol';
+    ```
+* 通過源文件網址導入網上合約的全局符號：  
+    ```Solidity
+    // 通过网址引用
+    import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+    ```
+* 通過`npm`的目錄導入：  
+    ```Solidity
+    import '@openzeppelin/contracts/access/Ownable.sol';
+    ```
+* 通過指定`全局符號`導入合約特定的全局符號。  
+    ```Solidity
+    import {Yeye} from './Yeye.sol';
+    ```
+<img src="https://github.com/user-attachments/assets/b89ea127-e9a5-4d3f-bd5e-3997e88a4a32" height="400px" width="600px" />  
+
+> Q：Solidity中import的作用是：
+>
+> A. 导入其他合约中的接口  
+> B. 导入其他合约中的私有变量  
+> **C. 导入其他合约中的全局符号**  
+> D. 导入其他合约中的内部变量  
+> 
+> Ans：import 可以導入所有全局可用的符號（如函數、結構、事件等），這是最全面的描述。
+
+> Q：import导入文件中的全局符号可以单独指定其中的：
+> 
+> A. 合约  
+> B. 纯函数  
+> C. 结构体类型  
+> **D. 以上都可以**
+>
+> Ans：  
+> A. 合約：可以單獨導入合約，例如 import {Yeye} from "./Yeye.sol";。
+> 
+> B. 纯函数：可以導入純函數（如果存在），例如 import {someFunction} from "./SomeLib.sol";。
+> 
+> C. 结构体类型：結構體類型也可以單獨導入，例如 import {SomeStruct} from "./SomeStruct.sol";。
+
+> Q：被导入文件中的全局符号想要被其他合约单独导入，应该怎么编写？
+> 
+> A. 将合约结构包含  
+> B. 包含在合约结构中  
+> **C. 与合约并列在文件结构中** 
+> 
+> Ans：在 Solidity 中，如果你想要導入某個文件中的全局符號（例如合約、函數、結構體等），這些符號必須在文件的最外層與合約並列定義，而不是在合約內部。這樣才能被其他合約單獨導入。 
+
 
 <!-- Content_END -->

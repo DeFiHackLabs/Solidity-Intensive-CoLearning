@@ -320,4 +320,58 @@ function ternaryTest(uint256 x, uint256 y) public pure returns(uint256){
 Copy
 In addition, there are continue (immediately enter the next loop) and break (break out of the current loop) keywords that can be used.
 ###
+###  2024.09.30
+Events
+The event in solidity are the transaction logs stored on the EVM (Ethereum Virtual Machine). They can be emitted during function calls and are accessible with the contract address. Events have two characteristics：
+
+Responsive: Applications (e.g. ether.js) can subscribe and listen to these events through RPC interface and respond at frontend.
+Economical: It is cheap to store data in events, costing about 2,000 gas each. In comparison, store a new variable on-chain takes at least 20,000 gas.
+Declare events
+The events are declared with the event keyword, followed by event name, then the type and name of each parameter to be recorded. Let's take the Transfer event from the ERC20 token contract as an example：
+
+event Transfer(address indexed from, address indexed to, uint256 value);
+
+Copy
+Transfer event records three parameters: from，to, and value，which correspond to the address where the tokens are sent, the receiving address, and the number of tokens being transferred. Parameter from and to are marked with indexed keywords, which will be stored at a special data structure known as topics and easily queried by programs.
+
+Emit events
+We can emit events in functions. In the following example, each time the _transfer() function is called, Transfer events will be emitted and corresponding parameters will be recorded.
+```
+    // define _transfer function，execute transfer logic
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) external {
+
+        _balances[from] = 10000000; // give some initial tokens to transfer address
+
+        _balances[from] -=  amount; // "from" address minus the number of transfer
+        _balances[to] += amount; // "to" address adds the number of transfer
+
+        // emit event
+        emit Transfer(from, to, amount);
+    }
+```
+###
+### 2024.10.01
+Inheritance
+Inheritance is one of the core concepts in object-oriented programming, which can significantly reduce code redundancy. It is a mechanism where you can to derive a class from another class for a hierarchy of classes that share a set of attributes and methods. In solidity, smart contracts can be viewed objects, which supports inheritance.
+
+Rules
+There are two important keywards for inheritance in Solidity:
+
+virtual: If the functions in the parent contract are expected to be overridden in its child contracts, they should be declared as virtual.
+
+override：If the functions in the child contract override the functions in its parent contract, they should be declared as override
+###
+### 2024.10.02
+Abstract contract
+If a contract contains at least one unimplemented function (no contents in the function body {}), it must be labeled as abstract; Otherwise it will not compile. Moreover, the unimplemented function needs to be labeled as virtual. Take our previous Insertion Sort Contract as an example, if we haven't figured out how to implement the insertion sort function, we can mark the contract as abstract, and let others overwrite it in the future.
+```
+abstract contract InsertionSort{
+    function insertionSort(uint[] memory a) public pure virtual returns(uint[] memory);
+}
+```
+###
 <!-- Content_END -->

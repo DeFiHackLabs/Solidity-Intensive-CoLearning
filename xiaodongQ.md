@@ -49,4 +49,12 @@ solidity-102内容重新过一遍，[solidity_note.md](https://github.com/xiaodo
 
 solidity-102学习：delegateCall、删除合约、ABI编码解码
 
+### 2024.09.30
+
+solidity-102学习
+
+### 2024.10.02
+
+solidity-102学习，及rust学习
+
 <!-- Content_END -->

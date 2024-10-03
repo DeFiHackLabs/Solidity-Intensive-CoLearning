@@ -208,5 +208,62 @@ function fe() external{} // external空白函数
      - `using for`: `using Strings for uint256;`
      - `Strings.toHexString(_number);`
 
+### 2024.10.01
+1. `import`:
+   - 通过网址引用: `import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';`
+   - 通过npm导入: `import '@openzeppelin/contracts/access/Ownable.sol';`
+   - 通过全局符号导入: `import {Yeye} from './Yeye.sol';`
+2. `receive()`
+   - 声明: 与普通方法不同，不使用`function`关键字: `receive() external payable { }`
+   - `receive()`函数不能有任何的参数，不能返回任何值，必须包含external和payable.
+   - 如果调用方通过`send`, `transfer`来向目标合约转移eth, 那么gas将限制在2300以内，因此如果`receive`的逻辑太复杂会出现`out of gas`异常
+   - 通过`call`来转移eth, 则可以指定gas
+
+3. `fallback`
+   - 声明: `fallback() external payable { }`
+   - 当合约被调用不存在的函数时会被触发。
+4. 二者关系
+```
+触发fallback() 还是 receive()?
+           接收ETH
+              |
+         msg.data是空？
+            /  \
+          是    否
+          /      \
+receive()存在?   fallback()
+        / \
+       是  否
+      /     \
+receive()   fallback()
+
+```
+
+### 2024.10.02
+
+1. 发送ETH
+ - `transfer`发送eth:
+    - `recipient.transfer(amount)` 表示当前合约向`recipient`发送`amount`数量的eth。
+    - gas限制为2300，即`recipient`不能有太复杂的`receive`或者`fallback`逻辑。
+    - `trasnfer`失败时，交易**会**`revert`
+ - `send`发送eth:
+    - `recipient.send(amount)` 表示当前合约向`recipient`发送`amount`数量的eth。
+    - gas限制为2300，即`recipient`不能有太复杂的`receive`或者`fallback`逻辑。
+    - `send`失败时，交易**不会**`revert`。需要判断`send`的`bool`返回值。
+ - `call`发送eth:
+    - `recipient.call{value: amount, gas: gas_amount}("")` 表示当前合约使用`gas_amount`的gas向`recipient`发送`amount`数量的eth。
+    - 无gas限制，且可以自定义gas,`gas`可省略。在提供足够gas的前提下，`recipient`可以有任意复杂的`receive`或者`fallback`逻辑。
+    - `call`失败时，交易**不会**`revert`。需要判断`call`的返回值(bool, bytes).
+
+`call`的调用最为灵活，因此推荐在合约转账时使用`call`进行eth发送
+
+### 2024.10.03
+
+1. 合约调用
+   - 合约地址调用: `OtherContract(_Address).setX(x);`
+   - 合约变量调用: `OtherContract oc = OtherContract(_Address);  x = oc.getX();`
+   - 调用时发送ETH: `OtherContract(otherContract).setX{value: msg.value}(x);`
+
+
 
 <!-- Content_END -->

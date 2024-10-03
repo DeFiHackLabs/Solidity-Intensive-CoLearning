@@ -590,8 +590,7 @@ function fe() external{} // external空白函数
   - 静态数组（定长）: 所有成员设为其默认值的静态数组
 
 示例代码：
-```
-solidity
+```solidity
 uint[8] public _staticArray; // 所有成员设为其默认值的静态数组[0,0,0,0,0,0,0,0]
 uint[] public _dynamicArray; // `[]`
 mapping(uint => address) public _mapping; // 所有元素都为其默认值的mapping
@@ -607,8 +606,7 @@ Student public student;
 `delete a` 会让变量 `a` 的值变为初始值。
 
 示例代码：
-```
-solidity
+```solidity
 bool public _bool2 = true; 
 function d() external {
     delete _bool2; // delete 会让_bool2变为默认值，false
@@ -625,6 +623,213 @@ function d() external {
 
 3. `delete` 操作符和将变量赋值为其类型的默认值有什么区别？
    - 从结果上看，两者是相同的。但 `delete` 操作符更加通用，可以用于任何类型，包括复杂的数据结构。此外，使用 `delete` 可能在某些情况下更节省 gas，因为它直接将存储槽重置为初始状态。
+  
+
+### 2024.09.30
+
+學習內容: 
+
+- [solidity-101 第九课  常数](https://www.wtf.academy/docs/solidity-101/Constant/)
+
+笔记
+
+#### constant（常量）
+- 必须在声明时初始化
+- 声明后不能更改值
+- 适用于数值变量、string 和 bytes
+
+示例代码：
+```solidity
+uint256 constant CONSTANT_NUM = 10;
+string constant CONSTANT_STRING = "0xAA";
+bytes constant CONSTANT_BYTES = "WTF";
+address constant CONSTANT_ADDRESS = 0x0000000000000000000000000000000000000000;
+```
+
+#### immutable（不变量）
+- 可以在声明时或构造函数中初始化
+- 初始化后不能更改值
+- 适用于数值变量，不适用于 string 和 bytes
+- 从 Solidity v8.0.21 开始，不需要显式初始化
+
+示例代码：
+```solidity
+uint256 public immutable IMMUTABLE_NUM = 9999999999;
+address public immutable IMMUTABLE_ADDRESS;
+uint256 public immutable IMMUTABLE_BLOCK;
+uint256 public immutable IMMUTABLE_TEST;
+
+constructor(){
+    IMMUTABLE_ADDRESS = address(this);
+    IMMUTABLE_NUM = 1118;
+    IMMUTABLE_TEST = test();
+}
+
+function test() public pure returns(uint256){
+    uint256 what = 9;
+    return(what);
+}
+```
+
+#### 思考与解答
+
+1. 为什么使用 constant 和 immutable 可以节省 gas？
+   - 使用 constant 和 immutable 可以节省 gas，因为这些变量的值在编译时就已确定，不需要在运行时从存储中读取。编译器可以直接将这些值硬编码到字节码中，减少了存储和读取操作，从而降低了 gas 消耗。
+
+2. constant 和 immutable 的主要区别是什么？在什么情况下应该选择使用 immutable 而不是 constant？
+   - 主要区别在于初始化时机和灵活性。constant 必须在声明时初始化，而 immutable 可以在构造函数中初始化。当变量的值需要在部署时动态确定，但之后不再改变时，应该使用 immutable。例如，合约拥有者的地址可能在部署时才能确定，这时就适合使用 immutable。
+
+3. 为什么 string 和 bytes 可以声明为 constant 但不能声明为 immutable？
+   - 这与 Solidity 的内部实现有关。constant 变量在编译时就完全确定，可以直接嵌入字节码。而 immutable 变量虽然也是常量，但其值是在构造函数中设置的。对于定长类型（如 uint、address），这种延迟初始化很容易实现。但对于不定长类型（如 string 和 bytes），在构造函数中初始化会涉及到复杂的存储分配问题，因此目前不支持将它们声明为 immutable。
+
+
+### 2024.10.01
+
+學習內容: 
+
+- [solidity-101 第十课  控制流，用Solidity实现插入排序](https://www.wtf.academy/docs/solidity-101/InsertionSort/)
+
+笔记
+
+#### Solidity 控制流
+Solidity 的控制流与其他编程语言类似，主要包括：
+
+1. if-else 语句
+2. for 循环
+3. while 循环
+4. do-while 循环
+5. 三元运算符
+
+此外，还有 `continue` 和 `break` 关键字可用于控制循环流程。
+
+#### 插入排序算法实现
+
+##### Python 实现
+首先看一下 Python 中的插入排序实现：
+
+```python
+def insertionSort(arr):
+    for i in range(1, len(arr)):
+        key = arr[i]
+        j = i-1
+        while j >=0 and key < arr[j] :
+            arr[j+1] = arr[j]
+            j -= 1
+        arr[j+1] = key
+    return arr
+```
+
+##### Solidity 实现（错误版本）
+直接将 Python 代码转换为 Solidity 可能导致错误：
+
+```solidity
+function insertionSortWrong(uint[] memory a) public pure returns(uint[] memory) {    
+    for (uint i = 1;i < a.length;i++){
+        uint temp = a[i];
+        uint j=i-1;
+        while( (j >= 0) && (temp < a[j])){
+            a[j+1] = a[j];
+            j--;
+        }
+        a[j+1] = temp;
+    }
+    return(a);
+}
+```
+
+##### Solidity 实现（正确版本）
+修复后的正确 Solidity 实现：
+
+```solidity
+function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
+    for (uint i = 1;i < a.length;i++){
+        uint temp = a[i];
+        uint j=i;
+        while( (j >= 1) && (temp < a[j-1])){
+            a[j] = a[j-1];
+            j--;
+        }
+        a[j] = temp;
+    }
+    return(a);
+}
+```
+
+#### 思考与解答
+
+1. 为什么直接将 Python 代码转换为 Solidity 会导致错误？
+   - 解答：主要原因是 Solidity 中的 uint 类型不能取负值。在 Python 版本中，j 可能会变为 -1，而在 Solidity 中这会导致下溢（underflow）错误。
+
+2. Solidity 中的控制流与其他语言有什么显著区别？
+   - 解答：Solidity 的控制流结构与其他语言大致相同。然而，由于 Solidity 是为智能合约设计的语言，在使用循环时需要特别注意 gas 消耗。过于复杂或长时间运行的循环可能导致交易失败。
+
+3. 在实现算法时，Solidity 相比其他语言有哪些需要特别注意的地方？
+   - 解答：
+     - 类型安全：需要格外注意变量类型，特别是有符号和无符号整数的使用。
+     - Gas 优化：需要考虑算法的效率，尽量减少循环次数和存储操作。
+     - 数组操作：Solidity 中的数组操作可能比其他语言更受限制，需要谨慎处理。
+     - 精度问题：处理小数时需要特别注意，因为 Solidity 不直接支持浮点数。
+
+### 2024.10.02
+
+學習內容: 
+
+- [solidity-101 第十一课  构造函数和修饰器](https://www.wtf.academy/docs/solidity-101/Modifier/)
+
+笔记
+
+#### 构造函数（Constructor）
+
+构造函数是一种特殊的函数，在合约部署时自动运行一次，用于初始化合约状态。
+
+##### 特点：
+- 每个合约只能有一个构造函数
+- 在合约部署时自动执行
+- 可以用来初始化合约的状态变量
+
+##### 示例代码：
+```solidity
+address owner; // 定义owner变量
+
+constructor(address initialOwner) {
+    owner = initialOwner; // 在部署合约的时候，将owner设置为传入的initialOwner地址
+}
+```
+
+##### 注意：
+Solidity 0.4.22 版本之前，构造函数使用与合约同名的函数来定义。新版本使用 `constructor` 关键字，以避免潜在的命名错误。
+
+#### 修饰器（Modifier）
+
+修饰器是 Solidity 特有的语法，用于在函数执行前进行条件检查，可以减少代码重复并提高可读性。
+
+##### 特点：
+- 用于函数的声明
+- 可以在函数执行前进行条件检查
+- 使用 `_` 符号表示函数主体的插入点
+
+##### 示例代码：
+```solidity
+modifier onlyOwner {
+   require(msg.sender == owner); // 检查调用者是否为owner地址
+   _; // 如果是的话，继续运行函数主体；否则报错并revert交易
+}
+
+function changeOwner(address _newOwner) external onlyOwner {
+   owner = _newOwner; // 只有owner地址运行这个函数，并改变owner
+}
+```
+
+#### 思考与解答
+
+1. 为什么构造函数在合约中很重要？
+   - 解答：构造函数对于合约的初始化至关重要。它允许我们在部署时设置关键的状态变量，如所有者地址、初始代币供应量等。这种机制确保了合约在开始运行时就处于正确的初始状态。
+
+2. 修饰器和普通函数有什么区别？为什么要使用修饰器？
+   - 解答：修饰器与普通函数的主要区别在于其用途和语法。修饰器主要用于在函数执行前进行条件检查，而不是执行具体的业务逻辑。使用修饰器可以提高代码的可重用性和可读性，特别是在需要对多个函数应用相同的访问控制或验证逻辑时。
+
+3. 在使用修饰器时，`_` 符号的作用是什么？
+   - 解答：在修饰器中，`_` 符号表示被修饰函数的执行点。修饰器中 `_` 之前的代码会在函数主体执行之前运行，`_` 之后的代码会在函数主体执行之后运行。这允许开发者在函数执行的不同阶段插入自定义逻辑。
 
 
 <!-- Content_END -->
