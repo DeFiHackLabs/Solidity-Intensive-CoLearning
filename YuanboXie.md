@@ -1438,8 +1438,29 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     }
     ```
 - [103-42] 分账
-    - 
-
+    - 分账就是按照一定比例分钱财。分账合约(PaymentSplit)允许将ETH按权重转给一组账户中，进行分账。
+    - 分账合约具有以下几个特点：
+        1. 创建合约时定好分账受益人 payees 和每人的份额 shares;
+        2. 份额可以是相等，也可以是其他任意比例。
+        3. 该合约收到的所有 ETH 中，每个受益人将能够提取与其分配的份额成比例的金额;
+        4. 分账合约遵循 Pull Payment 模式，付款不会自动转入账户，而是保存在此合约中。受益人通过调用 release() 函数触发实际转账;
+    - 完整代码: [code](https://github.com/AmazingAng/WTF-Solidity/blob/main/42_PaymentSplit/PaymentSplit.sol)
+    ```solidity
+    function releasable(address _account) public view returns (uint256) {
+        // 计算分账合约总收入totalReceived
+        uint256 totalReceived = address(this).balance + totalReleased;
+        // 调用_pendingPayment计算account应得的ETH
+        return pendingPayment(_account, totalReceived, released[_account]);
+    }
+    function pendingPayment(
+        address _account,
+        uint256 _totalReceived,
+        uint256 _alreadyReleased
+    ) public view returns (uint256) {
+        // account应得的ETH = 总应得ETH - 已领到的ETH
+        return (_totalReceived * shares[_account]) / totalShares - _alreadyReleased;
+    }
+    ```
 ### 2024.10.07
 
 - [103-43] 线性释放
