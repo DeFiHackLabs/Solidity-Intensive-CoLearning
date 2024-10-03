@@ -715,5 +715,18 @@ contract MyReceiveAndFallbackContract{
 }
 ```
 
+### 2024.10.03
+
+學習內容:
+
+- [x] 发送ETH
+    - call: 没有gas限制，不会revert，返回值是bool，代表转账正常或者失败（推荐）
+        - 接收方地址.call({value: 发送ETH的数额})("")，返回值是bool
+    - transfer: 2300gas限制，转账失败会revert
+        - 接收方地址.transfer(发送ETH的数额);  无返回值
+    - send: 2300gas限制，转账失败会返回false 不会revert，几乎不使用
+           - 接收方地址.send(发送ETH的数额);  返回值是bool
+
+
 
 <!-- Content_END -->
