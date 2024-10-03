@@ -942,14 +942,16 @@ someContract.call{value: wei, gas: wei}(someBytes); // value and gas are optiona
 // call
 Address A -call-> Contract B -call-> Contract C
 ===============================================
-                msg.sender=A        msg.sender=B
-                msg.value=A         msg.value=B
+                context=B            context=C
+                msg.sender=A         msg.sender=B
+                msg.value=A          msg.value=B
 
 // delegatecall
 Address A -call-> Contract B -delegatecall-> Contract C
 =======================================================
-                msg.sender=A                msg.sender=A
-                msg.value=A                 msg.value=A
+                context=B                    context=B
+                msg.sender=A                 msg.sender=A
+                msg.value=A                  msg.value=A
 
 
 // Example
@@ -958,11 +960,86 @@ Address A -call-> Contract B -delegatecall-> Contract C
 );
 ```
 
+- Can specific `gas` but not `value`
+
 - When to use:
   - Proxy contract: Which usually separate into State Contract and Logic Contract. All the functions of Logic Contract can call to State Contract through `delegatecall`. Thus Logic Contract can be update/replace when needed.
   - [EIP-2535](https://eips.ethereum.org/EIPS/eip-2535): Also known as Diamonds, Multi-Facet Proxy. The smart contract is modular that can be extended after deployment.
 
 ### 2024.10.03
+
+#### Chapter 24: Contract Factory
+
+In Solidity, both EOA and Contract can also create/deploy new Contract. The most popular contract factory is Uniswap's `PairFactory`, which create a smart contract contain two tokens, eg: `USDT/PEPE`.
+
+- There are two ways to create new contract from a contract:
+  - CREATE
+  ```
+  Contract x = new Contract{value: _value}(params);
+  // Contract: Name of new contract
+  // x: New contract variable
+  // value: To transfer ETH into new contract if new contract's constructor is payable
+  // params: Parameters of new contract's constructor
+  ```
+  - CREATE2
+
+How address calculated by CREATE
+
+```
+new_contract_address = hash(creator_address, nonce);
+// creator_address can be EOA or contract
+```
+
+- `nonce` after the transaction count of EOA, or contract created count for contract, increase by 1 every tx/contract made
+- The address of new contract is hard to predict as nonce might change often
+
+#### Chapter 25: CREATE2
+
+How address calculated by CREATE2:
+
+```
+new_contract_address = hash("0xFF", creator_address, salt, initcode);
+// 0xFF: A constant to differentiate from CREATE
+// creator_address: The address of contract called CREATE2
+// salt: A bytes32 variable prefix by creator
+// initcode: New contract byte code with the constructor arguments and logic included
+```
+
+How to use:
+
+```
+Contract x = new Contract{salt: _salt, value: _value}(params);
+```
+
+Example WITH constructor parameters:
+
+```
+bytes32 salt = heccak256(abi.encodePacked(params...));
+
+NewContract nc = new NewContract{salt: salt}();
+
+address predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+        bytes1(0xff),
+        address(this),
+        salt,
+        keccak256(type(NewContract).creationCode)
+        )))));
+```
+
+Example WITH constructor parameters:
+
+```
+bytes32 salt = heccak256(abi.encodePacked(params...));
+
+NewContract nc = new NewContract{salt: salt}(constructorParams...);
+
+address predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+        bytes1(0xff),
+        address(this),
+        salt,
+        keccak256(abi.encodePacked(type(NewContract).creationCode, abi.encode(constructorParams...)))
+        )))));
+```
 
 ### 2024.10.04
 
