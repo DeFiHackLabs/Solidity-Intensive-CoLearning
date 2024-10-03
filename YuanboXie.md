@@ -571,7 +571,7 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     }
     ```
 
-<!-- Content_END -->
+
 
 ### 2024.10.04
 
@@ -1062,6 +1062,8 @@ import '@openzeppelin/contracts/access/Ownable.sol';
         }
     }
     ```
+
+<!-- Content_END -->
 ### 2024.10.05
 
 - [103-37] 数字签名
@@ -1302,7 +1304,95 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 
 ### 2024.10.06
 
-- [103-40] ERC1155
+- [103-40] ERC1155 [eip-1155](https://eips.ethereum.org/EIPS/eip-1155)
+    - 多代币标准ERC1155，允许一个合约包含多个同质化和非同质化代币。IERC1155接口合约抽象了EIP1155需要实现的功能，其中包含4个事件和6个函数。与ERC721不同，因为ERC1155包含多类代币，它实现了批量转账和批量余额查询，一次操作多种代币。
+    - 区分ERC1155中的某类代币是同质化还是非同质化代币呢？其实很简单：如果某个id对应的代币总量为1，那么它就是非同质化代币，类似ERC721；如果某个id对应的代币总量大于1，那么他就是同质化代币，因为这些代币都分享同一个id，类似ERC20。
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity ^0.8.0;
+
+    import "https://github.com/AmazingAng/WTF-Solidity/blob/main/34_ERC721/IERC165.sol";
+
+    interface IERC1155 is IERC165 {
+        event TransferSingle(address indexed operator, address indexed from, address indexed to, uint256 id, uint256 value);
+        event TransferBatch(address indexed operator,address indexed from,address indexed to,uint256[] ids,uint256[] values);
+        event ApprovalForAll(address indexed account, address indexed operator, bool approved);
+
+        /**
+        * @dev 当`id`种类的代币的URI发生变化时释放，`value`为新的URI
+        */
+        event URI(string value, uint256 indexed id);
+
+        function balanceOf(address account, uint256 id) external view returns (uint256);
+
+        /**
+        * @dev 批量持仓查询，`accounts`和`ids`数组的长度要想等。
+        */
+        function balanceOfBatch(address[] calldata accounts, uint256[] calldata ids)
+            external
+            view
+            returns (uint256[] memory);
+
+        function setApprovalForAll(address operator, bool approved) external;
+        function isApprovedForAll(address account, address operator) external view returns (bool);
+
+        /**
+        * @dev 安全转账，将`amount`单位`id`种类的代币从`from`转账给`to`.
+        * 释放{TransferSingle}事件.
+        * 要求:
+        * - 如果调用者不是`from`地址而是授权地址，则需要得到`from`的授权
+        * - `from`地址必须有足够的持仓
+        * - 如果接收方是合约，需要实现`IERC1155Receiver`的`onERC1155Received`方法，并返回相应的值
+        */
+        function safeTransferFrom(address from,address to,uint256 id,uint256 amount,bytes calldata data) external;
+
+        /**
+        * @dev 批量安全转账
+        * 释放{TransferBatch}事件
+        * 要求：
+        * - `ids`和`amounts`长度相等
+        * - 如果接收方是合约，需要实现`IERC1155Receiver`的`onERC1155BatchReceived`方法，并返回相应的值
+        */
+        function safeBatchTransferFrom(address from,address to,uint256[] calldata ids,uint256[] calldata amounts,bytes calldata data) external;
+    }
+    ```
+    - IERC1155Receiver
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity ^0.8.0;
+
+    import "https://github.com/AmazingAng/WTF-Solidity/blob/main/34_ERC721/IERC165.sol";
+
+    /**
+    * @dev ERC1155接收合约，要接受ERC1155的安全转账，需要实现这个合约
+    */
+    interface IERC1155Receiver is IERC165 {
+        /**
+        * @dev 接受ERC1155安全转账`safeTransferFrom` 
+        * 需要返回 0xf23a6e61 或 `bytes4(keccak256("onERC1155Received(address,address,uint256,uint256,bytes)"))`
+        */
+        function onERC1155Received(
+            address operator,
+            address from,
+            uint256 id,
+            uint256 value,
+            bytes calldata data
+        ) external returns (bytes4);
+
+        /**
+        * @dev 接受ERC1155批量安全转账`safeBatchTransferFrom` 
+        * 需要返回 0xbc197c81 或 `bytes4(keccak256("onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)"))`
+        */
+        function onERC1155BatchReceived(
+            address operator,
+            address from,
+            uint256[] calldata ids,
+            uint256[] calldata values,
+            bytes calldata data
+        ) external returns (bytes4);
+    }
+    ```
+    - ERC-1155 主合约 [code](https://github.com/AmazingAng/WTF-Solidity/blob/main/40_ERC1155/ERC1155.sol)
 - [103-41] WETH
 - [103-42] 分账
 
