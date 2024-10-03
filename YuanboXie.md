@@ -1498,7 +1498,40 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     ```
     - 分析一下：`IERC20(token).balanceOf(address(this)) + erc20Released[token];`这样写和直接写死总数的区别是lock之后可以新加入的token也会按照这个规则vest，如果写死的话，新的token打进这个地址会被锁死导致无法vest。
 - [103-44] 代币锁
-    - 
+    - 流动性提供者LP代币、锁定流动性、ERC20代币锁合约
+    - 代币锁(Token Locker)是一种简单的时间锁合约，它可以把合约中的代币锁仓一段时间，受益人在锁仓期满后可以取走代币。代币锁一般是用来锁仓流动性提供者LP代币的。
+        - 用户在去中心化交易所DEX上交易代币，例如Uniswap交易所。DEX和中心化交易所(CEX)不同，去中心化交易所使用自动做市商(AMM)机制，需要用户或项目方提供资金池，以使得其他用户能够即时买卖。简单来说，用户/项目方需要质押相应的币对（比如 ETH/DAI）到资金池中，作为补偿，DEX 会给他们铸造相应的流动性提供者 LP 代币凭证，证明他们质押了相应的份额，供他们收取手续费。
+        - 如果项目方毫无征兆的撤出流动性池中的 LP 代币，那么投资者手中的代币就无法变现，直接归零了。这种行为也叫 rug-pull。如果 LP 代币是锁仓在代币锁合约中，在锁仓期结束以前，项目方无法撤出流动性池，也没办法 rug pull。因此代币锁可以防止项目方过早跑路（要小心锁仓期满跑路的情况）。
+    - TokenLocker
+        - 开发者在部署合约时规定锁仓的时间，受益人地址，以及代币合约。
+        - 开发者将代币转入TokenLocker合约。
+        - 在锁仓期满，受益人可以取走合约里的代币。
+    ```solidity
+    constructor(
+        IERC20 token_,
+        address beneficiary_,
+        uint256 lockTime_
+    ) {
+        require(lockTime_ > 0, "TokenLock: lock time should greater than 0");
+        token = token_;
+        beneficiary = beneficiary_;
+        lockTime = lockTime_;
+        startTime = block.timestamp;
+
+        emit TokenLockStart(beneficiary_, address(token_), block.timestamp, lockTime_);
+    }
+
+    function release() public {
+        require(block.timestamp >= startTime+lockTime, "TokenLock: current time is before release time");
+
+        uint256 amount = token.balanceOf(address(this));
+        require(amount > 0, "TokenLock: no tokens to release");
+
+        token.transfer(beneficiary, amount);
+
+        emit Release(msg.sender, address(token), block.timestamp, amount);
+    }
+    ```
 - [103-45] 时间锁
 
 ### 2024.10.08
