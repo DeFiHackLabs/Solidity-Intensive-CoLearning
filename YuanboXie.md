@@ -1461,10 +1461,44 @@ import '@openzeppelin/contracts/access/Ownable.sol';
         return (_totalReceived * shares[_account]) / totalShares - _alreadyReleased;
     }
     ```
+
 ### 2024.10.07
 
 - [103-43] 线性释放
+    - 代币归属条款，并写一个线性释放ERC20代币的合约。代码由OpenZeppelin的VestingWallet合约简化而来。在传统金融领域，一些公司会向员工和管理层提供股权。但大量股权同时释放会在短期产生抛售压力，拖累股价。因此，公司通常会引入一个归属期来延迟承诺资产的所有权。同样的，在区块链领域，Web3初创公司会给团队分配代币，同时也会将代币低价出售给风投和私募。如果他们把这些低成本的代币同时提到交易所变现，币价将被砸穿，散户直接成为接盘侠。所以，项目方一般会约定代币归属条款（token vesting），在归属期内逐步释放代币，减缓抛压。
+    - 线性释放：代币在归属期内匀速释放。
+    - 锁仓并线性释放ERC20代币的合约TokenVesting：
+        - 项目方规定线性释放的起始时间、归属期和受益人。
+        - 项目方将锁仓的ERC20代币转账给TokenVesting合约。
+        - 受益人可以调用release函数，从合约中取出释放的代币。
+    - 代码：[code](https://github.com/AmazingAng/WTF-Solidity/blob/main/43_TokenVesting/TokenVesting.sol)
+    ```solidity
+    function release(address token) public {
+        // 调用vestedAmount()函数计算可提取的代币数量
+        uint256      = vestedAmount(token, uint256(block.timestamp)) - erc20Released[token];
+        // 更新已释放代币数量   
+        erc20Released[token] += releasable; 
+        // 转代币给受益人
+        emit ERC20Released(token, releasable);
+        IERC20(token).transfer(beneficiary, releasable);
+    }
+
+    function vestedAmount(address token, uint256 timestamp) public view returns (uint256) {
+        // 合约里总共收到了多少代币（当前余额 + 已经提取）
+        uint256 totalAllocation = IERC20(token).balanceOf(address(this)) + erc20Released[token];
+        // 根据线性释放公式，计算已经释放的数量
+        if (timestamp < start) {
+            return 0;
+        } else if (timestamp > start + duration) {
+            return totalAllocation;
+        } else {
+            return (totalAllocation * (timestamp - start)) / duration;
+        }
+    }
+    ```
+    - 分析一下：`IERC20(token).balanceOf(address(this)) + erc20Released[token];`这样写和直接写死总数的区别是lock之后可以新加入的token也会按照这个规则vest，如果写死的话，新的token打进这个地址会被锁死导致无法vest。
 - [103-44] 代币锁
+    - 
 - [103-45] 时间锁
 
 ### 2024.10.08
