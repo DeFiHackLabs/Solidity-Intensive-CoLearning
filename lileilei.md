@@ -735,7 +735,7 @@ contract hashTest{
 }
 hash常用来做数字唯一标识和安全加密
 
-### 2024.10.01
+### 2024.10.02
 contract selectorTest{
     function noParam() external pure returns(bytes4){
         return bytes4(keccak256("noParam()"));
@@ -747,5 +747,53 @@ contract selectorTest{
        (bool success,bytes memory data2) = address(this).call(abi.encodeWithSelector(0xc2cfaca2));
     }
 abi.encodeWithSelector 需要先算出被调用方法的hash值,上边结果是一致的
+
+
+### 2024.10.03   
+
+// SPDX-License-Identifier: MIT
+pragma solidity ~0.8.21;
+
+contract onlyEven{
+    constructor(uint a ){
+        require(a!=0,"invalid number");
+        assert(a!=1);
+    }
+
+    function onlyeven(uint b) external pure returns(bool){
+        require(b%2==0,"up,revert");
+        return true;
+    }
+}
+
+contract tryCatch{
+    event successEvent();
+    event catchEvent(string message);
+    event catchByte(bytes data);
+    onlyEven oe;
+    constructor(){
+        oe = new onlyEven(2);
+    }
+    function execute(uint num) public  returns(bool success){
+        try oe.onlyeven(num){
+            emit successEvent();
+            success = true;
+        }catch Error(string memory reason){
+            emit catchEvent(reason);
+        }
+    }
+    这个方法因为已经初始化构造器，所以只有successEvent和catchEvent会被释放
+    function exeuteNew(uint a) public returns(bool success){
+        try new onlyEven(a) returns(onlyEven oe){
+            emit successEvent();
+            success = oe.onlyeven(a);
+        }catch Error(string memory reason){
+            emit catchEvent(reason);
+        } catch(bytes memory data){
+            emit catchByte(data);
+        }
+    }
+}
+//new onlyEven会涉及到初始化构造器，在初始化构造器会校验0，1，assert返回的不是error类型，不会被Error捕获，会在catchBytes中
     
 <!-- Content_END -->
