@@ -1106,7 +1106,30 @@ contract Import {
 
 ### 2024.10.03
 
-#### 16_Overloading
+#### 19_Fallback
+* receive()：接收 ETH
+* fallback()：處理不存在的函數調用和接收 ETH
+
+* receive() 函數：
+用於接收 ETH 轉賬
+語法：receive() external payable { ... }
+不能有參數和返回值
+建議邏輯簡單，避免 Out of Gas 錯誤
+
+* fallback() 函數：
+調用不存在的函數時觸發
+可用於接收 ETH 和代理合約
+語法：fallback() external payable { ... }
+
+* receive() 和 fallback() 的區別：
+接收 ETH 時，msg.data 為空且存在 receive() 則觸發 receive()
+msg.data 不為空或不存在 receive() 則觸發 fallback()
+
+
+注意事項：
+惡意合約可能在這些函數中嵌入有害代碼
+編寫包含退款邏輯的合約時需謹慎
+如果兩個函數都不存在，直接發送 ETH 到合約會報錯
 
 
 <!-- Content_END -->
