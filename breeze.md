@@ -30,8 +30,10 @@ completed lessons 12-15
 completed lessons 16-18
 ### 2024.09.30
 completed lessons 19-21
-### 2024.10.91
+### 2024.10.01
 complelted lessons 22-24；
+### 2024.10.02
+complelted lessons 25-27；
 
 Todo:
 - Proxy Contract

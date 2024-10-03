@@ -479,6 +479,50 @@ contract control_test{
 }
 ![image](https://github.com/user-attachments/assets/1fdc7eef-f909-47db-bc5c-8b805a12bbda)
 
+### 2024.10.02
+1. 解决了上次遇到的局部变量中用memory声明的数组不能传入参数的问题。
+   //插入排序
+    function sort_test(uint[] memory array) public  pure  returns(uint[] memory ) {
+        for (uint i =1; i < array.length;i++){
+            uint temp = array[i];
+            uint j = i;
+            while ((j > 0) && (temp < array[j-1])) {
+                array[j] = array[j-1];
+                j--;
+            }
+            array[j] = temp;
+        }
+        return array;
+    }
+    function test_insert_sort() public pure returns(uint[] memory) {
+        uint[] memory array = new uint[](5);
+        array[0] = 9;
+        array[1] = 6;
+        array[2] = 7;
+        array[3] = 9;
+        array[4] = 0;
+        sort_test(array);
+        return array;
+    }
+   2. 练习了构造方法和modifier 修饰关键字
+      // SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
 
+contract test_contructor{
+    address public _address;
+
+    constructor (address inital_address) {
+        _address = inital_address;
+    }
+
+    modifier onlyOwner {
+        require(msg.sender == _address);// f检查调用者是否为owner
+            _; //if it is true, then continue
+    }
+
+    function changeOwner(address  change_address) external onlyOwner{
+        _address = change_address;
+    }
+}
 
 <!-- Content_END -->

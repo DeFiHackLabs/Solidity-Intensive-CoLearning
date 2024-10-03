@@ -28,11 +28,11 @@ contract HelloWeb3 { // 這裡是合約的定義
 ## 02_ValueTypes
 有分三種
 #### 1. Value Type
-- (a) boolean：布林型別（! && || == !=）
-- (b) int、uint、uint256：整數型別
-- (c) address：地址型別
-- (d) byte1、byte32：字節型別
-- (e) enum：列舉型別
+- boolean：布林型別 (! && || == !=)
+- int、uint、uint256：整數型別
+- address：地址型別
+- byte1、byte32：字節型別
+- enum：列舉型別
 
 #### 2. Reference Type
 包括 array、struct、mapping 等複雜資料型別
@@ -45,7 +45,7 @@ contract HelloWeb3 { // 這裡是合約的定義
 
 #### 1. 函數的基本結構
 Solidity 中的函數結構有點複雜，但按照固定的格式來寫函數就可以：
-- `function <函數名>(<參數類型>) {internal|external|public|private} [pure|view|payable] [returns (<返回類型>)]`
+- `function <函數名>(<參數類型>) {internal|external|public|private} [pure|view|payable] [returns (<返回類型>)]
 
 #### 2. 可見性修飾符
 Solidity 提供了四種函數可見性修飾符，來控制函數的訪問範圍：
@@ -105,7 +105,7 @@ uint256[3] memory _array;
 ## 05_DataStorage
 
 #### 引用類型
-引用類型包括：array（數組）和 struct（結構體）。
+引用類型包括：array（數組）和 struct（結構體）。  
 這些類型的變數較為複雜，佔用較多存儲空間，因此需要明確聲明數據存儲的位置。
 
 #### 數據存儲位置
@@ -184,7 +184,7 @@ student = Student({id: 4, score: 60});
 
 ### 2024.09.28
 ## 07_Mapping
-在 Solidity 中，映射 (Mapping) 是一種資料結構，可以通過鍵（Key）查詢對應的值（Value）。例如，可以通過一個人的 ID 查詢他的钱包地址。
+在 Solidity 中，映射 (Mapping) 是一種資料結構，可以通過鍵（Key）查詢對應的值（Value）。  例如，可以通過一個人的 ID 查詢他的钱包地址。
 
 #### 映射聲明格式
 ```solidity
@@ -207,8 +207,8 @@ struct Student {
 }
 mapping(Student => uint) public testVar; // 錯誤，因為 _KeyType 是自定義結構體
 ```
-- 存儲位置限制：映射的存儲位置必須是 storage，因此可以用於合約的狀態變量、函數中的 storage 變量和 library 函數的參數中。
-- 自動生成 Getter 函數：如果映射聲明為 public，Solidity 會自動生成一個 getter 函數，可以通過鍵來查詢對應的值。
+- **存儲位置限制**：映射的存儲位置必須是 storage，因此可以用於合約的狀態變量、函數中的 storage 變量和 library 函數的參數中。
+- **自動生成 Getter 函數**：如果映射聲明為 public，Solidity 會自動生成一個 getter 函數，可以通過鍵來查詢對應的值。
 
 #### 新增鍵值對的語法：
 ```solidity
@@ -222,9 +222,9 @@ function writeMap(uint _Key, address _Value) public {
 }
 ```
 #### 映射的原理
-- 不儲存鍵的資訊：映射不儲存任何鍵的資訊，也沒有長度資訊。
-- 存取方式：映射使用 keccak256(abi.encodePacked(key, slot)) 作為偏移量來存取值，其中 slot 是映射變量所在的插槽位置。
-- 默認值：未賦值的鍵初始值都是該類型的默認值，例如 uint 的默認值是 0。
+- **不儲存鍵的資訊**：映射不儲存任何鍵的資訊，也沒有長度資訊。
+- **存取方式**：映射使用 keccak256(abi.encodePacked(key, slot)) 作為偏移量來存取值，其中 slot 是映射變量所在的插槽位置。
+- **默認值**：未賦值的鍵初始值都是該類型的默認值，例如 uint 的默認值是 0。
 
 ### 2024.09.29
 ## 08_InitialValue
@@ -257,11 +257,11 @@ function fi() internal {} // internal空白函數
 function fe() external {} // external空白函數
 ```
 #### 引用類型初始值
-- 映射 (mapping): 所有元素為其預設值的 mapping。
-- 結構體 (struct): 所有成員設為其預設值的結構體。
-- 數組 (array):
-- 動態數組: []
-- 靜態數組（定長）: 所有成員設為其預設值的靜態數組。
+- **映射 (mapping)**: 所有元素為其預設值的 mapping。
+- **結構體 (struct)**: 所有成員設為其預設值的結構體。
+- **數組 (array)**:
+-   **動態數組**: []
+-   **數組（定長）**: 所有成員設為其預設值的靜態數組。
 
 #### 範例驗證初始值
 ```solidity
@@ -307,8 +307,7 @@ address constant CONSTANT_ADDRESS = 0x0000000000000000000000000000000000000000;
 ```
 ##### immutable
 immutable 變量可以在聲明時或構造函數中初始化。
-自 Solidity v8.0.21 之後，immutable 變量不需要顯式初始化，未初始化的 immutable 變量將使用數值類型的初始值。
-若在聲明時和構造函數中都進行初始化，會以構造函數中的值為準。
+自 Solidity v8.0.21 之後，immutable 變量不需要顯式初始化，未初始化的 immutable 變量將使用數值類型的初始值。  若在聲明時和構造函數中都進行初始化，會以構造函數中的值為準。
 ```solidity
 // immutable 變量可在構造函數中初始化，之後不能更改
 uint256 public immutable IMMUTABLE_NUM = 9999999999;
@@ -337,11 +336,11 @@ function test() public pure returns (uint256) {
 ## 10_InsertionSort
 
 #### 控制流
--    if-else
--    for迴圈
--    while迴圈
--    do-while
--    三元運算
+- if-else
+- for迴圈
+- while迴圈
+- do-while
+- 三元運算
 
 #### Insertion Sort 用Python直轉solidity會出錯
 - 將插入排序的 Python 代碼直接轉換為 Solidity 時，變量 j 可能取到負值，導致 underflow 錯誤。
@@ -395,9 +394,181 @@ function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
 - onlyOwner：
 -    用於檢查調用者是否為合約 owner，如果不是則會報錯並回滾交易。
 -    modifier應用在 changeOwner 函數中，只有當前的 owner 才能改變合約的 owner。
--    
 
 ### 2024.10.03
+## 12_Event
+
+#### What?
+事件就像是一個信號，當某些事情發生時，我們可以把這個信號「發送」出去，告訴其他人或應用程式。
+- 響應：像是一些應用程式（比如 ethers.js）可以監聽這些信號，做出相應的反應，讓前端知道有事情發生了。
+- 省油費：相較於其他方法，事件更節省資源（只需要大概 2,000 gas），比起直接在區塊鏈上存一個新變量（至少要 20,000 gas）更划算。
+
+#### How?
+- 在 ERC20 代幣中，轉帳會用到一個叫 Transfer 的事件：
+```solidity
+event Transfer(address indexed from, address indexed to, uint256 value);
+```
+- from：轉帳的人
+- to：接收代幣的人
+- value：轉帳的數量
+from 和 to 被標記為 indexed，這表示可以方便檢索。
+
+#### How to release?
+- 當發生轉帳時，我們可以用 emit 來釋放事件，告訴其他人這件事發生了。  這是如何在 Solidity 的函數中釋放 Transfer 事件的例子：
+```solidity
+emit Transfer(from, to, amount);
+```
+#### EVM(Log)
+- 主題（topics）：這裡存放的是事件的索引。比如轉帳的 from 和 to 地址會存到這裡。
+- 數據（data）：這裡存放的是具體的值，像是轉帳的數量。
+
+#### How to lookup Etherscan event?
+在 Etherscan 上查詢到這個交易的詳細信息，點擊「Logs」按鈕，可以看到事件的細節，包括轉帳的地址和數量。
+
+## 13_Inheritance
+Solidity允許合約之間的代碼重用，避免重覆編寫相同的代碼，
+#### 簡單繼承
+Solidity 支持一個合約繼承另一個合約。  繼承的語法是 contract 子合約名 is 父合約名。  在繼承過程中，父合約中的函數可以被子合約覆蓋（重寫），但必須遵循兩個關鍵字的規則：
+- **virtual**：在父合約中的函數如果想被覆蓋，必須標記為 virtual。
+- **override**：子合約重寫父合約的函數時，必須使用 override 關鍵字。
+```solidity
+contract Yeye {
+    event Log(string msg);
+
+    function hip() public virtual {
+        emit Log("Yeye");
+    }
+}
+
+contract Baba is Yeye {
+    function hip() public virtual override {
+        emit Log("Baba");
+    }
+}
+```
+在這裡，Baba 繼承了 Yeye，並重寫了 hip() 函數。
+#### 多重繼承
+Solidity 允許一個合約繼承多個父合約。  在繼承多個合約時，必須按照輩分從高到低的順序撰寫合約名稱。  如果多個父合約中有相同的函數名稱，那麼在子合約中必須重寫該函數，並使用 override(父合約1, 父合約2) 的格式來指定它覆蓋的是哪些父合約的函數。
+```solidity
+contract Erzi is Yeye, Baba {
+    function hip() public override(Yeye, Baba) {
+        emit Log("Erzi");
+    }
+}
+```
+#### 修飾器的繼承
+修飾器（Modifier）在 Solidity 中也可以繼承，並且可以像函數一樣被重寫。
+```solidity
+contract Base1 {
+    modifier exactDividedBy2And3(uint _a) virtual {
+        require(_a % 2 == 0 && _a % 3 == 0);
+        _;
+    }
+}
+```
+在 Identifier 合約中，重寫了來自 Base1 的修飾器 exactDividedBy2And3。
+```solidity
+contract Identifier is Base1 {
+    modifier exactDividedBy2And3(uint _a) override {
+        _;
+        require(_a % 2 == 0 && _a % 3 == 0);
+    }
+}
+```
+#### 構造函數的繼承
+Solidity 中的子合約可以繼承父合約的構造函數，並且有兩種方式傳遞參數：
+- 在繼承時直接指定父合約構造函數的參數。
+- 在子合約的構造函數中傳遞參數給父合約的構造函數。
+```solidity
+abstract contract A {
+    uint public a;
+
+    constructor(uint _a) {
+        a = _a;
+    }
+}
+```
+```solidity
+ // 第一種方式
+contract B is A(1) {}
+```
+```solidity
+ // 第二種方式
+contract C is A {
+    constructor(uint _c) A(_c * _c) {}
+}
+```
+#### 調用父合約的函數
+子合約可以直接調用父合約的函數，通過以下兩種方式：
+- **直接調用**：使用 父合約名.函數名() 調用父合約的函數。
+- **super關鍵字**：使用 super.函數名() 調用最近的父合約函數。
+```solidity
+contract Erzi is Yeye, Baba {
+    // 直接調用
+    function callParent() public {
+        Yeye.pop(); 
+    }
+    // 使用 super 調用
+    function callParentSuper() public {
+        super.pop(); 
+    }
+}
+```
+#### 菱形繼承
+一個子合約同時繼承兩個父合約，而這兩個父合約又繼承同一個祖父合約。  
+在這種情況下，為了避免同一個函數在父合約中被調用多次，Solidity 引入了有向無環圖（DAG）的繼承模式，確保每個基類中的函數只會被調用一次。
+
+## 14_Interface
+Solidity中，抽象合約（abstract contract）和 接口（interface）是兩種不同的工具
+#### 抽象合約(Abstract Contract)
+抽象合約是一種合約模板，當合約中至少有一個未實現的函數（即沒有函數體）時，該合約必須被標記為 abstract。這表示它不能被單獨部署，而是需要其他合約繼承它，並且實現其中的函數。
+```solidity
+abstract contract InsertionSort {
+    function insertionSort(uint[] memory a) public pure virtual returns (uint[] memory);
+}
+```
+
+#### 接口(Interface)
+接口是一個完全抽象的合約，所有函數都不包含函數體，並且不能有狀態變量或構造函數。接口的主要作用是定義合約應該有哪些功能，並且這些功能如何被外部調用。
+#### 接口的規則：
+- 不能有狀態變量或構造函數。
+- 不能繼承其他類型的合約，僅能繼承接口。
+- 所有函數必須是 external 並且沒有函數體。
+- 繼承接口的合約必須實現接口中定義的所有函數。
+
+## 15_Errors
+#### error 方法
+- error 是在 Solidity 0.8.4 版本中引入的新功能，用於向用戶提供操作失敗的原因。
+- 一種高效且省 gas 的方法，並且允許攜帶參數，幫助開發者進行調試。
+```solidity
+error TransferNotOwner();
+```
+帶參數的 error：
+```solidity
+error TransferNotOwner(address sender);
+```
+- error 通常與 revert 一起使用，當條件不滿足時，拋出異常並rollback交易。
+- 在 transferOwner1 函數中，如果發起人不是代幣的 owner，就會觸發 TransferNotOwner 錯誤。
+#### require 方法
+- require 是 Solidity 0.8 版本之前最常用的異常處理方式，許多合約仍在使用。
+- 它檢查某個條件是否為真，如果為假，則拋出異常。
+- 缺點：require 方法會隨著錯誤描述的字符串長度增加 gas 消耗，這使得它比 error 更昂貴。
+- 在 transferOwner2 函數中，require 用來檢查發起人是否為代幣的 owner
+- 如果不是，會拋出 "Transfer Not Owner" 的異常信息。
+#### assert 方法
+- assert 用於檢查合約內部的邏輯錯誤，通常在開發和調試過程中使用。
+- 它無法提供具體的錯誤信息，只會回滾交易。
+- 當條件不成立時，assert 會直接拋出異常。
+- 在 transferOwner3 函數中，assert 檢查發起人是否為 owner，但不會給出具體的錯誤描述。
+
+#####使用 Remix 測試不同方法的 gas 消耗（基於 Solidity 0.8.17 編譯版本）：
+- error 方法消耗最少的 gas，約 24457（帶參數時為 24660）。
+- require 方法消耗最多，約 24755。
+- assert 方法 gas 消耗稍低於 require，為 24473。
+
+## 16_Overloading
+
+
 
 ### 2024.10.04
 

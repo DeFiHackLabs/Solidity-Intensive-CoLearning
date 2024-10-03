@@ -380,6 +380,8 @@ try externalContract.f() returns(returnType){
 }
 ```
 ### 2024.10.03
+刷题![image](https://github.com/user-attachments/assets/f9ab66f1-36ca-4f3d-8d12-39e7af231dd3)
+
 ### 2024.10.04
 ### 2024.10.05
 ### 2024.10.06

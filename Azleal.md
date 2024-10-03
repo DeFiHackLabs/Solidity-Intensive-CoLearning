@@ -239,5 +239,31 @@ receive()   fallback()
 
 ```
 
+### 2024.10.02
+
+1. 发送ETH
+ - `transfer`发送eth:
+    - `recipient.transfer(amount)` 表示当前合约向`recipient`发送`amount`数量的eth。
+    - gas限制为2300，即`recipient`不能有太复杂的`receive`或者`fallback`逻辑。
+    - `trasnfer`失败时，交易**会**`revert`
+ - `send`发送eth:
+    - `recipient.send(amount)` 表示当前合约向`recipient`发送`amount`数量的eth。
+    - gas限制为2300，即`recipient`不能有太复杂的`receive`或者`fallback`逻辑。
+    - `send`失败时，交易**不会**`revert`。需要判断`send`的`bool`返回值。
+ - `call`发送eth:
+    - `recipient.call{value: amount, gas: gas_amount}("")` 表示当前合约使用`gas_amount`的gas向`recipient`发送`amount`数量的eth。
+    - 无gas限制，且可以自定义gas,`gas`可省略。在提供足够gas的前提下，`recipient`可以有任意复杂的`receive`或者`fallback`逻辑。
+    - `call`失败时，交易**不会**`revert`。需要判断`call`的返回值(bool, bytes).
+
+`call`的调用最为灵活，因此推荐在合约转账时使用`call`进行eth发送
+
+### 2024.10.03
+
+1. 合约调用
+   - 合约地址调用: `OtherContract(_Address).setX(x);`
+   - 合约变量调用: `OtherContract oc = OtherContract(_Address);  x = oc.getX();`
+   - 调用时发送ETH: `OtherContract(otherContract).setX{value: msg.value}(x);`
+
+
 
 <!-- Content_END -->

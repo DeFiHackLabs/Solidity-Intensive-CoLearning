@@ -25,341 +25,157 @@ timezone: Asia/Taipei
 
 ### 2024.09.24
 
-在 Solidity 裡，變數有三大類型：值類型、引用類型、和映射類型。這裡我們先來聊聊最常見的值類型。
+在Solidity程式語言中，變數分為三種主要類型：值類型、引用類型和映射類型。本文將專注於介紹最常用的值類型。
 
+值類型是指那些直接存儲數據值的變數，例如整數。Solidity提供了多種整數類型，其中`uint256`是一個常用的無符號整數類型，適合存儲大數據。例如：
 
-1. 布林值（Boolean）
-布林值就是那種只有兩個狀態的變數，像是「對」或「錯」，也就是 true 和 false。
-
-
-範例：
-
-bool public isTrue = true;
-
-常見的運算符號：
-
-
-! (邏輯非，反轉值)
-
-&& (邏輯與，雙方都要為真)
-
-|| (邏輯或，一方為真即可)
-
-== (等於)
-
-!= (不等於)
-
-
-例子：
-
-bool public notTrue = !isTrue;  // 反轉值
-
-bool public andCondition = isTrue && notTrue;  // 與
-
-bool public orCondition = isTrue || notTrue;  // 或
-
-重點：當執行 && 或 || 的時候，只要前面條件能決定結果，後面的條件就不會執行，這叫做短路運算。
-
-
-2. 整數（Integer）
-   
-Solidity 中有分有號整數和無號整數：
-
-有號整數 (int) 可以是正數或負數。
-
-無號整數 (uint) 只能是正數。
-
-
-範例：
-
-int public num = -5;
-
-uint public positiveNum = 10;
-
+```solidity
 uint256 public largeNum = 123456789;
+```
 
+在Solidity中，我們可以對這些值進行各種運算，包括基本的算術運算（加`+`、減`-`、乘`*`、除`/`、取餘數`%`、指數`**`）和比較運算（小於`<`、小於等於`<=`、等於`==`、不等於`!=`、大於等於`>=`、大於`>`）。以下是一些例子：
 
-常見運算：
+```solidity
+uint256 public result = largeNum + 1;  // 加法運算
+uint256 public exp = 2 ** 3;           // 指數運算，計算2的三次方
+uint256 public remainder = 7 % 2;      // 取餘數運算
+```
 
-算術運算：+, -, *, /, %（取餘數）, **（指數）
+地址類型（Address）是Solidity中用於存儲以太坊地址的特殊類型。它分為兩種：
 
-比較運算：<, <=, ==, !=, >=, >
+- 普通地址（`address`）：僅用於存儲地址。
+- 可支付地址（`address payable`）：除了存儲地址外，還可以接收以太幣。
 
+以下是如何聲明和使用這些地址類型的例子：
 
-例子：
-
-uint256 public result = largeNum + 1;
-
-uint256 public exp = 2 ** 3;  // 2 的三次方
-
-uint256 public remainder = 7 % 2;  // 餘數
-
-
-3. 地址類型（Address）
-   
-地址是一種存儲以太坊錢包地址的變數，有兩種主要類型：
-
-普通地址 (address)：只用來存地址。
-
-可支付地址 (address payable)：不只存地址，還可以用來處理轉帳。
-
-
-範例：
+```solidity
 address public wallet = 0x7A58c0Be72BE218B41C608b7Fe7C5bB630736C71;
+address payable public payableWallet = payable(wallet);  // 將普通地址轉換為可支付地址
+uint256 public balance = payableWallet.balance;          // 查詢地址的餘額
+```
 
-address payable public payableWallet = payable(wallet);
+定長字節數組（Fixed-size Byte Array）是另一種在Solidity中存儲字節數據的方式。它們的長度是固定的，一旦聲明就無法更改。例如，`bytes32`可以存儲最多32個字節的數據。這裡有一個例子：
 
+```solidity
+bytes32 public data = "Solidity";      // 儲存固定長度的字串
+bytes1 public firstByte = data[0];     // 取出數組中的第一個字節
+```
 
-你可以查詢某個地址的餘額：
+最後，枚舉（Enum）是一種特殊的數據類型，用於定義一組命名的常量。在Solidity中，枚舉可以使代碼更加清晰和易於維護。例如，我們可以定義一個代表交易訂單狀態的枚舉：
 
-uint256 public balance = payableWallet.balance;
-
-
-4. 定長字節數組（Fixed-size Byte Array）
-
-這是一種儲存固定長度的字節數組，長度無法更改，例如 bytes32。最多可以存 32 個字節的數據。
-
-範例：
-
-bytes32 public data = "Solidity";
-
-bytes1 public firstByte = data[0];  // 取出第一個字節
-
-
-5. 枚舉（Enum）
-
-枚舉類型用來定義一組固定的狀態，像是下單操作裡的「買入」、「持有」和「賣出」。每個狀態對應一個整數，從 0 開始。
-
-
-範例：
-
+```solidity
 enum Order { Buy, Hold, Sell }
+Order public currentOrder = Order.Buy;  // 設置當前訂單狀態為「買入」
+```
 
-Order public currentOrder = Order.Buy;
+枚舉值可以轉換為整數，這在某些情況下非常有用：
 
-
-枚舉也可以轉換成整數：
-
+```solidity
 function getOrderValue() public view returns(uint) {
-    return uint(currentOrder);
+    return uint(currentOrder);  // 將枚舉值轉換為對應的整數
 }
+```
 
+通過以上介紹，我們可以看到Solidity提供了豐富的變數類型來滿足智能合約開發的需求。每種類型都有其特定的用途和操作方式，為以太坊上的去中心化應用提供了強大的支持。
 
 ### 2024.09.25
 
-Solidity的函數相當靈活，可以進行許多複雜操作。
+Solidity 函數的靈活性允許執行多種複雜操作。
 
 1. 基本結構
 
-function <function name>(<參數類型>) {internal|external|public|private} [pure|view|payable] [returns (<回傳類型>)]
+function <函數名稱>(<參數類型>) {internal|external|public|private} [pure|view|payable] [returns (<回傳類型>)]
 
+function：用於宣告函數的關鍵字。
 
-function：宣告函數的關鍵字。
+<函數名稱>：指定的函數名稱。
 
+<參數類型>：定義函數參數的類型和名稱。
 
-<function name>：函數名稱。
+{internal|external|public|private}：定義函數的可見性範圍：
 
+public：可在合約內外部訪問。
 
-(<參數類型>)：函數參數，包括其類型和名稱。
+private：僅限於合約內部使用，繼承合約無法訪問。
 
+external：僅限外部調用，但可透過 this.f() 在合約內部調用。
 
-{internal|external|public|private}：函數的可見性：
+internal：僅限合約內部及繼承合約使用。
 
+[pure|view|payable]：指定函數的行為修飾符：
 
-public：內部外部都可見。
+pure：不可讀取或修改合約狀態。
 
+view：僅可讀取合約狀態，不可修改。
 
-private：僅限合約內部使用，繼承的合約也不能訪問。
+payable：函數可接收 ETH。
 
+2. Pure 與 View 的差異
 
-external：只能從外部訪問，但可以使用 this.f() 在內部呼叫。
+這兩個修飾符的使用旨在節約 Gas 費用，當函數不更改鏈上狀態時，無需支付 Gas。
 
+pure：不可讀取或更改鏈上狀態變數。
 
-internal：只能在合約內部使用，繼承合約可以訪問。
-
-
-[pure|view|payable]：函數行為的修飾符：
-
-
-pure：不能讀取或修改合約狀態。
-
-
-view：僅能讀取狀態，不可修改。
-
-
-payable：允許函數接收 ETH。
-
-
-
-2. Pure 和 View 的區別
-   
-這兩個關鍵字的引入是為了節省 Gas 費用，因為如果函數不改變鏈上狀態，就不需要支付 Gas 費。
-
-
-pure：既不能讀取也不能修改鏈上的狀態變數。
-
-
-view：可以讀取但不能修改狀態變數。
-
+view：可讀取但不可更改狀態變數。
 
 示例：
 
-
 uint256 public number = 5;
 
-
-// pure 函數，不讀取或修改鏈上狀態
-
+// pure 函數，不讀取或更改鏈上狀態
 
 function addPure(uint256 _number) external pure returns (uint256 new_number) {
     new_number = _number + 1;
 }
 
-
-// view 函數，讀取但不修改鏈上狀態
-
-
-function addView() external view returns (uint256 new_number) {
-    new_number = number + 1;
-}
-
-
-
-3. 函數可見性：Internal 和 External
-
-   
-internal 函數只能由合約內部呼叫，繼承的合約也可以呼叫。
-
-
-external 函數可以從外部調用，內部需要用 this.functionName() 來調用。
-
-
-示例：
-
-
-// internal 函數
-
-
-function minus() internal {
-    number = number - 1;
-}
-
-
-// external 函數，間接呼叫 internal 函數
-function minusCall() external {
-    minus();
-}
-
-
-
-4. Payable 函數
-
-   
-payable 函數允許接收 ETH，通常用於涉及支付的情境。
-
-
-示例：
-
-
-// payable 函數，允許接收 ETH 並返回合約餘額
-
-
-function minusPayable() external payable returns (uint256 balance) {
-    minus();    
-    balance = address(this).balance;
-}
-
-
-
-5. 函數的回傳值
-
-   
-函數可以使用 returns() 指定回傳的變數類型和名稱。
-
-
-示例：
-
-
-function add(uint256 _number) external pure returns (uint256 result) {
-    result = _number + 1;
-}
-
-
-
-Solidity 中函數的靈活度很高，尤其是 pure 和 view 關鍵字在 Gas 優化方面有特殊應用。
-
-payable 則是用於處理 ETH 交易的重要工具。
-
-
-
+// view 函數，讀取但不更改鏈上狀態
 
 ### 2024.09.26
 
 
-返回值：return 和 returns
-Solidity 中與函數輸出相關的關鍵字有兩個：return 和 returns，它們的區別如下：
+在Solidity程式語言中，函數返回值的處理涉及兩個關鍵字：return和returns。它們的使用區別如下：
 
-returns：跟在函數名後面，用來聲明返回的變數類型及變數名。
-return：用於函數主體中，返回指定的變數。
-返回多個變數
-可以定義一個返回多個變數的函數，示例如下：
+- returns：位於函數宣告部分，用於指定函數將返回的數據類型和變數名稱。
+- return：位於函數的執行主體中，用於返回具體的變數值。
 
+例如，我們可以創建一個函數來返回多個值，如下所示：
 
+```solidity
 function returnMultiple() public pure returns (uint256, bool, uint256[3] memory) {
     return (1, true, [uint256(1), 2, 5]);
 }
+```
 
+在此代碼片段中，我們通過returns關鍵字宣告了函數returnMultiple將返回多個值，並在函數主體中使用return關鍵字來指定這些返回值。特別是，uint256[3]指定了一個包含三個元素的uint256型別數組作為返回值，並使用memory關鍵字進行標註，這是因為在Solidity中，返回數組類型的數據時，預設需要這樣的標註。
 
-在這段代碼中，我們利用 returns 聲明了多個返回值的 returnMultiple 函數，並在函數主體中使用 return 來確定返回的值。uint256[3] 定義了一個長度為 3 的 uint256 數組作為返回值，且需要用 memory 修飾，因為 Solidity 中的數組類型返回值默認需要這樣標註。
+另外，Solidity允許在returns關鍵字中直接命名返回變數，這樣Solidity會自動初始化這些變數並在函數結束時自動返回它們的值，無需顯式使用return關鍵字。例如：
 
-
-命名式返回
-
-
-可以在 returns 中標明返回變數的名稱。Solidity 會自動初始化這些變數，並自動返回它們的值，而不需要使用 return：
-
-
+```solidity
 function returnNamed() public pure returns (uint256 _number, bool _bool, uint256[3] memory _array) {
     _number = 2;
     _bool = false;
     _array = [uint256(3), 2, 1];
 }
+```
 
+在上述代碼中，我們通過returns關鍵字宣告了返回變數的類型和名稱，因此只需在函數主體中為這些變數賦值，它們的值就會在函數結束時自動返回。當然，即使在命名式返回中，我們也可以選擇使用return關鍵字來返回值。
 
-在這段代碼中，我們用 returns(uint256 _number, bool _bool, uint256[3] memory _array) 聲明了返回變數的類型及名稱，因此在函數主體中只需為這些變數賦值，即可自動返回它們的值。當然，命名式返回中也可以使用 return：
+此外，Solidity支援解構式賦值，這允許開發者從函數返回值中讀取全部或部分數據。例如，以下程式碼展示了如何讀取所有返回值：
 
-
-function returnNamed2() public pure returns (uint256 _number, bool _bool, uint256[3] memory _array) {
-    return (1, true, [uint256(1), 2, 5]);
-}
-
-
-解構式賦值
-
-
-Solidity 支持使用解構式賦值規則來讀取函數的全部或部分返回值：
-
-
-讀取所有返回值：先聲明變數，然後按順序排列，使用逗號隔開。
-
-
+```solidity
 uint256 _number;
-
-
 bool _bool;
-
-
 uint256[3] memory _array;
-
-
 (_number, _bool, _array) = returnNamed();
+```
 
+如果只需要部分返回值，可以選擇性地聲明所需的變數，並留空不需要的部分。例如，以下程式碼僅讀取_bool變數的值：
 
-讀取部分返回值：只需聲明需要的變數，未讀取的變數可以留空。例如，下面的代碼只讀取 _bool，而不讀取 _number 和 _array：
-
-
+```solidity
 (, _bool2, ) = returnNamed();
+```
 
+透過這些機制，Solidity提供了靈活且強大的方式來處理函數返回值，使得智能合約的開發更加高效和直觀。
 
 
 ### 2024.09.27
@@ -398,4 +214,123 @@ Solidity提供了靈活的存儲控制機制，使開發者能夠根據需求選
 要向映射中新增鍵值對，我們可以使用_Var[_Key] = _Value的語法。映射的工作原理是不存儲鍵本身的資訊，並且沒有方法來直接查詢鍵的數量。映射通過計算keccak256(abi.encodePacked(key, slot))來存取值，其中slot是映射變量的存儲位置。如果查詢一個未賦值的鍵，映射將返回該類型的默認值。
 
 映射是Solidity中一種非常有用的數據結構，適合於需要快速查找的情境。理解映射的工作原理和限制，特別是在鍵的使用和存儲位置方面，對於有效地使用映射至關重要。這些規則和原理確保了映射在智能合約中的高效和安全性。
+
+
+### 2024.10.02
+
+在本講中，我們將探討Solidity中變數的初始值，以及如何利用delete運算子將變數重置為其初始值。當變數被宣告但尚未賦值時，它們會根據變數類型自動獲得一個初始值。
+
+值類型變數的初始值如下：
+- boolean: false
+- string: 空字串("")
+- int: 0
+- uint: 0
+- enum: 枚舉的第一個元素
+- address: 0x0000000000000000000000000000000000000000 或 address(0)
+- function: 
+  - internal: 空白函數
+  - external: 空白函數
+
+您可以透過public變數的getter函數來驗證這些初始值。例如：
+
+```solidity
+// 驗證值類型變數的初始值
+bool public _bool;          // false
+string public _string;      // 空字串("")
+int public _int;            // 0
+uint public _uint;          // 0
+address public _address;    // 0x0000000000000000000000000000000000000000
+
+// 枚舉
+enum ActionSet { Buy, Hold, Sell }
+ActionSet public _enum;     // 默認為Buy，索引為0
+
+// 函數
+function fi() internal {}   // internal空白函數
+function fe() external {}   // external空白函數
+```
+
+引用類型變數的初始值則與值類型不同，其元素會被設定為默認值：
+- mapping: 所有元素為其類型的初始值
+- struct: 所有成員為其類型的初始值
+- array:
+  - 動態數組: 空數組([])
+  - 靜態數組: 所有成員為默認值
+
+以下是驗證引用類型初始值的範例：
+
+```solidity
+// 驗證引用類型變數的初始值
+uint[8] public _staticArray;         // [0, 0, 0, 0, 0, 0, 0, 0]
+uint[] public _dynamicArray;         // 空數組([])
+mapping(uint => address) public _mapping; // 所有key的value為 address(0)
+
+// 結構體初始值
+struct Student {
+    uint256 id;
+    uint256 score;
+}
+Student public student;              // { id: 0, score: 0 }
+```
+
+delete運算子可以將變數重置為其初始值。例如：
+
+```solidity
+// delete運算子範例
+bool public _bool2 = true; 
+function d() external {
+    delete _bool2; // 將_bool2重置為false
+}
+```
+
+delete運算子適用於所有類型的變數，無論是值類型還是引用類型。當應用delete時，變數將被重置為其類型的初始值。
+
+在Remix上進行驗證：
+1. 部署合約並檢查各變數的初始值。
+2. 使用delete運算子，驗證變數是否被重置為默認值。
+
+總結：
+在這一講中，我們了解了Solidity中變數的初始值。變數在宣告時若未賦值，將自動獲得一個初始值，這些初始值因變數類型而異。透過delete運算子，我們能夠將變數重置為其初始值，這對於管理智能合約中的數據生命週期非常重要。
+
+
+### 2024.10.03
+
+在本節課程中，我們探討了Solidity語言中的兩個重要關鍵字：constant和immutable。這些關鍵字用於定義狀態變數，一旦初始化，就無法更改其值。這不僅增強了智能合約的安全性，還有助於減少gas消耗。
+
+constant與immutable的主要區別在於：
+- constant變數必須在宣告時就初始化，且之後不能更改。任何嘗試修改constant變數的行為都會引發編譯錯誤。這類變數適用於數值型別、字符串和字節數組等。
+- immutable變數則提供了更大的靈活性，可以在宣告時或在構造函數中初始化。一旦初始化，就不能再被修改，但初始化時機可以延後至構造函數執行時。
+
+以下是一些使用constant和immutable的例子：
+```solidity
+// constant變數
+uint256 constant CONSTANT_NUM = 10;
+string constant CONSTANT_STRING = "0xAA";
+bytes constant CONSTANT_BYTES = "WTF";
+address constant CONSTANT_ADDRESS = 0x0000000000000000000000000000000000000000;
+
+// immutable變數
+uint256 public immutable IMMUTABLE_NUM = 9999999999;
+address public immutable IMMUTABLE_ADDRESS;
+uint256 public immutable IMMUTABLE_BLOCK;
+uint256 public immutable IMMUTABLE_TEST;
+
+// 在構造函數中初始化
+constructor() {
+    IMMUTABLE_ADDRESS = address(this); // 將合約地址設為不可變地址
+    IMMUTABLE_NUM = 1118;             // 將數值初始化為1118
+    IMMUTABLE_TEST = test();          // 使用自定義函數進行初始化
+}
+
+function test() public pure returns (uint256) {
+    return 9;
+}
+```
+constant變數在宣告時必須設置初始值，且一旦設置就不能更改。若嘗試修改，將會出現錯誤提示：`TypeError: Cannot assign to a constant variable.`
+
+而immutable變數則可以在宣告時或構造函數中設置初始值，但一旦初始化後就不能更改。若嘗試修改，將會出現錯誤提示：`TypeError: Immutable state variable already initialized.`
+
+使用constant和immutable的優勢包括節省gas和提高安全性。由於這些變數的值是固定不變的，Solidity編譯器能夠進行優化存儲，從而節約gas。此外，通過限制變數的修改權限，可以防止不應該被更改的值被意外或惡意修改，從而提高合約的安全性。
+
+constant和immutable是Solidity中用於定義不可變變數的關鍵字。這些變數一旦初始化就不能更改，這不僅確保了智能合約的安全性，也有助於降低gas成本。constant要求在宣告時就進行初始化，而immutable則提供了更多靈活性，允許在構造函數中初始化。
 <!-- Content_END -->

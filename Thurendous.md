@@ -1160,4 +1160,36 @@ Some usually used library contracts:
 - Arrays：跟数组相关的库合约
 
 
+### 2024.10.3
+
+(Day 10)
+
+学习笔记
+
+#### import
+在Solidity中，import语句可以帮助我们在一个文件中引用另一个文件的内容，提高代码的可重用性和组织性。本教程将向你介绍如何在Solidity中使用import语句。
+
+- import 的用法
+  - import 可以在源文件之中使用，导入另一个文件。
+  - 通过源文件网址导入网上的合约的全局符号
+
+```solidity
+// 通过网址引用
+import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+```
+
+  - 通过npm的目录导入，例子：
+
+```solidity
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+```
+
+- 通过指定全局符号导入合约特定的全局符号，例子：
+```solidity
+import {Yeye} from './Yeye.sol';
+```
+
+
+
+
 <!-- Content_END -->
