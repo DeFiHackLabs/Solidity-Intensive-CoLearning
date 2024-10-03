@@ -562,7 +562,20 @@ try代码块内的revert是不会被catch本身捕获？
 
 ### 2024.10.03
 
-笔记内容
+ERC20是以太坊上的代币标准，来自2015年11月V神参与的EIP20。它实现了代币转账的基本逻辑：
+
+账户余额(balanceOf())
+转账(transfer())
+授权转账(transferFrom())
+授权(approve())
+代币总供给(totalSupply())
+授权转账额度(allowance())
+代币信息（可选）：名称(name())，代号(symbol())，小数位数(decimals())
+IERC20是ERC20代币标准的接口合约，规定了ERC20代币需要实现的函数和事件。
+函数分为内部和外部两个内容，一个重点是实现，另一个是对外接口，约定共同数据
+IERC20定义了2个事件：Transfer事件和Approval事件，分别在转账和授权时被释放
+注意：用override修饰public变量，会重写继承自父合约的与变量同名的getter函数，比如IERC20中的balanceOf()函数。
+<https://www.wtf.academy/docs/solidity-103/ERC20/>
 
 ### 2024.10.04
 
