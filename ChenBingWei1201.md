@@ -769,6 +769,53 @@ In this lecture, I learned control flow in Solidity and wrote a simple but bug-p
 
 </details>
 
+### 2024.10.03
+<details>
+<summary>11. Constructor & Modifier</summary>
+
+#### Constructor
+`constructor` is a special function, which will automatically run once during contract deployment. Each contract can have one `constructor`. It can be used to initialize parameters of a contract, such as an `owner` address:
+```solidity
+   address owner; // define owner variable
+
+   // constructor
+   constructor() {
+      owner = msg.sender; //  set owner to the deployer address
+   }
+```
+Note: The syntax of `constructor` in solidity is not consistent for different versions: Before `solidity 0.4.22`, constructors did not use the `constructor` keyword. Instead, the constructor had the same name as the contract name. This old syntax is prone to mistakes: the developer may mistakenly name the contract as `Parents`, while the constructor as `parents`. So in `0.4.22` and later version, the new `constructor` keyword is used. Example of constructor prior to `solidity 0.4.22`:
+```solidity
+pragma solidity = 0.4.21;
+contract Parents {
+    // The function with the same name as the contract name(Parents) is constructor
+    function Parents () public {
+    }
+}
+```
+
+#### Modifier
+`modifier` is similar to `decorator` in object-oriented programming, which is used to declare dedicated properties of functions and reduce code redundancy. `modifier` is Iron Man Armor for functions: the function with `modifier` will have some magic properties. The popular use case of `modifier` is restrict the access of functions.
+
+Let's define a `modifier` called onlyOwner, functions with it can only be called by `owner`:
+```solidity
+   // define modifier
+   modifier onlyOwner {
+      require(msg.sender == owner); // check whether caller is address of owner
+      _; // execute the function body
+   }
+```
+Next, let us define a `changeOwner` function, which can change the `owner` of the contract. However, due to the `onlyOwner` modifier, only original `owner` is able to call it. This is the most common way of access control in smart contracts.
+```solidity
+   function changeOwner(address _newOwner) external onlyOwner{
+      owner = _newOwner; // only owner address can run this function and change owner
+   }
+```
+
+#### Summary
+In this lecture, I learned `constructor` and `modifier` in Solidity, and wrote an `Ownable` contract that controls access of the contract.
+
+</details>
+
 ###
 
 <!-- Content_END -->

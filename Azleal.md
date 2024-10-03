@@ -257,5 +257,13 @@ receive()   fallback()
 
 `call`的调用最为灵活，因此推荐在合约转账时使用`call`进行eth发送
 
+### 2024.10.03
+
+1. 合约调用
+   - 合约地址调用: `OtherContract(_Address).setX(x);`
+   - 合约变量调用: `OtherContract oc = OtherContract(_Address);  x = oc.getX();`
+   - 调用时发送ETH: `OtherContract(otherContract).setX{value: msg.value}(x);`
+
+
 
 <!-- Content_END -->

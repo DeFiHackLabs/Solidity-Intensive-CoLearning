@@ -17,6 +17,9 @@ timezone: Asia/Shanghai
 ## Notes
 
 <!-- Content_START -->
+### 2023.10.03
+学习调用其他合约
+
 ### 2024.10.02
 学习 接收和发送eth
 
