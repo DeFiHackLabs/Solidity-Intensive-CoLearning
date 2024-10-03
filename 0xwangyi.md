@@ -269,3 +269,26 @@ Solidity 102-26 删除合约
 1 删除合约的命令，现在常用：selfdestruct
 2 坎昆升级后，合约依然存在，只是将合约包含的eth转移到指定地址，而合约依然能够调用
 <!-- Content_END -->
+<!-- Content_START -->
+### 2024.10.03
+Day11
+Solidity 102-27 ABI编码解码
+1 abi.decode 的逆向操作函数（反函数）是abi.encode
+2 abi.encode( )是 Solidity 提供的函数、用干对传入的变量讲行 ABI编码
+3 在以太坊中，数据必须编码成字节码才能和智能合约交互
+
+Solidity 102-28 Hash
+1 哈希函数hash function可以将任意长度的消息转化为一个固定长度的值，这个值也叫哈希hash
+2 最常用的哈希函数为：keccak-256
+3 好的哈希函数特性：单向性，灵敏性，高效性，均一性，抗碰撞性
+
+Solidity 102-29 函数选择器selector
+1 函数签名是函数名和参数类型的组合（如：transfer(address,uint256)）
+2 函数选择器selector和Method ID是通过对函数签名哈希后生成的前 4 个字节，用于标识函数；selector = method id
+3 每个合约中的函数都会有一个唯一的函数选择器（也就是Method ID），用于区分不同的函数
+
+Solidity 102-30 try-catch
+1 try-catch用于处理外部合约调用时的错误
+2 try模块在调用成功的情况下运行，而catch模块则在调用失败时运行
+3 revert() 是 Solidity 中的一个函数，用于显式触发异常，并且它会返回 bytes 类型的数据
+<!-- Content_END -->

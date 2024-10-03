@@ -53,4 +53,7 @@ timezone: Asia/Shanghai
 ### 2024.10.02
 章節19學習到eth轉帳時可以透過fallbackCalled和receive兩個函數去確保在轉帳時後是否要帶足夠資訊，確保合約跟交易的安全性
 
+### 2024.10.03
+章節20學習到三種發送eth方法transfer，send和call，建議使用call主要是底層安全性問題，再來建議使用transfer有revert功能
+send不建議使用，因為有問題還會繼續執行下去
 <!-- Content_END -->
