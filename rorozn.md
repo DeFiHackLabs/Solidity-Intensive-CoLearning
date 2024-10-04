@@ -973,6 +973,24 @@ contract DeleteContract {
 
 ### 2024.10.03
 
+27. ABI 编码解码
+
+- 编码
+  - abi.encode  
+    将每个参数填充为 32 字节的数据，并拼接在一起
+  - abi.encodePacked  
+    省略 0，不能与合约交互
+  - abi.encodeWithSignaturec  
+    第一个参数为函数签名，调用其他合约时使用，等同于在 abi.encode 编码结果前加上了 4 字节的函数选择器
+  - abi.encodeWithSelector  
+    第一个参数为函数选择器
+- 解码
+  - abi.encode
+- ABI 的使用场景
+  - 配合 call 来实现对合约的底层调用
+  - 合约导入，函数调用
+  - 对不开源合约进行反编译后，某些函数无法查到函数签名，可通过**ABI 函数选择器**进行调用
+
 ### 2024.10.04
 
 ### 2024.10.05

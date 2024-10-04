@@ -242,4 +242,6 @@ contract MyTokenTest is IERC20 {
 
 }
 ```
+### 2024.10.03
+- 学习了ERC721相关知识
 <!-- Content_END -->

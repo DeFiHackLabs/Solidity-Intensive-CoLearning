@@ -120,4 +120,30 @@ Arrays：跟数组相关的库合约
 4. delegatecall在调用合约时可以指定交易发送的gas，但不能指定发送的ETH数额
 5. create的用法很简单，就是new一个合约，并传入新合约构造函数所需的参数：Contract x = new Contract{value: _value}(params)
 6. 其中Contract是要创建的合约名，x是合约对象（地址），如果构造函数是payable，可以创建时转入_value数量的ETH，params是新合约构造函数的参数。
+
+### 2024.10.03
+1. CREATE2的目的是为了让合约地址独立于未来的事件。不管未来区块链上发生了什么，你都可以把合约部署在事先计算好的地址上。
+2. create2的实际应用场景  
+- 交易所为新用户预留创建钱包合约地址。  
+- 由 CREATE2 驱动的 factory 合约，在Uniswap V2中交易对的创建是在 Factory中调用CREATE2完成。这样做的好处是: 它可以得到一个确定的pair地址, 使得 Router中就可以通过 (tokenA, tokenB) 计算出pair地址, 不再需要执行一次 Factory.getPair(tokenA, tokenB) 的跨合约调用。
+3. 对外提供合约销毁接口时，最好设置为只有合约所有者可以调用，可以使用函数修饰符onlyOwner进行函数声明。
+4. selfdestruct命令可以用来删除智能合约，并将该合约剩余ETH转到指定地址
+5. abi.encode:将每个参数填充为32字节的数据，并拼接在一起。如果你要和合约交互，你要用的就是abi.encode。
+6. 当你想省空间，并且不与合约交互的时候，可以使用abi.encodePacked，例如算一些数据的hash时
+7. abi.encodeWithSignature: 与abi.encode功能类似，只不过第一个参数为函数签名，比如"foo(uint256,address,string,uint256[2])"。当调用其他合约的时候可以使用。
+8. abi.encodeWithSelector: 与abi.encodeWithSignature功能类似，只不过第一个参数为函数选择器，为函数签名Keccak哈希的前4个字节。  
+  
+一个好的哈希函数应该具有以下几个特性：  
+
+单向性：从输入的消息到它的哈希的正向运算简单且唯一确定，而反过来非常难，只能靠暴力枚举。  
+灵敏性：输入的消息改变一点对它的哈希改变很大。  
+高效性：从输入的消息到哈希的运算高效。  
+均一性：每个哈希值被取到的概率应该基本相等。  
+抗碰撞性：  
+弱抗碰撞性：给定一个消息x，找到另一个消息x'，使得hash(x) = hash(x')是困难的。  
+强抗碰撞性：找到任意x和x'，使得hash(x) = hash(x')是困难的。  
+
+sha3由keccak标准化而来，在很多场合下Keccak和SHA3是同义词，但在2015年8月SHA3最终完成标准化时，NIST调整了填充算法。所以SHA3就和keccak计算的结果不一样，这点在实际开发中要注意。  
+以太坊在开发的时候sha3还在标准化中，所以采用了keccak，所以Ethereum和Solidity智能合约代码中的SHA3是指Keccak256，而不是标准的NIST-SHA3，为了避免混淆，直接在合约代码中写成Keccak256是最清晰的。  
+
 <!-- Content_END -->

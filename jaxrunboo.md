@@ -584,4 +584,52 @@ contract Sender {
 从这些方面理解，delegateCall调用的，就是一个可变更的，执行逻辑。
 
 ###
+
+### 2024.10.03
+
+#### 合约创建新合约
+
+1. create
+
+```solidity
+//如果被调用方构造合约是payable，可以通过下面这个value的方式发送eth
+Contract x = new Contract{value:value}(params);
+```
+
+```solidity
+contract Pair{
+    address public factory;
+    address public token1;
+    address public token2;
+
+    constructor() payable {
+        factory = msg.sender;
+    }
+
+    function initialize(address _token1,address _token2) external {
+        require(msg.sender == factory,"");
+        token1 = _token1;
+        token2 = _token2;
+    }
+
+}
+
+contract Factory {
+    mapping(address => mapping (address => address)) public getPair;
+    address[] public allPairs;
+
+    function createPair(address _token1,address _token2) external returns(address){
+        Pair pair = new Pair();
+        pair.initialize(_token1, _token2);
+        allPairs.push(address(pair));
+        getPair[_token1][_token2] = address(pair);
+        getPair[_token2][_token1] = address(pair);
+        return address(pair);
+    }
+}
+```
+
+
+###
+
 <!-- Content_END -->
