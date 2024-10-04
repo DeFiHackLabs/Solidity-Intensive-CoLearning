@@ -821,4 +821,105 @@ contract SafeEtherTransfer is ReentrancyGuard {
     }
 }
 ```
+
+### 2024.10.03
+#### 21 CallContract
+
+> 没有谁是一座孤岛. ——John Donn
+
+每个人都与他人相互关联，缺一不可，合约也类似，单个的合约并不能发挥太大的作用，只有多个合约相互组合，才能构建出复杂，强大的DAPP。
+
+在微服务的视角，想要调用微服务中某个提供特定功能的服务，只需要知道 host + port 就可以发起调用(先不考虑授权机制)，而在 solidity 的世界，只需要知道合约的地址或者通过 import 引入其他合约就能发起调用，合约地址就是已部署合约的唯一标识。
+
+```solidity
+contract Callee {
+    uint256 public x;
+
+    function setX(uint256 _x) public returns (uint256) {
+        x = _x;
+        return x;
+    }
+}
+
+contract Caller {
+    function setX(Callee _callee, uint256 _x) public {
+        uint256 x = _callee.setX(_x);
+    }
+
+    function setXFromAddress(address _addr, uint256 _x) public {
+        Callee callee = Callee(_addr);
+        callee.setX(_x);
+    }
+
+}
+
+```
+
+假设合约 `Callee` 部署在地址 `0xd9145CCE52D386f254917e481eB44e9943F39138`, `Caller` 想要调用它，只需要 `setXFromAddress(0xd9145CCE52D386f254917e481eB44e9943F39138, 256)`, 就能发起调用.
+
+或者 `setX(0xd9145CCE52D386f254917e481eB44e9943F39138, 256)`, Solidity 会把地址转换成合约 `Callee` 的引用，然后再发起调用。
+
+除去通过地址或者合约引用发起调用， Solidity 还支持通过之前学过的，用来转账的 `call` 函数来调用其他合约，但是函数比较底层，一般不推荐用来调用其他合约.
+
+### 2024.10.04
+#### 22 Call
+
+不推荐使用 `call` 来调用其他合约的原因，课程并没有解释得很详细，主要是笼统地说不推荐使用，背后的原因我认为大概有以下几点：
+
+`call`调用失败的回滚不会向上传递, 介绍 error-handling 的时候有提到，solidity的异常是 revert-state，也就是意味着出现异常时，会在调用栈向上回滚，而 `call` 在调用失败的时候并不会自动向上回滚，除非手动添加回滚操作:
+
+```solidity
+(bool success, ) = targetContract.call(abi.encodeWithSignature("someFunction()"));
+require(success, "Call failed");
+```
+
+使用 `call` 调用跳过了编译器的类型检查，非常容易导致 bug, 比如把 `targetContract.call(abi.encodeWithSignature("someFunction()"));`中 `someFunction` 写成了 `somFunction`, 也能编译通过并执行, 无法检查函数是否存在或者参数类型，参数个数是否有误.
+
+总结而言，`call` 就类似 Python 或者 Javascript 中的 `eval` 函数，可以直接将字符串当作代码来执行, 并返回执行结果.
+
+#### 23 delegatecall
+
+`delegatecall` 的确非常神奇，我这次是没有想到在其他语言中的类似的功能, 使用 `delegatecall` 有个非常强大的功能，意味着它可以在运行时从其他合约地址动态加载代码，但是仍然使用本合约的上下文，也就意味着可以只把代码拿过来用，无需关心状态变化。
+
+智能合约一旦部署，就无法修改。如果重新部署一个新合约，既会导致旧合约所有内部数据的丢失，也会导致合约地址的变更，这对于用户来说是不可接受的。
+
+为了解决这个问题，人们提出了基于 Proxy 的合约升级方案。这种方案的核心思想是， 将合约的代码和数据分离，面向客户的是负责保存数据的 Proxy 合约， 但是 Proxy 中不包含任何逻辑代码，只是将所有的请求，都转发给实现业务代码的 Implementation 合约。
+
+当需要升级时，只需要部署一个新的 Implementation 合约，然后将 Proxy 合约的指针更新为新的 Implementation 合约地址即可.
+
+假如有一个代理合约，可以理解成课程中的合约B, 还有一个具体实现的合约，可以理解成合约C.
+
+```solidity
+// Proxy contract
+contract Proxy {
+    address public implementation;
+
+    constructor(address _implementation) {
+        implementation = _implementation;
+    }
+
+    function upgradeTo(address _newImplementation) public {
+        implementation = _newImplementation;
+    }
+
+    fallback() external payable {
+        (bool success, ) = implementation.delegatecall(msg.data);
+        require(success, "Delegatecall failed");
+    }
+}
+
+// Implementation contract
+contract ImplementationV1 {
+    uint public value;
+
+    function setValue(uint _value) public {
+        value = _value;
+    }
+}
+```
+
+用户A通过合约B(代理合约)来调用合约C(具体的实现合约), 当合约C 升级之后，只需要调用 `upgradeTo` 接口，传入新合约D的地址，就可以让合约B 把请求转发给新合约D, 用户也不需要变成合约地址，因为用户只需要知道合约B的地址即可。
+
+因为合约B调用合约C或者合约D 使用的都是 `delegatecall`, 所以在合约C或者D看来，就和用户A直接调用他们没有差别，通过 `delegatecall` 就实现了合约的平滑升级，类似CI/CD中的灰度发布了.
+
 <!-- Content_END -->

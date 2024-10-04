@@ -915,6 +915,276 @@ Common library:
 2. [**Address**](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Address.sol)：判断某个地址是否为合约地址
 3. [**Create2**](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Create2.sol)：更安全的使用**`Create2 EVM opcode`**
 4. [**Arrays**](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Arrays.sol)：跟数组相关的库合约
+### 2024.10.03
 
+複習。
+
+三元运算符（Ternary Operator）: 它可以在一行中实现 `if-else` 的功能。
+
+```solidity
+规则**条件? 条件为真的表达式:条件为假的表达式**。此运算符经常用作**if**语句的快捷方式。
+*// 三元运算符 ternary/conditional operator*
+function ternaryTest(uint256 x, uint256 y) public pure returns(uint256){    
+		*// return the max of x and y*    
+		return x >= y ? x: y; 
+}
+```
+
+Constructor 一個合約會自動運行一次。用來初始化合約的個別參數。
+
+```solidity
+prgma solidity ^0.8.21;
+contract Parents {
+		// 與合約名Parent同名的函數就是構造函數
+		function Parents () public {
+		}
+}
+```
+
+modifier
+
+- 可以用来声明函数某些特性
+- 主要使用场景是运行函数前的检查
+- 可以减少代码冗余
+- modifier类似面向对象编程中的decorator
+
+---
+
+### 1. `transfer(address,uint256)` 的函数选择器
+
+- 函数签名：`transfer(address,uint256)`
+- 通过 `keccak256` 进行哈希处理，结果是：
+    
+    ```solidity
+    keccak256("transfer(address,uint256)") = 0xa9059cbb00000000000000000000000000000000000000000000000000000000
+    ```
+    
+- 取前4个字节：
+    
+    ```solidity
+    0xa9059cbb
+    ```
+    
+
+因此，`transfer(address,uint256)` 的函数选择器是 **`0xa9059cbb`**。
+
+---
+
+### 2. `transferFrom(address,address,uint256)` 的函数选择器
+
+- 函数签名：`transferFrom(address,address,uint256)`
+- 通过 `keccak256` 进行哈希处理，结果是：
+    
+    ```solidity
+    keccak256("transferFrom(address,address,uint256)") = 0x23b872dd00000000000000000000000000000000000000000000000000000000
+    ```
+    
+- 取前4个字节：
+    
+    ```solidity
+    0x23b872dd
+    ```
+    
+
+因此，`transferFrom(address,address,uint256)` 的函数选择器是 **`0x23b872dd`**。
+
+---
+
+### 结论
+
+- `transfer(address,uint256)` 的函数选择器是 **`0xa9059cbb`**
+- `transferFrom(address,address,uint256)` 的函数选择器是 **`0x23b872dd`**
+
+两个函数的函数选择器是不同的，因为它们的签名不同。
+
+### 函数签名的作用
+
+Solidity 编译器会根据函数签名生成一个 **函数选择器（Function Selector）**，这个选择器是合约调用时用于识别不同函数的。通过对函数签名进行 `keccak256` 哈希，然后截取哈希值的前 4 个字节，得到函数选择器。
+
+### 函数签名的例子
+
+### 1. `transfer(address,uint256)`
+
+- 函数名称：`transfer`
+- 参数类型列表：`address,uint256`
+
+这个函数的签名就是：
+
+```scss
+scss
+複製程式碼
+transfer(address,uint256)
+
+```
+
+### 2. `transferFrom(address,address,uint256)`
+
+- 函数名称：`transferFrom`
+- 参数类型列表：`address,address,uint256`
+
+这个函数的签名是：
+
+```css
+css
+複製程式碼
+transferFrom(address,address,uint256)
+
+```
+
+### 生成函数选择器的步骤
+
+函数选择器由函数签名生成。步骤如下：
+
+1. 从函数签名构建字符串，例如：`transfer(address,uint256)`。
+2. 通过 `keccak256` 对这个字符串进行哈希计算，生成一个 32 字节的哈希值。
+3. 取哈希值的前 4 个字节，这就是函数的选择器。
+
+例如：
+
+```solidity
+solidity
+複製程式碼
+keccak256("transfer(address,uint256)") = 0xa9059cbb00000000000000000000000000000000000000000000000000000000
+
+```
+
+函数选择器就是：
+
+```
+複製程式碼
+0xa9059cbb
+
+```
+
+### 注意
+
+1. **函数名称相同，但参数类型不同**：即使函数名称相同，参数的类型或数量不同，它们的函数选择器也会不同。例如：
+    - `foo(uint256 a)` 和 `foo(uint256 a, uint256 b)` 是不同的函数，它们有不同的签名，因此会有不同的选择器。
+2. **参数类型相同但名称不同**：如果两个函数的名称相同、参数类型相同（即使参数名称不同），它们会有相同的选择器。例如：
+    - `bar(address to, uint256 amount)` 和 `bar(address receiver, uint256 value)` 的函数签名是一样的，因为参数类型完全相同，生成的选择器也相同。
+
+### 2024.10.04
+Solidity有三种方法向其他合约发送ETH，他们是：transfer()，send()和call()，其中call()是被鼓励的用法。
+
+接收ETH合约
+我们先部署一个接收ETH合约ReceiveETH。ReceiveETH合约里有一个事件Log，记录收到的ETH数量和gas剩余。还有两个函数，一个是receive()函数，收到ETH被触发，并发送Log事件；另一个是查询合约ETH余额的getBalance()函数。
+
+contract ReceiveETH {
+    // 收到eth事件，记录amount和gas
+    event Log(uint amount, uint gas);
+    
+    // receive方法，接收eth时被触发
+    receive() external payable{
+        emit Log(msg.value, gasleft());
+    }
+    
+    // 返回合约ETH余额
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+}
+
+Copy
+部署ReceiveETH合约后，运行getBalance()函数，可以看到当前合约的ETH余额为0。
+
+20-1
+
+发送ETH合约
+我们将实现三种方法向ReceiveETH合约发送ETH。首先，先在发送ETH合约SendETH中实现payable的构造函数和receive()，让我们能够在部署时和部署后向合约转账。
+
+contract SendETH {
+    // 构造函数，payable使得部署的时候可以转eth进去
+    constructor() payable{}
+    // receive方法，接收eth时被触发
+    receive() external payable{}
+}
+
+Copy
+transfer
+用法是接收方地址.transfer(发送ETH数额)。
+transfer()的gas限制是2300，足够用于转账，但对方合约的fallback()或receive()函数不能实现太复杂的逻辑。
+transfer()如果转账失败，会自动revert（回滚交易）。
+代码样例，注意里面的_to填ReceiveETH合约的地址，amount是ETH转账金额：
+
+// 用transfer()发送ETH
+function transferETH(address payable _to, uint256 amount) external payable{
+    _to.transfer(amount);
+}
+
+Copy
+部署SendETH合约后，对ReceiveETH合约发送ETH，此时amount为10，value为0，amount>value，转账失败，发生revert。
+
+20-2
+
+此时amount为10，value为10，amount<=value，转账成功。
+
+20-3
+
+在ReceiveETH合约中，运行getBalance()函数，可以看到当前合约的ETH余额为10。
+
+20-4
+
+send
+用法是接收方地址.send(发送ETH数额)。
+send()的gas限制是2300，足够用于转账，但对方合约的fallback()或receive()函数不能实现太复杂的逻辑。
+send()如果转账失败，不会revert。
+send()的返回值是bool，代表着转账成功或失败，需要额外代码处理一下。
+代码样例：
+
+error SendFailed(); // 用send发送ETH失败error
+
+// send()发送ETH
+function sendETH(address payable _to, uint256 amount) external payable{
+    // 处理下send的返回值，如果失败，revert交易并发送error
+    bool success = _to.send(amount);
+    if(!success){
+        revert SendFailed();
+    }
+}
+
+Copy
+对ReceiveETH合约发送ETH，此时amount为10，value为0，amount>value，转账失败，因为经过处理，所以发生revert。
+
+20-5
+
+此时amount为10，value为11，amount<=value，转账成功。
+
+20-6
+
+call
+用法是接收方地址.call{value: 发送ETH数额}("")。
+call()没有gas限制，可以支持对方合约fallback()或receive()函数实现复杂逻辑。
+call()如果转账失败，不会revert。
+call()的返回值是(bool, bytes)，其中bool代表着转账成功或失败，需要额外代码处理一下。
+代码样例：
+
+error CallFailed(); // 用call发送ETH失败error
+
+// call()发送ETH
+function callETH(address payable _to, uint256 amount) external payable{
+    // 处理下call的返回值，如果失败，revert交易并发送error
+    (bool success,) = _to.call{value: amount}("");
+    if(!success){
+        revert CallFailed();
+    }
+}
+
+Copy
+对ReceiveETH合约发送ETH，此时amount为10，value为0，amount>value，转账失败，因为经过处理，所以发生revert。
+
+20-7
+
+此时amount为10，value为11，amount<=value，转账成功。
+
+20-8
+
+运行三种方法，可以看到，他们都可以成功地向ReceiveETH合约发送ETH。
+
+总结
+这一讲，我们介绍Solidity三种发送ETH的方法：transfer，send和call。
+
+call没有gas限制，最为灵活，是最提倡的方法；
+transfer有2300 gas限制，但是发送失败会自动revert交易，是次优选择；
+send有2300 gas限制，而且发送失败不会自动revert交易，几乎没有人用它。
 
 <!-- Content_END -->

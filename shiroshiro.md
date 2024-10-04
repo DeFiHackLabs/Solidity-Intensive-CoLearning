@@ -117,6 +117,10 @@ uses keccak256(key) as offset ?
 getter func => var()
 deleting a var will reset it to default
 
+### 2024.10.03
 
+#### why mapping?
+efficient memory space and fast access
+like hash tables
 
 <!-- Content_END -->

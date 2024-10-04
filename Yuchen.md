@@ -1006,5 +1006,72 @@ function getString2(uint256 _number) public pure returns(string memory){
 > 
 > Ans：在 Solidity 中，如果你想要導入某個文件中的全局符號（例如合約、函數、結構體等），這些符號必須在文件的最外層與合約並列定義，而不是在合約內部。這樣才能被其他合約單獨導入。 
 
+### 2024.10.03
+
+#### 接收ETH
+Solidity支持兩種特殊的回調函數，`receive()`和`fallback()`。  
+* 使用情況：
+    1. 接收ETH
+    2. 處理合約中不存在的函數調用 (代理合約proxy contract)
+
+※ 在Solidity 0.6.x版本之前，只有`fallback()`函數，0.6版本之後`fallback()`函数才被拆分成`receive()`和`fallback()`。
+
+
+**`receive()`**  
+* 用途：`receive()` 函數在合約收到 ETH 轉帳時被呼叫的函數。
+* 特點：
+    * 只能有一個 receive() 函數
+    * 宣告時不用`function`關鍵字
+    * 不接受任何參數，並且沒有返回值，且必須包含`external`和`payable`。
+    * 合約接收 ETH 的時候，`receive()`會被觸發，函數中不能執行太多邏輯，因為當用`send`、`transfer`方法發送 ETH 時，gas 會被限制在`2300`，此時`receive()`太複雜會觸發`Out of Gas`報錯；如果用`call`就可以自定義gas以執行更複雜的邏輯。
+    
+
+    ```Solidity
+    // 定义事件
+    event Received(address Sender, uint Value);
+    // 接收ETH时释放Received事件
+    receive() external payable {
+        emit Received(msg.sender, msg.value);
+    }
+    ```
+    ※ 有些恶意合约，会在receive() 函数（老版本的话，就是 fallback() 函数）嵌入恶意消耗gas的内容或者使得执行故意失败的代码，导致一些包含退款和转账逻辑的合约不能正常工作，因此写包含退款等逻辑的合约时候，一定要注意这种情况。
+
+
+**`fallback()`**  
+* 用途：`fallback()` 函數會在呼叫不存在的函數時被觸發。可用於接收 ETH；也可用於代理合約`proxy contract`。
+* 特點：
+    * 宣告時不用`function`關鍵字
+    * 必須由`external`和`payable`修飾，用於接收ETH:`fallback() external payable { ... }`。
+event fallbackCalled(address Sender, uint Value, bytes Data);
+
+    ex.以下程式，觸發時會釋放`fallbackCalled`事件，並輸出`msg.sender`，`msg.value`和`msg.data`：
+    ```Solidity
+    // fallback
+    fallback() external payable{
+        emit fallbackCalled(msg.sender, msg.value, msg.data);
+    }
+    ```
+
+**`receive`和`fallback`的區別**  
+`receive`和`fallback`都能用於接收 ETH，觸發規則如下：
+```
+触发fallback() 还是 receive()?
+           接收ETH
+              |
+         msg.data是空？
+            /  \
+          是    否
+          /      \
+receive()存在?   fallback()
+        / \
+       是  否
+      /     \
+receive()   fallback()
+```  
+※ 合約接收到 ETH 時，`msg.data`為空且存在`receive()`時，會觸發`receive()`；`msg.data`不為空或不存在`receive()`時，會觸發`fallback()`，此時`fallback()`必須為`payable`。  
+
+`receive()`和`payable fallback()`均不存在時，向合約直接發送 ETH 將會報錯(但仍可以通過帶有`payable`的函數向合約發送 ETH)。
+
+
 
 <!-- Content_END -->

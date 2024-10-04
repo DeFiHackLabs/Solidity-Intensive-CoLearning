@@ -18,6 +18,9 @@ timezone: Asia/Shanghai
 
 <!-- Content_START -->
 
+### 2024.10.03
+- 完成 Solidity 102 的第 23-24 节
+
 ### 2024.10.02
 - 完成 Solidity 102 的第 21-22 节
 

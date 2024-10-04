@@ -1130,6 +1130,392 @@ contract EventFn {
 }
 ```
 
+### 2024.10.02
 
+#### 继承
+
+- `virtual`: 父合约中的函数，如果希望子合约重写，需要加上`virtual`关键字。
+
+- `override`：子合约重写了父合约中的函数，需要加上`override`关键字。
+
+  **多重继承**
+
+  `Solidity`的合约可以继承多个合约。规则：
+
+  1. 继承时要按辈分最高到最低的顺序排。比如我们写一个`Erzi`合约，继承`Yeye`合约和`Baba`合约，那么就要写成`contract Erzi is Yeye, Baba`，而不能写成`contract Erzi is Baba, Yeye`，不然就会报错。
+  2. 如果某一个函数在多个继承的合约里都存在，比如例子中的`hip()`和`pop()`，在子合约里必须重写，不然会报错。
+  3. 重写在多个父合约中都重名的函数时，`override`关键字后面要加上所有父合约名字，
+  4. 子合约有两种方式调用父合约的函数，直接调用和利用`super`关键字。
+
+```solidity
+// SPDX License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+// 继承
+
+// 创建爷爷合约
+contract Yeye {
+    event Log(string msg);
+
+    function hip() external virtual {
+        emit Log("yeye");
+    }
+
+    function yeye() external virtual {
+        emit Log("yeye");
+    }
+}// 部署Yeye合约，会出现hip(),yeye()两个方法
+
+// 创建爸爸合约，继承爷爷合约
+contract Baba is Yeye {
+    // 使用 override 关键字，重写父类方法
+    function hip() external virtual override  {
+        emit Log("baba");
+    }
+
+    function baba() external virtual {
+        emit Log("baba");
+    }
+}// 部署Baba合约，会出现hip(),yeye(),baba()三个方法
+
+contract Son is Yeye, Baba {
+    // 会使用 override 覆盖所有父级的同名方法
+    function hip() external virtual override(Yeye, Baba)  {
+        emit Log("son");
+        // 使用super先调用最近父类的方法
+        super.hip(); // 输出son，baba
+        
+        // 也可以直接调用父类级别的方法
+        Yeye.hip(); // 输出son、yeye
+    }
+
+    function son() external  {
+        emit Log("son");
+    }
+}// 部署Son合约，会出现hip(),yeye(),baba()，son()四个方法
+```
+
+
+
+```solidity
+// 修饰器继承
+
+contract Base1 {
+    modifier exactDividedBy2And3(uint _a) virtual {
+        require(_a % 2 == 0 && _a % 3 == 0);
+        _;
+    }
+}
+
+contract Identifier is Base1 {
+
+    //计算一个数分别被2除和被3除的值，但是传入的参数必须是2和3的倍数
+    function getExactDividedBy2And3(uint _dividend) public exactDividedBy2And3(_dividend) pure returns(uint, uint) {
+        return getExactDividedBy2And3WithoutModifier(_dividend);
+    }
+
+    //计算一个数分别被2除和被3除的值
+    function getExactDividedBy2And3WithoutModifier(uint _dividend) public pure returns(uint, uint){
+        uint div2 = _dividend / 2;
+        uint div3 = _dividend / 3;
+        return (div2, div3);
+    }
+}
+
+Copy
+Identifier合约可以直接在代码中使用父合约中的exactDividedBy2And3修饰器，也可以利用override关键字重写修饰器：
+
+modifier exactDividedBy2And3(uint _a) override {
+    _;
+    require(_a % 2 == 0 && _a % 3 == 0);
+}
+```
+
+
+
+```solidity
+// 构造函数的继承
+contract A {
+    uint public a;
+
+    constructor(uint _a) {
+        a = _a;
+    }
+}
+
+// // 继承方式1
+// constant B is A(5){
+
+// }
+
+// 继承方式2
+contract C is A {
+    // 此时，传入下面函数3，合约A中的构造函数输出3*3=9
+    constructor(uint _a) A(_a * _a) {
+
+    }
+}
+```
+
+
+
+在面向对象编程中，钻石继承（菱形继承）指一个派生类同时有两个或两个以上的基类。
+
+在多重+菱形继承链条上使用`super`关键字时，需要注意的是使用`super`会调用继承链条上的每一个合约的相关函数，而不是只调用最近的父合约。
+
+```solidity
+// 钻石继承
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.13;
+
+/* 继承树：
+  God
+ /  \
+Adam Eve
+ \  /
+people
+*/
+
+contract God {
+    event Log(string message);
+
+    function foo() public virtual {
+        emit Log("God.foo called");
+    }
+
+    function bar() public virtual {
+        emit Log("God.bar called");
+    }
+}
+
+contract Adam is God {
+    function foo() public virtual override {
+        emit Log("Adam.foo called");
+        super.foo();
+    }
+
+    function bar() public virtual override {
+        emit Log("Adam.bar called");
+        super.bar();
+    }
+}
+
+contract Eve is God {
+    function foo() public virtual override {
+        emit Log("Eve.foo called");
+        super.foo();
+    }
+
+    function bar() public virtual override {
+        emit Log("Eve.bar called");
+        super.bar();
+    }
+}
+
+contract people is Adam, Eve {
+		// 顺序是：people > Eve > Admn > God
+		
+    function foo() public override(Adam, Eve) {
+        super.foo();
+    }
+
+    function bar() public override(Adam, Eve) {
+        super.bar();
+    }
+}
+
+/*
+在这个例子中，调用合约people中的super.bar()会依次调用Eve、Adam，最后是God合约。
+
+虽然Eve、Adam都是God的子合约，但整个过程中God合约只会被调用一次。原因是Solidity借鉴了Python的方式，强制一个由基类构成的DAG（有向无环图）使其保证一个特定的顺序。
+*/
+```
+
+### 2024.10.03
+
+#### 抽象合约和接口
+
+抽象合约（`abstract`）和接口（`interface`）
+
+##### 抽象合约
+
+如果一个智能合约里至少有一个未实现的函数，即某个函数缺少主体`{}`中的内容，则必须将该合约标为`abstract`，不然编译会报错；另外，未实现的函数需要加`virtual`，以便子合约重写。拿我们之前的[插入排序合约](https://github.com/AmazingAng/WTF-Solidity/tree/main/10_InsertionSort)为例，如果我们还没想好具体怎么实现插入排序函数，那么可以把合约标为`abstract`，之后让别人补写上。
+
+```solidity
+abstract contract InsertionSort{
+    function insertionSort(uint[] memory a) public pure virtual returns(uint[] memory);
+}
+```
+
+
+
+##### 接口
+
+接口类似于抽象合约，但它不实现任何功能。接口的规则：
+
+1. 不能包含状态变量
+2. 不能包含构造函数
+3. 不能继承除接口外的其他合约
+4. 所有函数都必须是external且不能有函数体
+5. 继承接口的非抽象合约必须实现接口定义的所有功能
+
+虽然接口不实现任何功能，但它非常重要。接口是智能合约的骨架，定义了合约的功能以及如何触发它们：如果智能合约实现了某种接口（比如`ERC20`或`ERC721`），其他Dapps和智能合约就知道如何与它交互。因为接口提供了两个重要的信息：
+
+1. 合约里每个函数的`bytes4`选择器，以及函数签名`函数名(每个参数类型）`。
+2. 接口id（更多信息见[EIP165](https://eips.ethereum.org/EIPS/eip-165)）
+
+另外，接口与合约`ABI`（Application Binary Interface）等价，可以相互转换：编译接口可以得到合约的`ABI`，利用[abi-to-sol工具](https://gnidan.github.io/abi-to-sol/)，也可以将`ABI json`文件转换为`接口sol`文件。
+
+我们以`ERC721`接口合约`IERC721`为例，它定义了3个`event`和9个`function`，所有`ERC721`标准的NFT都实现了这些函数。我们可以看到，接口和常规合约的区别在于每个函数都以`;`代替函数体`{ }`结尾。
+
+```solidity
+interface IERC721 is IERC165 {
+    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+    event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
+    event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
+    
+    function balanceOf(address owner) external view returns (uint256 balance);
+
+    function ownerOf(uint256 tokenId) external view returns (address owner);
+
+    function safeTransferFrom(address from, address to, uint256 tokenId) external;
+
+    function transferFrom(address from, address to, uint256 tokenId) external;
+
+    function approve(address to, uint256 tokenId) external;
+
+    function getApproved(uint256 tokenId) external view returns (address operator);
+
+    function setApprovalForAll(address operator, bool _approved) external;
+
+    function isApprovedForAll(address owner, address operator) external view returns (bool);
+
+    function safeTransferFrom( address from, address to, uint256 tokenId, bytes calldata data) external;
+}
+```
+
+
+
+###### IERC721事件
+
+`IERC721`包含3个事件，其中`Transfer`和`Approval`事件在`ERC20`中也有。
+
+- `Transfer`事件：在转账时被释放，记录代币的发出地址`from`，接收地址`to`和`tokenId`。
+- `Approval`事件：在授权时被释放，记录授权地址`owner`，被授权地址`approved`和`tokenId`。
+- `ApprovalForAll`事件：在批量授权时被释放，记录批量授权的发出地址`owner`，被授权地址`operator`和授权与否的`approved`。
+
+###### IERC721函数
+
+- `balanceOf`：返回某地址的NFT持有量`balance`。
+- `ownerOf`：返回某`tokenId`的主人`owner`。
+- `transferFrom`：普通转账，参数为转出地址`from`，接收地址`to`和`tokenId`。
+- `safeTransferFrom`：安全转账（如果接收方是合约地址，会要求实现`ERC721Receiver`接口）。参数为转出地址`from`，接收地址`to`和`tokenId`。
+- `approve`：授权另一个地址使用你的NFT。参数为被授权地址`approve`和`tokenId`。
+- `getApproved`：查询`tokenId`被批准给了哪个地址。
+- `setApprovalForAll`：将自己持有的该系列NFT批量授权给某个地址`operator`。
+- `isApprovedForAll`：查询某地址的NFT是否批量授权给了另一个`operator`地址。
+- `safeTransferFrom`：安全转账的重载函数，参数里面包含了`data`。
+
+##### 什么时候使用接口？
+
+如果我们知道一个合约实现了`IERC721`接口，我们不需要知道它具体代码实现，就可以与它交互。
+
+无聊猿`BAYC`属于`ERC721`代币，实现了`IERC721`接口的功能。我们不需要知道它的源代码，只需知道它的合约地址，用`IERC721`接口就可以与它交互，比如用`balanceOf()`来查询某个地址的`BAYC`余额，用`safeTransferFrom()`来转账`BAYC`。
+
+```solidity
+contract interactBAYC {
+    // 利用BAYC地址创建接口合约变量（ETH主网）
+    IERC721 BAYC = IERC721(0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D);
+
+    // 通过接口调用BAYC的balanceOf()查询持仓量
+    function balanceOfBAYC(address owner) external view returns (uint256 balance){
+        return BAYC.balanceOf(owner);
+    }
+
+    // 通过接口调用BAYC的safeTransferFrom()安全转账
+    function safeTransferFromBAYC(address from, address to, uint256 tokenId) external{
+        BAYC.safeTransferFrom(from, to, tokenId);
+    }
+}
+```
+
+
+
+#### 异常
+
+三种抛出异常的方法：`error`，`require`和`assert`
+
+##### Error
+
+`error`是`solidity 0.8.4版本`新加的内容，方便且高效（省`gas`）地向用户解释操作失败的原因，同时还可以在抛出异常的同时携带参数，帮助开发者更好地调试。人们可以在`contract`之外定义异常。下面，我们定义一个`TransferNotOwner`异常，当用户不是代币`owner`的时候尝试转账，会抛出错误：
+
+```solidity
+error TransferNotOwner(); // 自定义error
+```
+
+
+
+我们也可以定义一个携带参数的异常，来提示尝试转账的账户地址
+
+```solidity
+error TransferNotOwner(address sender); // 自定义的带参数的error
+```
+
+
+
+在执行当中，`error`必须搭配`revert`（回退）命令使用。
+
+```solidity
+function transferOwner1(uint256 tokenId, address newOwner) public {
+    if(_owners[tokenId] != msg.sender){
+        revert TransferNotOwner();
+        // revert TransferNotOwner(msg.sender);
+    }
+    _owners[tokenId] = newOwner;
+}
+```
+
+
+
+我们定义了一个`transferOwner1()`函数，它会检查代币的`owner`是不是发起人，如果不是，就会抛出`TransferNotOwner`异常；如果是的话，就会转账。
+
+##### Require
+
+`require`命令是`solidity 0.8版本`之前抛出异常的常用方法，目前很多主流合约仍然还在使用它。它很好用，唯一的缺点就是`gas`随着描述异常的字符串长度增加，比`error`命令要高。使用方法：`require(检查条件，"异常的描述")`，当检查条件不成立的时候，就会抛出异常。
+
+我们用`require`命令重写一下上面的`transferOwner1`函数：
+
+```solidity
+function transferOwner2(uint256 tokenId, address newOwner) public {
+    require(_owners[tokenId] == msg.sender, "Transfer Not Owner");
+    _owners[tokenId] = newOwner;
+}
+```
+
+
+
+##### Assert
+
+`assert`命令一般用于程序员写程序`debug`，因为它不能解释抛出异常的原因（比`require`少个字符串）。它的用法很简单，`assert(检查条件）`，当检查条件不成立的时候，就会抛出异常。
+
+我们用`assert`命令重写一下上面的`transferOwner1`函数：
+
+```solidity
+function transferOwner3(uint256 tokenId, address newOwner) public {
+    assert(_owners[tokenId] == msg.sender);
+    _owners[tokenId] = newOwner;
+}
+```
+
+##### 三种方法的gas比较
+
+我们比较一下三种抛出异常的`gas`消耗，通过remix控制台的Debug按钮，能查到每次函数调用的`gas`消耗分别如下： （使用0.8.17版本编译）
+
+1. **`error`方法`gas`消耗**：24457 (**加入参数后`gas`消耗**：24660)
+2. **`require`方法`gas`消耗**：24755
+3. **`assert`方法`gas`消耗**：24473
+4. **Require > assert > error**
+
+我们可以看到，`error`方法`gas`最少，其次是`assert`，`require`方法消耗`gas`最多！因此，`error`既可以告知用户抛出异常的原因，又能省`gas`，大家要多用！（注意，由于部署测试时间的不同，每个函数的`gas`消耗会有所不同，但是比较结果会是一致的。）
 
 <!-- Content_END -->

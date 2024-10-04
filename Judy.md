@@ -1514,4 +1514,241 @@ function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
     return(a);
 }
 ```
+### 2024.10.03
+#### 建構函數與修飾器
+### 1. 建構函數（Constructor）
+
+建構函數是智能合約的特殊函數，它在合約**部署**時被自動執行。
+
+主要用來設置合約的初始狀態，例如設定初始變數值、初始化合約的擁有者等。
+
+### 特點：
+
+- **自動執行**：當合約被部署（即在區塊鏈上創建合約實例）時，建構函數會自動執行一次。
+- **命名方式**：在 Solidity 0.4.22 版本及更早版本，建構函數的名字必須和合約的名字相同；在 Solidity 0.4.22 之後，使用 `constructor` 關鍵字定義建構函數。
+- **無法重複調用**：建構函數只能執行一次，合約部署後無法再次被調用。
+
+```solidity
+contract MyContract {
+	address public owner;
+	
+	// 建構函數
+	constructor() {
+	    owner = msg.sender; // 將合約的擁有者設置為部署者
+	}
+}
+```
+
+### 2. 修飾器（Modifier）
+
+修飾器是一個可以用來**修改或限制**函數行為的程式塊。
+
+它們主要用來進行條件檢查或邏輯控制，並且通常在需要對函數執行前進行一些前置條件檢查的場景下使用。
+
+### 特點：
+
+- **函數前置條件**：修飾器可以在函數執行之前檢查條件，若條件不符合，可以阻止函數執行。
+- **代碼復用**：透過修飾器，可以避免在多個函數中重複寫相同的檢查代碼。
+- **`_` 符號**：修飾器中的 `_` 表示函數本身的邏輯會在修飾器檢查通過後的這個位置執行。
+
+```solidity
+contract MyContract {
+	address public owner;
+	
+	// 修飾器：檢查調用者是否為擁有者
+	modifier onlyOwner() {
+	    require(msg.sender == owner, "You are not the owner");
+	    _; // 在此處執行原本的函數邏輯
+	}
+	
+	// 建構函數
+	constructor() {
+	    owner = msg.sender; // 設置合約的擁有者為部署者
+	}
+	
+	// 含有modifier方法
+	// 只有當前調用者為擁有者時，才能執行此函數
+	function changeOwner(address newOwner) external onlyOwner{
+      owner = newOwner;
+  }
+}
+```
+
+在這個例子中，`onlyOwner` 修飾器檢查當前調用者是否是合約的擁有者。
+
+如果條件不滿足，會拋出錯誤並阻止函數執行。
+
+這樣可以保證特定`Function` 只有合約的擁有者才能調用。
+
+- 起始合約 owner
+    
+    ![image](https://github.com/user-attachments/assets/f51d8d7e-bf63-4802-816f-2ccd71616f4d)
+
+    
+- 非該合約 owner 呼叫 `changeOwner` 時
+    
+    ![image](https://github.com/user-attachments/assets/c40af1fe-fcba-4d4a-a77f-62108379663a)
+
+    
+- 該合約 owner 呼叫 `changeOwner` 時
+    
+    ![image](https://github.com/user-attachments/assets/b859a581-ec39-44c0-b2ea-ee0d025eea44)
+
+    
+
+### 3. 修飾器的應用場景
+
+- **權限控制**：如 `onlyOwner` 檢查，確保只有特定人員能執行某些操作。
+- **狀態檢查**：檢查合約當前的狀態是否允許執行特定函數，如某種狀態值。
+- **防止重入攻擊**：修飾器可以用來防範 Solidity 中常見的重入攻擊（reentrancy attack），即在函數調用過程中，惡意合約再次調用相同函數，導致合約邏輯被惡意多次執行。
+
+### 總結
+
+- **建構函數**：在合約部署時執行，用於初始化合約的狀態。
+- **修飾器**：用來修改函數執行行為，主要用於檢查條件並控制函數執行。
+
+### 2024.10.04
+#### 事件
+## 前言
+
+- 事件(event) 就是EVM 上的 log
+- 這些日誌記錄在區塊鏈中，但不會影響智能合約的狀態，並且比存儲在區塊鏈的數據便宜。
+- 外部應用(前端透過web3.js或ether.js)可以「監聽」這些事件。
+- 一旦事件被觸發，就可以接收到相關的數據。
+
+### 事件的語法
+
+在 Solidity 中，事件使用 `event` 關鍵字來定義。通常，事件包含一組參數，這些參數可以是原始類型或結構。觸發事件使用 `emit` 關鍵字。
+
+以下是一個簡單的事件定義和使用範例：
+
+```solidity
+contract Example {
+    // 定義事件
+    event Deposit(address indexed _from, uint _value);
+
+    // 觸發事件
+    function deposit() public payable {
+        emit Deposit(msg.sender, msg.value);
+    }
+}
+```
+
+在這個範例中：
+
+- 定義了一個 `Deposit` 事件，它有兩個參數：`_from`（代表存款者的地址）和 `_value`（代表存入的金額）。
+- 當 `deposit` 函數被調用時，`emit` 關鍵字會觸發這個事件，將存款者的地址和金額記錄到區塊鏈的日誌中。
+
+### **使用事件的時機**
+
+事件在智能合約的開發中具有多種用途。常見的使用時機包括：
+
+1. **追蹤狀態變更**：
+當智能合約的狀態發生變化時，可以使用事件來記錄這些變化。外部應用或用戶可以通過監聽事件來追蹤合約的執行情況。這尤其適用於 DeFi 應用、NFT 合約等，需要跟蹤交易或狀態更新的場景。
+    
+    例如：在一個拍賣智能合約中，當有新的出價或拍賣結束時，可以發出相應的事件來通知前端。
+    
+2. **記錄交易相關信息**：
+事件可以記錄特定交易的細節，特別是在智能合約內部沒有其他存儲機制或需要減少 gas 費用的情況下。這些交易細節對於區塊鏈上的審計和數據分析非常有幫助。
+3. **與外部應用程序溝通**：
+當合約執行某些重要操作時（如資金轉移或權限變更），可以通過事件來通知外部應用。應用可以監聽這些事件並做出相應的反應，比如更新前端的顯示、觸發後續的智能合約操作等。
+4. **減少 gas 消耗**：
+在某些情況下，將數據寫入日誌比寫入區塊鏈狀態（如變量或映射）更為經濟。由於事件的數據儲存在日誌中，它們不會消耗太多的 gas。這對於需要大量數據寫入但不需要永久保存的情況非常有用。
+5. **調試和日誌記錄**：
+在合約的開發過程中，事件也可以用作調試工具。開發者可以使用事件來捕捉合約內部的執行流程和變量的變化，從而更容易定位和解決問題。
+
+### **事件的限制**
+
+- **不可讀取**：事件中的數據儲存在區塊鏈的日誌中，因此無法直接從智能合約內部讀取到這些數據。它們僅供外部應用程序讀取。
+- **不保證執行**：事件只是寫入日誌，不會對合約的狀態產生影響，也不會影響交易的成敗。因此，`不應依賴事件來實現合約內部的核心邏輯`。
+
+## 補充：課程範例-查看 logs
+
+```solidity
+contract ExampleContract {
+    event Transfer(address _from, address _to, uint value);
+    uint a;
+
+    function transfer(address _from, address _to, uint value) external {
+      a = 10;
+      emit Transfer(_from, _to, value);
+    }
+}
+```
+
+![image](https://github.com/user-attachments/assets/c153f3b6-c938-4230-a3b0-c9cdc74bd6a5)
+
+
+![image](https://github.com/user-attachments/assets/5b472020-090a-4082-8e45-f1b9120a636b)
+
+
+- 有加 `indexed` 的會被記錄到 `topics`
+
+```solidity
+contract ExampleContract {
+    event Transfer(address indexed _from, address indexed _to, uint value);
+    uint a;
+
+    function transfer(address _from, address _to, uint value) external {
+      a = 10;
+      emit Transfer(_from, _to, value);
+    }
+}
+```
+
+![image](https://github.com/user-attachments/assets/297d8e5f-b48d-4924-9431-d26480c94856)
+
+
+### **EVM 日誌（Logs）的結構**
+
+![image](https://github.com/user-attachments/assets/f9325e2e-c7ed-4449-ab02-f6b9f7e08c06)
+
+
+當事件在 Solidity 中被觸發時，EVM 會生成一個**日誌條目**，並將其寫入區塊的日誌區域。這些日誌條目包括：
+
+1. **地址（Address）**：觸發事件的合約地址。
+2. **主題（Topics）**：每個日誌條目最多可以包含四個主題，用來索引事件參數，從而幫助過濾特定類型的事件。
+3. **數據（Data）**：存儲與事件相關的具體數據，通常是事件的非索引參數。
+
+這些日誌不會影響合約的內部狀態，它們只是一種「外部輸出」，方便外部應用程式（如 DApp）或區塊鏈瀏覽器進行檢索和分析。
+
+### **事件如何存儲在日誌中**
+
+在 Solidity 中，每當 `emit` 關鍵字觸發一個事件時，EVM 會將該事件存儲為日誌條目。這些日誌條目存儲在每個區塊中，並與區塊的其他交易數據一同保存。
+
+### 具體的存儲結構包括：
+
+1. **合約地址**：用來標識是由哪個智能合約觸發的事件。這是日誌的**發件人地址**，即觸發事件的智能合約的地址。
+2. **事件的 Keccak-256 哈希值**：事件簽名（包括事件名稱和參數類型）會被哈希化為 256 位的雜湊值，這個值存儲在 `topics[0]` 中。這是每個事件獨有的識別符，幫助過濾器在大量日誌中識別具體的事件類型。
+    - https://emn178.github.io/online-tools/keccak_256.html
+        
+        例如，對於以下事件：
+        
+        ```solidity
+        event Transfer(address indexed _from, address indexed _to, uint256 _value);
+        ```
+        
+        EVM 會計算這個簽名的哈希：
+        
+        ```solidity
+        keccak256("Transfer(address,address,uint256)")
+        
+        // ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+        ```
+        
+3. **索引參數（Indexed Parameters）**：事件定義中的 `indexed` 參數會被儲存到 `topics` 陣列的後續位置。最多可以有三個索引參數，每個索引參數會以 Keccak-256 的格式哈希存儲。這樣可以通過索引進行高效查詢。
+    - 在上述事件中，`_from` 和 `_to` 都是 `indexed` 參數，因此它們的哈希值會被存儲在 `topics[1]` 和 `topics[2]`。
+4. **非索引參數（Non-indexed Parameters）**：不帶 `indexed` 關鍵字的參數會以原始格式存儲在日誌的數據段（`data`）中。這些參數不會被索引，因此無法直接通過過濾器查詢，但可以從日誌中讀取。
+    - 在 `Transfer` 事件中，`_value` 是一個非索引參數，因此它會被存儲在日誌的數據段內，而不是 `topics` 中。
+
+### **如何檢索日誌**
+
+事件被儲存在區塊鏈日誌中，而外部應用可以使用 `eth_getLogs` 這樣的 RPC 調用來檢索這些日誌。因為索引參數被存儲在 `topics` 中，外部應用可以使用參數過濾器來高效查詢特定的事件。
+
+### **日誌和事件的特點**
+
+1. **高效性**：日誌（logs）是 EVM 的「輕量級」記錄，寫入和檢索相對低成本，不會像區塊鏈狀態存儲那樣消耗太多 gas。
+2. **過濾能力**：事件的索引參數被存儲在 `topics` 中，允許對事件進行高效的查詢和過濾。
+3. **只寫性**：事件的數據被存儲在日誌中，這些日誌只能被寫入，無法在智能合約內部讀取，這確保了它們僅用於外部交互，而不會改變區塊鏈狀態。
+4. **不可變性**：一旦事件被寫入區塊，日誌就是不可變的。這意味著日誌提供了一種可靠的方式來追蹤歷史事件，這對於審計和數據分析非常有用。
 <!-- Content_END -->

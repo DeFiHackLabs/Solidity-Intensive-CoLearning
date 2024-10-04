@@ -566,6 +566,230 @@ timezone: Asia/Shanghai
 
 ---
 
+### 2024.10.03
+
+#### 学习内容 14. 抽象合约和接口
+
+1. 抽象合约
+    - 如果一个智能合约里至少有一个未实现的函数，即某个函数缺少主体`{}`中的内容，则必须将该合约标为`abstract`，不然编译会报错;
+
+    - 未实现的函数需要加`virtual`，以便子合约重写;
+
+2. 接口
+    - 不能包含状态变量
+    - 不能包含构造函数
+    - 不能继承除接口外的其他合约
+    - 所有函数都必须是external且不能有函数体
+    - 继承接口的非抽象合约必须实现接口定义的所有功能
+    - 虽然接口不实现任何功能，但它非常重要。接口是智能合约的骨架，定义了合约的功能以及如何触发它们
+        - 合约里每个函数的`bytes4`选择器，以及函数签名`函数名(每个参数类型）`;
+        - 接口id
+
+    - 接口与合约`ABI`（Application Binary Interface）等价，可以相互转换;
+
+3. IERC721 事件
+    - `ransfer`事件：在转账时被释放，记录代币的发出地址`from`，接收地址`to`和`tokenId`。
+    - `Approval`事件：在授权时被释放，记录授权地址`owner`，被授权地址`approved`和`tokenId`。
+    - `ApprovalForAll`事件：在批量授权时被释放，记录批量授权的发出地址`owner`，被授权地址`operator`和授权与否的`approved`。
+
+4. IERC721 接口
+    - `balanceOf`：返回某地址的NFT持有量`balance`。
+    - `ownerOf`：返回某`tokenId`的主人`owner`。
+    - `transferFrom`：普通转账，参数为转出地址`from`，接收地址`to`和`tokenId`。
+    - `safeTransferFrom`：安全转账（如果接收方是合约地址，会要求实现`ERC721Receiver`接口）。参数为转出地址`from`，接收地址`to`和`tokenId`。
+    - `approve`：授权另一个地址使用你的NFT。参数为被授权地址`approve`和`tokenId`。
+    - `getApproved`：查询`tokenId`被批准给了哪个地址。
+    - `setApprovalForAll`：将自己持有的该系列NFT批量授权给某个地址`operator`。
+    - `isApprovedForAll`：查询某地址的NFT是否批量授权给了另一个`operator`地址。
+    - `safeTransferFrom`：安全转账的重载函数，参数里面包含了`data`。
+
+5. 什么时候使用接口
+    - 如果我们知道一个合约实现了标准接口，我们不需要知道它具体代码实现，就可以与它交互。
+
+6. 合约部署-接口
+    - ![image-20241003082730554](content/Aris/image-20241003082730554.png)
+
+7. 合约部署-抽象合约
+    - ![image-20241003082910336](content/Aris/image-20241003082910336.png)
+
+8. 第 14 节测验得分: 100, 答案: ABEEAAA
+
+#### 学习内容 15. 异常
+
+1. Error
+
+    - ```solidity
+        error TransferNotOwner(); // 自定义error
+        error TransferNotOwner(address sender); // 自定义的带参数的error
+        revert TransferNotOwner(); // 在执行当中，error必须搭配revert（回退）命令使用。
+        ```
+
+    - gas消耗: 24446 (版本 solidity ^0.8.22 日期:2024-10-03)
+
+2. Require
+
+    - `require(检查条件，"异常的描述")`，当检查条件不成立的时候，就会抛出异常;
+    - 唯一的缺点就是`gas`随着描述异常的字符串长度增加，比`error`命令要高;
+    - gas消耗: 24739 (版本 solidity ^0.8.22 日期:2024-10-03)
+
+3. Assert
+
+    - `assert(检查条件）`，当检查条件不成立的时候，就会抛出异常;
+    - 不能解释抛出异常的原因（比`require`少个字符串）;
+    - gas消耗: 24460 (版本 solidity ^0.8.22 日期:2024-10-03)
+
+4. 比较
+
+    - `error`方法`gas`最少，其次是`assert`，`require`方法消耗`gas`最多
+    - `error`性价比最高,既可以告知用户抛出异常的原因，又能省`gas`
+
+5. 合约部署
+
+    - ![image-20241003154212305](content/Aris/image-20241003154212305.png)
+
+6. 第 15 节测验得分: 100, 答案: DBAABCB
+
+7. solidity101入门课程全部完成
+
+![image-20241003155303390](content/Aris/image-20241003155303390.png)
+
+---
+
+### 2024.10.04
+
+#### 学习内容 16. 函数重载
+
+1. 重载
+
+    - overloading,名字相同但输入参数类型不同的函数可以同时存在,被视为不同函数;
+    - modifier 不能重载;
+
+2. 函数重载
+
+    - ```solidity
+        function saySomething() public pure returns(string memory){
+            return("Nothing");
+        }
+        
+        function saySomething(string memory something) public pure returns(string memory){
+            return(something);
+        }
+        ```
+
+    - 因为有不同的参数类型,所以函数选择器不同;
+
+3. 实参匹配
+
+    - 在调用重载函数时，会把输入的实际参数和函数参数的变量类型做匹配。 
+    - 如果出现多个匹配的重载函数，则会报错。
+
+4. 合约部署
+
+    - ![image-20241003160131231](content/Aris/image-20241003160131231.png)
+
+5. 第 16 节测验得分: 100, 答案: ABBBB
+
+#### 学习内容 17. 库合约 站在巨人的肩膀上
+
+1. 库合约
+
+    - 特殊合约,代码复用,减少 gas 消耗
+    - 一些列函数合集
+
+2. 与普通合约的不同点
+
+    - 不能存在状态变量
+    - 不能继承或者被继承
+    - 不能接受以太币
+    - 不可以被销毁
+
+3. 注意点:
+
+    - 库合约中的函数如果是 public 或者 external,则 调用函数时会触发一次 delegatecall
+    - 如果是 internal,则不会触发delegatecall
+    - 如果是 private,仅库合约内部可见,其他合约不能调用
+
+4. 使用
+
+    - `using A for B;`
+
+        - ```solidity
+            // 利用using for指令
+            using Strings for uint256;
+            function getString1(uint256 _number) public pure returns(string memory){
+                // 库合约中的函数会自动添加为uint256型变量的成员
+                return _number.toHexString();
+            }
+            ```
+
+    - 库合约名称调用函数
+
+        - ```solidity
+            // 直接通过库合约名调用
+            function getString2(uint256 _number) public pure returns(string memory){
+                return Strings.toHexString(_number);
+            }
+            ```
+
+5. 常用库合约
+
+    - [openzeppelin-Strings](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Strings.sol): 将`uint256`转换为`String`
+    - [OpenZeppelin-Address](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Address.sol): 判断某个地址是否为合约地址
+    - [OpenZeppelin-Create2](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Create2.sol): 更安全的使用`Create2 EVM opcode`
+    - [OpenZeppeli-Arrays](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Arrays.sol): 数组相关的库合约
+
+6. 合约部署
+
+    - ![image-20241003172315680](content/Aris/image-20241003172315680.png)
+
+7. 第 17 节测验得分: 100, 答案: DACEC
+
+#### 学习内容 18. Import
+
+1. import
+
+    - 在一个文件中引用另一个文件的内容
+    - import在声明版本号之后，在其余代码之前
+
+2. 用法:
+
+    - 通过源文件相对位置导入
+
+        - ```solidity
+            文件结构
+            ├── Import.sol
+            └── Yeye.sol
+            
+            // 通过文件相对位置import
+            import './Yeye.sol';
+            ```
+
+    - 通过源文件网址导入网上的合约的全局符号
+
+        - ``` solidity
+            import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+            ```
+
+    - 通过`npm`的目录导入
+
+        - ```solidity
+            import '@openzeppelin/contracts/access/Ownable.sol';
+            ```
+
+    - 通过指定`全局符号`导入合约特定的全局符号
+
+        - ```solidity
+            import {Yeye} from './Yeye.sol';
+            ```
+
+3. 合约部署:
+
+    - ![image-20241003194217700](content/Aris/image-20241003194217700.png)
+
+4. 第 18 节测验得分: 100, 答案: CDADC
+
+---
+
 
 
 

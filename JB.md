@@ -524,5 +524,29 @@ contract test_contructor{
         _address = change_address;
     }
 }
+### 2024.10.03
+1. 了解了什么是事件以及如何定义。并在remix上进行测试。
+   // SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+contract test_event{
+
+    mapping(address => uint256) public _balances;
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    function transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) external {
+        _balances[from] = 10000000; // 给转账地址一些初始代币
+
+    _balances[from] -=  amount; // from地址减去转账数量
+    _balances[to] += amount; // to地址加上转账数量
+
+    // 释放事件
+    emit Transfer(from, to, amount);
+    }
+}
+
 
 <!-- Content_END -->

@@ -521,8 +521,35 @@ Contract 要創建的合約名, x 合約對象(地址), 如果構造函數是 pa
 ```Solidity
 Contract x = new Contract{value: _value}(params)
 ```
+### 2024.10.3  
+學習內容  
+筆記:  
 
+#### Creat2
+功用
+- 不管未來區塊鏈上發生甚麼, 你都可以把合約部屬在事先計算好的地址上
+- 交易所為新用戶預留創建錢包合約的地址
+- 
 
+計算 Creat2 地址
+- 新地址 = hash("0xFF", 創建者地址, salt, initcode)
+- OxFF, 常數  
+  創建者地址, 調用 creat2 的當前合約地址
+  salt, 創建者指定的 bytes32 類型的值, 主要是用來影響新創見合約的地址
+  initcode, 新合約的初始字節碼
+
+寫法
+```Solidity
+Contract x = new Contract{salt: _salt, value: _value}(parms)
+```
+
+```Solidity
+// salt 為 token1 和 token2 的 hash
+bytes32 salt = keccak256(abi.endcodePacked(token1, token2));
+```
+
+  
+  
 
 
 

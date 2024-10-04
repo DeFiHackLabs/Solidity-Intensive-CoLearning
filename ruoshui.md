@@ -724,6 +724,103 @@ contract PairFactory2{
     }
 }
 ```
+### 2024.10.03
+1、删除合约 `selfdestruct`，坎昆（Cancun）升级之后
 
+- 已经部署的合约无法被删除了，使用 `selfdestruct` 仅会被用来将合约中的ETH转移到指定地址
+- 如果要实现原先的 `SELFDESTRUCT` 功能，必须在同一笔交易中创建并 `selfdestruct`
+
+```solidity
+// selfdestruct: 删除合约，并强制将合约剩余的ETH转入指定账户
+contract DeleteContract {
+
+    uint public value = 10;
+
+    constructor() payable {}
+
+    receive() external payable {}
+
+    function deleteContract() external {
+        // 调用selfdestruct销毁合约，并把剩余的ETH转给msg.sender
+        selfdestruct(payable(msg.sender));
+    }
+
+    function getBalance() external view returns(uint balance){
+        balance = address(this).balance;
+    }
+}
+```
+想要坎昆升级之前的使用效果
+
+```solidity
+import "./DeleteContract.sol";
+
+contract DeployContract {
+
+    struct DemoResult {
+        address addr;
+        uint balance;
+        uint value;
+    }
+
+    constructor() payable {}
+
+    function getBalance() external view returns(uint balance){
+        balance = address(this).balance;
+    }
+
+    function demo() public payable returns (DemoResult memory){
+        DeleteContract del = new DeleteContract{value:msg.value}();
+        DemoResult memory res = DemoResult({
+            addr: address(del),
+            balance: del.getBalance(),
+            value: del.value()
+        });
+        del.deleteContract();
+        return res;
+    }
+}
+```
+
+2、ABI 编解码
+
+```solidity
+
+contract ABIEncode{
+    uint x = 10;
+    address addr = 0x7A58c0Be72BE218B41C608b7Fe7C5bB630736C71;
+    string name = "0xWater";
+    uint[2] array = [5, 6]; 
+
+    // 0x000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000073078576174657200000000000000000000000000000000000000000000000000
+    // 将每个数据都填充为32字节，所以中间有很多0
+    function encode() public view returns(bytes memory result) {
+        result = abi.encode(x, addr, name, array);
+    }
+
+    // 0x000000000000000000000000000000000000000000000000000000000000000a7a58c0be72be218b41c608b7fe7c5bb630736c713078576174657200000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000006
+    // 类似 abi.encode，但是会把其中填充的很多0省略，长度比 abi.encode 短很多。比如，只用1字节来编码uint8类型。当你想省空间，并且不与合约交互的时候，可以使用abi.encodePacked，例如算一些数据的hash时。
+    function encodePacked() public view returns(bytes memory result) {
+        result = abi.encodePacked(x, addr, name, array);
+    }
+
+    // 0xe87082f1000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000073078576174657200000000000000000000000000000000000000000000000000
+    // 第一个参数为函数签名
+    function encodeWithSignature() public view returns(bytes memory result) {
+        result = abi.encodeWithSignature("foo(uint256,address,string,uint256[2])", x, addr, name, array);
+    }
+
+    // 0xe87082f1000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000073078576174657200000000000000000000000000000000000000000000000000
+    // 与 abi.encodeWithSignature 功能类似，只不过第一个参数为函数选择器，为函数签名 Keccak 哈希的前4个字节，结果与 abi.encodeWithSignature 相同
+    function encodeWithSelector() public view returns(bytes memory result) {
+        result = abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array);
+    }
+
+    // 用于解码 abi.encode 生成的二进制编码，将它还原成原本的参数。
+    function decode(bytes memory data) public pure returns(uint dx, address daddr, string memory dname, uint[2] memory darray) {
+        (dx, daddr, dname, darray) = abi.decode(data, (uint, address, string, uint[2]));
+    }
+}
+```
 
 <!-- Content_END -->

@@ -291,4 +291,46 @@ delete運算子適用於所有類型的變數，無論是值類型還是引用�
 
 總結：
 在這一講中，我們了解了Solidity中變數的初始值。變數在宣告時若未賦值，將自動獲得一個初始值，這些初始值因變數類型而異。透過delete運算子，我們能夠將變數重置為其初始值，這對於管理智能合約中的數據生命週期非常重要。
+
+
+### 2024.10.03
+
+在本節課程中，我們探討了Solidity語言中的兩個重要關鍵字：constant和immutable。這些關鍵字用於定義狀態變數，一旦初始化，就無法更改其值。這不僅增強了智能合約的安全性，還有助於減少gas消耗。
+
+constant與immutable的主要區別在於：
+- constant變數必須在宣告時就初始化，且之後不能更改。任何嘗試修改constant變數的行為都會引發編譯錯誤。這類變數適用於數值型別、字符串和字節數組等。
+- immutable變數則提供了更大的靈活性，可以在宣告時或在構造函數中初始化。一旦初始化，就不能再被修改，但初始化時機可以延後至構造函數執行時。
+
+以下是一些使用constant和immutable的例子：
+```solidity
+// constant變數
+uint256 constant CONSTANT_NUM = 10;
+string constant CONSTANT_STRING = "0xAA";
+bytes constant CONSTANT_BYTES = "WTF";
+address constant CONSTANT_ADDRESS = 0x0000000000000000000000000000000000000000;
+
+// immutable變數
+uint256 public immutable IMMUTABLE_NUM = 9999999999;
+address public immutable IMMUTABLE_ADDRESS;
+uint256 public immutable IMMUTABLE_BLOCK;
+uint256 public immutable IMMUTABLE_TEST;
+
+// 在構造函數中初始化
+constructor() {
+    IMMUTABLE_ADDRESS = address(this); // 將合約地址設為不可變地址
+    IMMUTABLE_NUM = 1118;             // 將數值初始化為1118
+    IMMUTABLE_TEST = test();          // 使用自定義函數進行初始化
+}
+
+function test() public pure returns (uint256) {
+    return 9;
+}
+```
+constant變數在宣告時必須設置初始值，且一旦設置就不能更改。若嘗試修改，將會出現錯誤提示：`TypeError: Cannot assign to a constant variable.`
+
+而immutable變數則可以在宣告時或構造函數中設置初始值，但一旦初始化後就不能更改。若嘗試修改，將會出現錯誤提示：`TypeError: Immutable state variable already initialized.`
+
+使用constant和immutable的優勢包括節省gas和提高安全性。由於這些變數的值是固定不變的，Solidity編譯器能夠進行優化存儲，從而節約gas。此外，通過限制變數的修改權限，可以防止不應該被更改的值被意外或惡意修改，從而提高合約的安全性。
+
+constant和immutable是Solidity中用於定義不可變變數的關鍵字。這些變數一旦初始化就不能更改，這不僅確保了智能合約的安全性，也有助於降低gas成本。constant要求在宣告時就進行初始化，而immutable則提供了更多靈活性，允許在構造函數中初始化。
 <!-- Content_END -->

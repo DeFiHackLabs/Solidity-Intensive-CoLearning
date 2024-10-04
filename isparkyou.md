@@ -3496,10 +3496,381 @@ contract WETH is ERC20{
 ```
 
 ### 分账
+#### 分账合约
+分账合约(PaymentSplit)具有以下几个特点：
+1. 在创建合约时定好分账受益人payees和每人的份额shares。
+2. 份额可以是相等，也可以是其他任意比例。
+3. 在该合约收到的所有ETH中，每个受益人将能够提取与其分配的份额成比例的金额。
+4.分账合约遵循Pull Payment模式，付款不会自动转入账户，而是保存在此合约中。受益人通过调用release()函数触发实际转账。
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+/**
+ * 分账合约 
+ * @dev 这个合约会把收到的ETH按事先定好的份额分给几个账户。收到ETH会存在分账合约中，需要每个受益人调用release()函数来领取。
+ */
+contract PaymentSplit{
+    // 事件
+    event PayeeAdded(address account, uint256 shares); // 增加受益人事件
+    event PaymentReleased(address to, uint256 amount); // 受益人提款事件
+    event PaymentReceived(address from, uint256 amount); // 合约收款事件
+
+uint256 public totalShares; // 总份额
+    uint256 public totalReleased; // 总支付
+
+    mapping(address => uint256) public shares; // 每个受益人的份额
+    mapping(address => uint256) public released; // 支付给每个受益人的金额
+    address[] public payees; // 受益人数组
+
+    /**
+     * @dev 初始化受益人数组_payees和分账份额数组_shares
+     * 数组长度不能为0，两个数组长度要相等。_shares中元素要大于0，_payees中地址不能为0地址且不能有重复地址
+     */
+    constructor(address[] memory _payees, uint256[] memory _shares) payable {
+        // 检查_payees和_shares数组长度相同，且不为0
+        require(_payees.length == _shares.length, "PaymentSplitter: payees and shares length mismatch");
+        require(_payees.length > 0, "PaymentSplitter: no payees");
+        // 调用_addPayee，更新受益人地址payees、受益人份额shares和总份额totalShares
+        for (uint256 i = 0; i < _payees.length; i++) {
+            _addPayee(_payees[i], _shares[i]);
+        }
+    }
+
+    /**
+     * @dev 回调函数，收到ETH释放PaymentReceived事件
+     */
+    receive() external payable virtual {
+        emit PaymentReceived(msg.sender, msg.value);
+    }
+
+    /**
+     * @dev 为有效受益人地址_account分帐，相应的ETH直接发送到受益人地址。任何人都可以触发这个函数，但钱会打给account地址。
+     * 调用了releasable()函数。
+     */
+    function release(address payable _account) public virtual {
+        // account必须是有效受益人
+        require(shares[_account] > 0, "PaymentSplitter: account has no shares");
+        // 计算account应得的eth
+        uint256 payment = releasable(_account);
+        // 应得的eth不能为0
+        require(payment != 0, "PaymentSplitter: account is not due payment");
+        // 更新总支付totalReleased和支付给每个受益人的金额released
+        totalReleased += payment;
+        released[_account] += payment;
+        // 转账
+        _account.transfer(payment);
+        emit PaymentReleased(_account, payment);
+    }
+
+    /**
+     * @dev 计算一个账户能够领取的eth。
+     * 调用了pendingPayment()函数。
+     */
+    function releasable(address _account) public view returns (uint256) {
+        // 计算分账合约总收入totalReceived
+        uint256 totalReceived = address(this).balance + totalReleased;
+        // 调用_pendingPayment计算account应得的ETH
+        return pendingPayment(_account, totalReceived, released[_account]);
+    }
+
+    /**
+     * @dev 根据受益人地址`_account`, 分账合约总收入`_totalReceived`和该地址已领取的钱`_alreadyReleased`，计算该受益人现在应分的`ETH`。
+     */
+    function pendingPayment(
+        address _account,
+        uint256 _totalReceived,
+        uint256 _alreadyReleased
+    ) public view returns (uint256) {
+        // account应得的ETH = 总应得ETH - 已领到的ETH
+        return (_totalReceived * shares[_account]) / totalShares - _alreadyReleased;
+    }
+
+    /**
+     * @dev 新增受益人_account以及对应的份额_accountShares。只能在构造器中被调用，不能修改。
+     */
+    function _addPayee(address _account, uint256 _accountShares) private {
+        // 检查_account不为0地址
+        require(_account != address(0), "PaymentSplitter: account is the zero address");
+        // 检查_accountShares不为0
+        require(_accountShares > 0, "PaymentSplitter: shares are 0");
+        // 检查_account不重复
+        require(shares[_account] == 0, "PaymentSplitter: account already has shares");
+        // 更新payees，shares和totalShares
+        payees.push(_account);
+        shares[_account] = _accountShares;
+        totalShares += _accountShares;
+        // 释放增加受益人事件
+        emit PayeeAdded(_account, _accountShares);
+    }
+```
+
+### 线性释放
+### 代币归属条款Token Vesting
+线性释放指的是代币在归属期内匀速释放。
+```
+contract TokenVesting {
+    // 事件
+    event ERC20Released(address indexed token, uint256 amount); // 提币事件
+
+    // 状态变量
+    mapping(address => uint256) public erc20Released; // 代币地址->释放数量的映射，记录已经释放的代币
+    address public immutable beneficiary; // 受益人地址
+    uint256 public immutable start; // 起始时间戳
+    uint256 public immutable duration; // 归属期
+
+    /**
+     * @dev 初始化受益人地址，释放周期(秒), 起始时间戳(当前区块链时间戳)
+     */
+    constructor(
+        address beneficiaryAddress,
+        uint256 durationSeconds
+    ) {
+        require(beneficiaryAddress != address(0), "VestingWallet: beneficiary is zero address");
+        beneficiary = beneficiaryAddress;
+        start = block.timestamp;
+        duration = durationSeconds;
+    }
+
+    /**
+     * @dev 受益人提取已释放的代币。
+     * 调用vestedAmount()函数计算可提取的代币数量，然后transfer给受益人。
+     * 释放 {ERC20Released} 事件.
+     */
+    function release(address token) public {
+        // 调用vestedAmount()函数计算可提取的代币数量
+        uint256 releasable = vestedAmount(token, uint256(block.timestamp)) - erc20Released[token];
+        // 更新已释放代币数量   
+        erc20Released[token] += releasable; 
+        // 转代币给受益人
+        emit ERC20Released(token, releasable);
+        IERC20(token).transfer(beneficiary, releasable);
+    }
+
+    /**
+     * @dev 根据线性释放公式，计算已经释放的数量。开发者可以通过修改这个函数，自定义释放方式。
+     * @param token: 代币地址
+     * @param timestamp: 查询的时间戳
+     */
+    function vestedAmount(address token, uint256 timestamp) public view returns (uint256) {
+        // 合约里总共收到了多少代币（当前余额 + 已经提取）
+        uint256 totalAllocation = IERC20(token).balanceOf(address(this)) + erc20Released[token];
+        // 根据线性释放公式，计算已经释放的数量
+        if (timestamp < start) {
+            return 0;
+        } else if (timestamp > start + duration) {
+            return totalAllocation;
+        } else {
+            return (totalAllocation * (timestamp - start)) / duration;
+        }
+    }
+```
 
 
+### 2024.10.3
+### 代币锁Token Locker
+是一种简单的时间锁合约，它可以把合约中的代币锁仓一段时间，受益人在锁仓期满后可以取走代币。代币锁一般是用来锁仓流动性提供者LP代币的。
+#### LP代币
+作为补偿，DEX会给他们铸造相应的流动性提供者LP代币凭证，证明他们质押了相应的份额，供他们收取手续费。
 
+#### 代币锁合约
+```
+    // 事件
+    event TokenLockStart(address indexed beneficiary, address indexed token, uint256 startTime, uint256 lockTime);
+    event Release(address indexed beneficiary, address indexed token, uint256 releaseTime, uint256 amount);
 
+    // 被锁仓的ERC20代币合约
+    IERC20 public immutable token;
+    // 受益人地址
+    address public immutable beneficiary;
+    // 锁仓时间(秒)
+    uint256 public immutable lockTime;
+    // 锁仓起始时间戳(秒)
+    uint256 public immutable startTime;
+
+    /**
+     * @dev 部署时间锁合约，初始化代币合约地址，受益人地址和锁仓时间。
+     * @param token_: 被锁仓的ERC20代币合约
+     * @param beneficiary_: 受益人地址
+     * @param lockTime_: 锁仓时间(秒)
+     */
+    constructor(
+        IERC20 token_,
+        address beneficiary_,
+        uint256 lockTime_
+    ) {
+        require(lockTime_ > 0, "TokenLock: lock time should greater than 0");
+        token = token_;
+        beneficiary = beneficiary_;
+        lockTime = lockTime_;
+        startTime = block.timestamp;
+
+        emit TokenLockStart(beneficiary_, address(token_), block.timestamp, lockTime_);
+    }
+
+    /**
+     * @dev 在锁仓时间过后，将代币释放给受益人。
+     */
+    function release() public {
+        require(block.timestamp >= startTime+lockTime, "TokenLock: current time is before release time");
+
+        uint256 amount = token.balanceOf(address(this));
+        require(amount > 0, "TokenLock: no tokens to release");
+
+        token.transfer(beneficiary, amount);
+
+        emit Release(msg.sender, address(token), block.timestamp, amount);
+    }
+```
+
+### 时间锁Timelock
+它是一种计时器，旨在防止保险箱或保险库在预设时间之前被打开，即便开锁的人知道正确密码。
+- 在创建Timelock合约时，项目方可以设定锁定期，并把合约的管理员设为自己。
+- 时间锁主要有三个功能：
+   - 创建交易，并加入到时间锁队列。
+   - 在交易的锁定期满后，执行交易。
+   - 后悔了，取消时间锁队列中的某些交易。
+- 项目方一般会把时间锁合约设为重要合约的管理员，例如金库合约，再通过时间锁操作他们。
+- 时间锁合约的管理员一般为项目的多签钱包，保证去中心化。
+```
+    // 事件
+    // 交易取消事件
+    event CancelTransaction(bytes32 indexed txHash, address indexed target, uint value, string signature,  bytes data, uint executeTime);
+    // 交易执行事件
+    event ExecuteTransaction(bytes32 indexed txHash, address indexed target, uint value, string signature,  bytes data, uint executeTime);
+    // 交易创建并进入队列 事件
+    event QueueTransaction(bytes32 indexed txHash, address indexed target, uint value, string signature, bytes data, uint executeTime);
+    // 修改管理员地址的事件
+    event NewAdmin(address indexed newAdmin);
+
+    // 状态变量
+    address public admin; // 管理员地址
+    uint public constant GRACE_PERIOD = 7 days; // 交易有效期，过期的交易作废
+    uint public delay; // 交易锁定时间 （秒）
+    mapping (bytes32 => bool) public queuedTransactions; // txHash到bool，记录所有在时间锁队列中的交易
+
+    // onlyOwner modifier
+    modifier onlyOwner() {
+        require(msg.sender == admin, "Timelock: Caller not admin");
+        _;
+    }
+
+    // onlyTimelock modifier
+    modifier onlyTimelock() {
+        require(msg.sender == address(this), "Timelock: Caller not Timelock");
+        _;
+    }
+
+    /**
+     * @dev 构造函数，初始化交易锁定时间 （秒）和管理员地址
+     */
+    constructor(uint delay_) {
+        delay = delay_;
+        admin = msg.sender;
+    }
+
+    /**
+     * @dev 改变管理员地址，调用者必须是Timelock合约。
+     */
+    function changeAdmin(address newAdmin) public onlyTimelock {
+        admin = newAdmin;
+
+        emit NewAdmin(newAdmin);
+    }
+
+    /**
+     * @dev 创建交易并添加到时间锁队列中。
+     * @param target: 目标合约地址
+     * @param value: 发送eth数额
+     * @param signature: 要调用的函数签名（function signature）
+     * @param data: call data，里面是一些参数
+     * @param executeTime: 交易执行的区块链时间戳
+     *
+     * 要求：executeTime 大于 当前区块链时间戳+delay
+     */
+    function queueTransaction(address target, uint256 value, string memory signature, bytes memory data, uint256 executeTime) public onlyOwner returns (bytes32) {
+        // 检查：交易执行时间满足锁定时间
+        require(executeTime >= getBlockTimestamp() + delay, "Timelock::queueTransaction: Estimated execution block must satisfy delay.");
+        // 计算交易的唯一识别符：一堆东西的hash
+        bytes32 txHash = getTxHash(target, value, signature, data, executeTime);
+        // 将交易添加到队列
+        queuedTransactions[txHash] = true;
+
+        emit QueueTransaction(txHash, target, value, signature, data, executeTime);
+        return txHash;
+    }
+
+    /**
+     * @dev 取消特定交易。
+     *
+     * 要求：交易在时间锁队列中
+     */
+    function cancelTransaction(address target, uint256 value, string memory signature, bytes memory data, uint256 executeTime) public onlyOwner{
+        // 计算交易的唯一识别符：一堆东西的hash
+        bytes32 txHash = getTxHash(target, value, signature, data, executeTime);
+        // 检查：交易在时间锁队列中
+        require(queuedTransactions[txHash], "Timelock::cancelTransaction: Transaction hasn't been queued.");
+        // 将交易移出队列
+        queuedTransactions[txHash] = false;
+
+        emit CancelTransaction(txHash, target, value, signature, data, executeTime);
+    }
+
+    /**
+     * @dev 执行特定交易。
+     *
+     * 要求：
+     * 1. 交易在时间锁队列中
+     * 2. 达到交易的执行时间
+     * 3. 交易没过期
+     */
+    function executeTransaction(address target, uint256 value, string memory signature, bytes memory data, uint256 executeTime) public payable onlyOwner returns (bytes memory) {
+        bytes32 txHash = getTxHash(target, value, signature, data, executeTime);
+        // 检查：交易是否在时间锁队列中
+        require(queuedTransactions[txHash], "Timelock::executeTransaction: Transaction hasn't been queued.");
+        // 检查：达到交易的执行时间
+        require(getBlockTimestamp() >= executeTime, "Timelock::executeTransaction: Transaction hasn't surpassed time lock.");
+        // 检查：交易没过期
+       require(getBlockTimestamp() <= executeTime + GRACE_PERIOD, "Timelock::executeTransaction: Transaction is stale.");
+        // 将交易移出队列
+        queuedTransactions[txHash] = false;
+
+        // 获取call data
+        bytes memory callData;
+        if (bytes(signature).length == 0) {
+            callData = data;
+        } else {
+            callData = abi.encodePacked(bytes4(keccak256(bytes(signature))), data);
+        }
+        // 利用call执行交易
+        (bool success, bytes memory returnData) = target.call{value: value}(callData);
+        require(success, "Timelock::executeTransaction: Transaction execution reverted.");
+
+        emit ExecuteTransaction(txHash, target, value, signature, data, executeTime);
+
+        return returnData;
+    }
+
+    /**
+     * @dev 获取当前区块链时间戳
+     */
+    function getBlockTimestamp() public view returns (uint) {
+        return block.timestamp;
+    }
+
+    /**
+     * @dev 将一堆东西拼成交易的标识符
+     */
+    function getTxHash(
+        address target,
+        uint value,
+        string memory signature,
+        bytes memory data,
+        uint executeTime
+    ) public pure returns (bytes32) {
+        return keccak256(abi.encode(target, value, signature, data, executeTime));
+    }
+```
 
 
 

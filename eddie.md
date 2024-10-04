@@ -15,6 +15,28 @@ timezone: Asia/Shanghai
 ## Notes
 <!-- Content_START -->
 
+### 2024.10.03
+
+Solidity103章节内容：荷兰拍卖、默克尔树
+
+Ethers101章节内容：HelloVitalik
+
+#### 笔记
+
+- merkle tree
+
+  [关于Merkle证明](https://learnblockchain.cn/article/5297)
+  
+  通过两两哈希，来获取根节点，利用根节点的可验证性，来保护整个数据不被篡改；
+
+  Merkle proof即为从叶子节点到根节点的路径；
+
+- 相关代码
+
+  [dutchAuction.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/NftAuction)
+
+  [merkletree.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/NftWhitelist)
+
 ### 2024.10.02
 
 WTF103章节内容：ERC721
