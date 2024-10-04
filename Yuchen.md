@@ -1073,5 +1073,86 @@ receive()   fallback()
 `receive()`和`payable fallback()`均不存在時，向合約直接發送 ETH 將會報錯(但仍可以通過帶有`payable`的函數向合約發送 ETH)。
 
 
+### 2024.10.04
+#### 發送 ETH
+Solidity 中向其他合約發送`ETH`的方法共有三種：`transfer()`、`send()`、`call()`(最鼓勵使用)。  
+
+**接收 ETH 合約**  
+部署一個接收`ETH`的合約 `ReceiveETH`，其中有一個事件`Log`，事件會記錄收到的`ETH`數量和`gas`剩餘；兩個函數(1)`receive()`，收到`ETH`後被觸發，(2)`getBalance()`，查詢合約的`ETH`餘額。
+```Solidity
+contract ReceiveETH {
+    // 收到eth事件，紀錄amount和gas
+    event Log(uint amount, uint gas);
+
+    // receive 方法，接收eth時被觸發
+    receive() external payable{
+        emit Log(msg.value, gasleft());
+    }
+
+    // 返回合約ETH餘額
+    function getBalance() view public returns(uint) {
+        retuen address(this).balance;
+    }
+}
+```
+
+**發送 ETH 合約**  
+實作三種方法向`ReceiveETH`合約發送`ETH`。先在發送ETH合約的`SendETH`中實現`payable`的`constructor`和`receive()`，使我們能在部署時和部署後向合約轉帳。  
+```Solidity
+contract SendETH{
+    // 構造函數，payable使的部署的時向合約發送eth
+    constructor() payable{}
+    // receuve方法，接收eth時被觸發
+    receive() external payable{}
+}
+```
+**transfer**  
+* `接收方地址.transfer(發送ETH數額)`
+* `transfer()`的`gas`限制是`2300`，足夠用於轉帳，但對方合約的`fallback()`、`receive()`不能實作太複雜的邏輯。
+* `transfer()`如果轉帳失敗，會自動`revert`(回滾交易)。
+```Solidity
+// 用transfer()發送ETH
+function transferETH(address payable  _to, uint256 amount) external payable{
+    _to.transfer(amount); // 接收方地址.transfer(發送ETH數額)
+}
+```
+
+**send**  
+* `接收方地址.send(發送ETH數額)`
+* `send()`的`gas`限制是`2300`，足夠用於轉帳，但對方合約的`fallback()`、`receive()`不能實作太複雜的邏輯。
+* `send()`如果轉帳失敗，不會自動`revert`。
+* `send()`的返回值是`bool`，代表轉帳成功或失敗。
+```Solidity
+error SendFailed(); // 用send發送ETH失敗
+
+// send()發送ETH
+function sendETH(address payable _to, uint256 amount) external payable{
+    // 處理send的返回值，如果失敗，revert交易並發送error
+    bool success = _to.send(amount);
+    if(!success){
+        revert SendFailed();
+    }
+}
+```
+
+**call**  
+* `接收方地址.call{value: 發送ETH數額}("")`
+* `call()`沒有`gas`限制，可支持對方合約實作複雜邏輯。
+* `call()`如果轉帳失敗，不會自動`revert`。
+* `call()`的返回值是`(bool, bytes)`，`bool`代表轉帳成功或失敗。
+```Solidity
+error CallFailed(); // 用call發送ETH失敗
+
+// call()發送ETH
+function callETH(address payable _to, uint256 amount) external payable{
+    // 處理call的返回值，如果失敗，revert交易並發送error
+    (bool success,) = _to.call{value: amount}("");
+    if(!success){
+        revert CallFailed();
+    }
+}
+
+```
+
 
 <!-- Content_END -->
