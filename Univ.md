@@ -566,11 +566,39 @@ error TransferNotOwner(address sender);
 - require 方法消耗最多，約 24755。
 - assert 方法 gas 消耗稍低於 require，為 24473。
 
-## 16_Overloading
-
-
-
 ### 2024.10.04
+## 16_Overloading
+- **函數重載**：在 Solidity 中允許函數名稱相同，但輸入參數類型不同的函數共存，這些函數會被視為不同的函數。
+- 雖然函數可以重載，但 Solidity 不允許modifier進行重載。
+- 可以定義兩個名稱相同的函數 saySomething()，但參數不同：
+-    一個不接受參數，輸出 "Nothing"。
+-    一個接受一個 string 類型的參數，並輸出該字符串。
+```solidity
+function saySomething() public pure returns(string memory){
+    return("Nothing");
+}
+```
+```solidity
+function saySomething(string memory something) public pure returns(string memory){
+    return(something);
+}
+```
+#### Selector
+- 在編譯過程中，重載的函數根據不同的參數類型生成不同的函數選擇器 selector 。  儘管這些函數名稱相同，每個函數選擇器都是唯一的。
+
+#### Argument Matching
+- 在調用重載函數時，編譯器會根據輸入的實際參數來匹配函數。  如果有多個匹配的函數，則會報錯。
+```solidity
+function f(uint8 _in) public pure returns (uint8 out) {
+    out = _in;
+}
+```
+```solidity
+function f(uint256 _in) public pure returns (uint256 out) {
+    out = _in;
+}
+```
+如果調用 f(50)，由於 50 可以同時匹配 uint8 和 uint256，因此會產生匹配衝突並報錯。
 
 ### 2024.10.05
 
