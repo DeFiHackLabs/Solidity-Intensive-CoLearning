@@ -640,7 +640,7 @@ function getString2(uint256 _number) public pure returns(string memory){
 }
 ```
 #### 常用的庫合約
- Strings 、 Address 、 Create2 、 Arrays
+Strings、Address、Create2、Arrays
 
 ### 2024.10.05
 
