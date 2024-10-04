@@ -146,4 +146,14 @@ Arrays：跟数组相关的库合约
 sha3由keccak标准化而来，在很多场合下Keccak和SHA3是同义词，但在2015年8月SHA3最终完成标准化时，NIST调整了填充算法。所以SHA3就和keccak计算的结果不一样，这点在实际开发中要注意。  
 以太坊在开发的时候sha3还在标准化中，所以采用了keccak，所以Ethereum和Solidity智能合约代码中的SHA3是指Keccak256，而不是标准的NIST-SHA3，为了避免混淆，直接在合约代码中写成Keccak256是最清晰的。  
 
+### 2024.10.04
+1. msg.data是Solidity中的一个全局变量，值为完整的calldata（调用函数时传入的数据）。
+2. 前4个字节为函数选择器selector，后面32个字节为输入的参数
+3. 注意，在函数签名中，uint和int要写为uint256和int256。
+4. 映射类型参数通常有：contract、enum、struct等。在计算method id时，需要将该类型转化成为ABI类型。例如，如下函数mappingParamSelector中DemoContract需要转化为address，结构体User需要转化为tuple类型(uint256,bytes)，枚举类型School需要转化为uint8。因此，计算该函数的method id的代码为bytes4(keccak256("mappingParamSelector(address,(uint256,bytes),uint256[],uint8)"))。
+5. try-catch只能被用于external函数或创建合约时constructor
+6. 只能用于外部合约调用和合约创建。
+7. 如果try执行成功，返回变量必须声明，并且与返回的变量类型相同。
+8. SuccessEvent是调用成功会释放的事件，而CatchEvent和CatchByte是抛出异常时会释放的事件，分别对应require/revert和assert异常的情况。even是个OnlyEven合约类型的状态变量。
+
 <!-- Content_END -->

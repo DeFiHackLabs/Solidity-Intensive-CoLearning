@@ -816,6 +816,64 @@ In this lecture, I learned `constructor` and `modifier` in Solidity, and wrote a
 
 </details>
 
+### 2024.10.04
+<details>
+<summary>12. Events</summary>
+
+#### Events
+The `event` in solidity are the transaction logs stored on the `EVM` (Ethereum Virtual Machine). They can be emitted during function calls and are accessible with the contract address. Events have two characteristics：
+- Responsive: Applications (e.g. `ether.js`) can subscribe and listen to these events through `RPC` interface and respond at frontend.
+- Economical: It is cheap to store data in events, costing about 2,000 `gas` each. In comparison, store a new variable on-chain takes at least 20,000 `gas`.
+
+##### Declare events
+The events are declared with the `event` keyword, followed by event name, then the type and name of each parameter to be recorded. Let's take the `Transfer` event from the `ERC20` token contract as an example：
+```solidity
+event Transfer(address indexed from, address indexed to, uint256 value);
+```
+`Transfer` event records three parameters: `from`，`to`, and `value`，which correspond to the address where the tokens are sent, the receiving address, and the number of tokens being transferred. Parameter `from` and `to` are marked with `indexed` keywords, which will be stored at a special data structure known as `topics` and easily queried by programs.
+
+##### Emit events
+We can `emit` events in functions. In the following example, each time the `_transfer()` function is called, `Transfer` events will be emitted and corresponding parameters will be recorded.
+```solidity
+    // define _transfer function，execute transfer logic
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) external {
+
+        _balances[from] = 10000000; // give some initial tokens to transfer address
+
+        _balances[from] -=  amount; // "from" address minus the number of transfer
+        _balances[to] += amount; // "to" address adds the number of transfer
+
+        // emit event
+        emit Transfer(from, to, amount);
+    }
+```
+
+#### EVM Log
+EVM uses `Log` to store Solidity events. Each log contains two parts: `topics` and `data`.
+
+##### `Topics`
+`Topics` is used to describe events. Each event contains a maximum of 4 `topics`. Typically, the first `topic` is the event hash: the hash of the event signature. The event hash of `Transfer` event is calculated as follows:
+```solidity
+keccak256("Transfer(addrses,address,uint256)")
+
+// 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+```
+Besides event hash, `topics` can include 3 `indexed` parameters, such as the `from` and `to` parameters in `Transfer` event. The anonymous event is special: it does not have a event name and can have 4 indexed parameters at maximum.
+
+`indexed` parameters can be understood as the indexed "key" for events, which can be easily queried by programs. The size of each `indexed` parameter is 32 bytes. For the parameter is larger than 32 bytes, such as `array` and `string`, the hash of the underlying data is stored.
+
+##### `Data`
+Non-indexed parameters will be stored in the `data` section of the log. They can be interpreted as "value" of the event and can't be retrieved directly. But they can store data with larger size. Therefore, `data` section can be used to store complex data structures, such as `array` and `string`. Moreovrer, `data` consumes less gas compared to `topic`.
+
+#### Summary
+In this lecture, I learned how to use and query events in solidity. Many on-chain analysis tools are based on solidity events, such as `Dune Analytics`.
+
+</details>
+
 ###
 
 <!-- Content_END -->

@@ -728,5 +728,48 @@ contract MyReceiveAndFallbackContract{
            - 接收方地址.send(发送ETH的数额);  返回值是bool
 
 
+### 2024.10.04
 
+學習內容:
+
+- [x] 调用其他合约的几种方法
+   - 通过其他合约地址调用：OtherContract(_addresss).functionName();
+   - 通过参数直接传入合约：function callOtherContract(OtherContract _address);
+   - 通过合约地址获取合约：OtherContract _otherContract = OtherContract(_address);
+
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract MyContract{
+    function method1(OtherContract _address, uint256 cakeNum) external {
+        _address.setMyCake(cakeNum);
+    }
+    function method2(address _address, uint256 cakeNum)external {
+        OtherContract(_address).setMyCake(cakeNum);
+    }
+    function method3(address _address, uint256 cakeNum) external {
+        OtherContract oc = OtherContract(_address);
+        oc.setMyCake(cakeNum);
+    }
+
+}
+
+
+contract OtherContract{
+
+   mapping(address => uint256) private cake;
+
+   function setMyCake(uint256 cakeNum)external payable {
+    cake[msg.sender] = cakeNum;
+   }
+
+    // 通过指定合约地址查询对应合约地址拥有的cake数量
+   function showMyCake(address owner) external view returns(uint256 cakeNum){
+    cakeNum = cake[owner];
+   }
+
+}
+```
 <!-- Content_END -->
