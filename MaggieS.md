@@ -401,9 +401,9 @@ Stay safe. 
 
 I read the solidity white paper these two days. 
 
-Love means you are curious about everything about it.
+Love means you are curious about everything and accept everything about it.
 
-First of all, I need to fimilar with some basic information.
+First of all, I want to fimilar with some basic information about solidity.
 
 
 Q1: What is Solidity?
