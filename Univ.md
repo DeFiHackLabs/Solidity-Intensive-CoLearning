@@ -123,9 +123,9 @@ Solidity 中的數據存儲位置有三類：`storage`、`memory`和`calldata`�
 - **全局變數**：Solidity 預留的關鍵字，在函數內可直接使用，如 msg.sender、block.number 等
 
 #### 以太單位與時間單位
-##### 以太單位：Solidity 中無法使用小數點，使用**`wei`**、**`gwei`**、**`ether`**等單位來表示不同的以太值，確保交易的精確性。
-- **`wei`**: 1
-- **`gwei`**: 1e9
+##### 以太單位：Solidity 中無法使用小數點，使用`wei`、`gwei`、`ether`等單位來表示不同的以太值，確保交易的精確性。
+- **`wei`**:   1
+- **`gwei`**:  1e9
 - **`ether`**: 1e18
 
 #### 時間單位：可使用 seconds、minutes、hours 等來設置合約中的時間，確保操作的準確性。
@@ -144,7 +144,7 @@ Solidity 中的數據存儲位置有三類：`storage`、`memory`和`calldata`�
 在聲明時不指定長度，格式為**`T[]`**<br>例如：uint[] array4;
 
 #### 創建數組的規則：
-- 使用**`memory`**修飾的動態數組可以用`**new`**操作符創建，必須指定長度，且創建後長度不能改變<br>例如：uint;
+- 使用`memory`修飾的動態數組可以用`new`操作符創建，必須指定長度，且創建後長度不能改變<br>例如：uint;
 數組字面常數用來初始化數組<br>例如 [uint(1), 2, 3]，元素類型以第一個元素為準
 
 #### 數組成員：
@@ -181,7 +181,7 @@ student = Student({id: 4, score: 60});
 
 ### 2024.09.28
 ## 07_Mapping
-在 Solidity 中，**`Mapping`**是一種資料結構，可以通過鍵**`Key`**查詢對應的**`Value`**<br>例如，可以通過一個人的 ID 查詢他的钱包地址
+在 Solidity 中，`Mapping`是一種資料結構，可以通過鍵`Key`查詢對應的`Value`<br>例如，可以通過一個人的 ID 查詢他的钱包地址
 
 #### 映射聲明格式
 ```solidity
@@ -221,7 +221,7 @@ function writeMap(uint _Key, address _Value) public {
 - **不儲存鍵的資訊**：映射不儲存任何鍵的資訊，也沒有長度資訊
 - **默認值**：未賦值的鍵初始值都是該類型的默認值，例如**`uint`**的默認值是 0
 - **存取方式**：映射使用 keccak256(abi.encodePacked(key, slot)) 作為偏移量來存取值，其中 slot 是映射變量所在的插槽位置
-- 
+
 ### 2024.09.29
 ## 08_InitialValue
 
@@ -253,7 +253,7 @@ function fi() internal {} // internal空白函數
 function fe() external {} // external空白函數
 ```
 #### 引用類型初始值
-- **`mapping**: 所有元素為其預設值的 mapping
+- **`mapping`**: 所有元素為其預設值的 mapping
 - **`struct`**: 所有成員設為其預設值的結構體
 - **`array`**:
    - **`動態array`**: []
@@ -558,9 +558,9 @@ error TransferNotOwner(address sender);
 - 在`transferOwner3`函數中，`assert`檢查發起人是否為`owner`，但不會給出具體的錯誤描述。
 
 ##### 使用 Remix 測試不同方法的 gas 消耗（基於 Solidity 0.8.17 編譯版本）：
-- **`error`**方法消耗最少的 gas，約 24457（帶參數時為 24660）。
-- **`require`**方法消耗最多，約 24755。
-- **`assert`**方法 gas 消耗稍低於 require，為 24473。
+- `error`方法消耗最少的 gas，約 24457（帶參數時為 24660）。
+- `require`方法消耗最多，約 24755。
+- `assert`方法 gas 消耗稍低於 require，為 24473。
 
 ### 2024.10.04
 ## 16_Overloading
