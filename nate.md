@@ -162,5 +162,7 @@ WTF solidity16-20
 WTF solidity21-25
 ### 2024.09.30
 WTF solidity26-30
+### 2024.10.01
+WTF solidity31-35
 
 <!-- Content_END -->
