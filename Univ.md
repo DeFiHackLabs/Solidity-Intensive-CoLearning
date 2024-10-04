@@ -256,8 +256,8 @@ function fe() external {} // external空白函數
 - **`mapping**: 所有元素為其預設值的 mapping
 - **`struct`**: 所有成員設為其預設值的結構體
 - **`array`**:
--    **`動態array`**: []
--    **`定長array`**: 所有成員設為其預設值的靜態數組
+   - **`動態array`**: []
+   - **`定長array`**: 所有成員設為其預設值的靜態數組
 
 #### 範例驗證初始值
 ```solidity
@@ -388,8 +388,8 @@ function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
 - 在運行函數之前進行檢查，例如檢查是否為特定地址或條件
 
 - onlyOwner：
--    用於檢查調用者是否為合約 owner，如果不是則會報錯並回滾交易。
--    modifier應用在 changeOwner 函數中，只有當前的 owner 才能改變合約的 owner。
+   - 用於檢查調用者是否為合約 owner，如果不是則會報錯並回滾交易。
+   - modifier應用在 changeOwner 函數中，只有當前的 owner 才能改變合約的 owner。
 
 ### 2024.10.03
 ## 12_Event
@@ -534,7 +534,7 @@ abstract contract InsertionSort {
 
 ## 15_Errors
 #### error 方法
-- error 是在 Solidity 0.8.4 版本中引入的新功能，用於向用戶提供操作失敗的原因。
+- `error`是在 Solidity 0.8.4 版本中引入的新功能，用於向用戶提供操作失敗的原因。
 - 一種高效且省 gas 的方法，並且允許攜帶參數，幫助開發者進行調試。
 ```solidity
 error TransferNotOwner();
@@ -546,29 +546,29 @@ error TransferNotOwner(address sender);
 - error 通常與 revert 一起使用，當條件不滿足時，拋出異常並rollback交易。
 - 在 transferOwner1 函數中，如果發起人不是代幣的 owner，就會觸發 TransferNotOwner 錯誤。
 #### require 方法
-- require 是 Solidity 0.8 版本之前最常用的異常處理方式，許多合約仍在使用。
+- `require`是 Solidity 0.8 版本之前最常用的異常處理方式，許多合約仍在使用。
 - 它檢查某個條件是否為真，如果為假，則拋出異常。
-- 缺點：require 方法會隨著錯誤描述的字符串長度增加 gas 消耗，這使得它比 error 更昂貴。
-- 在 transferOwner2 函數中，require 用來檢查發起人是否為代幣的 owner
+- 缺點：`require`方法會隨著錯誤描述的字符串長度增加 gas 消耗，這使得它比`error`更昂貴。
+- 在`transferOwner2`函數中，`require`用來檢查發起人是否為代幣的`owner`
 - 如果不是，會拋出 "Transfer Not Owner" 的異常信息。
 #### assert 方法
 - assert 用於檢查合約內部的邏輯錯誤，通常在開發和調試過程中使用。
 - 它無法提供具體的錯誤信息，只會回滾交易。
 - 當條件不成立時，assert 會直接拋出異常。
-- 在 transferOwner3 函數中，assert 檢查發起人是否為 owner，但不會給出具體的錯誤描述。
+- 在`transferOwner3`函數中，`assert`檢查發起人是否為`owner`，但不會給出具體的錯誤描述。
 
 ##### 使用 Remix 測試不同方法的 gas 消耗（基於 Solidity 0.8.17 編譯版本）：
-- error 方法消耗最少的 gas，約 24457（帶參數時為 24660）。
-- require 方法消耗最多，約 24755。
-- assert 方法 gas 消耗稍低於 require，為 24473。
+- **`error`**方法消耗最少的 gas，約 24457（帶參數時為 24660）。
+- **`require`**方法消耗最多，約 24755。
+- **`assert`**方法 gas 消耗稍低於 require，為 24473。
 
 ### 2024.10.04
 ## 16_Overloading
 - **函數重載**：在 Solidity 中允許函數名稱相同，但輸入參數類型不同的函數共存，這些函數會被視為不同的函數。
 - 雖然函數可以重載，但 Solidity 不允許modifier進行重載。
 - 可以定義兩個名稱相同的函數 saySomething()，但參數不同：
--    一個不接受參數，輸出 "Nothing"。
--    一個接受一個 string 類型的參數，並輸出該字符串。
+   - 一個不接受參數，輸出 "Nothing"。
+   -    一個接受一個 string 類型的參數，並輸出該字符串。
 ```solidity
 function saySomething() public pure returns(string memory){
     return("Nothing");
@@ -601,27 +601,27 @@ function f(uint256 _in) public pure returns (uint256 out) {
 - 是一種特殊的合約，提高代碼的重用性
 - 通過共享函數來減少重複代碼和降低 gas 消耗
 * 庫合約與普通合約相比有以下特點：
-*     不能有狀態變量：庫合約中無法存儲狀態變量<br>
-*     不能繼承或被繼承：庫合約無法繼承其他合約，也不能被其他合約繼承<br>
-*     不能接收以太幣：庫合約無法接收以太幣<br>
-*     無法被銷毀：庫合約無法使用 selfdestruct 銷毀<br>
+   * 不能有狀態變量：庫合約中無法存儲狀態變量<br>
+   * 不能繼承或被繼承：庫合約無法繼承其他合約，也不能被其他合約繼承<br>
+   * 不能接收以太幣：庫合約無法接收以太幣<br>
+   * 無法被銷毀：庫合約無法使用 selfdestruct 銷毀<br>
 - 庫合約的函數可見性對其行為有影響：
--     Public/External 函數：在調用時會觸發 delegatecall<br>
--     Internal 函數：不會觸發 delegatecall<br>
--     Private 函數：僅在庫合約內部可見，其他合約無法使用<br>
+   - Public/External 函數：在調用時會觸發 delegatecall<br>
+   - Internal 函數：不會觸發 delegatecall<br>
+   - Private 函數：僅在庫合約內部可見，其他合約無法使用<br>
 #### Strings 庫合約
 - 以 ERC721 合約中引用的 Strings 庫合約為例，該庫的主要功能是將 uint256 數據轉換為字符串格式，常見於 NFT 合約中用來處理 Token ID 和 URI。
 ##### Strings 庫的函數
 - toString(uint256 value)：將 uint256 數據轉換為十進制的字符串表示。
--     將數值轉換為對應的字符組成的字符串。
+   - 將數值轉換為對應的字符組成的字符串。
 - toHexString(uint256 value)：將 uint256 數據轉換為十六進制的字符串表示。
--     將數值轉換為十六進制格式，並以 0x 為前綴。
+   - 將數值轉換為十六進制格式，並以 0x 為前綴。
 - toHexString(uint256 value, uint256 length)：將 uint256 數據轉換為定長的十六進制字符串表示。
--     根據指定長度來轉換數值，並自動填充。
+   - 根據指定長度來轉換數值，並自動填充。
 #### 使用庫合約
 兩種主要使用方式：
 - using for 指令
--     使用 using A for B; 來將庫合約 A 的函數附加到某類型 B 上。這樣，類型 B 的變量可以直接調用庫 A 中的函數，並且這個變量會自動作為函數的第一個參數。
+   - 使用 using A for B; 來將庫合約 A 的函數附加到某類型 B 上。這樣，類型 B 的變量可以直接調用庫 A 中的函數，並且這個變量會自動作為函數的第一個參數。
 ```solidity
 using Strings for uint256;
 function getString1(uint256 _number) public pure returns(string memory){
@@ -629,7 +629,7 @@ function getString1(uint256 _number) public pure returns(string memory){
 }
 ```
 - 直接調用庫合約函數
--     直接使用庫合約的名稱來調用函數，不需要將庫合約附加到具體類型。
+   - 直接使用庫合約的名稱來調用函數，不需要將庫合約附加到具體類型。
 ```solidity
 function getString2(uint256 _number) public pure returns(string memory){
     return Strings.toHexString(_number); // 使用庫合約名稱調用函數
