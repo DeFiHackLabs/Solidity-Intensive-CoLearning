@@ -769,6 +769,111 @@ In this lecture, I learned control flow in Solidity and wrote a simple but bug-p
 
 </details>
 
+### 2024.10.03
+<details>
+<summary>11. Constructor & Modifier</summary>
+
+#### Constructor
+`constructor` is a special function, which will automatically run once during contract deployment. Each contract can have one `constructor`. It can be used to initialize parameters of a contract, such as an `owner` address:
+```solidity
+   address owner; // define owner variable
+
+   // constructor
+   constructor() {
+      owner = msg.sender; //  set owner to the deployer address
+   }
+```
+Note: The syntax of `constructor` in solidity is not consistent for different versions: Before `solidity 0.4.22`, constructors did not use the `constructor` keyword. Instead, the constructor had the same name as the contract name. This old syntax is prone to mistakes: the developer may mistakenly name the contract as `Parents`, while the constructor as `parents`. So in `0.4.22` and later version, the new `constructor` keyword is used. Example of constructor prior to `solidity 0.4.22`:
+```solidity
+pragma solidity = 0.4.21;
+contract Parents {
+    // The function with the same name as the contract name(Parents) is constructor
+    function Parents () public {
+    }
+}
+```
+
+#### Modifier
+`modifier` is similar to `decorator` in object-oriented programming, which is used to declare dedicated properties of functions and reduce code redundancy. `modifier` is Iron Man Armor for functions: the function with `modifier` will have some magic properties. The popular use case of `modifier` is restrict the access of functions.
+
+Let's define a `modifier` called onlyOwner, functions with it can only be called by `owner`:
+```solidity
+   // define modifier
+   modifier onlyOwner {
+      require(msg.sender == owner); // check whether caller is address of owner
+      _; // execute the function body
+   }
+```
+Next, let us define a `changeOwner` function, which can change the `owner` of the contract. However, due to the `onlyOwner` modifier, only original `owner` is able to call it. This is the most common way of access control in smart contracts.
+```solidity
+   function changeOwner(address _newOwner) external onlyOwner{
+      owner = _newOwner; // only owner address can run this function and change owner
+   }
+```
+
+#### Summary
+In this lecture, I learned `constructor` and `modifier` in Solidity, and wrote an `Ownable` contract that controls access of the contract.
+
+</details>
+
+### 2024.10.04
+<details>
+<summary>12. Events</summary>
+
+#### Events
+The `event` in solidity are the transaction logs stored on the `EVM` (Ethereum Virtual Machine). They can be emitted during function calls and are accessible with the contract address. Events have two characteristics：
+- Responsive: Applications (e.g. `ether.js`) can subscribe and listen to these events through `RPC` interface and respond at frontend.
+- Economical: It is cheap to store data in events, costing about 2,000 `gas` each. In comparison, store a new variable on-chain takes at least 20,000 `gas`.
+
+##### Declare events
+The events are declared with the `event` keyword, followed by event name, then the type and name of each parameter to be recorded. Let's take the `Transfer` event from the `ERC20` token contract as an example：
+```solidity
+event Transfer(address indexed from, address indexed to, uint256 value);
+```
+`Transfer` event records three parameters: `from`，`to`, and `value`，which correspond to the address where the tokens are sent, the receiving address, and the number of tokens being transferred. Parameter `from` and `to` are marked with `indexed` keywords, which will be stored at a special data structure known as `topics` and easily queried by programs.
+
+##### Emit events
+We can `emit` events in functions. In the following example, each time the `_transfer()` function is called, `Transfer` events will be emitted and corresponding parameters will be recorded.
+```solidity
+    // define _transfer function，execute transfer logic
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) external {
+
+        _balances[from] = 10000000; // give some initial tokens to transfer address
+
+        _balances[from] -=  amount; // "from" address minus the number of transfer
+        _balances[to] += amount; // "to" address adds the number of transfer
+
+        // emit event
+        emit Transfer(from, to, amount);
+    }
+```
+
+#### EVM Log
+EVM uses `Log` to store Solidity events. Each log contains two parts: `topics` and `data`.
+
+##### `Topics`
+`Topics` is used to describe events. Each event contains a maximum of 4 `topics`. Typically, the first `topic` is the event hash: the hash of the event signature. The event hash of `Transfer` event is calculated as follows:
+```solidity
+keccak256("Transfer(addrses,address,uint256)")
+
+// 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+```
+Besides event hash, `topics` can include 3 `indexed` parameters, such as the `from` and `to` parameters in `Transfer` event. The anonymous event is special: it does not have a event name and can have 4 indexed parameters at maximum.
+
+`indexed` parameters can be understood as the indexed "key" for events, which can be easily queried by programs. The size of each `indexed` parameter is 32 bytes. For the parameter is larger than 32 bytes, such as `array` and `string`, the hash of the underlying data is stored.
+
+##### `Data`
+Non-indexed parameters will be stored in the `data` section of the log. They can be interpreted as "value" of the event and can't be retrieved directly. But they can store data with larger size. Therefore, `data` section can be used to store complex data structures, such as `array` and `string`. Moreovrer, `data` consumes less gas compared to `topic`.
+
+#### Summary
+In this lecture, I learned how to use and query events in solidity. Many on-chain analysis tools are based on solidity events, such as `Dune Analytics`.
+
+</details>
+
 ###
 
 <!-- Content_END -->

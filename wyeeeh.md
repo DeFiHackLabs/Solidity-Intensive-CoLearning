@@ -727,6 +727,118 @@ function insertionSort(uint[] memory a) public pure returns (uint[] memory) {
 ### 2024.10.03
 #### WTF Academy Solidity 101.11 构造函数和修饰器
 
+##### 构造函数`constructor`
+构造函数（`constructor`）是一种特殊的函数，它只会在智能合约部署时运行一次，用来初始化合约的一些变量或状态。可以类比为Python中的类初始化函数 `__init__()`，它在类的实例化时自动调用。
+构造函数的常见用途是设置合约的 `owner`，即合约的管理员，只有管理员才能做某些重要操作，比如改变合约的设置或执行关键功能。
+> **为什么不能写死`owner`？**
+>  - 写死 `owner` 会导致合约的可重用性大大降低。当想用相同的合约代码在多个环境或不同的区块链网络中进行部署。如果 `owner` 地址写死在代码中，那么部署在每个不同环境时都必须修改地址，这不但增加了工作量，还容易出错。
+>  - 将 `owner` 地址写死在代码中可能存在安全隐患。尤其是在公开的开源项目中，任何人都可以看到代码中预设的 `owner` 地址，这样可能会成为攻击目标。如果这个地址失去了对私钥的控制权或遭遇攻击，攻击者可能会针对这个合约进行操作，甚至获取对合约的控制权。
+>  - 合约的 `owner` 并不总是固定不变的。在实际应用中，`owner` 可能需要转让权限（例如公司组织结构变更或团队内的角色调整）。如果 `owner` 是动态设置的，并且还提供了更改 `owner` 的功能（如通过 `changeOwner` 函数），那么 `owner` 可以在合约生命周期内被灵活管理。
+
+###### 构造函数语法
+```solidity
+address owner; // 定义owner变量
+
+// 构造函数
+constructor(address initialOwner) {
+    owner = initialOwner; // 在合约部署时，设置owner为传入的initialOwner地址
+}
+```
+- **owner** 是一个存储管理员地址的状态变量。
+- **constructor** 是构造函数，它接受一个 `initialOwner` 地址作为参数，然后将这个地址赋值给 `owner` 变量。
+
+##### 修饰器`modifier`
+修饰器（`modifier`）是 **Solidity** 中的一种语法工具，它允许在运行函数前先执行某些检查或操作，从而减少代码重复。这类似于Python中的装饰器（`decorator`），可以为函数添加额外的功能或条件。
+
+###### 修饰器语法
+在权限控制中，我们常常使用修饰器来检查调用者是否为合约的管理员（`owner`），只有管理员才能执行某些关键操作。
+```solidity
+// 定义onlyOwner修饰器
+modifier onlyOwner {
+   require(msg.sender == owner); // 检查调用者是不是owner
+   _; // 如果是，继续运行函数；否则，revert交易并报错
+}
+```
+- **`msg.sender`** 是合约的内置全局变量，表示当前调用合约的地址。
+- **`require`** 是一个断言函数，如果条件为 `false`，则会抛出错误并撤销交易。
+- **`_;`** 代表函数主体会在通过修饰器的检查后继续执行。如果检查不通过，函数主体不会执行。
+
+###### 使用 `onlyOwner` 修饰器的函数
+```solidity
+function changeOwner(address _newOwner) external onlyOwner {
+   owner = _newOwner; // 只有当前owner地址可以调用这个函数
+}
+```
+
+- **`external`** 表示这个函数只能被合约外部调用，而不能由合约内部调用。
+- 通过修饰器 `onlyOwner`，这个函数只有当前合约的管理员 `owner` 才能调用。这个函数的功能是允许 `owner` 更改合约的所有者地址。
+
+###### 修饰器和`if`函数的区别
+- **`modifier`** 是 Solidity 特有的语法结构，用来改变或扩展函数的行为，主要目的是为函数添加**预处理条件**，通常用于权限控制、状态检查等场景。
+    - 例如，`onlyOwner` 修饰器用于确保只有合约的所有者 (`owner`) 才能执行某些敏感操作。
+    - `modifier` 的特点是通过 `_` 占位符，在检查通过后继续执行函数主体代码，而不是嵌入到函数内部。
+    
+    ```solidity
+    modifier onlyOwner {
+        require(msg.sender == owner); // 检查条件
+        _; // 如果条件满足，继续执行被修饰的函数
+    }
+    ```
+    
+- **`if` 语句** 是控制流结构，用于根据某个条件执行代码块。
+    - `if` 语句是函数内部的控制流语句，用于处理逻辑分支。如果条件不满足，可以选择 `else` 分支处理。
+    - `if` 通常与函数主体的某个逻辑相关，而不是像 `modifier` 那样专门处理预处理条件。
+    
+    ```solidity
+    function someFunction() public {
+        if (msg.sender == owner) {
+            // 执行某些操作
+        } else {
+            revert(); // 条件不满足，抛出错误
+        }
+    }
+    ```
+
+- **`modifier`** 提供了一种**代码复用**的方式，尤其在权限控制等场景下特别有用。多个函数可以使用相同的 `modifier`，避免在每个函数内部都重复写 `if` 条件判断。
+    - 例如，`onlyOwner` 修饰器可以应用于多个函数，不需要每次都写相同的 `require(msg.sender == owner)`。
+    
+    ```solidity
+    function changeOwner(address _newOwner) external onlyOwner {
+        owner = _newOwner; // 只有owner能执行
+    }
+    
+    function withdrawFunds() external onlyOwner {
+        // 只有owner能执行
+    }
+    ```
+    
+- 如果用 **`if`** 语句，每个需要权限控制的函数都必须重复写 `if` 判断逻辑，导致代码冗余且难以维护。
+    
+    ```solidity
+    function changeOwner(address _newOwner) public {
+        if (msg.sender == owner) {
+            owner = _newOwner;
+        } else {
+            revert();
+        }
+    }
+    
+    function withdrawFunds() public {
+        if (msg.sender == owner) {
+            // 执行逻辑
+        } else {
+            revert();
+        }
+    }
+    ```
+
+##### 测验结果
+- 100/100
+
+
+### 2024.10.04
+#### WTF Academy Solidity 101.12 事件
+
 ##### 笔记
 
 

@@ -50,6 +50,89 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 ## Notes
 
 <!-- Content_START -->
+### 2024.10.04
+
+Day 10
+
+WTF Academy Solidity 101 34_ERC721, 35_DutchAuction
+
+ERC165 and ERC721
+
+Solamte version
+
+```
+   function supportsInterface(bytes4 interfaceId) public view virtual returns (bool) {
+         return
+               interfaceId == 0x01ffc9a7 || // ERC165 Interface ID for ERC165
+               interfaceId == 0x80ac58cd || // ERC165 Interface ID for ERC721
+               interfaceId == 0x5b5e139f; // ERC165 Interface ID for ERC721Metadata
+   }
+```
+OpenZepplion version
+
+```
+   function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {
+        return
+            interfaceId == type(IERC721).interfaceId ||
+            interfaceId == type(IERC721Metadata).interfaceId ||
+            super.supportsInterface(interfaceId);
+    }
+```
+Dutch Aution
+
+- In the best interests of the project party
+- Avoid gas wars
+
+Dutch Auction mechanism design:
+
+1. Basic Parameters:
+   - startAmount: Total auction quantity (e.g., number of NFTs)
+   - startPrice: Starting/maximum price
+   - reservePrice: Floor price/minimum price
+     * Recommendation: reservePrice ≤ startPrice * 50% (floor price not higher than 50% of starting price)
+   - duration: Total auction duration
+     * Recommendation: Set minimum duration (e.g., 1 hour) to prevent flash sales
+     * Recommendation: Set maximum duration (e.g., 7 days) to avoid indefinite extensions
+
+2. Price Decay Mechanism:
+   - decayInterval: Price update interval
+     * Example: Every 5 minutes, hourly, etc.
+     * Recommendation: Not too frequent (gas costs) nor too long (price smoothness)
+   - minDecayPerInterval: Minimum price reduction per interval
+     * Example: Minimum 2% reduction each time
+     * Prevents minimal price drops to circumvent auction mechanism
+   - priceFunction: Price decay function
+     * Linear decay: (endPrice - startPrice) * (elapsedTime / duration)
+     * Exponential decay: startPrice * (1 - decayRate)^(elapsedTime / decayInterval)
+
+3. Constraints:
+   
+   ```solidity
+   // Basic parameter checks
+   require(startAmount > 0, "Invalid amount");
+   require(startPrice > reservePrice, "Invalid price range");
+   require(duration >= MIN_DURATION && duration <= MAX_DURATION, "Invalid duration");
+
+   // Price reduction check
+   require(
+      reservePrice <= startPrice * 50 / 100,
+      "Reserve price too high"
+   );
+
+   // Decay interval check
+   require(
+      decayInterval >= MIN_DECAY_INTERVAL,
+      "Decay interval too short"
+   );
+
+   // Minimum decay rate check
+   require(
+      minDecayPerInterval >= MIN_DECAY_RATE,
+      "Decay rate too small"
+   );
+   ```
+
+---
 ### 2024.10.03
 
 Day 9
