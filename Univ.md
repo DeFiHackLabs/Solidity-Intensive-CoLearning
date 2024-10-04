@@ -233,7 +233,7 @@ function writeMap(uint _Key, address _Value) public {
 - **`uint`**: `0`
 - **`string`**: `""`
 - **`boolean`**: `false`
-- **enum`**: 枚舉中的第一個元素
+- **`enum`**: 枚舉中的第一個元素
 - **`address`**: `0x0000000000000000000000000000000000000000`（或 `address(0)`）
 - **`function`**
   - **`internal`**: 空白函數
