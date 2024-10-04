@@ -166,14 +166,6 @@ Just Like:
 
 ### 2024.09.28
 
-Actually, the function of Language is for communication, no matter the natural language or programming language. In other words, a technology is just a solution, and a solution is only as good as the problems, so we need to make sure we know the problem really well, so we know how to attack it with this smart contract technology.
-
-By the way, It’s a person who gives me huge passions to challenge solidity this time , she is a female security auditor. I remember what she said in a interview that before she intended the ZK audit competition she even never learn ZK language, she just use few days to familiar with ZK language, but she got the champion, soooo fantastic.
-
-I try to find the crucial reason in Step 2 which confusing me for a long time that why and how she could make done it. So it must be something more important than language itself, language is just a language. No one knows whether I will be the solidity auditor in the future. It's a black box, which is interesting. But I'm sure this is not the most important thing.
-
-I know what I’m appreciate and chase for, learning solidity is just a experience to understand something to serve my life goals. Solidity itself is not my goal.
-
 Q1: 
 <img width="777" alt="image" src="https://github.com/user-attachments/assets/c0655440-5342-4d36-b991-33f635506990">
 
@@ -227,25 +219,6 @@ Events allow contracts to communicate with external applications. They are like 
 
 
 ### 2024.09.30
-
-One benefit of learning solidity is to be calm down. Rome was not built in a day.
-
-I am a soooo lucky girl that Web3 is willing to love, protect and support me.  
-
-But it is precisely because I cherish this luck that we should take our time.  
-
-I also need to improve my ability in all aspects if one day Web3 needs me.  
-
-
-Someday he needs me, I can stand up and protect him. I know I can do it.
-
-But the premise is that I must go through enough tempering and growth.
-
-Is there a better opportunity than I can survive the hardest time alone?
-
-Maybe he would say he doesn't need it, but, I have to have this ability.
-
-
 
 Q1: If you want to be a solidity security auditor, what aspects do their safety reports include？
 
@@ -307,16 +280,6 @@ Avoid meaningless checks
 
 
 ### 2024.10.01
-
-I recognize that I'm still a Solidity Baby.
-
-Answer the questions later. GN~
-
-It is easy to have ambiguity when discussing some topics in this way.  
-
-I mean, I have seen the picture that solidity was so cute when he was a child.  
-
-I'm willing to witness and company, the growth of some little solidity, again.
 
 
 Q1:If you want to be a solidity security auditor, to what extent should you learn solidity(2.0)?
@@ -387,10 +350,6 @@ The focus of the audit is to verify whether the smart contract is secure, resili
 
 
 ### 2024.10.02
-
-Wow～so long
-
-I hate you...you're distracting me!
 
 Q1：How To Write A Good Audit Report(1.0)?
 
