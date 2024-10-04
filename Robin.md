@@ -728,5 +728,13 @@ contract MyReceiveAndFallbackContract{
            - 接收方地址.send(发送ETH的数额);  返回值是bool
 
 
+### 2024.10.04
+
+學習內容:
+
+- [x] 调用其他合约的几种方法
+   - 通过其他合约地址调用：OtherContract(_addresss).functionName();
+   - 通过参数直接传入合约：function callOtherContract(OtherContract _address);
+   - 通过合约地址获取合约：OtherContract _otherContract = OtherContract(_address);
 
 <!-- Content_END -->
