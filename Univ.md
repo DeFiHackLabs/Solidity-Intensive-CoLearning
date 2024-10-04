@@ -114,7 +114,7 @@ Solidity 中的數據存儲位置有三類：`storage`、`memory`和`calldata`�
 - **`calldata`**：類似於 memory，但數據不可修改，用於函數參數
 
 #### 數據位置與賦值規則
-- **引用**：當**`storage`**賦值給另一個**`storage`**或**`memory`**賦值給另一個**`memory`**時，會創建引用，修改一方會影響另一方
+- **引用**：當`storage`賦值給另一個`storage`或`memory`賦值給另一個`memory`時，會創建引用，修改一方會影響另一方
 - **副本**：其他情況下賦值會創建副本，修改其中一方不會影響另一方
 
 #### 變數的作用域
@@ -139,9 +139,9 @@ Solidity 中的數據存儲位置有三類：`storage`、`memory`和`calldata`�
 ## 06_ArrayAndStruct
 #### 數組是用來存儲一組數據的變量類型，可分為固定長度數組和可變長度數組兩種：
 - **固定長度數組**：
-在聲明時指定長度，格式為**`T[k]`**，其中`**T`**是元素類型，k 是長度<br>例如：uint[8] array1;
+在聲明時指定長度，格式為`T[k]`，其中`T`是元素類型，k 是長度<br>例如：uint[8] array1;
 - **可變長度數組**：
-在聲明時不指定長度，格式為**`T[]`**<br>例如：uint[] array4;
+在聲明時不指定長度，格式為`T[]`<br>例如：uint[] array4;
 
 #### 創建數組的規則：
 - 使用`memory`修飾的動態數組可以用`new`操作符創建，必須指定長度，且創建後長度不能改變<br>例如：uint;
@@ -219,7 +219,7 @@ function writeMap(uint _Key, address _Value) public {
 ```
 #### 映射的原理
 - **不儲存鍵的資訊**：映射不儲存任何鍵的資訊，也沒有長度資訊
-- **默認值**：未賦值的鍵初始值都是該類型的默認值，例如**`uint`**的默認值是 0
+- **默認值**：未賦值的鍵初始值都是該類型的默認值，例如`uint`的默認值是 0
 - **存取方式**：映射使用 keccak256(abi.encodePacked(key, slot)) 作為偏移量來存取值，其中 slot 是映射變量所在的插槽位置
 
 ### 2024.09.29
@@ -410,7 +410,7 @@ event Transfer(address indexed from, address indexed to, uint256 value);
 from 和 to 被標記為 indexed，這表示可以方便檢索
 
 ### How to release?
-- 當發生轉帳時，我們可以用**`emit`**來釋放事件，告訴其他人這件事發生了。  這是如何在 Solidity 的函數中釋放 Transfer 事件的例子：
+- 當發生轉帳時，我們可以用`emit`來釋放事件，告訴其他人這件事發生了。  這是如何在 Solidity 的函數中釋放 Transfer 事件的例子：
 ```solidity
 emit Transfer(from, to, amount);
 ```
