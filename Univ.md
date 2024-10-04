@@ -561,7 +561,7 @@ error TransferNotOwner(address sender);
 - 當條件不成立時，assert 會直接拋出異常。
 - 在 transferOwner3 函數中，assert 檢查發起人是否為 owner，但不會給出具體的錯誤描述。
 
-#####使用 Remix 測試不同方法的 gas 消耗（基於 Solidity 0.8.17 編譯版本）：
+##### 使用 Remix 測試不同方法的 gas 消耗（基於 Solidity 0.8.17 編譯版本）：
 - error 方法消耗最少的 gas，約 24457（帶參數時為 24660）。
 - require 方法消耗最多，約 24755。
 - assert 方法 gas 消耗稍低於 require，為 24473。
@@ -584,10 +584,10 @@ function saySomething(string memory something) public pure returns(string memory
 }
 ```
 #### Selector
-- 在編譯過程中，重載的函數根據不同的參數類型生成不同的函數選擇器 selector 。  儘管這些函數名稱相同，每個函數選擇器都是唯一的。
+- 在編譯過程中，重載的函數根據不同的參數類型生成不同的函數選擇器 selector 。<br>儘管這些函數名稱相同，每個函數選擇器都是唯一的。
 
 #### Argument Matching
-- 在調用重載函數時，編譯器會根據輸入的實際參數來匹配函數。  如果有多個匹配的函數，則會報錯。
+- 在調用重載函數時，編譯器會根據輸入的實際參數來匹配函數。<br>如果有多個匹配的函數，則會報錯。
 ```solidity
 function f(uint8 _in) public pure returns (uint8 out) {
     out = _in;
