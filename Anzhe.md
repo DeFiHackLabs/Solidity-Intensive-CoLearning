@@ -1168,7 +1168,7 @@ contract BaseImpl is Base{
 ```
 ![](https://i.imgur.com/UEpvrS1.png)
 
-### 2024.10.04
+### 2024.10.03
 # 異常
 Solidity 有三種拋出異常的方法：`error`、`require` 和 `assert`，三種方法的 gas 消耗不同。寫智能合約常常會出 bug，Solidity 中的異常指令能幫我們 debug。
 ## Error
