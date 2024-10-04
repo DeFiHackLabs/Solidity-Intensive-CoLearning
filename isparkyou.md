@@ -3872,6 +3872,222 @@ contract TokenVesting {
     }
 ```
 
+### 2024.10.4
+### 代理合约Proxy Contract
+Solidity合约部署在链上之后，代码是不可变的（immutable）。这样既有优点，也有缺点：
+优点：安全，用户知道会发生什么（大部分时候）。
+坏处：就算合约中存在bug，也不能修改或升级，只能部署新合约。但是新合约的地址与旧的不一样，且合约的数据也需要花费大量gas进行迁移。
+![image](https://github.com/user-attachments/assets/8d702393-04b7-4a32-8db7-eae6c9b38005)
+代理合约（Proxy）通过delegatecall，将函数调用全权委托给逻辑合约（Implementation）执行，再把最终的结果返回给调用者（Caller）。
+代理模式主要有两个好处：
+1. 可升级：当我们需要升级合约的逻辑时，只需要将代理合约指向新的逻辑合约。
+2. 省gas：如果多个合约复用一套逻辑，我们只需部署一个逻辑合约，然后再部署多个只保存数据的代理合约，指向逻辑合约。
+   
+**它有三个部分：代理合约Proxy，逻辑合约Logic，和一个调用示例Caller。它的逻辑并不复杂：**
+1. 首先部署逻辑合约Logic。
+2. 创建代理合约Proxy，状态变量implementation记录Logic合约地址。
+3. Proxy合约利用回调函数fallback，将所有调用委托给Logic合约
+4. 最后部署调用示例Caller合约，调用Proxy合约。
+```
+contract Proxy {
+    address public implementation; // 逻辑合约地址。implementation合约同一个位置的状态变量类型必须和Proxy合约的相同，不然会报错。
+
+    /**
+     * @dev 初始化逻辑合约地址
+     */
+    constructor(address implementation_){
+        implementation = implementation_;
+    }
+/**
+* @dev 回调函数，将本合约的调用委托给 `implementation` 合约
+* 通过assembly，让回调函数也能有返回值
+*/
+fallback() external payable {
+    address _implementation = implementation;
+    assembly {
+        // 将msg.data拷贝到内存里
+        // calldatacopy操作码的参数: 内存起始位置，calldata起始位置，calldata长度
+        calldatacopy(0, 0, calldatasize())
+
+        // 利用delegatecall调用implementation合约
+        // delegatecall操作码的参数：gas, 目标合约地址，input mem起始位置，input mem长度，output area mem起始位置，output area mem长度
+        // output area起始位置和长度位置，所以设为0
+        // delegatecall成功返回1，失败返回0
+        let result := delegatecall(gas(), _implementation, 0, calldatasize(), 0, 0)
+
+        // 将return data拷贝到内存
+        // returndata操作码的参数：内存起始位置，returndata起始位置，returndata长度
+        returndatacopy(0, 0, returndatasize())
+
+        switch result
+        // 如果delegate call失败，revert
+        case 0 {
+            revert(0, returndatasize())
+        }
+        // 如果delegate call成功，返回mem起始位置为0，长度为returndatasize()的数据（格式为bytes）
+        default {
+            return(0, returndatasize())
+        }
+    }
+}
+
+/**
+ * @dev 逻辑合约，执行被委托的调用
+ */
+contract Logic {
+    address public implementation; // 与Proxy保持一致，防止插槽冲突
+    uint public x = 99; 
+    event CallSuccess(); // 调用成功事件
+
+    // 这个函数会释放CallSuccess事件并返回一个uint。
+    // 函数selector: 0xd09de08a
+    function increment() external returns(uint) {
+        emit CallSuccess();
+        return x + 1;
+    }
+}
+/**
+ * @dev Caller合约，调用代理合约，并获取执行结果
+ */
+contract Caller{
+    address public proxy; // 代理合约地址
+
+    constructor(address proxy_){
+        proxy = proxy_;
+    }
+
+    // 通过代理合约调用increment()函数
+    function increment() external returns(uint) {
+        ( , bytes memory data) = proxy.call(abi.encodeWithSignature("increment()"));
+        return abi.decode(data,(uint));
+    }
+}
+
+```
+
+
+### 可升级合约
+```
+// SPDX-License-Identifier: MIT
+// wtf.academy
+pragma solidity ^0.8.21;
+
+// 简单的可升级合约，管理员可以通过升级函数更改逻辑合约地址，从而改变合约的逻辑。
+// 教学演示用，不要用在生产环境
+contract SimpleUpgrade {
+    address public implementation; // 逻辑合约地址
+    address public admin; // admin地址
+    string public words; // 字符串，可以通过逻辑合约的函数改变
+
+    // 构造函数，初始化admin和逻辑合约地址
+    constructor(address _implementation){
+        admin = msg.sender;
+        implementation = _implementation;
+    }
+
+    // fallback函数，将调用委托给逻辑合约
+    fallback() external payable {
+        (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+    }
+
+    // 升级函数，改变逻辑合约地址，只能由admin调用
+    function upgrade(address newImplementation) external {
+        require(msg.sender == admin);
+        implementation = newImplementation;
+    }
+}
+
+// 逻辑合约1
+contract Logic1 {
+    // 状态变量和proxy合约一致，防止插槽冲突
+    address public implementation; 
+    address public admin; 
+    string public words; // 字符串，可以通过逻辑合约的函数改变
+
+    // 改变proxy中状态变量，选择器： 0xc2985578
+    function foo() public{
+        words = "old";
+    }
+}
+
+// 逻辑合约2
+contract Logic2 {
+    // 状态变量和proxy合约一致，防止插槽冲突
+    address public implementation; 
+    address public admin; 
+    string public words; // 字符串，可以通过逻辑合约的函数改变
+
+    // 改变proxy中状态变量，选择器：0xc2985578
+    function foo() public{
+        words = "new";
+    }
+}
+```
+
+### 透明代理Transparent Proxy
+#### 选择器冲突
+智能合约中，函数选择器（selector）是函数签名的哈希的前4个字节。
+由于函数选择器仅有4个字节，范围很小，因此两个不同的函数可能会有相同的选择器
+有两个可升级合约标准解决了这一问题：透明代理Transparent Proxy和通用可升级代理UUPS。
+
+**限制管理员的权限，不让他调用任何逻辑合约的函数，就能解决冲突：**
+- 管理员变为工具人，仅能调用代理合约的可升级函数对合约升级，不能通过回调函数调用逻辑合约。
+- 其它用户不能调用可升级函数，但是可以调用逻辑合约的函数。
+
+```
+// 透明可升级合约的教学代码，不要用于生产。
+contract TransparentProxy {
+    address implementation; // logic合约地址
+    address admin; // 管理员
+    string public words; // 字符串，可以通过逻辑合约的函数改变
+
+    // 构造函数，初始化admin和逻辑合约地址
+    constructor(address _implementation){
+        admin = msg.sender;
+        implementation = _implementation;
+    }
+
+    // fallback函数，将调用委托给逻辑合约
+    // 不能被admin调用，避免选择器冲突引发意外
+    fallback() external payable {
+        require(msg.sender != admin);
+        (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+    }
+
+    // 升级函数，改变逻辑合约地址，只能由admin调用
+    function upgrade(address newImplementation) external {
+        if (msg.sender != admin) revert();
+        implementation = newImplementation;
+    }
+}
+
+// 旧逻辑合约
+contract Logic1 {
+    // 状态变量和proxy合约一致，防止插槽冲突
+    address public implementation; 
+    address public admin; 
+    string public words; // 字符串，可以通过逻辑合约的函数改变
+
+    // 改变proxy中状态变量，选择器： 0xc2985578
+    function foo() public{
+        words = "old";
+    }
+}
+
+// 新逻辑合约
+contract Logic2 {
+    // 状态变量和proxy合约一致，防止插槽冲突
+    address public implementation; 
+    address public admin; 
+    string public words; // 字符串，可以通过逻辑合约的函数改变
+
+    // 改变proxy中状态变量，选择器：0xc2985578
+    function foo() public{
+        words = "new";
+    }
+}
+```
+
 
 
 
