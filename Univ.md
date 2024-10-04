@@ -600,6 +600,48 @@ function f(uint256 _in) public pure returns (uint256 out) {
 ```
 如果調用 f(50)，由於 50 可以同時匹配 uint8 和 uint256，因此會產生匹配衝突並報錯。
 
+## 17_Library
+#### 庫合約
+- 是一種特殊的合約，提高代碼的重用性
+- 通過共享函數來減少重複代碼和降低 gas 消耗
+- 庫合約與普通合約相比有以下特點：
+-    不能有狀態變量：庫合約中無法存儲狀態變量。
+-    不能繼承或被繼承：庫合約無法繼承其他合約，也不能被其他合約繼承。
+-    不能接收以太幣：庫合約無法接收以太幣。
+-    無法被銷毀：庫合約無法使用 selfdestruct 銷毀。
+- 庫合約的函數可見性對其行為有影響：
+-    Public/External 函數：在調用時會觸發 delegatecall。
+-    Internal 函數：不會觸發 delegatecall。
+-    Private 函數：僅在庫合約內部可見，其他合約無法使用。
+#### Strings 庫合約
+- 以 ERC721 合約中引用的 Strings 庫合約為例，該庫的主要功能是將 uint256 數據轉換為字符串格式，常見於 NFT 合約中用來處理 Token ID 和 URI。
+##### Strings 庫的函數
+- toString(uint256 value)：將 uint256 數據轉換為十進制的字符串表示。
+-    將數值轉換為對應的字符組成的字符串。
+- toHexString(uint256 value)：將 uint256 數據轉換為十六進制的字符串表示。
+-    將數值轉換為十六進制格式，並以 0x 為前綴。
+- toHexString(uint256 value, uint256 length)：將 uint256 數據轉換為定長的十六進制字符串表示。
+-    根據指定長度來轉換數值，並自動填充。
+#### 使用庫合約
+兩種主要使用方式：
+- using for 指令
+-    使用 using A for B; 來將庫合約 A 的函數附加到某類型 B 上。這樣，類型 B 的變量可以直接調用庫 A 中的函數，並且這個變量會自動作為函數的第一個參數。
+```solidity
+using Strings for uint256;
+function getString1(uint256 _number) public pure returns(string memory){
+    return _number.toHexString(); // 直接調用Strings庫的函數
+}
+```
+- 直接調用庫合約函數
+-    直接使用庫合約的名稱來調用函數，不需要將庫合約附加到具體類型。
+```solidity
+function getString2(uint256 _number) public pure returns(string memory){
+    return Strings.toHexString(_number); // 使用庫合約名稱調用函數
+}
+```
+#### 常用的庫合約
+ Strings 、 Address 、 Create2 、 Arrays
+
 ### 2024.10.05
 
 ### 2024.10.06
