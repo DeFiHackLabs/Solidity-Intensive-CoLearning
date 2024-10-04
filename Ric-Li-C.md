@@ -150,4 +150,8 @@ Add source codes for 36.MerkleTree and its tests
 
 Add source codes for 35.DutchAuction and its tests
 
+### 2024.10.04
+
+Add source codes for 36.MerkleTree_v2 and its tests
+
 <!-- Content_END -->
