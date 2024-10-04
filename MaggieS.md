@@ -397,7 +397,13 @@ In this section, include a disclaimer outlining the limitations of the audit and
 Effective documentation, comments, and reporting are essential for smart contracts. They help developers understand and verify contract functions, facilitate auditing and debugging, and allow stakeholders to monitor performance, fostering trust and accountability in the blockchain ecosystem. This is why smart contract audits, bug bounties, and reviews are crucial in every stage of development. They increase the number of eyes scouting for vulnerabilities and decrease the chance of critical vulnerabilities slipping through.
 Stay safe. 
 
-###2024.10.03
+### 2024.10.03
+
+Q1:
+
+Q2:
+
+### 2024.10.04
 
 Q1:
 
