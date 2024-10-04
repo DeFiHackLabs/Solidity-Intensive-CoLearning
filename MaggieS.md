@@ -399,6 +399,9 @@ Stay safe. 
 
 ### 2024.10.03
 
+I read the solidity white paper these two days. 
+Love means you are curious about everything about it.
+
 Q1:
 
 Q2:
