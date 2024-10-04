@@ -403,7 +403,27 @@ I read the solidity white paper these two days.
 
 Love means you are curious about everything about it.
 
-Q1: What means the Ethereum Virtual Machine?
+First of all, I need to fimilar with some basic information.
+
+
+Q1: What is Solidity?
+
+Solidity is an object-oriented, high-level language for implementing smart contracts. Smart contracts are programs that
+govern the behavior of accounts within the Ethereum state.
+
+Solidity is a curly-bracket language designed to target the Ethereum Virtual Machine (EVM). It is influenced by C++,
+Python, and JavaScript. You can find more details about which languages Solidity has been inspired by in the language
+influences section.
+
+Solidity is statically typed, supports inheritance, libraries, and complex user-defined types, among other features.
+With Solidity, you can create contracts for uses such as voting, crowdfunding, blind auctions, and multi-signature
+wallets.
+
+When deploying contracts, you should use the latest released version of Solidity. Apart from exceptional cases, only the
+latest version receives security fixes. Furthermore, breaking changes, as well as new features, are introduced regularly.
+We currently use a 0.y.z version number to indicate this fast pace of change.
+
+Q2: What means the Ethereum Virtual Machine?
 
 The Ethereum Virtual Machine
 
@@ -436,8 +456,6 @@ The gas price is a value set by the originator of the transaction, who has to pa
 Since EVM executors can choose to include a transaction or not, transaction senders cannot abuse the system by setting a low gas price.
 
 
-
-Q2:
 
 ### 2024.10.04
 
