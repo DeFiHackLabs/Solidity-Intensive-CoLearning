@@ -794,6 +794,74 @@ contract tryCatch{
         }
     }
 }
-//new onlyEven会涉及到初始化构造器，在初始化构造器会校验0，1，assert返回的不是error类型，不会被Error捕获，会在catchBytes中
+//new onlyEven会涉及到初始化构造器，在初始化构造器会校验0，1，assert返回的不是error类型，不会被Error捕获，会在catchBytes
+
+### 2024.10.04
+contract ERC20 is IERC20{  
+    // 定义一个映射来存储每个账户的余额  
+    mapping(address=>uint256) public override balanceOf;  
+    // 定义一个嵌套映射来存储每个账户授权给其他账户的代币额度  
+    mapping(address=>mapping(address=>uint256)) public override allowance;  
+    // 存储代币的总供应量  
+    uint256 public override totalSupply;  
+    // 代币的名称  
+    string public name;  
+    // 代币的符号  
+    string public symbol;  
+    // 代币的小数位数，通常设置为18  
+    uint256 public decimal=18;  
+  
+    // 构造函数，初始化代币的名称和符号  
+    constructor(string memory name1,string memory symbol1){  
+        name = name1;  
+        symbol = symbol1;  
+    }  
+      
+    // 转账函数，从调用者账户向接收者账户转账  
+    function transfer(address recipient,uint amount) public override returns(bool){  
+        balanceOf[msg.sender] -=amount; // 从发送者账户中扣除金额  
+        balanceOf[recipient] +=amount; // 向接收者账户中添加金额  
+        // 触发Transfer事件，记录转账信息  
+        emit Transfer(msg.sender,recipient, amount);  
+        return true; // 转账成功  
+    }  
+  
+    // 授权函数，允许一个账户（spender）从调用者账户中最多花费指定数量的代币  
+    function approve(address spender,uint amount) public override returns(bool){  
+        allowance[msg.sender][spender] = amount; // 设置授权额度  
+        // 触发Approval事件，记录授权信息  
+        emit Approval(msg.sender,spender,amount);  
+        return true; // 授权成功  
+    }  
+  
+    // 从一个账户向另一个账户转账，但这次转账是基于之前设置的授权额度  
+    function transferFrom(address sender,address recipient,uint amount) public override  returns(bool){  
+        require(allowance[sender][msg.sender] >= amount, "ERC20: transfer amount exceeds allowance"); // 检查授权额度是否足够  
+        allowance[sender][msg.sender] -= amount; // 减少授权额度  
+        balanceOf[sender] -= amount; // 从发送者账户中扣除金额  
+        balanceOf[recipient] +=amount; // 向接收者账户中添加金额  
+        // 触发Transfer事件，记录转账信息  
+        emit Transfer(sender, recipient, amount);  
+        return true; // 转账成功  
+    }  
+  
+    // 铸币函数，只有合约外部可以调用，用于向调用者账户增加代币  
+    function mint(uint amount) external {  
+        balanceOf[msg.sender] +=amount; // 向调用者账户增加代币  
+        totalSupply+=amount; // 更新总供应量  
+        // 触发Transfer事件，记录从地址0（通常代表“无”或“创建”）到调用者账户的铸币信息  
+        emit Transfer(address(0),msg.sender,amount);  
+    }  
+  
+    // 烧币函数，只有合约外部可以调用，用于从调用者账户销毁代币  
+    function burn(uint amount) external {  
+        require(balanceOf[msg.sender] >= amount, "ERC20: burn amount exceeds balance"); // 检查调用者账户余额是否足够  
+        balanceOf[msg.sender]-=amount;   
+        totalSupply -= amount; // 更新总供应量  
+        // 触发Transfer事件，记录从调用者账户到地址0（销毁）的烧币信息  
+        // 注意：原代码中的balanceOf[msg.sender]+=amount是错误的，应为减少，但为保持原样，此处注释说明  
+        emit Transfer(msg.sender, address(0), amount);  
+    }  
+}
     
 <!-- Content_END -->
