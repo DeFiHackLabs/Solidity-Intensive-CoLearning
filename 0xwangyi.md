@@ -292,3 +292,15 @@ Solidity 102-30 try-catch
 2 try模块在调用成功的情况下运行，而catch模块则在调用失败时运行
 3 revert() 是 Solidity 中的一个函数，用于显式触发异常，并且它会返回 bytes 类型的数据
 <!-- Content_END -->
+<!-- Content_START -->
+### 2024.10.04
+Day12
+Solidity 103-31 erc20
+1 transferFrom( )用于让第三方转移代币
+2 transferFrom( )是授权转账机制的核心
+3 transferFrom( )是执行代币转移的实际函数
+4 allowance( )是一个双层映射，
+5 allowance( )主要作用是记录授权机制
+6 allowance( )用于允许第三方账户在有限额度内操作代币所有者的代币，
+7 allowance( )提供了授权额度的查询功能，确保了代币的授权和转移机制的安全性和灵活性，8 allowance( )是transferFrom函数的重要组成部分【transferFrom函数需要通过allowance( )来检查spender是否有足够的授权额度】
+<!-- Content_END -->
