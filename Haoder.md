@@ -70,4 +70,9 @@ LFG～～～～～ 會完成的
 
 [**WTF Solidity 極簡入門：17. 庫合約**](<content/Haoder/md/217.md>)
 
+### 2024.10.04
+
+[**WTF Solidity 極簡入門：18. import**](<content/Haoder/md/218.md>)
+
+
 <!-- Content_END -->

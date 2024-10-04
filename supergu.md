@@ -211,4 +211,16 @@ mapping(uint => address) public idToAddress;
 ```solidity
 delete x; // change x to default value
 ```
+
+### 2024.10.04
+
+#### Chapter 9: Constant
+
+- Constant
+   - value-typed / reference-typed variables
+   - must be initialized during declaration
+- Immutable
+   - value-typed only
+   - can be initialized during declaration or in the constructor
+
 <!-- Content_END -->

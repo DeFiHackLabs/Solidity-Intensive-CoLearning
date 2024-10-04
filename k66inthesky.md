@@ -105,4 +105,9 @@ mapping(uint => address) public i2addr;
 
 + 心得: 不一定要是插入排序，只要是uint的值切記不得為0。
 
+### 2024.10.03
+學習內容: `11.constructor和modifier`
++ 每個合約可以有一個constructor，和其他程式語言類似。
++ modifier是Solidity獨有，類似decorator，modifier用做函數運行前的檢查(地址、變數、餘額等)
++ 另外多學到revert: _和ownable
 <!-- Content_END -->

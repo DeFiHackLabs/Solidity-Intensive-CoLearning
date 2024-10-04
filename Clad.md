@@ -547,8 +547,30 @@ Contract x = new Contract{salt: _salt, value: _value}(parms)
 // salt 為 token1 和 token2 的 hash
 bytes32 salt = keccak256(abi.endcodePacked(token1, token2));
 ```
+### 2024.10.4    
+學習內容  
+筆記:  
 
-  
+#### 刪除合約
+- 目前 selfdestruct 僅會被用來將合約中的 eth 轉移到指定地址 
+- 原先刪除的功能只有在合約 創建, 自毀 這兩個操作處在同一筆交易時才會生效
+
+寫法
+- selfdestruct(_addr);
+- _addr 是接收合約剩餘 eth 的地址
+
+```Solidity
+function deleteContract() external{
+   selfdestruct(payable(msg.sender));
+}
+```
+
+安全注意
+- 對外提供合約銷毀時, 最好設置為只有合約所有者可以調用, 使用函數修飾符 onlyOwner 進行函數聲明
+- selfdestruct 常會帶來安全問題和信任問題, 建議避免使用
+- selfdestruct 是智能合約的緊急按鈕, 銷毀合約並將剩餘 eth 轉移到指定帳戶, 在最壞的情況下停止黑客攻擊
+
+
   
 
 

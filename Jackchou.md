@@ -381,4 +381,19 @@ Solidity has many functions for error handling. Errors can occur at compile time
 Error
 error statement is a new feature in solidity 0.8. It saves gas and informs users why the operation failed. It is the recommended way to throw error in solidity. Custom errors are defined using the error statement, which can be used inside and outside of contracts. Below, we created a TransferNotOwner error, which will throw an error when the caller is not the token owner during transfer:
 ###
+### 2024.10.04
+  start to read Solidity 102
+  day11:
+  [WTF Academy Solidity 102 16 Note](/content/jackchou/102.md)
+###
+### 2024.10.05
+  
+  day12:
+  [WTF Academy Solidity 102 17 Note](/content/jackchou/102.md)
+###
+### 2024.10.06
+  
+  day13:
+  [WTF Academy Solidity 102 18 Note](/content/jackchou/102.md)
+###
 <!-- Content_END -->

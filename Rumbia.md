@@ -513,6 +513,204 @@ switch (expression) {
 
 
 ### 
+### 2024.10.02
+# 事件
+**事件（Events）**是一种方便的工具，用于在区块链上记录和通知外部应用程序发生的特定操作。
+## 一、事件的定义
+- 事件通过使用event关键字来定义。
+```solidity
+
+event Transfer(address indexed from, address indexed to, uint256 value);
+```
+## 二、触发事件
+在合约的函数中，**使用emit关键字**来触发事件。
+```solidity
+
+function transfer(address _to, uint256 _value) public {
+    emit Transfer(msg.sender, _to, _value);
+}
+```
+//当调用transfer函数时，会触发Transfer事件，记录这次转移操作。
+## 三、事件的作用
+外部应用程序监听：**外部的区块链节点或 DApp 可以监听特定的事件**，以便实时了解合约中发生的操作。这对于构建实时监控、用户界面更新等功能非常有用。
+```solidity
+   myContract.events.Transfer({
+       fromBlock: 0
+   }, function(error, event) {
+       console.log(event);
+   });
+```
+- 记录操作历史：事件提供了一种在区块链上记录操作的方式，方便后续的审计和查询。
+- 提高透明度：事件使得合约的操作更加透明，用户和开发者可以更容易地了解合约的行为。
+## 四、事件的特点
+- 低成本：触发事件的成本相对较低，不会消耗大量的 gas。
+- 不可变：一旦事件被触发并记录在区块链上，就无法被修改或删除。
+###
+###  2024.10.03
+
+# 继承
+## 一、继承的概念和作用
+它可以显著减少重复代码，提高开发效率和代码的可维护性。如果把合约看作是对象，Solidity 支持面向对象的编程风格，通过继承实现代码的复用和扩展。
+二、继承的规则
+**virtual关键字**：在父合约中的函数，如果希望子合约重写，需要加上virtual关键字。这表示该函数可以在子合约中被重新定义。
 
 
+```solidity
+
+function hip() public virtual{
+    emit Log("Yeye");
+}
+```
+
+- override关键字：子合约重写了父合约中的函数，需要加上override关键字。这明确表示该函数是对父合约中同名函数的重写。
+``` solidity
+
+function hip() public virtual override{
+    emit Log("Baba");
+}
+```
+
+- 修饰public变量的重写：用override修饰public变量，会重写与变量同名的getter函数。
+## 三、简单继承
+- 首先定义一个父合约，例如爷爷合约Yeye，包含一个事件和多个函数。
+
+```solidity
+contract Yeye {
+    event Log(string msg);
+
+    function hip() public virtual{
+        emit Log("Yeye");
+    }
+
+    function pop() public virtual{
+        emit Log("Yeye");
+    }
+
+    function yeye() public virtual {
+        emit Log("Yeye");
+    }
+}
+```
+
+
+```solidity
+
+contract Baba is Yeye{
+    function hip() public virtual override{
+        emit Log("Baba");
+    }
+
+    function pop() public virtual override{
+        emit Log("Baba");
+    }
+
+    function baba() public virtual{
+        emit Log("Baba");
+    }
+}
+```
+
+## 四、多重继承
+- Solidity 的合约可以**继承多个合约**。继承时要按辈分最高到最低的顺序排列。
+- 例如，写一个合约Erzi，继承Yeye合约和Baba合约，应写成contract Erzi is Yeye, Baba，否则会报错。
+- 如果某一函数在多个继承的合约里都存在，在子合约里必须重写，否则会报错。重写在多个父合约中都重名的函数时，override关键字后面要加上所有父合约名字，例如override(Yeye, Baba)。
+## 五、修饰器的继承
+Solidity 中的修饰器也可以继承。用法与函数继承类似，在相应的地方加virtual和override关键字即可。
+```solidity
+
+contract Base1 {
+    modifier exactDividedBy2And3(uint _a) virtual {
+        require(_a % 2 == 0 && _a % 3 == 0);
+        _;
+    }
+}
+
+contract Identifier is Base1 {
+    // 可以使用父合约的修饰器
+    function getExactDividedBy2And3(uint _dividend) public exactDividedBy2And3(_dividend) pure returns(uint, uint) {
+        return getExactDividedBy2And3WithoutModifier(_dividend);
+    }
+
+    // 也可以重写修饰器
+    modifier exactDividedBy2And3(uint _a) override {
+        _;
+        require(_a % 2 == 0 && _a % 3 == 0);
+    }
+}
+```
+## 六、构造函数的继承
+- 子合约有两种方法继承父合约的构造函数：
+- 在继承时声明父构造函数的参数，例如contract B is A(1)。
+- 在子合约的构造函数中声明构造函数的参数：
+```solidity
+
+contract C is A {
+    constructor(uint _c) A(_c * _c) {}
+}
+```
+## 七、调用父合约的函数
+- 直接调用：子合约可以直接用父合约名.函数名()的方式来调用父合约函数。
+
+```solidity
+
+function callParent() public{
+    Yeye.pop();
+}
+``
+- super关键字：子合约可以利用super.函数名()来调用最近的父合约函数。但在多重+菱形继承链条上使用super关键字时，会调用继承链条上的每一个合约的相关函数，而不是只调用最近的父合约。
+## 八、钻石继承
+**钻石继承指一个派生类同时有两个或两个以上的基类**。在 Solidity 中，虽然多个子合约继承同一个父合约，但整个过程中父合约只会被调用一次。Solidity 借鉴了 Python 的方式，强制一个由基类构成的 DAG（有向无环图）使其保证一个特定的顺序。
+
+```solidity
+
+contract God {
+    event Log(string message);
+
+    function foo() public virtual {
+        emit Log("God.foo called");
+    }
+
+    function bar() public virtual {
+        emit Log("God.bar called");
+    }
+}
+
+contract Adam is God {
+    function foo() public virtual override {
+        emit Log("Adam.foo called");
+        super.foo();
+    }
+
+    function bar() public virtual override {
+        emit Log("Adam.bar called");
+        super.bar();
+    }
+}
+
+contract Eve is God {
+    function foo() public virtual override {
+        emit Log("Eve.foo called");
+        super.foo();
+    }
+
+    function bar() public virtual override {
+        emit Log("Eve.bar called");
+        super.bar();
+    }
+}
+
+contract people is Adam, Eve {
+    function foo() public override(Adam, Eve) {
+        super.foo();
+    }
+
+    function bar() public override(Adam, Eve) {
+        super.bar();
+    }
+}
+```
+- 调用合约people中的super.bar()会依次调用Eve、Adam，最后是God合约。
+
+
+### 
 <!-- Content_END -->

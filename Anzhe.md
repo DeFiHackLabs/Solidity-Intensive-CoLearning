@@ -1167,4 +1167,47 @@ contract BaseImpl is Base{
 }
 ```
 ![](https://i.imgur.com/UEpvrS1.png)
+
+### 2024.10.04
+# 異常
+Solidity 有三種拋出異常的方法：`error`、`require` 和 `assert`，三種方法的 gas 消耗不同。寫智能合約常常會出 bug，Solidity 中的異常指令能幫我們 debug。
+## Error
+`error` 是 solidity 0.8.4 版本新加的內容，方便且高效（省 gas）地向使用者解釋操作失敗的原因，同時還可以在拋出異常的同時攜帶參數，幫助開發者更好地 debug。人們可以在 contract 之外定義異常。
+定義一個 `TransferNotOwner` 異常，當使用者不是代幣 `owner` 的時候嘗試轉賬，會拋出錯誤：
+```
+error TransferNotOwner(); // 自訂 error
+```
+我們也可以定義一個攜帶參數的異常，來提示嘗試轉帳的帳戶地址：
+```
+error TransferNotOwner(address sender); // 自訂帶參數的 error
+```
+在執行當中，`error` 必須搭配 `revert` 指令使用。
+```
+function transferOwner1(uint256 tokenId, address newOwner) public {
+    if(_owners[tokenId] != msg.sender){
+        revert TransferNotOwner();
+        // revert TransferNotOwner(msg.sender);
+    }
+    _owners[tokenId] = newOwner;
+}
+```
+我們定義了一個 `transferOwner1()` 函數，它會檢查代幣的 `owner` 是不是發起人，如果不是，就會拋出 `TransferNotOwner` 異常；如果是的話，就會轉帳。
+## Require
+`require` 指令是 solidity 0.8 版本之前拋出異常的常用方法，目前許多主流合約仍然還在使用它。它很好用，唯一的缺點就是 gas 隨著描述異常的字串長度增加，比 `error` 指令要高。使用方法：`require` (檢查條件，"異常的描述")，當檢查條件不成立的時候，就會拋出異常。
+用 `require` 指令重寫上面的 `transferOwner1` 函數：
+```
+function transferOwner2(uint256 tokenId, address newOwner) public {
+    require(_owners[tokenId] == msg.sender, "Transfer Not Owner");
+    _owners[tokenId] = newOwner;
+}
+```
+## Assert
+`assert` 指令一般用於程式設計師寫程式 debug，因為它不能解釋拋出例外的原因（比 `require` 少個字串）。它的用法很簡單，`assert` (檢查條件），當檢查條件不成立的時候，就會拋出異常。
+用 `assert` 指令重寫上面的 `transferOwner1` 函數：
+```
+function transferOwner3(uint256 tokenId, address newOwner) public {
+    assert(_owners[tokenId] == msg.sender);
+    _owners[tokenId] = newOwner;
+}
+```
 <!-- Content_END -->

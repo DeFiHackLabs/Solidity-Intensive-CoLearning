@@ -571,7 +571,7 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     }
     ```
 
-<!-- Content_END -->
+
 
 ### 2024.10.04
 
@@ -1062,6 +1062,8 @@ import '@openzeppelin/contracts/access/Ownable.sol';
         }
     }
     ```
+
+<!-- Content_END -->
 ### 2024.10.05
 
 - [103-37] 数字签名
@@ -1302,16 +1304,301 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 
 ### 2024.10.06
 
-- [103-40] ERC1155
+- [103-40] ERC1155 [eip-1155](https://eips.ethereum.org/EIPS/eip-1155)
+    - 多代币标准ERC1155，允许一个合约包含多个同质化和非同质化代币。IERC1155接口合约抽象了EIP1155需要实现的功能，其中包含4个事件和6个函数。与ERC721不同，因为ERC1155包含多类代币，它实现了批量转账和批量余额查询，一次操作多种代币。
+    - 区分ERC1155中的某类代币是同质化还是非同质化代币呢？其实很简单：如果某个id对应的代币总量为1，那么它就是非同质化代币，类似ERC721；如果某个id对应的代币总量大于1，那么他就是同质化代币，因为这些代币都分享同一个id，类似ERC20。
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity ^0.8.0;
+
+    import "https://github.com/AmazingAng/WTF-Solidity/blob/main/34_ERC721/IERC165.sol";
+
+    interface IERC1155 is IERC165 {
+        event TransferSingle(address indexed operator, address indexed from, address indexed to, uint256 id, uint256 value);
+        event TransferBatch(address indexed operator,address indexed from,address indexed to,uint256[] ids,uint256[] values);
+        event ApprovalForAll(address indexed account, address indexed operator, bool approved);
+
+        /**
+        * @dev 当`id`种类的代币的URI发生变化时释放，`value`为新的URI
+        */
+        event URI(string value, uint256 indexed id);
+
+        function balanceOf(address account, uint256 id) external view returns (uint256);
+
+        /**
+        * @dev 批量持仓查询，`accounts`和`ids`数组的长度要想等。
+        */
+        function balanceOfBatch(address[] calldata accounts, uint256[] calldata ids)
+            external
+            view
+            returns (uint256[] memory);
+
+        function setApprovalForAll(address operator, bool approved) external;
+        function isApprovedForAll(address account, address operator) external view returns (bool);
+
+        /**
+        * @dev 安全转账，将`amount`单位`id`种类的代币从`from`转账给`to`.
+        * 释放{TransferSingle}事件.
+        * 要求:
+        * - 如果调用者不是`from`地址而是授权地址，则需要得到`from`的授权
+        * - `from`地址必须有足够的持仓
+        * - 如果接收方是合约，需要实现`IERC1155Receiver`的`onERC1155Received`方法，并返回相应的值
+        */
+        function safeTransferFrom(address from,address to,uint256 id,uint256 amount,bytes calldata data) external;
+
+        /**
+        * @dev 批量安全转账
+        * 释放{TransferBatch}事件
+        * 要求：
+        * - `ids`和`amounts`长度相等
+        * - 如果接收方是合约，需要实现`IERC1155Receiver`的`onERC1155BatchReceived`方法，并返回相应的值
+        */
+        function safeBatchTransferFrom(address from,address to,uint256[] calldata ids,uint256[] calldata amounts,bytes calldata data) external;
+    }
+    ```
+    - IERC1155Receiver
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity ^0.8.0;
+
+    import "https://github.com/AmazingAng/WTF-Solidity/blob/main/34_ERC721/IERC165.sol";
+
+    /**
+    * @dev ERC1155接收合约，要接受ERC1155的安全转账，需要实现这个合约
+    */
+    interface IERC1155Receiver is IERC165 {
+        /**
+        * @dev 接受ERC1155安全转账`safeTransferFrom` 
+        * 需要返回 0xf23a6e61 或 `bytes4(keccak256("onERC1155Received(address,address,uint256,uint256,bytes)"))`
+        */
+        function onERC1155Received(
+            address operator,
+            address from,
+            uint256 id,
+            uint256 value,
+            bytes calldata data
+        ) external returns (bytes4);
+
+        /**
+        * @dev 接受ERC1155批量安全转账`safeBatchTransferFrom` 
+        * 需要返回 0xbc197c81 或 `bytes4(keccak256("onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)"))`
+        */
+        function onERC1155BatchReceived(
+            address operator,
+            address from,
+            uint256[] calldata ids,
+            uint256[] calldata values,
+            bytes calldata data
+        ) external returns (bytes4);
+    }
+    ```
+    - ERC-1155 主合约 [code](https://github.com/AmazingAng/WTF-Solidity/blob/main/40_ERC1155/ERC1155.sol)
 - [103-41] WETH
+    - WETH (Wrapped ETH)是ETH的带包装版本。我们常见的WETH，WBTC，WBNB，都是带包装的原生代币。为什么要包装它们？以太币本身并不符合ERC20标准。WETH的开发是为了提高区块链之间的互操作性 ，并使ETH可用于去中心化应用程序（dApps）。它就像是给原生代币穿了一件智能合约做的衣服：穿上衣服的时候，就变成了WETH，符合ERC20同质化代币标准，可以跨链，可以用于dApp；脱下衣服，它可1:1兑换ETH。
+    - WETH 符合 ERC20标准，它比普通的 ERC20 多了两个功能：
+        - 存款：包装，用户将ETH存入WETH合约，并获得等量的WETH。
+        - 取款：拆包装，用户销毁WETH，并获得等量的ETH。
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity ^0.8.0;
+
+    import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+    contract WETH is ERC20{
+        // 事件：存款和取款
+        event  Deposit(address indexed dst, uint wad);
+        event  Withdrawal(address indexed src, uint wad);
+
+        // 构造函数，初始化ERC20的名字和代号
+        constructor() ERC20("WETH", "WETH"){
+        }
+
+        // 回调函数，当用户往WETH合约转ETH时，会触发deposit()函数
+        fallback() external payable {
+            deposit();
+        }
+        // 回调函数，当用户往WETH合约转ETH时，会触发deposit()函数
+        receive() external payable {
+            deposit();
+        }
+
+        // 存款函数，当用户存入ETH时，给他铸造等量的WETH
+        function deposit() public payable {
+            _mint(msg.sender, msg.value);
+            emit Deposit(msg.sender, msg.value);
+        }
+
+        // 提款函数，用户销毁WETH，取回等量的ETH
+        function withdraw(uint amount) public {
+            require(balanceOf(msg.sender) >= amount);
+            _burn(msg.sender, amount);
+            payable(msg.sender).transfer(amount);
+            emit Withdrawal(msg.sender, amount);
+        }
+    }
+    ```
 - [103-42] 分账
+    - 分账就是按照一定比例分钱财。分账合约(PaymentSplit)允许将ETH按权重转给一组账户中，进行分账。
+    - 分账合约具有以下几个特点：
+        1. 创建合约时定好分账受益人 payees 和每人的份额 shares;
+        2. 份额可以是相等，也可以是其他任意比例。
+        3. 该合约收到的所有 ETH 中，每个受益人将能够提取与其分配的份额成比例的金额;
+        4. 分账合约遵循 Pull Payment 模式，付款不会自动转入账户，而是保存在此合约中。受益人通过调用 release() 函数触发实际转账;
+    - 完整代码: [code](https://github.com/AmazingAng/WTF-Solidity/blob/main/42_PaymentSplit/PaymentSplit.sol)
+    ```solidity
+    function releasable(address _account) public view returns (uint256) {
+        // 计算分账合约总收入totalReceived
+        uint256 totalReceived = address(this).balance + totalReleased;
+        // 调用_pendingPayment计算account应得的ETH
+        return pendingPayment(_account, totalReceived, released[_account]);
+    }
+    function pendingPayment(
+        address _account,
+        uint256 _totalReceived,
+        uint256 _alreadyReleased
+    ) public view returns (uint256) {
+        // account应得的ETH = 总应得ETH - 已领到的ETH
+        return (_totalReceived * shares[_account]) / totalShares - _alreadyReleased;
+    }
+    ```
 
 ### 2024.10.07
 
 - [103-43] 线性释放
-- [103-44] 代币锁
-- [103-45] 时间锁
+    - 代币归属条款，并写一个线性释放ERC20代币的合约。代码由OpenZeppelin的VestingWallet合约简化而来。在传统金融领域，一些公司会向员工和管理层提供股权。但大量股权同时释放会在短期产生抛售压力，拖累股价。因此，公司通常会引入一个归属期来延迟承诺资产的所有权。同样的，在区块链领域，Web3初创公司会给团队分配代币，同时也会将代币低价出售给风投和私募。如果他们把这些低成本的代币同时提到交易所变现，币价将被砸穿，散户直接成为接盘侠。所以，项目方一般会约定代币归属条款（token vesting），在归属期内逐步释放代币，减缓抛压。
+    - 线性释放：代币在归属期内匀速释放。
+    - 锁仓并线性释放ERC20代币的合约TokenVesting：
+        - 项目方规定线性释放的起始时间、归属期和受益人。
+        - 项目方将锁仓的ERC20代币转账给TokenVesting合约。
+        - 受益人可以调用release函数，从合约中取出释放的代币。
+    - 代码：[code](https://github.com/AmazingAng/WTF-Solidity/blob/main/43_TokenVesting/TokenVesting.sol)
+    ```solidity
+    function release(address token) public {
+        // 调用vestedAmount()函数计算可提取的代币数量
+        uint256      = vestedAmount(token, uint256(block.timestamp)) - erc20Released[token];
+        // 更新已释放代币数量   
+        erc20Released[token] += releasable; 
+        // 转代币给受益人
+        emit ERC20Released(token, releasable);
+        IERC20(token).transfer(beneficiary, releasable);
+    }
 
+    function vestedAmount(address token, uint256 timestamp) public view returns (uint256) {
+        // 合约里总共收到了多少代币（当前余额 + 已经提取）
+        uint256 totalAllocation = IERC20(token).balanceOf(address(this)) + erc20Released[token];
+        // 根据线性释放公式，计算已经释放的数量
+        if (timestamp < start) {
+            return 0;
+        } else if (timestamp > start + duration) {
+            return totalAllocation;
+        } else {
+            return (totalAllocation * (timestamp - start)) / duration;
+        }
+    }
+    ```
+    - 分析一下：`IERC20(token).balanceOf(address(this)) + erc20Released[token];`这样写和直接写死总数的区别是lock之后可以新加入的token也会按照这个规则vest，如果写死的话，新的token打进这个地址会被锁死导致无法vest。
+- [103-44] 代币锁
+    - 流动性提供者LP代币、锁定流动性、ERC20代币锁合约
+    - 代币锁(Token Locker)是一种简单的时间锁合约，它可以把合约中的代币锁仓一段时间，受益人在锁仓期满后可以取走代币。代币锁一般是用来锁仓流动性提供者LP代币的。
+        - 用户在去中心化交易所DEX上交易代币，例如Uniswap交易所。DEX和中心化交易所(CEX)不同，去中心化交易所使用自动做市商(AMM)机制，需要用户或项目方提供资金池，以使得其他用户能够即时买卖。简单来说，用户/项目方需要质押相应的币对（比如 ETH/DAI）到资金池中，作为补偿，DEX 会给他们铸造相应的流动性提供者 LP 代币凭证，证明他们质押了相应的份额，供他们收取手续费。
+        - 如果项目方毫无征兆的撤出流动性池中的 LP 代币，那么投资者手中的代币就无法变现，直接归零了。这种行为也叫 rug-pull。如果 LP 代币是锁仓在代币锁合约中，在锁仓期结束以前，项目方无法撤出流动性池，也没办法 rug pull。因此代币锁可以防止项目方过早跑路（要小心锁仓期满跑路的情况）。
+    - TokenLocker
+        - 开发者在部署合约时规定锁仓的时间，受益人地址，以及代币合约。
+        - 开发者将代币转入TokenLocker合约。
+        - 在锁仓期满，受益人可以取走合约里的代币。
+    ```solidity
+    constructor(
+        IERC20 token_,
+        address beneficiary_,
+        uint256 lockTime_
+    ) {
+        require(lockTime_ > 0, "TokenLock: lock time should greater than 0");
+        token = token_;
+        beneficiary = beneficiary_;
+        lockTime = lockTime_;
+        startTime = block.timestamp;
+
+        emit TokenLockStart(beneficiary_, address(token_), block.timestamp, lockTime_);
+    }
+
+    function release() public {
+        require(block.timestamp >= startTime+lockTime, "TokenLock: current time is before release time");
+
+        uint256 amount = token.balanceOf(address(this));
+        require(amount > 0, "TokenLock: no tokens to release");
+
+        token.transfer(beneficiary, amount);
+
+        emit Release(msg.sender, address(token), block.timestamp, amount);
+    }
+    ```
+- [103-45] 时间锁
+    - 简化自 Compound 的 [Timelock 合约](https://github.com/compound-finance/compound-protocol/blob/master/contracts/Timelock.sol)
+    - 时间锁（Timelock）是银行金库和其他高安全性容器中常见的锁定机制。它是一种计时器，旨在防止保险箱或保险库在预设时间之前被打开，即便开锁的人知道正确密码。时间锁被DeFi和DAO大量采用。它是一段代码，他可以将智能合约的某些功能锁定一段时间。它可以大大改善智能合约的安全性，举个例子，假如一个黑客黑了Uniswap的多签，准备提走金库的钱，但金库合约加了2天锁定期的时间锁，那么黑客从创建提钱的交易，到实际把钱提走，需要2天的等待期。在这一段时间，项目方可以找应对办法，投资者可以提前抛售代币减少损失。
+    - Timelock：
+        - 创建交易，并加入到时间锁队列。
+        - 在交易的锁定期满后，执行交易。
+        - 后悔了，取消时间锁队列中的某些交易。
+    - 项目方一般会把时间锁合约设为重要合约的管理员，例如金库合约，再通过时间锁操作他们。时间锁合约的管理员一般为项目的多签钱包，保证去中心化。
+    ```solidity
+    /**
+     * @dev 创建交易并添加到时间锁队列中。
+     * @param target: 目标合约地址
+     * @param value: 发送eth数额
+     * @param signature: 要调用的函数签名（function signature）
+     * @param data: call data，里面是一些参数
+     * @param executeTime: 交易执行的区块链时间戳
+     *
+     * 要求：executeTime 大于 当前区块链时间戳+delay
+     */
+    function queueTransaction(address target, uint256 value, string memory signature, bytes memory data, uint256 executeTime) public onlyOwner returns (bytes32) {
+        // 检查：交易执行时间满足锁定时间
+        require(executeTime >= getBlockTimestamp() + delay, "Timelock::queueTransaction: Estimated execution block must satisfy delay.");
+        // 计算交易的唯一识别符：一堆东西的hash
+        bytes32 txHash = getTxHash(target, value, signature, data, executeTime);
+        // 将交易添加到队列
+        queuedTransactions[txHash] = true;
+
+        emit QueueTransaction(txHash, target, value, signature, data, executeTime);
+        return txHash;
+    }
+    function cancelTransaction(address target, uint256 value, string memory signature, bytes memory data, uint256 executeTime) public onlyOwner{
+        // 计算交易的唯一识别符：一堆东西的hash
+        bytes32 txHash = getTxHash(target, value, signature, data, executeTime);
+        // 检查：交易在时间锁队列中
+        require(queuedTransactions[txHash], "Timelock::cancelTransaction: Transaction hasn't been queued.");
+        // 将交易移出队列
+        queuedTransactions[txHash] = false;
+        emit CancelTransaction(txHash, target, value, signature, data, executeTime);
+    }
+    function executeTransaction(address target, uint256 value, string memory signature, bytes memory data, uint256 executeTime) public payable onlyOwner returns (bytes memory) {
+        bytes32 txHash = getTxHash(target, value, signature, data, executeTime);
+        // 检查：交易是否在时间锁队列中
+        require(queuedTransactions[txHash], "Timelock::executeTransaction: Transaction hasn't been queued.");
+        // 检查：达到交易的执行时间
+        require(getBlockTimestamp() >= executeTime, "Timelock::executeTransaction: Transaction hasn't surpassed time lock.");
+        // 检查：交易没过期
+       require(getBlockTimestamp() <= executeTime + GRACE_PERIOD, "Timelock::executeTransaction: Transaction is stale.");
+        // 将交易移出队列
+        queuedTransactions[txHash] = false;
+
+        // 获取call data
+        bytes memory callData;
+        if (bytes(signature).length == 0) {
+            callData = data;
+        } else {
+        // 这里如果采用encodeWithSignature的编码方式来实现调用管理员的函数，请将参数data的类型改为address。不然会导致管理员的值变为类似"0x0000000000000000000000000000000000000020"的值。其中的0x20是代表字节数组长度的意思.
+            callData = abi.encodePacked(bytes4(keccak256(bytes(signature))), data);
+        }
+        // 利用call执行交易
+        (bool success, bytes memory returnData) = target.call{value: value}(callData);
+        require(success, "Timelock::executeTransaction: Transaction execution reverted.");
+
+        emit ExecuteTransaction(txHash, target, value, signature, data, executeTime);
+
+        return returnData;
+    }
+    ```
 ### 2024.10.08
 
 - [103-46] 代理合约

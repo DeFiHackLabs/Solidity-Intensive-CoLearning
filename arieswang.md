@@ -56,4 +56,8 @@ timezone: Asia/Shanghai
 ### 2024.10.03
 章節20學習到三種發送eth方法transfer，send和call，建議使用call主要是底層安全性問題，再來建議使用transfer有revert功能
 send不建議使用，因為有問題還會繼續執行下去
+
+### 2024.10.04
+章節21學習到可以透過其他合約的address直接呼叫函數進而達到需要的功能
+
 <!-- Content_END -->

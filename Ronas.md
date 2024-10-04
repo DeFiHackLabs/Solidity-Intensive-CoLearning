@@ -460,4 +460,27 @@ timezone: Asia/Shanghai
         }
         ```
 
+### 2024.10.04
+
+> 進度: Solidity 102 22~23
+
+- call
+    ```
+    目標合約地址.call(abi.encodeWithSignature("函數簽名", 逗號分隔的具體參數));
+    目標合約地址.call{value:發送數量, gas:gas數量}(abi.encodeWithSignature("函數簽名", 逗號分隔的具體參數));
+    ```
+    - 為 `address` 的 low-level 成員函數, 回傳值 `(bool, bytes memory)`
+    - 為推薦發送 ETH 的方式
+    - 在目標合約名稱未知情況下, 可使用 call 呼叫另一個合約的函數, 但應盡量避免 (安全問題)
+
+- delegatecall
+    ```
+    目標合約地址.delegatecall(abi.encodeWithSignature("函數簽名", 逗號分隔的具體參數));
+    目標合約地址.call{gas:gas數量}(abi.encodeWithSignature("函數簽名", 逗號分隔的具體參數));
+    ```
+    - 使用場景為代理合約 (Proxy Contract), 代理合約儲存狀態, 邏輯合約實作邏輯, 使用者透過代理合約呼叫邏輯合約中的功能
+    - 為 `address` 的 low-level 成員函數, 回傳值 `(bool, bytes memory)`
+    - 不能指定 ETH 數量
+    - 狀態變數: 名稱可以不同, 類型及順序必須相同
+
 <!-- Content_END -->
