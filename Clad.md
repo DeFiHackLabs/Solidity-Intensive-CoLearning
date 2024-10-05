@@ -616,7 +616,26 @@ function decode() public pure returns(uint dx, address daddr, string memory dnam
    (dx, daddr, dname, darray) = abi.decode(data, (uint, address, string, uint[2]));
 }
 ```
+#### Hash
+- 將任意長度的消息轉換為一個固定長度的值
 
+Keccak256
+- Solidity 中最常用的哈希函數
+```Solidity
+哈希 = keccak256(數據);
+```
+生成數據唯一標示
+```Solidity
+function hash(uint _num, string memory _string, address _addr) public pure returns{
+   return keccak256(abi.encodePacked(_num, _string, _addr));
+}
+```
+
+弱抗碰撞性
+- 給定一個特定的輸入, 難以找到另一個具有相同散列值的輸入
+  
+強抗碰撞性
+- 難以找到任何兩個不同的輸入, 它們散列值相同
 
 
 
