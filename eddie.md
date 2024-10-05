@@ -15,6 +15,50 @@ timezone: Asia/Shanghai
 ## Notes
 <!-- Content_START -->
 
+### 2024.10.05
+
+Solidity 103章节内容：NFT交易所、ERC1155
+
+- ERC1155
+
+在`ERC721`中，每个代币都有一个`tokenId`作为唯一标识，每个`tokenId`只对应一个代币；而在`ERC1155`中，每一种代币都有一个`id`作为唯一标识，每个`id`对应一种代币。
+
+- 代码
+    
+    [NftSwap.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/NftExchanger)
+    
+    [ERC1155.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/ERC1155)
+
+### 2024.10.04
+
+Solidity103章节内容：数字签名、链上随机数
+
+#### 笔记
+
+- 椭圆曲线签名算法ECDSA
+
+  签名目的为证明当前为私钥的持有者、以及被签名数据没有被篡改过；
+
+  该博客讲的非常详细 [What is the math behind elliptic curve cryptography? | HackerNoon](https://hackernoon.com/what-is-the-math-behind-elliptic-curve-cryptography-f61b25253da3)
+    
+- 和前端如何验证流程
+    
+    hash(A,B) → metamask公钥 →signature
+  
+    hash(A,B) →msgHash
+  
+    verify(msgHash,signature) → signer，这个signer 是否和metamask签名的公钥是否相同
+    
+- 调用LINK生成随机数
+
+  注意：订阅 ID 类型已从 VRF V2 中的 **`uint64`** 变为 VRF V2.5 中的 **`uint256`**
+  
+- 相关代码
+
+  [signature.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/Sign)
+  
+  [RandomNum.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/RandomNum)
+
 ### 2024.10.03
 
 Solidity103章节内容：荷兰拍卖、默克尔树

@@ -1066,4 +1066,32 @@ contract structType{
       * 一般用於程式設計師寫入程式`debug`
       * 不能解釋拋出異常的原因（比`require`少個字串）
       * 使用方法：`assert(檢查條件）`
+    
+###  2024.10.04
+
+**`import`**
+   * 用法:
+      * 通过源文件相对位置导入
+      ```Solidity
+         文件结构
+         ├── Import.sol
+         └── Yeye.sol
+         
+         // 通过文件相对位置import
+         import './Yeye.sol';
+      ```
+      * 通过源文件网址导入网上的合约的全局符号
+      ```Solidity
+      // 通过网址引用
+      import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+        ```
+      * 通过npm的目录导入
+      ```Solidity
+         import '@openzeppelin/contracts/access/Ownable.sol';
+      ```
+      * 通过指定全局符号导入合约特定的全局符号
+      ```Solidity
+         import {Yeye} from './Yeye.sol';
+      ```  
+
 <!-- Content_END -->

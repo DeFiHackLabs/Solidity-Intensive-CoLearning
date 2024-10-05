@@ -628,7 +628,10 @@ function multiTransferETH(
 
 ### 2024.10.05
 
-笔记内容
+简单的说，ERC165就是检查一个智能合约是不是支持了ERC721，ERC1155的接口。
+
+IERC165接口合约只声明了一个supportsInterface函数，输入要查询的interfaceId接口id，若合约实现了该接口id，则返回true
+ERC165是一种对外表明自己实现了哪些接口的技术标准。
 
 ### 2024.10.06
 

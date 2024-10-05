@@ -43,4 +43,8 @@ timezone: Asia/Taipei
 [WTF Academy Solidity 101 34 Note](/content/nghdavid/34.md)
 ### 
 
+### 2024.10.04
+[WTF Academy Solidity 101 40 Note](/content/nghdavid/40.md)
+### 
+
 <!-- Content_END -->
