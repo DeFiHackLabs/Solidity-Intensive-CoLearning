@@ -1063,7 +1063,7 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     }
     ```
 
-<!-- Content_END -->
+
 ### 2024.10.05
 
 - [103-37] 数字签名
@@ -1302,6 +1302,7 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     - 注意: 用户申请随机数时调用的requestRandomness()和VRF合约返回随机数时调用的回退函数fulfillRandomness()是两笔交易，调用者分别是用户合约和VRF合约，后者比前者晚几分钟（不同链延迟不一样）。
     - 完整代码参考: [code1](https://github.com/AmazingAng/WTF-Solidity/blob/main/39_Random/Random.sol) [code2](https://github.com/AmazingAng/WTF-Solidity/blob/main/39_Random/RandomNumberConsumer.sol)
 
+<!-- Content_END -->
 ### 2024.10.06
 
 - [103-40] ERC1155 [eip-1155](https://eips.ethereum.org/EIPS/eip-1155)
@@ -1670,6 +1671,8 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     }
     ```
 - [103-47] 可升级合约
+    - 可升级合约（Upgradeable Contract）,这里的可能有安全问题，不要用于生产环境。可升级合约，就是一个可以更改逻辑合约的代理合约。此处的示例代码没有用内联汇编，
+    - 实现一个简单的可升级合约，它包含3个合约：代理合约，旧的逻辑合约，和新的逻辑合约。[code](https://github.com/AmazingAng/WTF-Solidity/blob/main/47_Upgrade/Upgrade.sol) 这个 code 是个简单示例。
 - [103-48] 透明代理
 
 ### 2024.10.09
