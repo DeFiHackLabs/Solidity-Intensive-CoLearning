@@ -1674,7 +1674,29 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     - 可升级合约（Upgradeable Contract）,这里的可能有安全问题，不要用于生产环境。可升级合约，就是一个可以更改逻辑合约的代理合约。此处的示例代码没有用内联汇编，
     - 实现一个简单的可升级合约，它包含3个合约：代理合约，旧的逻辑合约，和新的逻辑合约。[code](https://github.com/AmazingAng/WTF-Solidity/blob/main/47_Upgrade/Upgrade.sol) 这个 code 是个简单示例。
 - [103-48] 透明代理
-
+    - 代理合约的选择器冲突（Selector Clash）以及这一问题的解决方案：透明代理（Transparent Proxy）。教学代码简化自:[TransparentUpgradeableProxy.sol](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/proxy/transparent/TransparentUpgradeableProxy.sol)
+    - 智能合约中，函数选择器（selector）是函数签名的哈希的前4个字节。例如mint(address account)的选择器为bytes4(keccak256("mint(address)"))，也就是0x6a627842。由于函数选择器仅有4个字节，范围很小，因此两个不同的函数可能会有相同的选择器，例如下面两个函数：
+    ```solidity
+    // 选择器冲突的例子
+    contract Foo {
+        function burn(uint256) external {}
+        function collate_propagate_storage(bytes16) external {}
+    }
+    ```
+    - 这种情况被称为“选择器冲突”。在这种情况下，EVM无法通过函数选择器分辨用户调用哪个函数，因此该合约无法通过编译。由于代理合约和逻辑合约是两个合约，就算他们之间存在“选择器冲突”也可以正常编译，这可能会导致很严重的安全事故。举个例子，如果逻辑合约的a函数和代理合约的升级函数的选择器相同，那么管理人就会在调用a函数的时候，将代理合约升级成一个黑洞合约，后果不堪设想。目前，有两个可升级合约标准解决了这一问题：透明代理Transparent Proxy和通用可升级代理UUPS。
+    - 透明代理的逻辑非常简单：管理员可能会因为“函数选择器冲突”，在调用逻辑合约的函数时，误调用代理合约的可升级函数。那么限制管理员的权限，不让他调用任何逻辑合约的函数，就能解决冲突：
+        - 管理员变为工具人，仅能调用代理合约的可升级函数对合约升级，不能通过回调函数调用逻辑合约。
+        - 其它用户不能调用可升级函数，但是可以调用逻辑合约的函数。
+    ```solidity
+    fallback() external payable {
+        require(msg.sender != admin);
+        (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+    }
+    function upgrade(address newImplementation) external {
+        if (msg.sender != admin) revert();
+        implementation = newImplementation;
+    }
+    ```
 ### 2024.10.09
 
 - [103-49] 通用可升级代理
