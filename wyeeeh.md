@@ -727,11 +727,268 @@ function insertionSort(uint[] memory a) public pure returns (uint[] memory) {
 ### 2024.10.03
 #### WTF Academy Solidity 101.11 构造函数和修饰器
 
-##### 笔记
+##### 构造函数`constructor`
+构造函数（`constructor`）是一种特殊的函数，它只会在智能合约部署时运行一次，用来初始化合约的一些变量或状态。可以类比为Python中的类初始化函数 `__init__()`，它在类的实例化时自动调用。
+构造函数的常见用途是设置合约的 `owner`，即合约的管理员，只有管理员才能做某些重要操作，比如改变合约的设置或执行关键功能。
+> **为什么不能写死`owner`？**
+>  - 写死 `owner` 会导致合约的可重用性大大降低。当想用相同的合约代码在多个环境或不同的区块链网络中进行部署。如果 `owner` 地址写死在代码中，那么部署在每个不同环境时都必须修改地址，这不但增加了工作量，还容易出错。
+>  - 将 `owner` 地址写死在代码中可能存在安全隐患。尤其是在公开的开源项目中，任何人都可以看到代码中预设的 `owner` 地址，这样可能会成为攻击目标。如果这个地址失去了对私钥的控制权或遭遇攻击，攻击者可能会针对这个合约进行操作，甚至获取对合约的控制权。
+>  - 合约的 `owner` 并不总是固定不变的。在实际应用中，`owner` 可能需要转让权限（例如公司组织结构变更或团队内的角色调整）。如果 `owner` 是动态设置的，并且还提供了更改 `owner` 的功能（如通过 `changeOwner` 函数），那么 `owner` 可以在合约生命周期内被灵活管理。
+
+###### 构造函数语法
+```solidity
+address owner; // 定义owner变量
+
+// 构造函数
+constructor(address initialOwner) {
+    owner = initialOwner; // 在合约部署时，设置owner为传入的initialOwner地址
+}
+```
+- **owner** 是一个存储管理员地址的状态变量。
+- **constructor** 是构造函数，它接受一个 `initialOwner` 地址作为参数，然后将这个地址赋值给 `owner` 变量。
+
+##### 修饰器`modifier`
+修饰器（`modifier`）是 **Solidity** 中的一种语法工具，它允许在运行函数前先执行某些检查或操作，从而减少代码重复。这类似于Python中的装饰器（`decorator`），可以为函数添加额外的功能或条件。
+
+###### 修饰器语法
+在权限控制中，我们常常使用修饰器来检查调用者是否为合约的管理员（`owner`），只有管理员才能执行某些关键操作。
+```solidity
+// 定义onlyOwner修饰器
+modifier onlyOwner {
+   require(msg.sender == owner); // 检查调用者是不是owner
+   _; // 如果是，继续运行函数；否则，revert交易并报错
+}
+```
+- **`msg.sender`** 是合约的内置全局变量，表示当前调用合约的地址。
+- **`require`** 是一个断言函数，如果条件为 `false`，则会抛出错误并撤销交易。
+- **`_;`** 代表函数主体会在通过修饰器的检查后继续执行。如果检查不通过，函数主体不会执行。
+
+###### 使用 `onlyOwner` 修饰器的函数
+```solidity
+function changeOwner(address _newOwner) external onlyOwner {
+   owner = _newOwner; // 只有当前owner地址可以调用这个函数
+}
+```
+
+- **`external`** 表示这个函数只能被合约外部调用，而不能由合约内部调用。
+- 通过修饰器 `onlyOwner`，这个函数只有当前合约的管理员 `owner` 才能调用。这个函数的功能是允许 `owner` 更改合约的所有者地址。
+
+###### 修饰器和`if`函数的区别
+- **`modifier`** 是 Solidity 特有的语法结构，用来改变或扩展函数的行为，主要目的是为函数添加**预处理条件**，通常用于权限控制、状态检查等场景。
+    - 例如，`onlyOwner` 修饰器用于确保只有合约的所有者 (`owner`) 才能执行某些敏感操作。
+    - `modifier` 的特点是通过 `_` 占位符，在检查通过后继续执行函数主体代码，而不是嵌入到函数内部。
+    
+    ```solidity
+    modifier onlyOwner {
+        require(msg.sender == owner); // 检查条件
+        _; // 如果条件满足，继续执行被修饰的函数
+    }
+    ```
+    
+- **`if` 语句** 是控制流结构，用于根据某个条件执行代码块。
+    - `if` 语句是函数内部的控制流语句，用于处理逻辑分支。如果条件不满足，可以选择 `else` 分支处理。
+    - `if` 通常与函数主体的某个逻辑相关，而不是像 `modifier` 那样专门处理预处理条件。
+    
+    ```solidity
+    function someFunction() public {
+        if (msg.sender == owner) {
+            // 执行某些操作
+        } else {
+            revert(); // 条件不满足，抛出错误
+        }
+    }
+    ```
+
+- **`modifier`** 提供了一种**代码复用**的方式，尤其在权限控制等场景下特别有用。多个函数可以使用相同的 `modifier`，避免在每个函数内部都重复写 `if` 条件判断。
+    - 例如，`onlyOwner` 修饰器可以应用于多个函数，不需要每次都写相同的 `require(msg.sender == owner)`。
+    
+    ```solidity
+    function changeOwner(address _newOwner) external onlyOwner {
+        owner = _newOwner; // 只有owner能执行
+    }
+    
+    function withdrawFunds() external onlyOwner {
+        // 只有owner能执行
+    }
+    ```
+    
+- 如果用 **`if`** 语句，每个需要权限控制的函数都必须重复写 `if` 判断逻辑，导致代码冗余且难以维护。
+    
+    ```solidity
+    function changeOwner(address _newOwner) public {
+        if (msg.sender == owner) {
+            owner = _newOwner;
+        } else {
+            revert();
+        }
+    }
+    
+    function withdrawFunds() public {
+        if (msg.sender == owner) {
+            // 执行逻辑
+        } else {
+            revert();
+        }
+    }
+    ```
+
+##### 测验结果
+- 100/100
+
+
+### 2024.10.04
+#### WTF Academy Solidity 101.12 事件
+事件（`event`）是 **以太坊虚拟机（EVM）** 上的日志系统，用于记录合约中的重要信息，并且对外发送信号，可以被外部程序监听。
+- **响应**：事件可以让前端应用通过 `RPC` 接口订阅并监听某个合约的状态变化，接收到事件后可以做出对应的响应。例如，用户在DApp上发起了代币转账，DApp会通过监听事件来实时更新用户的余额或显示通知。
+- **经济性**：事件是记录合约数据的一种经济方式。相比于直接将数据存储在链上，事件的 `gas` 消耗较少（每次大约消耗2,000 `gas`），而链上存储一个新变量至少需要 20,000 `gas`。
+
+###### 声明事件
+使用 `event` 关键字，后面跟随事件名称和事件参数（需要记录的变量）。例如，在`ERC20`代币合约中，通常定义一个 `Transfer` 事件，用于记录每次代币的转账操作：
+
+```solidity
+event Transfer(address indexed from, address indexed to, uint256 value);
+```
+
+- `Transfer` 是事件的名称，代表发生了代币的转账。
+- `from` 和 `to` 是转账的发送方和接收方地址。
+- `value` 是转账的代币数量。
+- `indexed` 关键字表示这些参数会被索引到事件的 `topics` 中，方便检索和查询。
+
+**`indexed` 参数的作用**：在以太坊上，事件的参数可以标记为 `indexed`，这样这些参数的值就会存储在以太坊虚拟机日志的 `topics` 部分，供用户快速检索。一个事件**最多**可以有三个 `indexed` 参数，因为日志的`topics`最多可以存储4个元素（见EVM日志`log`部分）。
+
+  
+###### 释放事件
+事件定义后，可以通过 `emit` 关键字在函数中释放事件，也就是记录并广播这个事件的发生。
+
+下面的代码展示了如何在代币转账函数 `_transfer` 中释放 `Transfer` 事件：
+
+```solidity
+function _transfer(
+    address from,
+    address to,
+    uint256 amount
+) external {
+
+    _balances[from] -= amount; // 减少转账方的余额
+    _balances[to] += amount;   // 增加接收方的余额
+
+    // 释放 Transfer 事件，记录转账信息
+    emit Transfer(from, to, amount);
+}
+
+```
+
+在这个例子中，每次执行 `_transfer` 函数时，都会通过 `emit` 释放 `Transfer` 事件，并记录转账的相关数据。前端应用或其他外部程序可以通过监听这个事件来更新用户的界面或执行其他逻辑。
+
+###### EVM 日志 `Log`
+事件在EVM中的表现形式是日志 `Log`，每个日志包含两个部分：
+
+- **主题（topics）**：保存的是事件的**索引信息**，即事件签名的哈希值（即事件的名称和参数类型经过`keccak256`哈希后得到的值）。
+  - **事件哈希**：事件的第一个 `topic` 是事件的签名哈希。签名哈希是事件声明的 `keccak256` 哈希值。例如，`Transfer` 事件的签名哈希是：
+  
+    ```solidity
+    keccak256("Transfer(address,address,uint256)")
+    
+    // 计算得到的哈希值为：
+    // 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+    ```
+    如果两个不同合约都定义了完全相同的`Transfer`事件：
+
+    ```solidity
+    contract A {
+        event Transfer(address indexed from, address indexed to, uint256 value);
+    }
+
+    contract B {
+        event Transfer(address indexed from, address indexed to, uint256 value);
+    }
+    ```
+
+    两者的事件哈希值是一样的，因为它们有相同的名称和参数类型。如果事件的**名称**或**参数类型**发生任何变化，即使是同一个合约或不同合约，事件的哈希值都会不同。例如：
+
+    ```solidity
+    event Transfer(address indexed from, address indexed to, uint256 amount);  // 名字不同
+    event Transfer(address indexed sender, address indexed receiver, uint256 value);  // 参数名不同
+    ```
+  
+  - **`indexed` 参数**：接下来，`topics` 数组中还可以包含最多三个 `indexed` 参数。在上面的 `Transfer` 事件中，`from` 和 `to` 参数带有 `indexed` 关键字，因此它们会被存储在 `topics` 部分，方便之后快速检索这些转账的相关信息。
+    - 可以使用`indexed`修饰的变量类型
+      - `address`
+      - `bool`
+      - 基本数值类型：`uint`, `int`, `uint8`, `uint256`等
+      - 固定大小的字节数组：`bytes1`, `bytes32` 等
+        
+      这些类型的数据会被直接存储在事件日志的`topics`部分，方便之后的检索和过滤。
+    - 不能使用`indexed`修饰的变量类型
+      一些复杂类型，比如动态数组、字符串（`string`）和动态字节数组（`bytes`），不能被直接`indexed`修饰。如果尝试将这些类型标记为`indexed`，Solidity编译器会报错。
+- **数据（data）**：保存的是事件中**不带`index`索引**的参数。在 `Transfer` 事件中，`value` 就存储在 `data` 部分。**`data` 部分不能被直接检索**，但它可以存储任意大小的数据，因此适合用来存储复杂的数据结构，如数组和字符串。
+
+
+###### 代码总结
+
+**事件**：
+
+```solidity
+event Transfer(address indexed from, address indexed to, uint256 value);
+
+function transfer(address to, uint256 value) public {
+    // 业务逻辑，比如代币转账
+    emit Transfer(msg.sender, to, value); // 触发事件
+}
+```
+这个事件记录了三项信息：
+
+- `from`: 转出代币的地址。
+- `to`: 接收代币的地址。
+- `value`: 转账的代币数量。
+
+**日志**：
+
+对于该`Transfer`事件，EVM会将`from`和`to`作为`indexed`参数存储在`topics`中，因为它们被标记为`indexed`。`value`则会存储在`data`部分，因为它没有`indexed`。
+- `topics[0]`：事件的哈希值（`Transfer(address,address,uint256)`的哈希，计算方式是`keccak256`哈希函数）。这个哈希值可以让区块链系统快速识别这个事件类型。
+- `topics[1]`：`from`地址（即`msg.sender`）。因为它被标记为`indexed`，所以存储在`topics`中，便于检索。
+- `topics[2]`：`to`地址。同样因为`indexed`，存储在`topics`中。
+- `data`：`value`（转账的金额）。因为没有`indexed`，存储在`data`部分。
+EVM日志大致结构可以理解为：
+
+```
+topics: [
+    0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef, // keccak256("Transfer(address,address,uint256)")
+    0xabc123..., // from address
+    0xdef456...  // to address
+]
+data: [
+    1000  // value
+]
+```
+
+###### 如何理解“事件是日志的抽象”？
+- 在EVM中，**日志（log）是一种低级别的数据记录方式。日志数据不会存储在合约的状态变量中，它只能通过事件的形式发出，并且不会在区块链状态中直接可见。它主要用于记录交易的非持久性信息**，帮助外部应用程序（如`ethers.js`或区块浏览器）监听和响应事件。
+- 事件是EVM日志的**高级接口**，它简化了日志的使用方式，帮助开发者将某些特定状态的变化（如代币转账、合约调用等）通过`event`表达出来。开发者不需要手动管理日志记录，EVM自动将这些事件转化为对应的低级别日志，简化了开发者与底层日志系统的交互，同时优化了区块链上数据存储的`gas`消耗。
+- 事件与EVM日志的映射关系如下：
+  - **事件声明**：开发者通过`event`声明事件，如`Transfer`事件。
+  - **事件触发**：使用`emit`关键字触发事件。这会在EVM上生成一条日志（`log`）。
 
 
 ##### 测验结果
+- 100/100
 
+### 2024.10.05
+#### WTF Academy Solidity 101.13 继承
+
+###### 笔记
+
+##### 测验结果
+
+##### 测验错题
+
+
+### 2024.10.06
+#### WTF Academy Solidity 101.14 抽象合约和接口
+
+###### 笔记
+
+##### 测验结果
 
 ##### 测验错题
 

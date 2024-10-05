@@ -62,7 +62,7 @@ timezone: Asia/Shanghai
 
 - 第01节测验得分: 100, 答案: BBABCCBA
 
-    ---
+---
 
 ### 2024.09.24
 
@@ -117,7 +117,7 @@ timezone: Asia/Shanghai
 
 - 第 03 节测验得分 100,答案:
 
-  ---
+---
 
 ### 2024.09.25
 
@@ -141,7 +141,7 @@ timezone: Asia/Shanghai
 
 5. 第 04 节测验得分:100, 答案: ABCBABCB
 
-    ---
+---
 
 ### 2024.09.26
 
@@ -306,6 +306,8 @@ timezone: Asia/Shanghai
     - ![image-20240929101542907](content/Aris/image-20240929101542907.png)
 5. 第 08 节测验得分: 100, 答案: CBDDA
 
+---
+
 #### 学习内容 9. 常数 constant和immutable
 
 1. constant(常量),immutable(不变量)
@@ -370,6 +372,8 @@ timezone: Asia/Shanghai
     - ![image-20240930160402267](content/Aris/image-20240930160402267.png)
 
 4. 第 10 节测验得分: 100, 答案: CBAEDABC
+
+---
 
 #### 学习内容 11. 构造函数和修饰器
 
@@ -614,6 +618,8 @@ timezone: Asia/Shanghai
 
 8. 第 14 节测验得分: 100, 答案: ABEEAAA
 
+---
+
 #### 学习内容 15. 异常
 
 1. Error
@@ -689,6 +695,8 @@ timezone: Asia/Shanghai
 
 5. 第 16 节测验得分: 100, 答案: ABBBB
 
+---
+
 #### 学习内容 17. 库合约 站在巨人的肩膀上
 
 1. 库合约
@@ -744,6 +752,8 @@ timezone: Asia/Shanghai
 
 7. 第 17 节测验得分: 100, 答案: DACEC
 
+---
+
 #### 学习内容 18. Import
 
 1. import
@@ -790,7 +800,89 @@ timezone: Asia/Shanghai
 
 ---
 
+### 2024.10.05
 
+#### 学习内容 19. 接收ETH receive和fallback
+
+1. receive() 和 fallback() 是回调函数
+
+    - 接收 ETH
+
+    - 处理合约中不存在的函数(代理合约)
+
+2. 接受 ETH 函数 receive
+
+    - `receive()`函数是在合约收到`ETH`转账时被调用的函数;
+    - 一个合约最多有一个`receive()`函数;
+    - `receive() external payable { ... }`
+        - 不需要`function`关键字;
+        - 函数不能有任何的参数，不能返回任何值;
+        - 必须包含`external`和`payable`;
+    - `receive()`不要执行太多的逻辑因为如果别人用`send`和`transfer`方法发送`ETH`的话，`gas`会限制在`2300`，`receive()`太复杂可能会触发`Out of Gas`报错
+    - 如果用`call`就可以自定义`gas`执行更复杂的逻辑
+
+3. 回退函数 fallback
+
+    - `fallback()`函数会在调用合约不存在的函数时被触发
+    - 可用于接收ETH;
+    - 可以用于代理合约`proxy contract`
+    - `fallback() external payable { ... }`
+        - 不需要`function`关键字;
+        - 函数不能有任何的参数，不能返回任何值; (一般没有参数吧?)
+        - 必须由`external`修饰，一般也会用`payable`修饰 (所以说 payable 不是必须的?)
+
+4. 区别
+
+    - ```
+        触发fallback() 还是 receive()?
+                   接收ETH
+                      |
+                 msg.data是空？
+                    /  \
+                  是    否
+                  /      \
+        receive()存在?   fallback()
+                / \
+               是  否
+              /     \
+        receive()   fallback()
+        ```
+
+    - 合约接收`ETH`时，`msg.data`为空且存在`receive()`时，会触发`receive()`;
+
+    - `msg.data`不为空或不存在`receive()`时，会触发`fallback()`，此时`fallback()`必须为`payable`。
+
+5. 其他
+
+    - `receive()`和`fallback() payable`均不存在的时候，向合约**直接**发送`ETH`将会报错
+    - 如果合约中有`payable`的函数,则可以调用该函数向合约发送`ETH` 
+
+6. 合约部署
+
+    - ![image-20241004071849935](content/Aris/image-20241004071849935.png)
+    - ![image-20241004071957140](content/Aris/image-20241004071957140.png)
+
+7. 第 19 节测验得分: 100, 答案: ABBCA
+
+---
+
+#### 学习内容 20. 发送ETH
+
+1. Solidity有三种方法向其他合约发送ETH
+    - transfer: `接收方地址.transfer(发送ETH数额)`
+        - gas 限制: 2300
+        - 失败会 revert 交易
+
+    - send:`接收方地址.send(发送ETH数额)`
+        - gas 限制: 2300
+        - 失败**不会** revert 交易
+
+    - call:`接收方地址.call{value: 发送ETH数额}("")`
+
+2. 合约部署
+3. 第 20 节测验得分: 0, 答案: 
+
+---
 
 
 

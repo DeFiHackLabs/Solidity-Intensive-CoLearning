@@ -628,7 +628,76 @@ contract Factory {
     }
 }
 ```
+###
 
+### 2024.10.04
+
+#### 1. create2
+
+计算地址方式
+
+1. create
+
+address = hash(msg.sender,nonce)
+
+nonce往往会产生变更，因此产生的地址不好预测
+
+2. create2 
+
+而create2是想要，不论未来发生什么，产生的地址是不变的。
+
+address = hash("0xff",msg.sender,salt,initCode);
+
+所需参数：
+
+1. 固定常数 0xff
+2. 合约创建者，msg.sender
+3. salt bytes32字节的值，主要用来影响新合约创建的地址
+4. initcode  新合约的初始字节码，合约的creationCode和构造函数的参数
+
+用法：
+
+```solidity
+Contract x = new Contract{salt: salt,value: value}(params);
+```
+
+按这个用法，固定常数 、 initcode都没在create的时候展示，但是在预计算地址时，计算所需用到了这些信息。
+
+合约实现：
+
+```solidity 
+contract Factory2 {
+    mapping (address => mapping (address => address)) public getPair;
+    address[] public allPairs;
+
+    function createPair(address _token0,address _token1) external returns(address) {
+        (address token0,address token1) = _token0 > _token1?(_token1,_token0):(_token0,_token1);
+        bytes32 salt = keccak256(abi.encodePacked(token0,token1));
+        Pair pair = new Pair{salt: salt}();
+        pair.initialize(_token0, _token1);
+
+        address p = address(pair);
+        allPairs.push(p);
+
+        getPair[_token0][_token1] = p;
+        getPair[_token1][_token0] = p;
+        return p;
+    }
+}
+```
+
+地址计算：
+
+```solidity
+function caculateAddr(address _token0,address _token1) external view returns(address) {
+    (address token0,address token1) = _token0 > _token1?(_token1,_token0):(_token0,_token1);
+    bytes32 salt = keccak256(abi.encodePacked(token0,token1));
+    address predictAddress = address(uint160(uint(keccak256(
+        abi.encodePacked(bytes1(0xff),address(this),salt,keccak256(type(Pair).creationCode))
+        ))));
+    return predictAddress;
+}
+```
 
 ###
 

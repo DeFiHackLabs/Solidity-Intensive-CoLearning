@@ -107,4 +107,12 @@ timezone: Asia/Shanghai
 2. 修飾器是用來聲明函數擁有的特性，減少代碼冗余
 
 
+### 2024.10.04
+1. event有兩個特點：(1)在前端做響應、(2)是EVM上比較經濟的做法
+2. 事件的聲明：event關鍵字開頭、事件名稱、括號裡面寫好事件需要紀錄的變量類型和變量名
+3. transfer事件記錄了3個變量：from（代幣轉帳地址）、to（接收地址）、value（轉帳數量）
+4. emit釋放事件
+5. 用log來儲存solidity事件，每條log都包括topics、data
+
+
 <!-- Content_END -->
