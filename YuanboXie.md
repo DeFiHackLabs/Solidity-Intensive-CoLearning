@@ -1063,7 +1063,7 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     }
     ```
 
-<!-- Content_END -->
+
 ### 2024.10.05
 
 - [103-37] 数字签名
@@ -1302,6 +1302,7 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     - 注意: 用户申请随机数时调用的requestRandomness()和VRF合约返回随机数时调用的回退函数fulfillRandomness()是两笔交易，调用者分别是用户合约和VRF合约，后者比前者晚几分钟（不同链延迟不一样）。
     - 完整代码参考: [code1](https://github.com/AmazingAng/WTF-Solidity/blob/main/39_Random/Random.sol) [code2](https://github.com/AmazingAng/WTF-Solidity/blob/main/39_Random/RandomNumberConsumer.sol)
 
+<!-- Content_END -->
 ### 2024.10.06
 
 - [103-40] ERC1155 [eip-1155](https://eips.ethereum.org/EIPS/eip-1155)
@@ -1602,12 +1603,138 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 ### 2024.10.08
 
 - [103-46] 代理合约
-- [103-47] 可升级合约
-- [103-48] 透明代理
+    - 教学代码由OpenZeppelin的[Proxy合约](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/proxy/Proxy.sol)简化而来。
+    - Solidity合约部署在链上之后，代码是不可变的（immutable）。这样既有优点，也有缺点。有没有办法在合约部署后进行修改或升级呢？答案是有的，那就是代理模式（前面 delegatecall 部分提到过）。
+        - 优点：安全，用户知道会发生什么（大部分时候）。
+        - 坏处：就算合约中存在bug，也不能修改或升级，只能部署新合约。但是新合约的地址与旧的不一样，且合约的数据也需要花费大量gas进行迁移。
+    - ![](./content/YuanboXie/proxy-contract.png)
+    - 代理模式将合约数据和逻辑分开，分别保存在不同合约中。数据（状态变量）存储在代理合约中，而逻辑（函数）保存在另一个逻辑合约中。代理合约（Proxy）通过delegatecall，将函数调用全权委托给逻辑合约（Implementation）执行，再把最终的结果返回给调用者（Caller）。代理模式主要有两个好处：
+        - 可升级：当我们需要升级合约的逻辑时，只需要将代理合约指向新的逻辑合约。
+        - 省gas：如果多个合约复用一套逻辑，我们只需部署一个逻辑合约，然后再部署多个只保存数据的代理合约，指向逻辑合约。
+    - 注意：Logic合约和Proxy合约的状态变量存储结构需要完全相同。
+    - 示例代码：[code](https://github.com/AmazingAng/WTF-Solidity/blob/main/46_ProxyContract/ProxyContract.sol)
+    ```solidity
+    /**
+    * @dev Proxy合约的所有调用都通过`delegatecall`操作码委托给另一个合约执行。后者被称为逻辑合约（Implementation）。委托调用的返回值，会直接返回给Proxy的调用者。
+    */
+    contract Proxy {
+        address public implementation; // 逻辑合约地址。implementation 合约同一个位置的状态变量类型必须和 Proxy 合约的相同，不然会报错。
 
+        constructor(address implementation_){
+            implementation = implementation_;
+        }
+    
+        fallback() external payable { // 回调函数，调用`_delegate()`函数将本合约的调用委托给 `implementation` 合约
+            _delegate(); 
+        }
+
+        function _delegate() internal { // 【！！！关键代码！！！】将调用委托给逻辑合约运行
+            assembly { // 【使用内联汇编来实现：让本来不能有返回值的回调函数有了返回值】
+                let _implementation := sload(0) // 读取位置为0的storage，也就是implementation地址。
+                calldatacopy(0, 0, calldatasize()) // calldatacopy(t, f, s)：将calldata（输入数据）从位置f开始复制s字节到mem（内存）的位置t
+
+                // 利用delegatecall调用implementation合约
+                // delegatecall操作码的参数分别为：gas, 目标合约地址，input mem起始位置，input mem长度，output area mem起始位置，output area mem长度
+                // output area起始位置和长度位置，所以设为0
+                // delegatecall成功返回1，失败返回0
+                let result := delegatecall(gas(), _implementation, 0, calldatasize(), 0, 0)
+                returndatacopy(0, 0, returndatasize()) // returndatacopy(t, f, s)：将returndata（输出数据）从位置f开始复制s字节到mem（内存）的位置t。
+
+                switch result
+                case 0 { // failed
+                    revert(0, returndatasize()) // revert revert(p, s)：终止函数执行, 回滚状态，返回数据mem[p..(p+s))。
+                }
+                default { // success
+                    return(0, returndatasize()) // return(p, s)：终止函数执行, 返回数据mem[p..(p+s))。
+                }
+            }
+        }
+    }
+
+    contract Logic {
+        address public implementation; // 与Proxy保持一致，防止插槽冲突，Logic 合约本身不用这个变量
+        uint public x = 99; 
+        event CallSuccess();
+        function increment() external returns(uint) {
+            emit CallSuccess();
+            return x + 1;
+        }
+    }
+
+    contract Caller{
+        address public proxy; // 代理合约地址
+        constructor(address proxy_){ proxy = proxy_; }
+        function increase() external returns(uint) { // 通过代理合约调用 increase()函数
+            ( , bytes memory data) = proxy.call(abi.encodeWithSignature("increment()"));
+            return abi.decode(data,(uint));
+        }
+    }
+    ```
+- [103-47] 可升级合约
+    - 可升级合约（Upgradeable Contract）,这里的可能有安全问题，不要用于生产环境。可升级合约，就是一个可以更改逻辑合约的代理合约。此处的示例代码没有用内联汇编，
+    - 实现一个简单的可升级合约，它包含3个合约：代理合约，旧的逻辑合约，和新的逻辑合约。[code](https://github.com/AmazingAng/WTF-Solidity/blob/main/47_Upgrade/Upgrade.sol) 这个 code 是个简单示例。
+- [103-48] 透明代理
+    - 代理合约的选择器冲突（Selector Clash）以及这一问题的解决方案：透明代理（Transparent Proxy）。教学代码简化自:[TransparentUpgradeableProxy.sol](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/proxy/transparent/TransparentUpgradeableProxy.sol)
+    - 智能合约中，函数选择器（selector）是函数签名的哈希的前4个字节。例如mint(address account)的选择器为bytes4(keccak256("mint(address)"))，也就是0x6a627842。由于函数选择器仅有4个字节，范围很小，因此两个不同的函数可能会有相同的选择器，例如下面两个函数：
+    ```solidity
+    // 选择器冲突的例子
+    contract Foo {
+        function burn(uint256) external {}
+        function collate_propagate_storage(bytes16) external {}
+    }
+    ```
+    - 这种情况被称为“选择器冲突”。在这种情况下，EVM无法通过函数选择器分辨用户调用哪个函数，因此该合约无法通过编译。由于代理合约和逻辑合约是两个合约，就算他们之间存在“选择器冲突”也可以正常编译，这可能会导致很严重的安全事故。举个例子，如果逻辑合约的a函数和代理合约的升级函数的选择器相同，那么管理人就会在调用a函数的时候，将代理合约升级成一个黑洞合约，后果不堪设想。目前，有两个可升级合约标准解决了这一问题：透明代理Transparent Proxy和通用可升级代理UUPS。
+    - 透明代理的逻辑非常简单：管理员可能会因为“函数选择器冲突”，在调用逻辑合约的函数时，误调用代理合约的可升级函数。那么限制管理员的权限，不让他调用任何逻辑合约的函数，就能解决冲突：
+        - 管理员变为工具人，仅能调用代理合约的可升级函数对合约升级，不能通过回调函数调用逻辑合约。
+        - 其它用户不能调用可升级函数，但是可以调用逻辑合约的函数。
+    ```solidity
+    fallback() external payable {
+        require(msg.sender != admin);
+        (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+    }
+    function upgrade(address newImplementation) external {
+        if (msg.sender != admin) revert();
+        implementation = newImplementation;
+    }
+    ```
 ### 2024.10.09
 
 - [103-49] 通用可升级代理
+    - 通用可升级代理（UUPS，universal upgradeable proxy standard）,代码由 OpenZeppelin 的 UUPSUpgradeable 简化而成，不应用于生产。 示例代码 [code](https://github.com/AmazingAng/WTF-Solidity/blob/main/49_UUPS/UUPS.sol)
+    - UUPS（universal upgradeable proxy standard，通用可升级代理）将升级函数放在逻辑合约中。这样一来，如果有其它函数与升级函数存在“选择器冲突”，编译时就会报错。
+    ```solidity
+    contract UUPSProxy {
+        address public implementation; // 逻辑合约地址
+        address public admin; // admin地址
+        string public words; // 字符串，可以通过逻辑合约的函数改变
+        constructor(address _implementation){
+            admin = msg.sender;
+            implementation = _implementation;
+        }
+        fallback() external payable {
+            (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+        }
+    }
+    // UUPS逻辑合约（升级函数写在逻辑合约内）
+    contract UUPS1{
+        // 状态变量和proxy合约一致，防止插槽冲突
+        address public implementation; 
+        address public admin; 
+        string public words; // 字符串，可以通过逻辑合约的函数改变
+
+        // 改变proxy中状态变量，选择器： 0xc2985578
+        function foo() public{
+            words = "old";
+        }
+
+        // 升级函数，改变逻辑合约地址，只能由admin调用。选择器：0x0900f010
+        // UUPS中，逻辑函数中必须包含升级函数，不然就不能再升级了。
+        function upgrade(address newImplementation) external {
+            require(msg.sender == admin);
+            implementation = newImplementation;
+        }
+    }
+    ```
 - [103-50] 多签钱包
 - [103-51] ERC4626代币化金库标准
 
