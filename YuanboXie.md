@@ -1700,6 +1700,41 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 ### 2024.10.09
 
 - [103-49] 通用可升级代理
+    - 通用可升级代理（UUPS，universal upgradeable proxy standard）,代码由 OpenZeppelin 的 UUPSUpgradeable 简化而成，不应用于生产。 示例代码 [code](https://github.com/AmazingAng/WTF-Solidity/blob/main/49_UUPS/UUPS.sol)
+    - UUPS（universal upgradeable proxy standard，通用可升级代理）将升级函数放在逻辑合约中。这样一来，如果有其它函数与升级函数存在“选择器冲突”，编译时就会报错。
+    ```solidity
+    contract UUPSProxy {
+        address public implementation; // 逻辑合约地址
+        address public admin; // admin地址
+        string public words; // 字符串，可以通过逻辑合约的函数改变
+        constructor(address _implementation){
+            admin = msg.sender;
+            implementation = _implementation;
+        }
+        fallback() external payable {
+            (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+        }
+    }
+    // UUPS逻辑合约（升级函数写在逻辑合约内）
+    contract UUPS1{
+        // 状态变量和proxy合约一致，防止插槽冲突
+        address public implementation; 
+        address public admin; 
+        string public words; // 字符串，可以通过逻辑合约的函数改变
+
+        // 改变proxy中状态变量，选择器： 0xc2985578
+        function foo() public{
+            words = "old";
+        }
+
+        // 升级函数，改变逻辑合约地址，只能由admin调用。选择器：0x0900f010
+        // UUPS中，逻辑函数中必须包含升级函数，不然就不能再升级了。
+        function upgrade(address newImplementation) external {
+            require(msg.sender == admin);
+            implementation = newImplementation;
+        }
+    }
+    ```
 - [103-50] 多签钱包
 - [103-51] ERC4626代币化金库标准
 
