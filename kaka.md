@@ -314,4 +314,18 @@ event和emit：
 
 常见的库合约有`String`、`Address`、`Create2`、`Arrays`
 
+### 2024.10.05
+**学习内容：**<br>
+Hardhat：https://hardhat.org/
+
+配置文件：hardhat.config.js
+
+`npx hardhat compile` 编译合约
+
+单元测试，需要编写js脚本，会用到chai和ethers.js两个库，分别用于测试和链上交互。最好运行测试`npx hardhat test`
+
+部署合约，在remix只需点击`deploy`就可以部署，不过在本地hardhat需要编写部署脚本。hardhat会提供一个默认网络进行部署，`npx hardhat run --network hardhat  scripts/deploy.js`
+
+通过配置hardhat.config.js，也可以部署到非本地测试网
+
 <!-- Content_END -->
