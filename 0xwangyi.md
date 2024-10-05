@@ -304,3 +304,15 @@ Solidity 103-31 erc20
 6 allowance( )用于允许第三方账户在有限额度内操作代币所有者的代币，
 7 allowance( )提供了授权额度的查询功能，确保了代币的授权和转移机制的安全性和灵活性，8 allowance( )是transferFrom函数的重要组成部分【transferFrom函数需要通过allowance( )来检查spender是否有足够的授权额度】
 <!-- Content_END -->
+<!-- Content_START -->
+### 2024.10.05
+Day13
+Solidity 103-32代币水龙头TokenFaucet
+
+Solidity 103-33 空头合约 airdrop
+1 Airdrop空投合约逻辑：利用循环，一笔交易将ERC20代币发送给多个地址
+2 合约中包含两个函数：getSum()函数（返回uint数组的和）& multiTransferToken()函数（发送ERC20代币空投
+3 i++ 是一种递增操作，表示每次循环结束时，将变量 i 的值增加 1（保证了每次循环处理数组中的下一个元素）
+4 i++ 就是是 “i 加 1”，是 i = i + 1 的简写形式。每次循环完成后，i 的值都会增加 1，从而遍历数组的每一个元素
+5 arr 是 数组array 的缩写
+<!-- Content_END -->
