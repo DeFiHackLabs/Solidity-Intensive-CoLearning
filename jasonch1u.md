@@ -1125,12 +1125,12 @@ contract Import {
 接收 ETH 時，msg.data 為空且存在 receive() 則觸發 receive()
 msg.data 不為空或不存在 receive() 則觸發 fallback()
 
-
 注意事項：
 惡意合約可能在這些函數中嵌入有害代碼
 編寫包含退款邏輯的合約時需謹慎
 如果兩個函數都不存在，直接發送 ETH 到合約會報錯
 
+### 2024.10.04
 ### 2024.10.05
 bootcamp作業
 
