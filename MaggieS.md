@@ -399,13 +399,6 @@ Stay safe. 
 
 ### 2024.10.03
 
-I read the solidity white paper these two days. 
-
-Love means you are curious about everything and accept everything about it.
-
-First of all, I want to fimilar with some basic information about solidity.
-
-
 Q1: What is Solidity?
 
 Solidity is an object-oriented, high-level language for implementing smart contracts. Smart contracts are programs that
