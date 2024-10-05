@@ -842,7 +842,7 @@ function changeOwner(address _newOwner) external onlyOwner {
 - **响应**：事件可以让前端应用通过 `RPC` 接口订阅并监听某个合约的状态变化，接收到事件后可以做出对应的响应。例如，用户在DApp上发起了代币转账，DApp会通过监听事件来实时更新用户的余额或显示通知。
 - **经济性**：事件是记录合约数据的一种经济方式。相比于直接将数据存储在链上，事件的 `gas` 消耗较少（每次大约消耗2,000 `gas`），而链上存储一个新变量至少需要 20,000 `gas`。
 
-###### 声明事件
+##### 声明事件
 使用 `event` 关键字，后面跟随事件名称和事件参数（需要记录的变量）。例如，在`ERC20`代币合约中，通常定义一个 `Transfer` 事件，用于记录每次代币的转账操作：
 
 ```solidity
@@ -857,7 +857,7 @@ event Transfer(address indexed from, address indexed to, uint256 value);
 **`indexed` 参数的作用**：在以太坊上，事件的参数可以标记为 `indexed`，这样这些参数的值就会存储在以太坊虚拟机日志的 `topics` 部分，供用户快速检索。一个事件**最多**可以有三个 `indexed` 参数，因为日志的`topics`最多可以存储4个元素（见EVM日志`log`部分）。
 
   
-###### 释放事件
+##### 释放事件
 事件定义后，可以通过 `emit` 关键字在函数中释放事件，也就是记录并广播这个事件的发生。
 
 下面的代码展示了如何在代币转账函数 `_transfer` 中释放 `Transfer` 事件：
@@ -880,7 +880,7 @@ function _transfer(
 
 在这个例子中，每次执行 `_transfer` 函数时，都会通过 `emit` 释放 `Transfer` 事件，并记录转账的相关数据。前端应用或其他外部程序可以通过监听这个事件来更新用户的界面或执行其他逻辑。
 
-###### EVM 日志 `Log`
+##### EVM 日志 `Log`
 事件在EVM中的表现形式是日志 `Log`，每个日志包含两个部分：
 
 - **主题（topics）**：保存的是事件的**索引信息**，即事件签名的哈希值（即事件的名称和参数类型经过`keccak256`哈希后得到的值）。
@@ -924,7 +924,7 @@ function _transfer(
 - **数据（data）**：保存的是事件中**不带`index`索引**的参数。在 `Transfer` 事件中，`value` 就存储在 `data` 部分。**`data` 部分不能被直接检索**，但它可以存储任意大小的数据，因此适合用来存储复杂的数据结构，如数组和字符串。
 
 
-###### 代码总结
+##### 代码总结
 
 **事件**：
 
@@ -976,17 +976,368 @@ data: [
 ### 2024.10.05
 #### WTF Academy Solidity 101.13 继承
 
-###### 笔记
+###### `Virtural`
+父合约中的函数如果希望被子合约重写，需要加上`virtual`关键字。
+`virtual`关键字用于标记一个函数，表示它**可以被子合约重写**。如果父合约中的函数没有`virtual`，那么子合约**不能**对该函数进行重写。
+```solidity
+contract Parent {
+    function greet() public virtual returns (string memory) {
+        return "Hello from Parent";
+    }
+}
+```
+在这个例子中，`greet`函数加了`virtual`，表示子合约可以对它进行重写。
 
+###### `Override`
+子合约重写了父合约中的函数，需要加上`override`关键字。 `override`关键字用于在子合约中**重写**父合约中带有`virtual`的函数。它告诉编译器，当前子合约中的函数是对父合约中某个`virtual`函数的重写。
+```solidity
+contract Child is Parent {
+    function greet() public override returns (string memory) {
+        return "Hello from Child";
+    }
+}
+```
+`Child`合约中的`greet`函数使用了`override`，表示它是对`Parent`合约中`greet`函数的重写。
+
+##### 简单继承
+定义父合约`Yeye`
+```solidity
+contract Yeye {
+    event Log(string msg);
+
+    function hip() public virtual {
+        emit Log("Yeye");
+    }
+
+    function pop() public virtual {
+        emit Log("Yeye");
+    }
+
+    function yeye() public virtual {
+        emit Log("Yeye");
+    }
+}
+```
+继承合约`Baba`，继承了`Yeye`，并重写了`hip()`和`pop()`函数（加了`override`关键字），同时新增`baba()`函数。
+```solidity
+contract Baba is Yeye {
+    function hip() public virtual override {
+        emit Log("Baba");
+    }
+
+    function pop() public virtual override {
+        emit Log("Baba");
+    }
+
+    function baba() public {
+        emit Log("Baba");
+    }
+}
+```
+##### 多重继承
+1. **继承顺序**：必须从辈分高的合约到低的合约，比如`contract Erzi is Yeye, Baba`。如果顺序写错会报错。
+2. **函数冲突**：如果父合约中有重名函数，比如这里的`hip()`和`pop()`，在子合约中必须重写，并且`override`中要标明所有父合约名字。
+
+##### 修饰器的继承
+```solidity
+contract Base1 {
+    // 修饰器：检查输入的数字是否同时能被2和3整除
+    modifier exactDividedBy2And3(uint _a) virtual {
+        require(_a % 2 == 0 && _a % 3 == 0, "Not divisible by 2 and 3");
+        _; // 继续执行函数
+    }
+}
+```
+子合约`Identifier`继承了`Base1`，并且在函数`getExactDividedBy2And3`中使用了这个修饰器：
+```solidity
+contract Identifier is Base1 {
+
+    // 使用父合约中的修饰器 exactDividedBy2And3
+    function getExactDividedBy2And3(uint _dividend) public exactDividedBy2And3(_dividend) pure returns(uint, uint) {
+        return getExactDividedBy2And3WithoutModifier(_dividend);
+    }
+
+    function getExactDividedBy2And3WithoutModifier(uint _dividend) public pure returns(uint, uint){
+        uint div2 = _dividend / 2;
+        uint div3 = _dividend / 3;
+        return (div2, div3);
+    }
+}
+```
+在这里，`Identifier`合约继承了`Base1`合约的修饰器`exactDividedBy2And3`，并在函数`getExactDividedBy2And3`中使用了它。只要传入的数字`_dividend`能同时被2和3整除，函数才会执行。
+
+##### 构造函数的继承
+###### 在继承时传递参数
+当定义子合约时，直接在继承声明时传递父合约构造函数的参数。
+```solidity
+// 父合约 A
+contract A {
+    uint public a;
+
+    // 父合约 A 的构造函数
+    constructor(uint _a) {
+        a = _a;
+    }
+}
+
+// 子合约 B 继承 A
+contract B is A(10) { // 直接在继承时传递参数
+}
+```
+在这个例子中，合约 `B` 继承了 `A`，并且在继承时通过 `A(10)` 直接将参数传给了父合约 `A` 的构造函数。所以，当部署 `B` 合约时，`A` 的状态变量 `a` 会被初始化为 10。
+###### 在子合约的构造函数中调用父合约的构造函数
+如果希望在子合约的构造函数中动态传递参数给父合约，可以在子合约的构造函数中显式调用父合约的构造函数。
+```solidity
+// 父合约 A
+contract A {
+    uint public a;
+
+    // 父合约 A 的构造函数
+    constructor(uint _a) {
+        a = _a;
+    }
+}
+
+// 子合约 C 继承 A
+contract C is A {
+    // 子合约的构造函数传递参数给 A 的构造函数
+    constructor(uint _c) A(_c * 2) {
+    }
+}
+```
+在这个例子中，子合约 `C` 的构造函数接收参数 `_c`，并将 `_c * 2` 传递给父合约 `A` 的构造函数。这意味着当你部署 `C` 合约时，`A` 的状态变量 `a` 会被初始化为 `_c * 2`。
+
+**什么时候用哪种方法？**
+- 如果参数是固定的，可以直接在继承声明时传递参数（第一种方法）。
+- 如果参数需要动态计算或者传递，则可以在子合约的构造函数中调用父合约的构造函数（第二种方法）。
+
+##### 调用父合约的函数
+1. **直接调用**：可以通过`父合约名.函数名()`来调用，比如`Yeye.pop()`。
+    
+    ```solidity
+    function callParent() public {
+        Yeye.pop();
+    }
+    ```
+2. **`super`关键字**：使用`super`可以调用最近的父合约。例如，`super.pop()`会调用继承链条上最近的父合约的`pop()`函数。
+    - 这里的“最近的父合约”指的是根据继承顺序，最接近当前合约的那个父合约。
+    
+    ```solidity
+    function callParentSuper() public {
+        super.pop();  // 调用的是Baba.pop()，因为Baba是最近的父合约
+    }
+    ```
+
+###### 举例
+假设我们有三个合约 `Yeye`（爷爷）, `Baba`（爸爸）, 和 `Child`（孩子），并且它们之间有继承关系。`Child` 继承自 `Baba`，而 `Baba` 继承自 `Yeye`。每个合约都有一个 `pop()` 函数。
+
+```solidity
+// 爷爷合约
+contract Yeye {
+    function pop() public virtual returns (string memory) {
+        return "Yeye's pop";
+    }
+}
+
+// 爸爸合约
+contract Baba is Yeye {
+    function pop() public virtual override returns (string memory) {
+        return "Baba's pop";
+    }
+}
+
+// 孩子合约
+contract Child is Baba {
+    // 直接调用父合约的函数
+    function callParent() public returns (string memory) {
+        return Baba.pop();  // 调用 Baba 的 pop() 函数
+    }
+
+    // 使用 super 调用最近的父合约的函数
+    function callParentSuper() public returns (string memory) {
+        return super.pop();  // 调用继承链中最近的父合约的 pop() 函数，这里是 Baba 的 pop()
+    }
+
+    // 使用 Yeye 直接调用 Yeye 的 pop() 函数
+    function callYeyeDirectly() public returns (string memory) {
+        return Yeye.pop();  // 明确调用 Yeye 的 pop() 函数
+    }
+}
+```
+1. **继承关系**：
+    - `Child` 继承了 `Baba`，而 `Baba` 继承了 `Yeye`。因此，`Child` 是最底层的合约，`Baba` 是中间层，`Yeye` 是顶层。
+2. **直接调用父合约的函数**：
+    - 在 `callParent()` 函数中，`Baba.pop()` 明确调用了父合约 `Baba` 的 `pop()` 函数。因为 `Baba` 重写了 `Yeye` 的 `pop()` 函数，所以调用 `Baba.pop()` 时，结果会是 `"Baba's pop"`。
+3. **`super` 关键字**：
+    - 在 `callParentSuper()` 中，`super.pop()` 调用了继承链中最近的父合约的 `pop()` 函数。因为 `Child` 继承了 `Baba`，而 `Baba` 是最近的父合约，所以 `super.pop()` 实际上调用的是 `Baba` 的 `pop()` 函数，结果仍然是 `"Baba's pop"`。
+    - 如果 `Baba` 没有重写 `Yeye` 的 `pop()` 函数，那么 `super.pop()` 会调用 `Yeye` 的 `pop()` 函数。
+4. **调用更上层的父合约**：
+    - 在 `callYeyeDirectly()` 中，`Yeye.pop()` 明确调用了顶层合约 `Yeye` 的 `pop()` 函数，即便 `Baba` 已经重写了 `pop()`。因此，结果是 `"Yeye's pop"`。
+
+
+**输出**
+- 调用 `callParent()`：返回 `"Baba's pop"`。
+- 调用 `callParentSuper()`：返回 `"Baba's pop"`，因为 `super.pop()` 调用了最近的父合约 `Baba`。
+- 调用 `callYeyeDirectly()`：返回 `"Yeye's pop"`，因为明确调用了顶层合约 `Yeye` 的函数。
+##### 钻石继承
+代码示例
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.13;
+
+/* 继承树：
+  God
+ /  \
+Adam Eve
+ \  /
+people
+*/
+
+contract God {
+    event Log(string message);
+
+    function foo() public virtual {
+        emit Log("God.foo called");
+    }
+
+    function bar() public virtual {
+        emit Log("God.bar called");
+    }
+}
+
+contract Adam is God {
+    function foo() public virtual override {
+        emit Log("Adam.foo called");
+        super.foo();
+    }
+
+    function bar() public virtual override {
+        emit Log("Adam.bar called");
+        super.bar();
+    }
+}
+
+contract Eve is God {
+    function foo() public virtual override {
+        emit Log("Eve.foo called");
+        super.foo();
+    }
+
+    function bar() public virtual override {
+        emit Log("Eve.bar called");
+        super.bar();
+    }
+}
+
+contract people is Adam, Eve {
+    function foo() public override(Adam, Eve) {
+        super.foo();
+    }
+
+    function bar() public override(Adam, Eve) {
+        super.bar();
+    }
+}
+
+```
+###### 合约继承树
+```solidity
+/* 继承树：
+  God
+ /  \
+Adam Eve
+ \  /
+people
+*/
+```
+- `Adam` 和 `Eve` 都继承自 `God`，且都重写了 `God` 中的 `foo()` 和 `bar()` 函数。
+- 合约 `people` 同时继承了 `Adam` 和 `Eve`，并重写了 `foo()` 和 `bar()`，调用 `super.foo()` 和 `super.bar()`。
+###### 继承顺序
+在 Solidity 中，多重继承的顺序由合约声明的顺序决定。合约继承链的调用顺序（也称为**继承线性化顺序**或 C3 线性化）从左到右，是根据继承关系树来确定的。这个顺序定义了哪个父合约的函数会先被调用，而哪些会在之后调用。
+
+Solidity 中的继承顺序是**从左到右**的，这里的“左”和“右”是根据继承声明的顺序来定义的。当你写出一个合约，并从多个父合约继承时，继承链的线性化顺序会基于合约声明时的顺序：
+
+```solidity
+contract people is Adam, Eve { }
+```
+
+在这个例子中，`people` 继承了 `Adam` 和 `Eve`，**左**边的父合约是 `Adam`，**右**边的父合约是 `Eve`。
+
+**为什么是 `Eve` 先调用？**
+虽然 `people` 继承顺序看起来是 `Adam` 在 `Eve` 之前，但继承调用遵循 Solidity 的**C3 线性化规则**。在 C3 线性化中，子合约会先继承所有右侧的父合约，然后再继承左侧的父合约。
+
+**Solidity 的线性化规则**
+1. **父合约的合并**：当写 `contract people is Adam, Eve` 时，`people` 需要先遍历 `Eve`，然后遍历 `Adam`。因为在 `Eve` 和 `Adam` 中，都有对 `God` 的继承，所以 `God` 只会在最终调用时执行一次。
+2. **从右到左继承**：线性化顺序遵循从右至左继承的原则。`people` 合约先会调用右侧的父合约 `Eve`，再去调用左侧的父合约 `Adam`，最后调用最顶层的 `God`，这是线性化的特点。
+
+**最终继承顺序**
+调用 `people.foo()` 时，函数执行顺序是：
+1. **调用 `Eve.foo()`**：首先执行右边的父合约，即 `Eve.foo()`，输出 `Eve.foo called`。
+2. **调用 `Adam.foo()`**：接着执行左边的父合约 `Adam.foo()`，输出 `Adam.foo called`。
+3. **调用 `God.foo()`**：由于 `Eve` 和 `Adam` 都继承自 `God`，最终调用 `God.foo()`，输出 `God.foo called`。
+
+输出结果：
+```
+Eve.foo called
+Adam.foo called
+God.foo called
+```
+
+调用 `people.bar()` 时，函数执行顺序与 `foo()` 类似：
+
+1. **调用 `Eve.bar()`**：首先执行右边的父合约 `Eve.bar()`，输出 `Eve.bar called`。
+2. **调用 `Adam.bar()`**：接着执行左边的父合约 `Adam.bar()`，输出 `Adam.bar called`。
+3. **调用 `God.bar()`**：最后调用 `God.bar()`，输出 `God.bar called`。
+
+输出结果：
+```
+Eve.bar called
+Adam.bar called
+God.bar called
+```
+
+**如果没有C3 线性化规则避免重复输出呢？**
+1. **`people.foo()` 的调用顺序**：
+    - `people` 先调用 `Eve.foo()`，`Eve.foo()` 调用 `super.foo()`，它指向 `God.foo()`；
+    - 接着 `people` 调用 `Adam.foo()`，`Adam.foo()` 也调用 `super.foo()`，它再次指向 `God.foo()`；
+    
+    因为没有线性化原则，`God.foo()` 会被调用两次，一次在 `Eve` 中，一次在 `Adam` 中。
+
+    ```
+    Eve.foo called
+    God.foo called
+    Adam.foo called
+    God.foo called
+    ```
+    
+2. **`people.bar()` 的调用顺序**：
+    - 同理，`people` 先调用 `Eve.bar()`，`Eve.bar()` 调用 `super.bar()`，指向 `God.bar()`；
+    - 然后调用 `Adam.bar()`，`Adam.bar()` 也调用 `super.bar()`，再次指向 `God.bar()`；
+    
+    因为没有线性化原则，`God.bar()` 也会被重复调用两次。
+
+    ```
+    Eve.bar called
+    God.bar called
+    Adam.bar called
+    God.bar called
+    ```
 ##### 测验结果
+- 85/100
+- 100/100
 
 ##### 测验错题
+`function a() public override{}`意思是？
 
+这个函数`重写`（`override`）了一个父合约中的同名函数 `a`。
+- `public`：表示该函数的可见性为公共（public），即可以从合约外部以及合约内部调用。
+- `override`：意味着该函数是对父合约中同名函数 a 的重写。父合约中必须有一个函数签名与此函数相同，并且该父合约的函数必须被标记为 virtual，允许子合约进行重写。
+- `{}`：函数体为空，表示该函数目前没有实现任何逻辑操作。
 
 ### 2024.10.06
 #### WTF Academy Solidity 101.14 抽象合约和接口
 
-###### 笔记
+##### 笔记
 
 ##### 测验结果
 
