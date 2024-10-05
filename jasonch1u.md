@@ -1131,7 +1131,10 @@ msg.data 不為空或不存在 receive() 則觸發 fallback()
 如果兩個函數都不存在，直接發送 ETH 到合約會報錯
 
 ### 2024.10.04
+bootcamp作業
 ### 2024.10.05
 bootcamp作業
-
+ERC20
+ERC721
+ERC1155
 <!-- Content_END -->
