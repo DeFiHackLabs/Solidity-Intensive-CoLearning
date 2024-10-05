@@ -548,5 +548,10 @@ contract test_event{
     }
 }
 
+### 2024.10.04
+1. 了解事件的使用方式。
+2. 学习事件的使用场景。
+   https://www.youtube.com/watch?v=H4s4Rf3E-EI&list=PL-edkZcvwC5a7qIaHG4Rsj6DkOM3YH3eT&index=12
+![image](https://github.com/user-attachments/assets/ea335b6b-6e16-4266-bca7-e3295fa47d58)
 
 <!-- Content_END -->

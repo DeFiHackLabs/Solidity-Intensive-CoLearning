@@ -728,5 +728,63 @@ contract MyReceiveAndFallbackContract{
            - 接收方地址.send(发送ETH的数额);  返回值是bool
 
 
+### 2024.10.04
+
+學習內容:
+
+- [x] 调用其他合约的几种方法
+   - 通过其他合约地址调用：OtherContract(_addresss).functionName();
+   - 通过参数直接传入合约：function callOtherContract(OtherContract _address);
+   - 通过合约地址获取合约：OtherContract _otherContract = OtherContract(_address);
+
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract MyContract{
+    function method1(OtherContract _address, uint256 cakeNum) external {
+        _address.setMyCake(cakeNum);
+    }
+    function method2(address _address, uint256 cakeNum)external {
+        OtherContract(_address).setMyCake(cakeNum);
+    }
+    function method3(address _address, uint256 cakeNum) external {
+        OtherContract oc = OtherContract(_address);
+        oc.setMyCake(cakeNum);
+    }
+
+}
+
+
+contract OtherContract{
+
+   mapping(address => uint256) private cake;
+
+   function setMyCake(uint256 cakeNum)external payable {
+    cake[msg.sender] = cakeNum;
+   }
+
+    // 通过指定合约地址查询对应合约地址拥有的cake数量
+   function showMyCake(address owner) external view returns(uint256 cakeNum){
+    cakeNum = cake[owner];
+   }
+
+}
+```
+
+
+### 2024.10.05
+
+學習內容:
+
+- [x] call调用其他函数
+     - call函数是低级函数，返回值为(bool, bytes memory),其中bool代表调用是否成功，bytes memory代表调用的返回值
+     - call是官方推荐发送以太币，触发fallback和receive函数的方式
+     - 一般来说不建议使用call调用其他函数，推荐采用声明合约变量后的调用方式
+     - call的使用规则：目标函数地址.call(abi.encodeWithSignature("functionName(parameterType[,...])", parameterValue[,...]))
+     - call调用其他函数的时候还可以指定eth和gas: 目标函数地址.call{value: 1 ether, gas: 100000}(abi.encodeWithSignature("functionName(parameterType[,...])", parameterValue[,...]))
+     - 如果call调用的目标函数不存在，则会触发调用fallback函数
+
 
 <!-- Content_END -->

@@ -451,7 +451,67 @@ delete a会让变量a的值变为初始值。
 
 变量被声明但没有赋值的时候，它的值默认为初始值。不同类型的变量初始值不同，delete操作符可以删除一个变量的值并代替为初始值。
 
-###  2024.10.03
+###  2024.10.04
+
+常数 constant和immutable
+
+Solidity中和常量相关的两个关键字，constant（常量）和immutable（不变量）。状态变量声明这两个关键字之后，不能在初始化后更改数值。这样做的好处是提升合约的安全性并节省gas。
+
+另外，只有数值变量可以声明constant和immutable；string和bytes可以声明为constant，但不能为immutable。
+
+constant和immutable
+
+constant
+
+constant变量必须在声明的时候初始化，之后再也不能改变。尝试改变的话，编译不通过。
+
+immutable
+
+immutable变量可以在声明时或构造函数中初始化，因此更加灵活。在Solidity v8.0.21以后，immutable变量不需要显式初始化。反之，则需要显式初始化。 若immutable变量既在声明时初始化，又在constructor中初始化，会使用constructor初始化的值。
+
+你可以使用全局变量例如address(this)，block.number 或者自定义的函数给immutable变量初始化。在下面这个例子，我们利用了test()函数给IMMUTABLE_TEST初始化为9：
+
+constant变量初始化之后，尝试改变它的值，会编译不通过并抛出TypeError: Cannot assign to a constant variable.的错误。
+
+immutable变量初始化之后，尝试改变它的值，会编译不通过并抛出TypeError: Immutable state variable already initialized.的错误。
+
+
+onstant（常量）和immutable（不变量），让不应该变的变量保持不变。这样的做法能在节省gas的同时提升合约的安全性。
+
+
+
+###  2024.10.05
+
+控制流
+
+Solidity的控制流与其他语言类似，主要包含以下几种：
+
+if-else
+
+for循环
+
+while循环
+
+do-while循环
+
+三元运算符
+
+三元运算符是Solidity中唯一一个接受三个操作数的运算符，规则条件? 条件为真的表达式:条件为假的表达式。此运算符经常用作if语句的快捷方式
+
+另外还有continue（立即进入下一个循环）和break（跳出当前循环）关键字可以使用。
+
+用Solidity实现插入排序
+
+写在前面：90%以上的人用Solidity写插入算法都会出错。
+
+插入排序
+
+排序算法解决的问题是将无序的一组数字，例如[2, 5, 3, 1]，从小到大依次排列好。插入排序（InsertionSort）是最简单的一种排序算法，也是很多人学习的第一个算法。它的思路很简单，从前往后，依次将每一个数和排在他前面的数字比大小，如果比前面的数字小，就互换位置。
+
+这一讲，我们介绍了Solidity中控制流，并且用Solidity写了插入排序。看起来很简单，但实际很难。这就是Solidity，坑很多，每个月都有项目因为这些小bug损失几千万甚至上亿美元。掌握好基础，不断练习，才能写出更好的Solidity代码。
+
+
+###  2024.10.06
 
 
 

@@ -1189,6 +1189,23 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Yeye} from './Yeye.sol';
 ```
 
+### 2024.10.5
+
+
+(Day 11)
+
+学习笔记
+
+#### 接受ETH
+
+Solidity支持两种特殊的回调函数，receive()和fallback()，他们主要在两种情况下被使用：
+
+接收ETH
+处理合约中不存在的函数调用（代理合约proxy contract）
+
+注意⚠️：在Solidity 0.6.x版本之前，语法上只有 fallback() 函数，用来接收用户发送的ETH时调用以及在被调用函数签名没有匹配到时，来调用。 0.6版本之后，Solidity才将 fallback() 函数拆分成 receive() 和 fallback() 两个函数。
+
+注意这个receive和fallback函数之中的逻辑不可以太复杂，否则消耗过多的gas会造成很多的bug出现。
 
 
 

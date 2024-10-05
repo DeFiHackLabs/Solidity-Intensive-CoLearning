@@ -15,6 +15,104 @@ timezone: Asia/Shanghai
 ## Notes
 
 <!-- Content_START -->
+### 2024.10.04
+
+1. `public` 函數
+在10.03的範例中，`setNumber` 函數是一個 `public` 函數，可以被內部和外部的任何人調用。
+```solidity
+function setNumber(uint256 _number) public {
+    number = _number;
+}
+```
+ `public` 函數會修改合約中的狀態變量 `number`，因此`需要`支付 gas。
+
+ 2. `view `函數
+`getNumber` 函數是一個 view 函數，`它只能讀取 number 的值`，`不能`修改。
+調用 view 函數`不會`改變鏈上的數據，直接從本地調用時`不需要`支付 gas。
+```solidity
+function getNumber() public view returns (uint256) {
+    return number;
+}
+```
+3. `pure` 函數
+pure 函數既不會讀取也不會修改鏈上的狀態變量。它們純粹是`計算函數`，像 add 函數一樣，執行簡單的加法運算。
+```solidity
+function add(uint256 a, uint256 b) public pure returns (uint256) {
+    return a + b;
+}
+```
+
+### 2024.10.03
+### 函數的結構 (發現仍有點陌生重讀）
+```solidity
+function <function name>(<parameter types>) {internal|external|public|private} [pure|view|payable] [returns (<return types>)]
+```
+以上是 Solidity 中函數的基本格式。接下來逐項解釋（方括號中的關鍵字是可選的）
+
+Solidity 中`函數`的基本格式。
+
+1. function：函數的關鍵字，用來聲明函數。
+2. function name：函數名稱。
+3. (parameter types)：圓括號中是函數的參數類型和名稱（輸入到函數的變量）。
+4. internal、external、public、private：函數的可見性修飾符，共有 4 種
+   
+    (1) `public`：內部和外部`都`可以訪問。
+   
+    (2) `private`：只能從合約內部訪問，`繼承`的合約`無法`使用。
+   
+    (3) `external`：只能從合約外部訪問，但可以用 `this.f()` 在內部調用（`f `是函數名稱）。
+   
+    (4) `internal`：只能從合約內部訪問，`繼承`的合約`可以`使用。
+   
+注意 1：所有函數都需要明確指定可見性，`沒有`默認值。
+
+注意 2：public、private 和 internal 也可用於`修飾狀態變量`。
+       public 變量會`自動`生成同名的 `getter `函數。
+
+
+5. pure|view|payable：這些關鍵字決定函數的行為
+
+(1) pure：函數既`不能讀取`也`不能寫入`狀態變量。
+
+(2) view：函數`可以讀取`狀態變量，但`不能`寫入。
+
+(3) payable：允許函數`接收`以太幣（ETH）。
+
+6. returns (return types)：函數的`返回值``類型`和名稱。
+
+範例：
+```solidity
+pragma solidity ^0.8.0;
+
+contract Example {
+    uint256 public number;
+
+    // public 函數：可以被內部或外部訪問
+    function setNumber(uint256 _number) public {
+        number = _number;
+    }
+
+    // view 函數：僅能讀取狀態變量，不會修改它
+    function getNumber() public view returns (uint256) {
+        return number;
+    }
+
+    // pure 函數：不讀取或修改狀態變量
+    function add(uint256 a, uint256 b) public pure returns (uint256) {
+        return a + b;
+    }
+
+    // payable 函數：允許接收以太幣
+    function deposit() public payable {}
+
+    // external 函數：只能從外部訪問
+    function external Function() external pure returns (string memory) {
+        return "This is an external function";
+    }
+}
+```
+
+
 ### 2024.10.02
 1. 執行Poolin運算
 ```solidity
@@ -66,36 +164,6 @@ contract ValueTypes{
     }
 }
 ```
-2.# Solidity 函數基礎
-
-Solidity 語言中的函數非常靈活，可以執行各種複雜的操作。
-
-### 函數的結構
-這裡是 Solidity 中函數的基本格式。接下來逐項解釋（方括號中的關鍵字是可選的）：
-
-function：函數的關鍵字，用來聲明函數。
-<function name>：函數名稱。
-(<parameter types>)：圓括號中是函數的參數類型和名稱（輸入到函數的變量）。
-{internal|external|public|private}：函數的可見性修飾符，共有 4 種：
-public：內部和外部都可以訪問。
-private：只能從合約內部訪問，繼承的合約無法使用。
-external：只能從合約外部訪問，但可以用 this.f() 在內部調用（f 是函數名稱）。
-internal：只能從合約內部訪問，繼承的合約可以使用。
-注意 1：所有函數都需要明確指定可見性，沒有默認值。
-
-注意 2：public、private 和 internal 也可用於修飾狀態變量。public 變量會自動生成同名的 getter 函數。
-
-[pure|view|payable]：這些關鍵字決定函數的行為：
-
-pure：函數既不能讀取也不能寫入狀態變量。
-view：函數可以讀取狀態變量，但不能寫入。
-payable：允許函數接收以太幣（ETH）。
-[returns (<return types>)]：函數的返回值類型和名稱。
-
-
-```solidity
-function <function name>(<parameter types>) {internal|external|public|private} [pure|view|payable] [returns (<return types>)]
-這裡是 Solidity 中函數的基本格式。接下來逐項解釋（方括號中的關鍵字是可選的）：
 
 ### 2024.10.01
 

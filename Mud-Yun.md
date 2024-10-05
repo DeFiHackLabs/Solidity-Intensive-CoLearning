@@ -61,7 +61,7 @@ bytes32 public data = "Solidity";      // 儲存固定長度的字串
 bytes1 public firstByte = data[0];     // 取出數組中的第一個字節
 ```
 
-最後，枚舉（Enum）是一種特殊的數據類型，用於定義一組命名的常量。在Solidity中，枚舉可以使代碼更加清晰和易於維護。例如，我們可以定義一個代表交易訂單狀態的枚舉：
+最後，枚舉（Enum）是一種特殊的數據類型，用於定義一組命名的常量。在Solidity中，枚舉可以使程式碼更加清晰和易於維護。例如，我們可以定義一個代表交易訂單狀態的枚舉：
 
 ```solidity
 enum Order { Buy, Hold, Sell }
@@ -146,7 +146,7 @@ function returnMultiple() public pure returns (uint256, bool, uint256[3] memory)
 }
 ```
 
-在此代碼片段中，我們通過returns關鍵字宣告了函數returnMultiple將返回多個值，並在函數主體中使用return關鍵字來指定這些返回值。特別是，uint256[3]指定了一個包含三個元素的uint256型別數組作為返回值，並使用memory關鍵字進行標註，這是因為在Solidity中，返回數組類型的數據時，預設需要這樣的標註。
+在此程式碼片段中，我們通過returns關鍵字宣告了函數returnMultiple將返回多個值，並在函數主體中使用return關鍵字來指定這些返回值。特別是，uint256[3]指定了一個包含三個元素的uint256型別數組作為返回值，並使用memory關鍵字進行標註，這是因為在Solidity中，返回數組類型的數據時，預設需要這樣的標註。
 
 另外，Solidity允許在returns關鍵字中直接命名返回變數，這樣Solidity會自動初始化這些變數並在函數結束時自動返回它們的值，無需顯式使用return關鍵字。例如：
 
@@ -158,7 +158,7 @@ function returnNamed() public pure returns (uint256 _number, bool _bool, uint256
 }
 ```
 
-在上述代碼中，我們通過returns關鍵字宣告了返回變數的類型和名稱，因此只需在函數主體中為這些變數賦值，它們的值就會在函數結束時自動返回。當然，即使在命名式返回中，我們也可以選擇使用return關鍵字來返回值。
+在上述程式碼中，我們通過returns關鍵字宣告了返回變數的類型和名稱，因此只需在函數主體中為這些變數賦值，它們的值就會在函數結束時自動返回。當然，即使在命名式返回中，我們也可以選擇使用return關鍵字來返回值。
 
 此外，Solidity支援解構式賦值，這允許開發者從函數返回值中讀取全部或部分數據。例如，以下程式碼展示了如何讀取所有返回值：
 
@@ -333,4 +333,80 @@ constant變數在宣告時必須設置初始值，且一旦設置就不能更改
 使用constant和immutable的優勢包括節省gas和提高安全性。由於這些變數的值是固定不變的，Solidity編譯器能夠進行優化存儲，從而節約gas。此外，通過限制變數的修改權限，可以防止不應該被更改的值被意外或惡意修改，從而提高合約的安全性。
 
 constant和immutable是Solidity中用於定義不可變變數的關鍵字。這些變數一旦初始化就不能更改，這不僅確保了智能合約的安全性，也有助於降低gas成本。constant要求在宣告時就進行初始化，而immutable則提供了更多靈活性，允許在構造函數中初始化。
+
+
+### 2024.10.04
+
+今天將介紹Solidity中的控制流程，並透過插入排序法（Insertion Sort）的具體範例來展示如何使用Solidity實作此算法。在學習過程中，我們不僅掌握了控制流的基礎結構，還深入了解了Solidity特有的一些陷阱，尤其是處理無符號整數時可能遇到的問題。
+
+控制流簡介：
+Solidity的控制流結構與多數編程語言類似，包含以下常見的結構：
+
+if-else條件判斷：
+用於根據條件執行不同的程式碼塊。
+範例：
+
+```solidity
+function ifElseTest(uint256 _number) public pure returns(bool) {
+    return _number == 0 ? true : false;
+}
+```
+for迴圈：
+用於重複執行程式碼塊，直至條件不再滿足。
+範例：
+
+```solidity
+function forLoopTest() public pure returns(uint256) {
+    uint256 sum = 0;
+    for (uint256 i = 0; i < 10; i++) {
+        sum += i;
+    }
+    return sum;
+}
+```
+while迴圈：
+類似for迴圈，但更靈活，條件為真時持續執行。
+範例：
+
+```solidity
+function whileTest() public pure returns(uint256) {
+    uint256 sum = 0;
+    uint256 i = 0;
+    while (i < 10) {
+        sum += i;
+        i++;
+    }
+    return sum;
+}
+```
+do-while迴圈：
+至少執行一次程式碼塊，再根據條件判斷是否繼續。
+範例：
+
+```solidity
+function doWhileTest() public pure returns(uint256) {
+    uint256 sum = 0;
+    uint256 i = 0;
+    do {
+        sum += i;
+        i++;
+    } while (i < 10);
+    return sum;
+}
+```
+三元運算符：用於簡化if-else結構，使程式碼更為簡潔。
+
+
+
+### 2024.10.05
+
+今天探討了Solidity語言中的構造函數和修飾器，並以Ownable合約為例，展示了如何運用這些工具進行合約權限管理。構造函數是合約初始化時執行的特殊函數，而修飾器則為函數提供了額外的邏輯層，常用於實施權限檢查。
+
+例如，onlyOwner修飾器確保只有合約擁有者可以執行特定函數，這是通過比對發送者地址與擁有者地址來實現的。如果不成配對，交易將被撤銷。
+
+OpenZeppelin的Ownable合約是一個標準化的實現，它封裝了基本的所有權邏輯，可以在其官方網站上找到具體的程式碼實現。
+
+在Remix環境中，我們可以通過編譯和部署Ownable合約，並通過傳入初始擁有者地址來測試其功能。你可以使用owner函數來驗證當前的擁有者地址，並嘗試使用changeOwner函數來更改擁有者。只有當前擁有者才能成功執行此操作，任何非擁有者地址的嘗試都會因onlyOwner修飾器而失敗。
+
+如何在Solidity合約中使用構造函數和修飾器進行有效的權限管理，這對於編寫安全且可控的智能合約至關重要。
 <!-- Content_END -->

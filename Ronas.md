@@ -460,4 +460,91 @@ timezone: Asia/Shanghai
         }
         ```
 
+### 2024.10.04
+
+> 進度: Solidity 102 22~23
+
+- call
+    ```
+    目標合約地址.call(abi.encodeWithSignature("函數簽名", 逗號分隔的具體參數));
+    目標合約地址.call{value:發送數量, gas:gas數量}(abi.encodeWithSignature("函數簽名", 逗號分隔的具體參數));
+    ```
+    - 為 `address` 的 low-level 成員函數, 回傳值 `(bool, bytes memory)`
+    - 為推薦發送 ETH 的方式
+    - 在目標合約名稱未知情況下, 可使用 call 呼叫另一個合約的函數, 但應盡量避免 (安全問題)
+
+- delegatecall
+    ```
+    目標合約地址.delegatecall(abi.encodeWithSignature("函數簽名", 逗號分隔的具體參數));
+    目標合約地址.call{gas:gas數量}(abi.encodeWithSignature("函數簽名", 逗號分隔的具體參數));
+    ```
+    - 使用場景為代理合約 (Proxy Contract), 代理合約儲存狀態, 邏輯合約實作邏輯, 使用者透過代理合約呼叫邏輯合約中的功能
+    - 為 `address` 的 low-level 成員函數, 回傳值 `(bool, bytes memory)`
+    - 不能指定 ETH 數量
+    - 狀態變數: 名稱可以不同, 類型及順序必須相同
+
+### 2024.10.05
+
+> 進度: Solidity 102 24~25
+
+- 在合約中建立新合約
+    - create
+        ```
+        Contract x = new Contract{value: _value}(params)
+        ```
+        - 合約地址生成演算法
+            ```
+            新地址 = hash(創建者地址, nonce)
+            ```
+        - Example
+            ```
+            contract PairFactory{
+                mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+                address[] public allPairs; // 保存所有Pair地址
+
+                function createPair(address tokenA, address tokenB) external returns (address pairAddr) {
+                    // 创建新合约
+                    Pair pair = new Pair(); 
+                    // 调用新合约的initialize方法
+                    pair.initialize(tokenA, tokenB);
+                    // 更新地址map
+                    pairAddr = address(pair);
+                    allPairs.push(pairAddr);
+                    getPair[tokenA][tokenB] = pairAddr;
+                    getPair[tokenB][tokenA] = pairAddr;
+                }
+            }
+            ```
+    - create2
+        ```
+        Contract x = new Contract{salt: _salt, value: _value}(params)
+        ```
+        - 合約地址生成演算法
+            ```
+            新地址 = hash("0xFF",創建者地址, salt, initcode)
+            ```
+        - Example
+            ```
+            contract PairFactory2{
+                mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+                address[] public allPairs; // 保存所有Pair地址
+
+                function createPair2(address tokenA, address tokenB) external returns (address pairAddr) {
+                    require(tokenA != tokenB, 'IDENTICAL_ADDRESSES'); //避免tokenA和tokenB相同产生的冲突
+                    // 用tokenA和tokenB地址计算salt
+                    (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); //将tokenA和tokenB按大小排序
+                    bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+                    // 用create2部署新合约
+                    Pair pair = new Pair{salt: salt}(); 
+                    // 调用新合约的initialize方法
+                    pair.initialize(tokenA, tokenB);
+                    // 更新地址map
+                    pairAddr = address(pair);
+                    allPairs.push(pairAddr);
+                    getPair[tokenA][tokenB] = pairAddr;
+                    getPair[tokenB][tokenA] = pairAddr;
+                }
+            }
+            ```
+
 <!-- Content_END -->

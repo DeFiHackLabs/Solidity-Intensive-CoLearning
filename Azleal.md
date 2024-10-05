@@ -264,6 +264,37 @@ receive()   fallback()
    - 合约变量调用: `OtherContract oc = OtherContract(_Address);  x = oc.getX();`
    - 调用时发送ETH: `OtherContract(otherContract).setX{value: msg.value}(x);`
 
+### 2024.10.04
+
+1. `call`
+   - `call`是`address`的低级成员函数，用来与其他合约交互，返回值为`(bool, bytes)`分别对应`call`是否成功以及返回值。
+   - `call`是Solidity官方推荐的通过触发`fallback`或`receive`函数发送ETH的方法。
+   - 不推荐用`call`来调用另一个合约，因为当你调用**不安全**合约的函数时，你就把主动权交给了它。推荐的方法仍是声明合约变量后调用函数。
+   - 当我们不知道对方合约的源代码或`ABI`，就没法生成合约变量；这时，我们仍可以通过`call`调用对方合约的函数。
+   - 用法：`目标合约地址.call(字节码);`,其中字节码利用结构化编码函数abi.encodeWithSignature获得。如：abi.encodeWithSignature("f(uint256,address)", _x, _addr)。
+   - `call`的同时发送ETH以及指定gas: `目标合约地址.call{value:发送数额, gas:gas数额}(字节码);`
+
+2. `delegatecall`
+   - `delegatecall`是`address`的低级成员函数。
+   - 用法：`目标合约地址.delegatecall(二进制编码);`
+   - 使用场景：代理合约（Proxy Contract）：将智能合约的存储合约和逻辑合约分开：代理合约（Proxy Contract）存储所有相关的变量，并且保存逻辑合约的地址；所有函数存在逻辑合约（Logic Contract）里，通过`delegatecall`执行。当升级时，只需要将代理合约指向新的逻辑合约即可。
+
+### 2024.10.05
+
+1. 使用`create`创建合约
+   - 如何计算地址: `新地址 = hash(创建者地址, nonce)` 由于`nonce`会随着时间改变，因此`CREATE`创建的合约地址不好预测。
+   - 如何使用: `Contract x = new Contract{value: _value}(params)`
+   - `param`为构造函数参数；如果构造函数是`payable`则可以使用`{value: _value}`的方式在创建合约的时候发送ETH。
+
+
+2. 使用`create2`创建合约
+> `CREATE2` 操作码使我们在智能合约部署在以太坊网络之前就能预测合约的地址。
+   - 如何计算地址: `新地址 = hash("0xFF",CreatorAddress, salt, initcode)`。`CREATE2`确保，如果创建者使用`CREATE2`和提供的`salt`部署给定的合约`initcode`，它将存储在`新地址`中。
+      - `0xFF`：一个常数，避免和`CREATE`冲突
+      - `CreatorAddress`: 调用`CREATE2`的当前合约（创建合约）地址。
+      - `salt`: 一个创建者指定的`bytes32`类型的值，它的主要目的是用来影响新创建的合约的地址。
+      - `initcode`: 新合约的初始字节码（合约的Creation Code和构造函数的参数）。
+   - 如何使用: `Contract x = new Contract{salt: _salt, value: _value}(params)`
 
 
 <!-- Content_END -->

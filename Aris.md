@@ -62,7 +62,7 @@ timezone: Asia/Shanghai
 
 - 第01节测验得分: 100, 答案: BBABCCBA
 
-    ---
+---
 
 ### 2024.09.24
 
@@ -117,7 +117,7 @@ timezone: Asia/Shanghai
 
 - 第 03 节测验得分 100,答案:
 
-  ---
+---
 
 ### 2024.09.25
 
@@ -141,7 +141,7 @@ timezone: Asia/Shanghai
 
 5. 第 04 节测验得分:100, 答案: ABCBABCB
 
-    ---
+---
 
 ### 2024.09.26
 
@@ -306,6 +306,8 @@ timezone: Asia/Shanghai
     - ![image-20240929101542907](content/Aris/image-20240929101542907.png)
 5. 第 08 节测验得分: 100, 答案: CBDDA
 
+---
+
 #### 学习内容 9. 常数 constant和immutable
 
 1. constant(常量),immutable(不变量)
@@ -370,6 +372,8 @@ timezone: Asia/Shanghai
     - ![image-20240930160402267](content/Aris/image-20240930160402267.png)
 
 4. 第 10 节测验得分: 100, 答案: CBAEDABC
+
+---
 
 #### 学习内容 11. 构造函数和修饰器
 
@@ -616,7 +620,269 @@ timezone: Asia/Shanghai
 
 ---
 
+#### 学习内容 15. 异常
 
+1. Error
+
+    - ```solidity
+        error TransferNotOwner(); // 自定义error
+        error TransferNotOwner(address sender); // 自定义的带参数的error
+        revert TransferNotOwner(); // 在执行当中，error必须搭配revert（回退）命令使用。
+        ```
+
+    - gas消耗: 24446 (版本 solidity ^0.8.22 日期:2024-10-03)
+
+2. Require
+
+    - `require(检查条件，"异常的描述")`，当检查条件不成立的时候，就会抛出异常;
+    - 唯一的缺点就是`gas`随着描述异常的字符串长度增加，比`error`命令要高;
+    - gas消耗: 24739 (版本 solidity ^0.8.22 日期:2024-10-03)
+
+3. Assert
+
+    - `assert(检查条件）`，当检查条件不成立的时候，就会抛出异常;
+    - 不能解释抛出异常的原因（比`require`少个字符串）;
+    - gas消耗: 24460 (版本 solidity ^0.8.22 日期:2024-10-03)
+
+4. 比较
+
+    - `error`方法`gas`最少，其次是`assert`，`require`方法消耗`gas`最多
+    - `error`性价比最高,既可以告知用户抛出异常的原因，又能省`gas`
+
+5. 合约部署
+
+    - ![image-20241003154212305](content/Aris/image-20241003154212305.png)
+
+6. 第 15 节测验得分: 100, 答案: DBAABCB
+
+7. solidity101入门课程全部完成
+
+![image-20241003155303390](content/Aris/image-20241003155303390.png)
+
+---
+
+### 2024.10.04
+
+#### 学习内容 16. 函数重载
+
+1. 重载
+
+    - overloading,名字相同但输入参数类型不同的函数可以同时存在,被视为不同函数;
+    - modifier 不能重载;
+
+2. 函数重载
+
+    - ```solidity
+        function saySomething() public pure returns(string memory){
+            return("Nothing");
+        }
+        
+        function saySomething(string memory something) public pure returns(string memory){
+            return(something);
+        }
+        ```
+
+    - 因为有不同的参数类型,所以函数选择器不同;
+
+3. 实参匹配
+
+    - 在调用重载函数时，会把输入的实际参数和函数参数的变量类型做匹配。 
+    - 如果出现多个匹配的重载函数，则会报错。
+
+4. 合约部署
+
+    - ![image-20241003160131231](content/Aris/image-20241003160131231.png)
+
+5. 第 16 节测验得分: 100, 答案: ABBBB
+
+---
+
+#### 学习内容 17. 库合约 站在巨人的肩膀上
+
+1. 库合约
+
+    - 特殊合约,代码复用,减少 gas 消耗
+    - 一些列函数合集
+
+2. 与普通合约的不同点
+
+    - 不能存在状态变量
+    - 不能继承或者被继承
+    - 不能接受以太币
+    - 不可以被销毁
+
+3. 注意点:
+
+    - 库合约中的函数如果是 public 或者 external,则 调用函数时会触发一次 delegatecall
+    - 如果是 internal,则不会触发delegatecall
+    - 如果是 private,仅库合约内部可见,其他合约不能调用
+
+4. 使用
+
+    - `using A for B;`
+
+        - ```solidity
+            // 利用using for指令
+            using Strings for uint256;
+            function getString1(uint256 _number) public pure returns(string memory){
+                // 库合约中的函数会自动添加为uint256型变量的成员
+                return _number.toHexString();
+            }
+            ```
+
+    - 库合约名称调用函数
+
+        - ```solidity
+            // 直接通过库合约名调用
+            function getString2(uint256 _number) public pure returns(string memory){
+                return Strings.toHexString(_number);
+            }
+            ```
+
+5. 常用库合约
+
+    - [openzeppelin-Strings](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Strings.sol): 将`uint256`转换为`String`
+    - [OpenZeppelin-Address](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Address.sol): 判断某个地址是否为合约地址
+    - [OpenZeppelin-Create2](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Create2.sol): 更安全的使用`Create2 EVM opcode`
+    - [OpenZeppeli-Arrays](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Arrays.sol): 数组相关的库合约
+
+6. 合约部署
+
+    - ![image-20241003172315680](content/Aris/image-20241003172315680.png)
+
+7. 第 17 节测验得分: 100, 答案: DACEC
+
+---
+
+#### 学习内容 18. Import
+
+1. import
+
+    - 在一个文件中引用另一个文件的内容
+    - import在声明版本号之后，在其余代码之前
+
+2. 用法:
+
+    - 通过源文件相对位置导入
+
+        - ```solidity
+            文件结构
+            ├── Import.sol
+            └── Yeye.sol
+            
+            // 通过文件相对位置import
+            import './Yeye.sol';
+            ```
+
+    - 通过源文件网址导入网上的合约的全局符号
+
+        - ``` solidity
+            import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+            ```
+
+    - 通过`npm`的目录导入
+
+        - ```solidity
+            import '@openzeppelin/contracts/access/Ownable.sol';
+            ```
+
+    - 通过指定`全局符号`导入合约特定的全局符号
+
+        - ```solidity
+            import {Yeye} from './Yeye.sol';
+            ```
+
+3. 合约部署:
+
+    - ![image-20241003194217700](content/Aris/image-20241003194217700.png)
+
+4. 第 18 节测验得分: 100, 答案: CDADC
+
+---
+
+### 2024.10.05
+
+#### 学习内容 19. 接收ETH receive和fallback
+
+1. receive() 和 fallback() 是回调函数
+
+    - 接收 ETH
+
+    - 处理合约中不存在的函数(代理合约)
+
+2. 接受 ETH 函数 receive
+
+    - `receive()`函数是在合约收到`ETH`转账时被调用的函数;
+    - 一个合约最多有一个`receive()`函数;
+    - `receive() external payable { ... }`
+        - 不需要`function`关键字;
+        - 函数不能有任何的参数，不能返回任何值;
+        - 必须包含`external`和`payable`;
+    - `receive()`不要执行太多的逻辑因为如果别人用`send`和`transfer`方法发送`ETH`的话，`gas`会限制在`2300`，`receive()`太复杂可能会触发`Out of Gas`报错
+    - 如果用`call`就可以自定义`gas`执行更复杂的逻辑
+
+3. 回退函数 fallback
+
+    - `fallback()`函数会在调用合约不存在的函数时被触发
+    - 可用于接收ETH;
+    - 可以用于代理合约`proxy contract`
+    - `fallback() external payable { ... }`
+        - 不需要`function`关键字;
+        - 函数不能有任何的参数，不能返回任何值; (一般没有参数吧?)
+        - 必须由`external`修饰，一般也会用`payable`修饰 (所以说 payable 不是必须的?)
+
+4. 区别
+
+    - ```
+        触发fallback() 还是 receive()?
+                   接收ETH
+                      |
+                 msg.data是空？
+                    /  \
+                  是    否
+                  /      \
+        receive()存在?   fallback()
+                / \
+               是  否
+              /     \
+        receive()   fallback()
+        ```
+
+    - 合约接收`ETH`时，`msg.data`为空且存在`receive()`时，会触发`receive()`;
+
+    - `msg.data`不为空或不存在`receive()`时，会触发`fallback()`，此时`fallback()`必须为`payable`。
+
+5. 其他
+
+    - `receive()`和`fallback() payable`均不存在的时候，向合约**直接**发送`ETH`将会报错
+    - 如果合约中有`payable`的函数,则可以调用该函数向合约发送`ETH` 
+
+6. 合约部署
+
+    - ![image-20241004071849935](content/Aris/image-20241004071849935.png)
+    - ![image-20241004071957140](content/Aris/image-20241004071957140.png)
+
+7. 第 19 节测验得分: 100, 答案: ABBCA
+
+---
+
+#### 学习内容 20. 发送ETH
+
+1. Solidity有三种方法向其他合约发送ETH
+    - transfer: `接收方地址.transfer(发送ETH数额)`
+        - gas 限制: 2300
+        - 失败会 revert 交易
+
+    - send:`接收方地址.send(发送ETH数额)`
+        - gas 限制: 2300
+        - 失败**不会** revert 交易
+
+    - call:`接收方地址.call{value: 发送ETH数额}("")`
+
+2. 合约部署
+3. 第 20 节测验得分: 0, 答案: 
+
+---
 
 
 
