@@ -1751,4 +1751,339 @@ contract ExampleContract {
 2. **過濾能力**：事件的索引參數被存儲在 `topics` 中，允許對事件進行高效的查詢和過濾。
 3. **只寫性**：事件的數據被存儲在日誌中，這些日誌只能被寫入，無法在智能合約內部讀取，這確保了它們僅用於外部交互，而不會改變區塊鏈狀態。
 4. **不可變性**：一旦事件被寫入區塊，日誌就是不可變的。這意味著日誌提供了一種可靠的方式來追蹤歷史事件，這對於審計和數據分析非常有用。
+
+### 2024.10.05
+#### 繼承
+繼承的幾個重要觀念：
+
+1. 要怎麼繼承：父合約要有`virtual`，子合約要用`override`
+2. 五種Solidity的繼承：簡單繼承、多重繼承、修飾器繼承、建構子繼承、鑽石繼承
+3. 多重繼承要依照輩分寫，爺爺爸爸都有的方法一定要覆寫
+4. super()可以呼叫到最近的長輩有的方法
+    
+    同時繼承爺爺和爸爸，super()可以叫到爸爸，但爺爺必須直接呼叫
+    
+5. 鑽石繼承的DAG效果：走過的不會再走
+
+---
+
+- 繼承的好處
+    
+    1.  **代碼重用**
+    
+    - 繼承允許子合約直接使用父合約的功能（函數和狀態變數）
+    - 無需重複編寫相同的代碼
+    - **範例**：一個常見的安全機制（例如 `onlyOwner` 的訪問控制修飾器）可以在多個子合約中重用，而不需要在每個合約中重新定義。
+    1. **提升代碼可維護性**
+    - 當需要更新某些通用功能時，開發者只需在父合約中進行修改，而所有繼承該父合約的子合約都會自動繼承這些變更。
+    - 集中管理和更新代碼，簡化維護過程。
+    - **範例**：如果要更改訪問控制邏輯，只需在父合約中進行修改，所有子合約的訪問控制邏輯會自動同步更新。
+    
+     3.  **提高可擴展性**
+    
+    - 繼承使得開發者能夠構建模組化的合約系統。
+    - 通過繼承，可以逐步擴展和構建複雜的功能，而不需要從頭開始。
+    - 這種架構允許在子合約中添加新的功能，或覆寫（override）父合約中的部分功能。
+    - **範例**：可以先建立基礎合約提供基礎功能，然後通過繼承擴展更多功能，而不影響原本的基礎邏輯。
+    
+    4. **提升合約的可讀性**
+    
+    - 繼承可以將合約中的邏輯模組化，將不同的功能分離到不同的合約中。
+    - 每個合約都專注於特定的職責，從而提高代碼的清晰度和可讀性。
+    - 當讀者查看合約時，能夠更容易理解每個合約的角色和功能。
+    - **範例**：可以將安全相關的邏輯、代幣邏輯、和業務邏輯分別封裝到不同的合約中，每個合約專注於單一責任。
+
+- 簡單繼承
+    
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity ^0.8.26;
+    
+    contract Yeye{
+        event Log(string msg);
+    
+        // 定義3個function: hip(), pop(), yeye()，Log值都是Yeye。
+        function hip() public virtual{
+            emit Log("Yeye");
+        }
+    
+        function pop() public virtual{
+            emit Log("Yeye");
+        }
+    
+        function yeye() public virtual {
+            emit Log("Yeye");
+        }
+    }
+    
+    contract Baba is Yeye{
+    
+      function hip() public override {
+            emit Log("Baba");
+        }
+    }
+    ```
+    
+    - 部署`Baba`合約，會得到幾種方法？
+        
+        ![image](https://github.com/user-attachments/assets/84b7ffc0-1a72-448e-b619-d49690ac4668)
+
+        
+        - 其中只有`hip()`出來的log是`”Baba”`
+        - 記得切換到正確合約
+            
+            ![image](https://github.com/user-attachments/assets/62d34075-16af-4ad0-a64c-26bbd864648f)
+
+
+- 多重繼承
+    
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity ^0.8.26;
+    
+    contract Yeye{
+        event Log(string msg);
+    
+        // 定義3个function: hip(), pop(), yeye()，Log值都是Yeye。
+        function hip() public virtual{
+            emit Log("Yeye");
+        }
+    
+        function pop() public virtual{
+            emit Log("Yeye");
+        }
+    
+        function yeye() public virtual {
+            emit Log("Yeye");
+        }
+    }
+    
+    contract Baba is Yeye{
+      function hip() public virtual override {
+            emit Log("Baba");
+        }
+    
+      function baba() public virtual {
+            emit Log("Baba");
+        }
+    }
+    
+    contract Erzi is Yeye, Baba{
+      function hip() public override {
+            emit Log("Erzi");
+        }
+    
+      function erzi() public virtual {
+            emit Log("Erzi");
+        }
+    }
+    ```
+    
+    - 這樣會報錯？理由？
+        
+        ![image](https://github.com/user-attachments/assets/9bdad1a4-b108-4868-bd44-52e8b6ca3590)
+
+        
+        - 爺爺爸爸都有的 function，`Erzi` 合約同時繼承了 `Yeye` 和 `Baba`，這兩個合約都有名為 `hip` 的函數。因此，`Erzi` 合約需要明確指定要覆寫哪一個合約的 `hip` 函數。
+            
+            ![image](https://github.com/user-attachments/assets/482b9807-8859-4023-8db0-bb0d25e7acb5)
+
+            
+        - 需要修正成這樣
+            
+            ![image](https://github.com/user-attachments/assets/dfe5efb5-e459-4c25-8f2d-9d2b599ac9f2)
+
+            
+    
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity ^0.8.26;
+    
+    contract Yeye{
+        event Log(string msg);
+    
+        // 定義3个function: hip(), pop(), yeye()，Log值都是Yeye。
+        function hip() public virtual{
+            emit Log("Yeye");
+        }
+    
+        function pop() public virtual{
+            emit Log("Yeye");
+        }
+    
+        function yeye() public virtual {
+            emit Log("Yeye");
+        }
+    }
+    
+    contract Baba is Yeye{
+      function hip() public virtual override {
+            emit Log("Baba");
+        }
+    
+      function baba() public virtual {
+            emit Log("Baba");
+        }
+    }
+    
+    contract Erzi is Yeye, Baba{
+      function hip() public override(Yeye, Baba){
+            emit Log("Erzi");
+        }
+    
+      function erzi() public virtual {
+            emit Log("Erzi");
+        }
+    }
+    ```
+    
+    - 部署`Erzi`合約，會得到幾種方法？
+        
+        ![image](https://github.com/user-attachments/assets/ba9e3f48-e1d2-4769-acc0-a28addcf192e)
+
+        
+        - hip() → "Erzi"
+        - pop() → “Yeye”
+        - yeye() → “Yeye”
+        - baba() → “Baba”
+        - erzi() → “Erzi”
+
+- 修飾器繼承
+    
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity ^0.8.26;
+    
+    contract Base1 {
+        modifier exactDividedBy2And3(uint _a) virtual {
+            require(_a % 2 == 0 && _a % 3 == 0);
+            _;
+        }
+    }
+    
+    contract Base2 is Base1{
+        modifier exactDividedBy2And3(uint _a) override {
+          require(_a % 4 == 0 && _a % 6 == 0);
+          _;
+        }
+    
+        function getExactDividedBy2And3(uint _dividend) public exactDividedBy2And3(_dividend) pure returns(uint, uint) {
+        }
+    }
+    ```
+    
+    - 為何給 6 不行？
+        
+	![image](https://github.com/user-attachments/assets/e4f39bd4-624b-43e7-9a03-3bfa86ec122d)
+        
+   - 因為已經被改寫
+   - 給 12 或以上的 4 & 5 公倍數才行
+
+- 建構子繼承
+    
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity ^0.8.26;
+    
+    contract A {
+        uint public a;
+    
+        constructor(uint _a) {
+            a = _a;
+        }
+    }
+    
+    // 第一種寫法
+    contract B is A(5){
+      
+    }
+    
+    // 第二種寫法
+    contract C is A {
+       constructor(uint _a) A (_a * _a){}
+    }
+    ```
+    
+    - 子合約可以將參數傳遞給父合約的建構子
+
+- 鑽石繼承
+    
+    ```
+    // SPDX-License-Identifier: MIT
+    pragma solidity ^0.8.13;
+    
+    /* 繼承樹：
+      God
+     /  \
+    Adam Eve
+     \  /
+    people
+    */
+    
+    contract God {
+        event Log(string message);
+    
+        function foo() public virtual {
+            emit Log("God.foo called");
+        }
+    
+        function bar() public virtual {
+            emit Log("God.bar called");
+        }
+    }
+    
+    contract Adam is God {
+        function foo() public virtual override {
+            emit Log("Adam.foo called");
+            super.foo();
+        }
+    
+        function bar() public virtual override {
+            emit Log("Adam.bar called");
+            super.bar();
+        }
+    }
+    
+    contract Eve is God {
+        function foo() public virtual override {
+            emit Log("Eve.foo called");
+            super.foo();
+        }
+    
+        function bar() public virtual override {
+            emit Log("Eve.bar called");
+            super.bar();
+        }
+    }
+    
+    contract people is Adam, Eve {
+        function foo() public override(Adam, Eve) {
+            super.foo();
+        }
+    
+        function bar() public override(Adam, Eve) {
+            super.bar();
+        }
+    }
+    ```
+    
+    - 部署people 合約，呼叫 foo() 會發生什麼事？
+        - 一口氣叫四個
+        - People > Eve > Adam > God
+        
+        ![image](https://github.com/user-attachments/assets/a1cee4b1-0adc-4a3a-9c8f-08b60a3cd8a9)
+
+        
+    - 鑽石繼承（Diamond Inheritance）概念
+        - 指在多重繼承中，子合約同時繼承了多個合約，而這些合約又共同繼承自一個相同的父合約，形成了一個菱形或鑽石（菱形）形狀的繼承結構。
+        - 這樣的繼承結構可能會引發問題，因為子合約最終可能會繼承同一個父合約的多個副本，導致代碼執行順序混亂或重複。
+    - 鑽石繼承的問題
+        - **狀態變數衝突**：如果同一個狀態變數在父合約中定義，子合約可能會多次繼承該狀態變數，導致數據的不一致。
+        - **函數多次定義**：相同的函數可能會被多次繼承，導致混亂。
+        - **線性化問題**：多個父合約的繼承順序必須得到正確處理，否則會引發執行順序問題。
+        - Solidity 中使用**C3 線性化算法**來處理這類多重繼承問題，通過指定繼承順序來確保每個父合約只會被繼承一次，避免衝突。
+    - 鑽石繼承範例中的重點
+        1. **多重繼承**：`D` 合約同時繼承了 `B` 和 `C`，而 `B` 和 `C` 都繼承了 `A`。這形成了鑽石繼承結構。
+        2. **函數衝突解決**：`B` 和 `C` 都覆寫了 `A` 的 `foo()` 函數，因此在 `D` 中必須明確指出要覆寫哪個父合約的 `foo()` 函數。這裡使用了 `override(B, C)` 語法來解決衝突，並且可以用 `super.foo()` 來控制繼承順序。
+        3. **線性化順序**：Solidity 根據 C3 線性化決定繼承順序。在這個範例中，`D` 合約覆寫了 `foo()`，然後 `super.foo()` 會按照順序調用最近的父合約 `C` 中的 `foo()` 函數。
 <!-- Content_END -->

@@ -1168,12 +1168,12 @@ contract BaseImpl is Base{
 ```
 ![](https://i.imgur.com/UEpvrS1.png)
 
-### 2024.10.04
+### 2024.10.03
 # 異常
 Solidity 有三種拋出異常的方法：`error`、`require` 和 `assert`，三種方法的 gas 消耗不同。寫智能合約常常會出 bug，Solidity 中的異常指令能幫我們 debug。
 ## Error
 `error` 是 solidity 0.8.4 版本新加的內容，方便且高效（省 gas）地向使用者解釋操作失敗的原因，同時還可以在拋出異常的同時攜帶參數，幫助開發者更好地 debug。人們可以在 contract 之外定義異常。
-定義一個 `TransferNotOwner` 異常，當使用者不是代幣 `owner` 的時候嘗試轉賬，會拋出錯誤：
+定義一個 `TransferNotOwner` 異常，當使用者不是代幣 owner 的時候嘗試轉賬，會拋出錯誤：
 ```
 error TransferNotOwner(); // 自訂 error
 ```
@@ -1210,4 +1210,170 @@ function transferOwner3(uint256 tokenId, address newOwner) public {
     _owners[tokenId] = newOwner;
 }
 ```
+
+# 程式碼
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+error TransferNotOwner(); // 自訂帶參數的 error
+// error TransferNotOwner(address sender); // 自訂帶參數的 error
+
+contract ErrorContract{
+    mapping(uint256 => address) private _owners; // 紀錄每個 tokenId 的 owner
+
+    // 1. Error 方法
+    function transferOwner1(uint256 tokenId, address newOwner) public {
+        if(_owners[tokenId] != msg.sender){
+            revert TransferNotOwner();
+            // revert TransferNotOwner(msg.sender);
+        }
+        _owners[tokenId] = newOwner;
+    }
+
+    // 2. require 方法
+    function transferOwner2(uint256 tokenId, address newOwner) public {
+        require(_owners[tokenId] == msg.sender, "Transfer Not Owner");
+        _owners[tokenId] = newOwner;
+
+    }
+
+    function transferOwner3(uint256 tokenId, address newOwner) public {
+        assert(_owners[tokenId] == msg.sender);
+        _owners[tokenId] = newOwner;
+    }
+
+}
+```
+## 說明
+![](https://i.imgur.com/36270ih.png)
+Error：當地址不符合條件時會 revert 交易，並拋出 TransferNotOwner 的錯誤。耗費 27185 gas。
+
+![](https://i.imgur.com/Sz83BAQ.png)
+Require：當地址不符合條件時會 revert 交易，並印出錯誤字串，錯誤字串越長耗費的 gas 比 Error 多越多。耗費 27229 gas。
+
+![](https://i.imgur.com/lHzBali.png)
+Assert：當地址不符合條件時只拋出了異常並 revert 交易，並不知道異常原因。耗費 27207 gas。
+## 比較
+理論上消耗的 gas 應該是：
+require 方法 > assert 方法 > error 方法帶參數 > error 方法無參數
+
+### 2024.10.04
+# 重載
+Solidity 中允許函數進行重載（overloading），即名字相同但輸入參數類型不同的函數可以同時存在，他們被視為不同的函數。但 Solidity 不允許修飾器（modifier）重載。
+## 函數重載
+舉個例子，我們可以定義兩個都叫saySomething()的函數，一個沒有任何參數，輸出"Nothing"；另一個接收一個string參數，輸出這個string。
+```
+function saySomething() public pure returns(string memory){
+    return("Nothing");
+}
+
+function saySomething(string memory something) public pure returns(string memory){
+    return(something);
+}
+```
+最終重載函數在經過編譯器編譯後，由於不同的參數類型，都變成了不同的函數選擇器（selector）。關於函數選擇器的具體內容可參考WTF Solidity極簡入門: 29. 函數選擇器Selector。
+以 Overloading.sol 合約為例，在 Remix 上編譯部署後，分別調用重載函數 saySomething() 和 saySomething(string memory something)，可以看到他們返回了不同的結果，被區分為不同的函數。
+## 參數匹配（Argument Matching）
+在呼叫重載函數時，會把輸入的實際參數和函數參數的變數類型做成匹配。 如果出現多個符合的重載函數，則會報錯。下面這個例子有兩個叫f()的函數，一個參數是uint8，另一個為uint256：
+```
+function f(uint8 _in) public pure returns (uint8 out) {
+    out = _in;
+}
+
+function f(uint256 _in) public pure returns (uint256 out) {
+    out = _in;
+}
+```
+我們呼叫f(50)，因為50既可以被轉換為uint8，也可以轉換為uint256，因此會報錯。
+# 庫合約
+庫合約是一種特殊的合約，為了提升Solidity程式碼的複用性和減少gas而存在，庫合約是一系列的函數合集，和普通合約主要有以下幾點不同：
+1. 不能存在狀態變數
+2. 不能繼承或被繼承
+3. 不能接收以太幣
+4. 不可以被銷毀
+需要注意的是，庫合約重的函數可見性如果被設定為public或external，則在呼叫函數時會觸發一次delegatecall。而如果被設定為internal，則不會引起。對於設定為private可見性的函數來說，其僅能在庫合約中可見，在其他合約中不可用。
+## Strings庫合約
+Strings庫合約是將uint256類型轉換為對應的string類型的程式碼庫，範例程式碼如下：
+```
+library Strings {
+    bytes16 private constant _HEX_SYMBOLS = "0123456789abcdef";
+
+    /**
+     * @dev Converts a `uint256` to its ASCII `string` decimal representation.
+     */
+    function toString(uint256 value) public pure returns (string memory) {
+        // Inspired by OraclizeAPI's implementation - MIT licence
+        // https://github.com/oraclize/ethereum-api/blob/b42146b063c7d6ee1358846c198246239e9360e8/oraclizeAPI_0.4.25.sol
+
+        if (value == 0) {
+            return "0";
+        }
+        uint256 temp = value;
+        uint256 digits;
+        while (temp != 0) {
+            digits++;
+            temp /= 10;
+        }
+        bytes memory buffer = new bytes(digits);
+        while (value != 0) {
+            digits -= 1;
+            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
+            value /= 10;
+        }
+        return string(buffer);
+    }
+
+    /**
+     * @dev Converts a `uint256` to its ASCII `string` hexadecimal representation.
+     */
+    function toHexString(uint256 value) public pure returns (string memory) {
+        if (value == 0) {
+            return "0x00";
+        }
+        uint256 temp = value;
+        uint256 length = 0;
+        while (temp != 0) {
+            length++;
+            temp >>= 8;
+        }
+        return toHexString(value, length);
+    }
+
+    /**
+     * @dev Converts a `uint256` to its ASCII `string` hexadecimal representation with fixed length.
+     */
+    function toHexString(uint256 value, uint256 length) public pure returns (string memory) {
+        bytes memory buffer = new bytes(2 * length + 2);
+        buffer[0] = "0";
+        buffer[1] = "x";
+        for (uint256 i = 2 * length + 1; i > 1; --i) {
+            buffer[i] = _HEX_SYMBOLS[value & 0xf];
+            value >>= 4;
+        }
+        require(value == 0, "Strings: hex length insufficient");
+        return string(buffer);
+    }
+}
+```
+他主要包含兩個函數，toString()將uint256轉為string，toHexString()將uint256轉換為16進制，在轉換為string。
+## 如何使用庫合約
+用Strings庫合約的toHexString()來示範兩種使用庫合約中函數的辦法。
+1. 利用using for指令
+指令using A for B;可用於附加庫合約（從庫 A）到任何類型（B）。新增指令後，函式庫A中的函數會自動加入為B類型變數的成員，可以直接呼叫。注意：在呼叫的時候，這個變數會被當作第一個參數傳遞給函數。
+```
+using Strings for uint256;
+function getString1(uint256 _number) public pure returns(string memory){
+    // 庫合約中的函數會自動加入為uint256型變數的成員
+    return _number.toHexString();
+}
+```
+2. 透過庫合約名稱呼叫函數
+```
+// 直接透過庫合約名調用
+function getString2(uint256 _number) public pure returns(string memory){
+    return Strings.toHexString(_number);
+}
+```
+
 <!-- Content_END -->

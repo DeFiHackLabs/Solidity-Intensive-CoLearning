@@ -570,8 +570,72 @@ function deleteContract() external{
 - selfdestruct 常會帶來安全問題和信任問題, 建議避免使用
 - selfdestruct 是智能合約的緊急按鈕, 銷毀合約並將剩餘 eth 轉移到指定帳戶, 在最壞的情況下停止黑客攻擊
 
+### 2024.10.5      
+學習內容  
+筆記:  
 
+#### ABI 編碼解碼
+- 數據必須編寫成字節碼才能和智能合約互動
+- 
+編碼
+1. abi.encode
+- 將每個參數填充為 32 字節的數據, 並拼接在一起, 如果要和合約互動, 可以用 abi.encode
+```Solidity
+function encode() public view returns(bytes memory result){
+   result = abi.encode(x, addr, name, array);
+}
+```
+2. abi.encodePacked
+- 類似 abi.encode, 但是會把其中填充很多的 0 省略
+- 當想省空間, 並且不與合約互動時, 可以使用 abi.encodePacked, ex: 算一些數據的 hash
+```Solidity
+function encodePacked() public view returns(bytes memory result){
+   result = abi.encodePacked(x, addr, name, array);
+}
+```
+3. abi.encodeSignature
+- 調用其他合約時可以使用
+```Solidity
+function encodeWithSignature() public view returns(bytes memory result){
+   result = abi.encodeWithSignature("foo(uint256, address, string, uint256[2])", x, addr, name, array);
+}
+```
+4. abi.encodeWithSelector
+- 與 abi.encodeWithSignature 類似, 不過第一個參數為函數選擇器, 為函數簽名 Keccak 哈希的前 4 個字節
+- 編碼後的結果與 abi.encodeSignature 一樣
+```Solidity
+function encodeWithSelector() public view returns(bytes memory result){
+   result = abi.encodeWithSelector(bytes4(keccak256("foo(uint256, address, string, uint256[2])", x, addr, name, array)));
+}
+```
+
+解碼
+1. abi.decode
+```Solidity
+function decode() public pure returns(uint dx, address daddr, string memory dname, uint[2] memory darray){
+   (dx, daddr, dname, darray) = abi.decode(data, (uint, address, string, uint[2]));
+}
+```
+#### Hash
+- 將任意長度的消息轉換為一個固定長度的值
+
+Keccak256
+- Solidity 中最常用的哈希函數
+```Solidity
+哈希 = keccak256(數據);
+```
+生成數據唯一標示
+```Solidity
+function hash(uint _num, string memory _string, address _addr) public pure returns{
+   return keccak256(abi.encodePacked(_num, _string, _addr));
+}
+```
+
+弱抗碰撞性
+- 給定一個特定的輸入, 難以找到另一個具有相同散列值的輸入
   
+強抗碰撞性
+- 難以找到任何兩個不同的輸入, 它們散列值相同
 
 
 

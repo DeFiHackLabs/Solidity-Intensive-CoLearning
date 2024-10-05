@@ -863,5 +863,30 @@ contract ERC20 is IERC20{
         emit Transfer(msg.sender, address(0), amount);  
     }  
 }
-    
+
+### 2024.10.05
+import "./ERC20.sol";
+contract Faucet{
+
+    uint public amountAllowed=100;
+    address public tokenContract;
+    mapping(address=>bool) public requestedAddress;
+
+    event SendToken(address indexed Receiver,uint indexed Amount);
+
+    constructor(address _tokenContract){
+        tokenContract = _tokenContract;
+    }
+    //用户领取代币操作
+    function requestTokens()external {
+        require(!requestedAddress[msg.sender],"only once"); //每个账户只能领取一次
+        IERC20 token = IERC20(tokenContract);
+        require(token.balanceOf(address(this))>amountAllowed,"Faucet empty");
+        token.transfer(msg.sender, amountAllowed); //发送代币
+        requestedAddress[msg.sender] = true;
+        emit SendToken(msg.sender, amountAllowed);
+    }
+}    
+代币水龙头发送代币，需要校验地址是否领取，代币是否已发放完
+
 <!-- Content_END -->
