@@ -354,4 +354,46 @@ We can emit events in functions. In the following example, each time the _transf
     }
 ```
 ###
+### 2024.10.01
+Inheritance
+Inheritance is one of the core concepts in object-oriented programming, which can significantly reduce code redundancy. It is a mechanism where you can to derive a class from another class for a hierarchy of classes that share a set of attributes and methods. In solidity, smart contracts can be viewed objects, which supports inheritance.
+
+Rules
+There are two important keywards for inheritance in Solidity:
+
+virtual: If the functions in the parent contract are expected to be overridden in its child contracts, they should be declared as virtual.
+
+override：If the functions in the child contract override the functions in its parent contract, they should be declared as override
+###
+### 2024.10.02
+Abstract contract
+If a contract contains at least one unimplemented function (no contents in the function body {}), it must be labeled as abstract; Otherwise it will not compile. Moreover, the unimplemented function needs to be labeled as virtual. Take our previous Insertion Sort Contract as an example, if we haven't figured out how to implement the insertion sort function, we can mark the contract as abstract, and let others overwrite it in the future.
+```
+abstract contract InsertionSort{
+    function insertionSort(uint[] memory a) public pure virtual returns(uint[] memory);
+}
+```
+###
+### 2024.10.03
+Errors
+Solidity has many functions for error handling. Errors can occur at compile time or runtime.
+
+Error
+error statement is a new feature in solidity 0.8. It saves gas and informs users why the operation failed. It is the recommended way to throw error in solidity. Custom errors are defined using the error statement, which can be used inside and outside of contracts. Below, we created a TransferNotOwner error, which will throw an error when the caller is not the token owner during transfer:
+###
+### 2024.10.04
+  start to read Solidity 102
+  day11:
+  [WTF Academy Solidity 102 16 Note](/content/jackchou/102.md)
+###
+### 2024.10.05
+  
+  day12:
+  [WTF Academy Solidity 102 17 Note](/content/jackchou/102.md)
+###
+### 2024.10.06
+  
+  day13:
+  [WTF Academy Solidity 102 18 Note](/content/jackchou/102.md)
+###
 <!-- Content_END -->

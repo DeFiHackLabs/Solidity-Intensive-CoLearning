@@ -568,4 +568,603 @@ contract Call{
     }
 }
 ```
+### 2024.10.02
+1、`delegatecall` 示例，和 `call` 不一样，`delegatecall` 在调用合约时可以指定交易发送的gas，但不能指定发送的ETH数额
+
+```solidity
+// delegatecall和call类似，都是低级函数
+// call: B call C, 上下文为 C (msg.sender = B, C中的状态变量受影响)
+// delegatecall: B delegatecall C, 上下文为B (msg.sender = A, B中的状态变量受影响)
+// 注意B和C的数据存储布局必须相同！变量类型、声明的前后顺序要相同，不然会搞砸合约。
+
+// 被调用的合约C
+contract C {
+    uint public num;
+    address public sender;
+
+    function setVars(uint _num) public payable {
+        num = _num;
+        sender = msg.sender;
+    }
+}
+
+// 发起delegatecall的合约B
+contract B {
+    uint public num;
+    address public sender;
+
+    // 通过call来调用C的setVars()函数，将改变合约C里的状态变量
+    function callSetVars(address _addr, uint _num) external payable{
+        // call setVars()
+        (bool success, bytes memory data) = _addr.call(
+            abi.encodeWithSignature("setVars(uint256)", _num)
+        );
+    }
+    // 通过delegatecall来调用C的setVars()函数，将改变合约B里的状态变量
+    function delegatecallSetVars(address _addr, uint _num) external payable{
+        // delegatecall setVars()
+        (bool success, bytes memory data) = _addr.delegatecall(
+            abi.encodeWithSignature("setVars(uint256)", _num)
+        );
+    }
+}
+```
+
+2、用 `create` 方法在合约中创建新合约，实际上就是 `new` 一个新合约
+
+```solidity
+// Contract 是要创建的合约名，x 是合约对象（地址），如果构造函数是 payable，可以创建时转入 _value 数量的 ETH，params 是新合约构造函数的参数。
+Contract x = new Contract{value: _value}(params)
+```
+极简 Uniswap 示例
+
+```solidity
+contract Pair{
+    address public factory; // 工厂合约地址
+    address public token0; // 代币1
+    address public token1; // 代币2
+
+    constructor() payable {
+        factory = msg.sender;
+    }
+
+    // called once by the factory at time of deployment
+    function initialize(address _token0, address _token1) external {
+        require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
+        token0 = _token0;
+        token1 = _token1;
+    }
+}
+
+contract PairFactory{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair(address tokenA, address tokenB) external returns (address pairAddr) {
+        // 创建新合约
+        Pair pair = new Pair(); 
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+}
+```
+
+3、用 `CREATE2` 方法在合约中创建新合约，同 `CREATE` 类似，只不过要多传一个 `salt` 参数
+```solidity
+// 其中 Contract 是要创建的合约名，x 是合约对象（地址），_salt 是指定的盐；如果构造函数是 payable，可以创建时转入 _value 数量的 ETH ，params 是新合约构造函数的参数。
+Contract x = new Contract{salt: _salt, value: _value}(params)
+```
+用 `CREATE2` 方法极简 Uniswap 示例
+```solidity
+contract Pair{
+    address public factory; // 工厂合约地址
+    address public token0; // 代币1
+    address public token1; // 代币2
+
+    constructor() payable {
+        factory = msg.sender;
+    }
+
+    // called once by the factory at time of deployment
+    function initialize(address _token0, address _token1) external {
+        require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
+        token0 = _token0;
+        token1 = _token1;
+    }
+}
+
+contract PairFactory2{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair2(address tokenA, address tokenB) external returns (address pairAddr) {
+        require(tokenA != tokenB, 'IDENTICAL_ADDRESSES'); //避免tokenA和tokenB相同产生的冲突
+        // 计算用tokenA和tokenB地址计算salt
+        (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); //将tokenA和tokenB按大小排序
+        bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+        // 用create2部署新合约
+        Pair pair = new Pair{salt: salt}(); 
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+
+    // 提前计算pair合约地址
+    function calculateAddr(address tokenA, address tokenB) public view returns(address predictedAddress){
+        require(tokenA != tokenB, 'IDENTICAL_ADDRESSES'); //避免tokenA和tokenB相同产生的冲突
+        // 计算用tokenA和tokenB地址计算salt
+        (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); //将tokenA和tokenB按大小排序
+        bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+        // 计算合约地址方法 hash()
+        predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+            bytes1(0xff),
+            address(this),
+            salt,
+            keccak256(type(Pair).creationCode)
+        )))));
+
+        // 例如当create2合约时：
+        // Pair pair = new Pair{salt: salt}(address(this));
+        // 计算时，需要将参数和initcode一起进行打包：
+        // predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+        //         bytes1(0xff),
+        //         address(this),
+        //         salt,
+        //         keccak256(abi.encodePacked(type(Pair).creationCode, abi.encode(address(this))))
+        // )))));
+    }
+}
+```
+### 2024.10.03
+1、删除合约 `selfdestruct`，坎昆（Cancun）升级之后
+
+- 已经部署的合约无法被删除了，使用 `selfdestruct` 仅会被用来将合约中的ETH转移到指定地址
+- 如果要实现原先的 `SELFDESTRUCT` 功能，必须在同一笔交易中创建并 `selfdestruct`
+
+```solidity
+// selfdestruct: 删除合约，并强制将合约剩余的ETH转入指定账户
+contract DeleteContract {
+
+    uint public value = 10;
+
+    constructor() payable {}
+
+    receive() external payable {}
+
+    function deleteContract() external {
+        // 调用selfdestruct销毁合约，并把剩余的ETH转给msg.sender
+        selfdestruct(payable(msg.sender));
+    }
+
+    function getBalance() external view returns(uint balance){
+        balance = address(this).balance;
+    }
+}
+```
+想要坎昆升级之前的使用效果
+
+```solidity
+import "./DeleteContract.sol";
+
+contract DeployContract {
+
+    struct DemoResult {
+        address addr;
+        uint balance;
+        uint value;
+    }
+
+    constructor() payable {}
+
+    function getBalance() external view returns(uint balance){
+        balance = address(this).balance;
+    }
+
+    function demo() public payable returns (DemoResult memory){
+        DeleteContract del = new DeleteContract{value:msg.value}();
+        DemoResult memory res = DemoResult({
+            addr: address(del),
+            balance: del.getBalance(),
+            value: del.value()
+        });
+        del.deleteContract();
+        return res;
+    }
+}
+```
+
+2、ABI 编解码
+
+```solidity
+
+contract ABIEncode{
+    uint x = 10;
+    address addr = 0x7A58c0Be72BE218B41C608b7Fe7C5bB630736C71;
+    string name = "0xWater";
+    uint[2] array = [5, 6]; 
+
+    // 0x000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000073078576174657200000000000000000000000000000000000000000000000000
+    // 将每个数据都填充为32字节，所以中间有很多0
+    function encode() public view returns(bytes memory result) {
+        result = abi.encode(x, addr, name, array);
+    }
+
+    // 0x000000000000000000000000000000000000000000000000000000000000000a7a58c0be72be218b41c608b7fe7c5bb630736c713078576174657200000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000006
+    // 类似 abi.encode，但是会把其中填充的很多0省略，长度比 abi.encode 短很多。比如，只用1字节来编码uint8类型。当你想省空间，并且不与合约交互的时候，可以使用abi.encodePacked，例如算一些数据的hash时。
+    function encodePacked() public view returns(bytes memory result) {
+        result = abi.encodePacked(x, addr, name, array);
+    }
+
+    // 0xe87082f1000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000073078576174657200000000000000000000000000000000000000000000000000
+    // 第一个参数为函数签名
+    function encodeWithSignature() public view returns(bytes memory result) {
+        result = abi.encodeWithSignature("foo(uint256,address,string,uint256[2])", x, addr, name, array);
+    }
+
+    // 0xe87082f1000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000073078576174657200000000000000000000000000000000000000000000000000
+    // 与 abi.encodeWithSignature 功能类似，只不过第一个参数为函数选择器，为函数签名 Keccak 哈希的前4个字节，结果与 abi.encodeWithSignature 相同
+    function encodeWithSelector() public view returns(bytes memory result) {
+        result = abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array);
+    }
+
+    // 用于解码 abi.encode 生成的二进制编码，将它还原成原本的参数。
+    function decode(bytes memory data) public pure returns(uint dx, address daddr, string memory dname, uint[2] memory darray) {
+        (dx, daddr, dname, darray) = abi.decode(data, (uint, address, string, uint[2]));
+    }
+}
+```
+### 2024.10.04
+1、Solidity 中常用 `keccak256` 哈希函数，由于 `SHA3` 在 15 年标准化，所以 Ethereum 和 Solidity 智能合约代码中的 `SHA3` 是指 `Keccak256`，而不是标准的 `NIST-SHA3`
+
+```solidity
+function hash(
+    uint _num,
+    string memory _string,
+    address _addr
+    ) public pure returns (bytes32) {
+    return keccak256(abi.encodePacked(_num, _string, _addr));
+}
+```
+2、`msg.data` 是 Solidity 中的一个全局变量，值为完整的 `calldata`（调用函数时传入的数据），其中前 4 个字节为函数选择器 selector
+
+selector 或者说 method id 的计算方式和调用
+
+```solidity
+contract DemoContract {
+    // empty contract
+}
+
+contract Selector{
+    // event 返回msg.data
+    event Log(bytes data);
+    event SelectorEvent(bytes4);
+
+    // Struct User
+    struct User {
+        uint256 uid;
+        bytes name;
+    }
+
+    // Enum School
+    enum School { SCHOOL1, SCHOOL2, SCHOOL3 }
+
+    // 输入参数 to: 0x2c44b726ADF1963cA47Af88B284C06f30380fC78
+    function mint(address /*to*/) external{
+        emit Log(msg.data);
+    } 
+
+    // 输出selector
+    // "mint(address)"： 0x6a627842
+    function mintSelector() external pure returns(bytes4 mSelector){
+        return bytes4(keccak256("mint(address)"));
+    }
+
+    // 无参数selector
+    // 输入： 无
+    // nonParamSelector() ： 0x03817936
+    function nonParamSelector() external returns(bytes4 selectorWithNonParam){
+        emit SelectorEvent(this.nonParamSelector.selector);
+        return bytes4(keccak256("nonParamSelector()"));
+    }
+
+    // elementary（基础）类型参数selector
+    // 输入：param1: 1，param2: 0
+    // elementaryParamSelector(uint256,bool) : 0x3ec37834
+    function elementaryParamSelector(uint256 param1, bool param2) external returns(bytes4 selectorWithElementaryParam){
+        emit SelectorEvent(this.elementaryParamSelector.selector);
+        return bytes4(keccak256("elementaryParamSelector(uint256,bool)"));
+    }
+
+    // fixed size（固定长度）类型参数selector
+    // 输入： param1: [1,2,3]
+    // fixedSizeParamSelector(uint256[3]) : 0xead6b8bd
+    function fixedSizeParamSelector(uint256[3] memory param1) external returns(bytes4 selectorWithFixedSizeParam){
+        emit SelectorEvent(this.fixedSizeParamSelector.selector);
+        return bytes4(keccak256("fixedSizeParamSelector(uint256[3])"));
+    }
+
+    // non-fixed size（可变长度）类型参数selector
+    // 输入： param1: [1,2,3]， param2: "abc"
+    // nonFixedSizeParamSelector(uint256[],string) : 0xf0ca01de
+    function nonFixedSizeParamSelector(uint256[] memory param1,string memory param2) external returns(bytes4 selectorWithNonFixedSizeParam){
+        emit SelectorEvent(this.nonFixedSizeParamSelector.selector);
+        return bytes4(keccak256("nonFixedSizeParamSelector(uint256[],string)"));
+    }
+
+    // mapping（映射）类型参数selector
+    // 输入：demo: 0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99， user: [1, "0xa0b1"], count: [1,2,3], mySchool: 1
+    // mappingParamSelector(address,(uint256,bytes),uint256[],uint8) : 0xe355b0ce
+    function mappingParamSelector(DemoContract demo, User memory user, uint256[] memory count, School mySchool) external returns(bytes4 selectorWithMappingParam){
+        emit SelectorEvent(this.mappingParamSelector.selector);
+        return bytes4(keccak256("mappingParamSelector(address,(uint256,bytes),uint256[],uint8)"));
+    }
+
+    // 使用selector来调用函数
+    function callWithSignature() external{
+        // 初始化uint256数组
+        uint256[] memory param1 = new uint256[](3);
+        param1[0] = 1;
+        param1[1] = 2;
+        param1[2] = 3;
+
+        // 初始化struct
+        User memory user;
+        user.uid = 1;
+        user.name = "0xa0b1";
+
+        // 利用abi.encodeWithSelector将函数的selector和参数打包编码
+        // 调用nonParamSelector函数
+        (bool success0, bytes memory data0) = address(this).call(abi.encodeWithSelector(0x03817936));
+        // 调用elementaryParamSelector函数
+        (bool success1, bytes memory data1) = address(this).call(abi.encodeWithSelector(0x3ec37834, 1, 0));
+        // 调用fixedSizeParamSelector函数
+        (bool success2, bytes memory data2) = address(this).call(abi.encodeWithSelector(0xead6b8bd, [1,2,3]));
+        // 调用nonFixedSizeParamSelector函数
+        (bool success3, bytes memory data3) = address(this).call(abi.encodeWithSelector(0xf0ca01de, param1, "abc"));
+        // 调用mappingParamSelector函数
+        (bool success4, bytes memory data4) = address(this).call(abi.encodeWithSelector(0xe355b0ce, 0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99, user, param1, 1));
+        require(success0 && success1 && success2 && success3 && success4);
+    }
+}
+```
+3、异常处理
+
+在 Solidity 中，`try-catch` 只能被用于 `external` 函数或创建合约时 `constructor`（被视为 `external`函数）的调用
+
+```solidity
+
+contract OnlyEven{
+    constructor(uint a){
+        require(a != 0, "invalid number");
+        assert(a != 1);
+    }
+
+    function onlyEven(uint256 b) external pure returns(bool success){
+        // 输入奇数时revert
+        require(b % 2 == 0, "Ups! Reverting");
+        success = true;
+    }
+}
+
+contract TryCatch {
+    // 成功event
+    event SuccessEvent();
+    // 失败event
+    event CatchEvent(string message);
+    event CatchByte(bytes data);
+
+    // 声明OnlyEven合约变量
+    OnlyEven even;
+
+    constructor() {
+        even = new OnlyEven(2);
+    }
+    
+    // 在external call中使用try-catch
+    // execute(0)会成功并释放`SuccessEvent`
+    // execute(1)会失败并释放`CatchEvent`
+    function execute(uint amount) external returns (bool success) {
+        try even.onlyEven(amount) returns(bool _success){
+            // call成功的情况下
+            emit SuccessEvent();
+            return _success;
+        } catch Error(string memory reason){
+            // call不成功的情况下
+            emit CatchEvent(reason);
+        }
+    }
+
+    // 在创建新合约中使用try-catch （合约创建被视为external call）
+    // executeNew(0)会失败并释放`CatchEvent`
+    // executeNew(1)会失败并释放`CatchByte`
+    // executeNew(2)会成功并释放`SuccessEvent`
+    function executeNew(uint a) external returns (bool success) {
+        try new OnlyEven(a) returns(OnlyEven _even){
+            // call成功的情况下
+            emit SuccessEvent();
+            success = _even.onlyEven(a);
+        } catch Error(string memory reason) {
+            // catch revert("reasonString") 和 require(false, "reasonString")
+            emit CatchEvent(reason);
+        } catch (bytes memory reason) {
+            // catch失败的assert assert失败的错误类型是Panic(uint256) 不是Error(string)类型 故会进入该分支
+            emit CatchByte(reason);
+        }
+    }
+}
+```
+### 2024.10.05
+1、`IERC20` 接口
+```solidity
+/**
+ * @dev ERC20 接口合约.
+ */
+interface IERC20 {
+    /**
+     * @dev 释放条件：当 `value` 单位的货币从账户 (`from`) 转账到另一账户 (`to`)时.
+     */
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    /**
+     * @dev 释放条件：当 `value` 单位的货币从账户 (`owner`) 授权给另一账户 (`spender`)时.
+     */
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+
+    /**
+     * @dev 返回代币总供给.
+     */
+    function totalSupply() external view returns (uint256);
+
+    /**
+     * @dev 返回账户`account`所持有的代币数.
+     */
+    function balanceOf(address account) external view returns (uint256);
+
+    /**
+     * @dev 转账 `amount` 单位代币，从调用者账户到另一账户 `to`.
+     *
+     * 如果成功，返回 `true`.
+     *
+     * 释放 {Transfer} 事件.
+     */
+    function transfer(address to, uint256 amount) external returns (bool);
+
+    /**
+     * @dev 返回`owner`账户授权给`spender`账户的额度，默认为0。
+     *
+     * 当{approve} 或 {transferFrom} 被调用时，`allowance`会改变.
+     */
+    function allowance(address owner, address spender) external view returns (uint256);
+
+    /**
+     * @dev 调用者账户给`spender`账户授权 `amount`数量代币。
+     *
+     * 如果成功，返回 `true`.
+     *
+     * 释放 {Approval} 事件.
+     */
+    function approve(address spender, uint256 amount) external returns (bool);
+
+    /**
+     * @dev 通过授权机制，从`from`账户向`to`账户转账`amount`数量代币。转账的部分会从调用者的`allowance`中扣除。
+     *
+     * 如果成功，返回 `true`.
+     *
+     * 释放 {Transfer} 事件.
+     */
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) external returns (bool);
+}
+```
+简单实现 `IERC20` 接口的 `ERC20` 合约
+```solidity
+import "./IERC20.sol";
+
+contract ERC20 is IERC20 {
+    // 其中balanceOf, allowance 和 totalSupply 为 public 类型，会自动生成一个同名getter函数，实现IERC20规定的balanceOf(), allowance()和totalSupply() 
+    mapping(address => uint256) public override balanceOf;
+
+    mapping(address => mapping(address => uint256)) public override allowance;
+
+    uint256 public override totalSupply;   // 代币总供给
+
+    string public name;   // 名称
+    string public symbol;  // 符号
+    
+    uint8 public decimals = 18; // 小数位数
+
+    // @dev 在合约部署的时候实现合约名称和符号
+    constructor(string memory name_, string memory symbol_){
+        name = name_;
+        symbol = symbol_;
+    }
+
+    // @dev 实现`transfer`函数，代币转账逻辑
+    function transfer(address recipient, uint amount) public override returns (bool) {
+        balanceOf[msg.sender] -= amount;
+        balanceOf[recipient] += amount;
+        emit Transfer(msg.sender, recipient, amount);
+        return true;
+    }
+
+    // @dev 实现 `approve` 函数, 代币授权逻辑
+    function approve(address spender, uint amount) public override returns (bool) {
+        allowance[msg.sender][spender] = amount;
+        emit Approval(msg.sender, spender, amount);
+        return true;
+    }
+
+    // @dev 实现`transferFrom`函数，代币授权转账逻辑
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint amount
+    ) public override returns (bool) {
+        allowance[sender][msg.sender] -= amount;
+        balanceOf[sender] -= amount;
+        balanceOf[recipient] += amount;
+        emit Transfer(sender, recipient, amount);
+        return true;
+    }
+
+    // @dev 铸造代币，从 `0` 地址转账给 调用者地址
+    function mint(uint amount) external {
+        balanceOf[msg.sender] += amount;
+        totalSupply += amount;
+        emit Transfer(address(0), msg.sender, amount);
+    }
+
+    // @dev 销毁代币，从 调用者地址 转账给  `0` 地址
+    function burn(uint amount) external {
+        balanceOf[msg.sender] -= amount;
+        totalSupply -= amount;
+        emit Transfer(msg.sender, address(0), amount);
+    }
+}
+```
+2、自定义水龙头合约
+```solidity
+import "./IERC20.sol"; //import IERC20
+
+// ERC20代币的水龙头合约
+contract Faucet {
+
+    uint256 public amountAllowed = 100; // 每次领 100单位代币
+    address public tokenContract;   // token合约地址
+    mapping(address => bool) public requestedAddress;   // 记录领取过代币的地址
+
+    // SendToken事件    
+    event SendToken(address indexed Receiver, uint256 indexed Amount); 
+
+    // 部署时设定ERC20代币合约
+    constructor(address _tokenContract) {
+        tokenContract = _tokenContract; // set token contract
+    }
+
+    // 用户领取代币函数
+    function requestTokens() external {
+        require(!requestedAddress[msg.sender], "Can't Request Multiple Times!"); // 每个地址只能领一次
+        IERC20 token = IERC20(tokenContract); // 创建IERC20合约对象
+        require(token.balanceOf(address(this)) >= amountAllowed, "Faucet Empty!"); // 水龙头空了
+
+        token.transfer(msg.sender, amountAllowed); // 发送token
+        requestedAddress[msg.sender] = true; // 记录领取地址 
+        
+        emit SendToken(msg.sender, amountAllowed); // 释放SendToken事件
+    }
+}
+```
+
 <!-- Content_END -->

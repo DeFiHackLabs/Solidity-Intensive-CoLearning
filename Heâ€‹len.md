@@ -15,6 +15,191 @@ timezone: Asia/Shanghai
 ## Notes
 
 <!-- Content_START -->
+### 2024.10.04
+
+1. `public` 函數
+在10.03的範例中，`setNumber` 函數是一個 `public` 函數，可以被內部和外部的任何人調用。
+```solidity
+function setNumber(uint256 _number) public {
+    number = _number;
+}
+```
+ `public` 函數會修改合約中的狀態變量 `number`，因此`需要`支付 gas。
+
+ 2. `view `函數
+`getNumber` 函數是一個 view 函數，`它只能讀取 number 的值`，`不能`修改。
+調用 view 函數`不會`改變鏈上的數據，直接從本地調用時`不需要`支付 gas。
+```solidity
+function getNumber() public view returns (uint256) {
+    return number;
+}
+```
+3. `pure` 函數
+pure 函數既不會讀取也不會修改鏈上的狀態變量。它們純粹是`計算函數`，像 add 函數一樣，執行簡單的加法運算。
+```solidity
+function add(uint256 a, uint256 b) public pure returns (uint256) {
+    return a + b;
+}
+```
+
+### 2024.10.03
+### 函數的結構 (發現仍有點陌生重讀）
+```solidity
+function <function name>(<parameter types>) {internal|external|public|private} [pure|view|payable] [returns (<return types>)]
+```
+以上是 Solidity 中函數的基本格式。接下來逐項解釋（方括號中的關鍵字是可選的）
+
+Solidity 中`函數`的基本格式。
+
+1. function：函數的關鍵字，用來聲明函數。
+2. function name：函數名稱。
+3. (parameter types)：圓括號中是函數的參數類型和名稱（輸入到函數的變量）。
+4. internal、external、public、private：函數的可見性修飾符，共有 4 種
+   
+    (1) `public`：內部和外部`都`可以訪問。
+   
+    (2) `private`：只能從合約內部訪問，`繼承`的合約`無法`使用。
+   
+    (3) `external`：只能從合約外部訪問，但可以用 `this.f()` 在內部調用（`f `是函數名稱）。
+   
+    (4) `internal`：只能從合約內部訪問，`繼承`的合約`可以`使用。
+   
+注意 1：所有函數都需要明確指定可見性，`沒有`默認值。
+
+注意 2：public、private 和 internal 也可用於`修飾狀態變量`。
+       public 變量會`自動`生成同名的 `getter `函數。
+
+
+5. pure|view|payable：這些關鍵字決定函數的行為
+
+(1) pure：函數既`不能讀取`也`不能寫入`狀態變量。
+
+(2) view：函數`可以讀取`狀態變量，但`不能`寫入。
+
+(3) payable：允許函數`接收`以太幣（ETH）。
+
+6. returns (return types)：函數的`返回值``類型`和名稱。
+
+範例：
+```solidity
+pragma solidity ^0.8.0;
+
+contract Example {
+    uint256 public number;
+
+    // public 函數：可以被內部或外部訪問
+    function setNumber(uint256 _number) public {
+        number = _number;
+    }
+
+    // view 函數：僅能讀取狀態變量，不會修改它
+    function getNumber() public view returns (uint256) {
+        return number;
+    }
+
+    // pure 函數：不讀取或修改狀態變量
+    function add(uint256 a, uint256 b) public pure returns (uint256) {
+        return a + b;
+    }
+
+    // payable 函數：允許接收以太幣
+    function deposit() public payable {}
+
+    // external 函數：只能從外部訪問
+    function external Function() external pure returns (string memory) {
+        return "This is an external function";
+    }
+}
+```
+
+
+### 2024.10.02
+1. 執行Poolin運算
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+contract ValueTypes{
+    // 布尔值
+    bool public _bool = true;
+    // 布尔运算
+    bool public _bool1 = !_bool; //取非
+    bool public _bool2 = _bool && _bool1; //与(&&（邏輯與，AND） && 是邏輯與運算符，當兩個操作數都為 true 時，結果才是 true。如果任一操作數為)
+    bool public _bool3 = _bool || _bool1; //或( || 是邏輯或運算符，只要任一操作數為 true，結果就是 true。只有當兩個操作數都為 false 時，結果才是 false)
+    bool public _bool4 = _bool == _bool1; //相等(用來判斷兩個pool是否相等。如果兩者相等，結果為 true，否則為 false。)
+    bool public _bool5 = _bool != _bool1; //不相等
+
+
+    // 整数
+    int public _int = -1;
+    uint public _uint = 1;
+    uint256 public _number = 20220330;
+    // 整数运算
+    uint256 public _number1 = _number + 1; // +，-，*，/
+    uint256 public _number2 = 2**2; // 指数
+    uint256 public _number3 = 7 % 2; // 取余数
+    bool public _numberbool = _number2 > _number3; // 比大小
+
+
+    // 地址
+    address public _address = 0x7A58c0Be72BE218B41C608b7Fe7C5bB630736C71;
+    address payable public _address1 = payable(_address); // payable address，可以转账、查余额
+    // 地址类型的成员
+    uint256 public balance = _address1.balance; // balance of address
+    
+    
+    // 固定长度的字节数组
+    bytes32 public _byte32 = "MiniSolidity"; // bytes32: 0x4d696e69536f6c69646974790000000000000000000000000000000000000000
+    bytes1 public _byte = _byte32[0]; // bytes1: 0x4d
+    
+    
+    // Enum
+    // 将uint 0， 1， 2表示为Buy, Hold, Sell
+    enum ActionSet { Buy, Hold, Sell }
+    // 创建enum变量 action
+    ActionSet action = ActionSet.Buy;
+
+    // enum可以和uint显式的转换
+    function enumToUint() external view returns(uint){
+        return uint(action);
+    }
+}
+```
+
+### 2024.10.01
+
+## 4. 定長字節數組（Fixed-Length Byte Arrays）
+
+在 Solidity 中，字節數組分為兩種類型：
+
+(1)`定長字節數組`（Fixed-Length Byte Arrays）：其`大小`在宣告後`不能`改變，屬於`值類`型。常見的類型有 `bytes1`, `bytes8`, `bytes32` 等。
+
+(2)`不定長字節數組`（Dynamically Sized Byte Arrays）：其大小可以在`程式運行`時`改變`，屬於`引用`類型，主要類型是 `bytes`。
+範例
+```solidity
+// 固定長度的字節數組
+bytes32 public _byte32 = "MiniSolidity"; 
+bytes1 public _byte = _byte32[0];  // 取得 _byte32 的第一個字節
+```
+在這段程式碼中：
+(1) 變數 _byte32 以字節的方式存儲了字串 MiniSolidity，若將其轉換成 16 進制表示，結果為：
+結果為：
+```solidity
+0x4d696e69536f6c69646974790000000000000000000000000000000000000000
+```
+這表示字串以 bytes32 的格式儲存，_byte 變數的值為 _byte32 的第一個字節，即 0x4d，這是字母 M 的 16 進制 ASCII 編碼。
+
+(2) 取出第二個字節：
+```
+bytes1 public _byte2 = _byte32[1];  // 取得第二個字節，結果為 0x69 (字母 'i')
+```
+(3) 創建 16 字節數組：
+
+```solidity
+bytes16 public _byte16 = "Hello, World!";
+```
+_byte16 將會儲存前 16 個字節，並補零至 16 個字節長。
+
+
 ### 2024.09.30
 ## 3. 地址類型（Address）
 在 Solidity 中，address 是一種專門用於儲存以太坊地址的資料類型。地址類型有兩種類型：

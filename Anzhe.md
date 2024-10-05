@@ -864,4 +864,516 @@ contract Event{
 輸入 `from`, `to`, `amount` 三個參數再調用再點 transact 調用 `_tranfer` 函數。
 ![](https://i.imgur.com/mTYBiZG.png)
 可以從 logs 中看到外層的 from 是產生日誌的合約地址、topic 是事件簽章、args 是事件參數。
+
+### 2024.10.01
+# 繼承
+繼承可以減少重複的程式碼，可以把合約看作物件，Solidity 也是支持繼承的物件導向程式語言。Solidity 的繼承包括簡單繼承、多重繼承、修飾器繼承和建構子的繼承。
+## 關鍵字
+`virtual` 和 `overide` 是繼承的關鍵字。
+* `virtual`：父合約中的函數，如果希望子合約重寫，則需要加上 `virtual` 關鍵字。
+* `overide`：子合約重寫了父合約中的函數，需要加上 `override` 關鍵字。
+
+<!--註：若用 `override` 修飾 `public` 變數，會重寫與變數同名的 `getter` 函數。比如 `mapping(address => uint256) public override balanceOf`;-->
+
+## 簡單繼承
+合約之間簡單繼承的語法：`contract <子合約名稱> is <父合約名稱>`，我們可以在子合約中重寫函數，只要加上 `override` 關鍵字即可。
+```
+contract Grandpa{
+    event Log(string msg);
+    function f1() public virtual{
+        emit Log("Grandpa");
+    }
+    function f2() public virtual{
+        emit Log("Grandpa");
+    }
+    function grandpa() public virtual{
+        emit Log("Grandpa");
+    }
+}
+contract Father is Grandpa{
+    function f1() public virtual override{
+        emit Log("Father");
+    }
+    function f2() public virtual override{
+        emit Log("Father");
+    }
+
+    function father() public virtual{
+        emit Log("Father");
+    }
+}
+```
+![](https://i.imgur.com/xcHIzOx.png)
+分別部署父合約 `Grandpa`、子合約 `Father`。
+
+![](https://i.imgur.com/2IDB7ck.png)
+部署 `Father` 子合約後，可以發現 `Father` 子合約中也有 `Grandpa` 父合約的函數，也繼承了未重寫的 `grandpa()` 函數。
+![](https://i.imgur.com/zIHBrLI.png)
+若父合約 `Grandpa` 調用 `f1()` 函數，可以在 log 中找到日誌對應 `Grandpa.f1()` 的 log 輸出，若子合約 `Father` 調用 `f1()` 函數，因為重寫了 `f1()` 所以日誌輸出和從 `Grandpa` 父合約調用是不同的 log 輸出結果。
+
+## 多重繼承
+合約可以繼承多個合約。
+### 規則
+1. 繼承時要依輩分最高到最低的順序排列。如：`Son` 合約，繼承 `Grandpa` 合約和 `Father` 合約，那麼就要寫成 `contract Son is Grandpa, Father`，而不能寫成 `contract Son is Father, Grandpa`，不然就會報錯。
+2. 如果某個函數在多重繼承的合約裡都存在，例如例子中的 `f1` 和 `f2`，在子合約裡必須重寫，不然編譯器無法判斷應該繼承哪個函數會報錯。
+3. 重寫在多個父合約中都重名的函數時，`override` 關鍵字後面要加上所有父合約名字，例如 `override(Grandpa, Father)`。
+
+![](https://i.imgur.com/mUEIckX.png)
+```
+contract Son is Grandpa, Father{
+    function f1() public virtual override(Grandpa, Father){
+        emit Log("Son");
+    }
+
+    function f2() public virtual override(Grandpa, Father) {
+        emit Log("Son");
+    }
+}
+```
+![](https://i.imgur.com/qpEJ38T.png) ![](https://i.imgur.com/unmOZjB.png)
+Son 合約裡面重寫了 `f1()` 和 `f2()` 函數，將輸出改為 "Son"，並分別從 Grandpa  和 Father 合約繼承了 `grandpa()` 和 `father()` 兩個函數。
+## 修飾器繼承
+修飾器繼承的用法與函數繼承類似，在對應的地方加上 `virtual` 和 `override` 關鍵字即可。
+1. 子合約可以直接在程式碼中使用父合約中的修飾器。
+```
+contract Base{
+    modifier exactDividedBy2And3(uint _a) virtual {
+        require(_a % 2 == 0 && _a % 3 == 0);
+        _;
+    }
+}
+contract Identifier is Base {
+    function getExactDividedBy2And3(uint _dividend) public exactExactDividedBy2And3(_dividend) pure returns(uint, uint) {
+        return getExactDividedBy2And3WithoutModifier(_dividend);
+    }
+    function getExactDividedBy2And3WithoutModifier(uint _dividend) public pure returns(uint, uint){
+        uint div2 = _dividend / 2;
+        uint div3 = _dividend / 3;
+        return (div2, div3);
+    }
+}
+```
+![](https://i.imgur.com/5owt9HA.png)
+部署 `Identifier`合約，`getExactDividedBy2And3(uint _divided)`參數輸入 15，交易會被 revert，因為 `Identifier` 合約繼承了 `Base` 合約的修飾器 `exactDividedBy2And3(_dividend)`，檢查到 15 不能被 2 整除，所以 `getExactDividedBy2And3()` 函數未成功執行。
+
+![](https://i.imgur.com/4rnzu2b.png)
+getExactDividedBy2And3WithoutModifier() 函數沒有裝飾器限制參數必須被 2 或 3 整除，所以可以看到回傳的兩個參數分別是 7 和 5。
+
+2. 子合約利用 `override` 關鍵字重寫父合約修飾器。
+```
+modifier exactDividedBy2And3(uint _a) override {
+    _;
+    require(_a % 2 == 0 && _a % 3 == 0);
+}
+```
+## 建構子的繼承
+```
+abstract contract A{
+    uint public a;
+    constructor(uint _a){
+        a = _a;
+    }
+}
+```
+1. 在繼承時宣告父建構子的參數，例如：`contract B is A(1)`。
+2. 在子合約的建構子中宣告建構子的參數。
+```
+contract C is A {
+    constructor(uint _c) A(_c * _c){}
+}
+```
+![](https://i.imgur.com/hzqqvxO.png)
+選擇 `C` 合約部署，給定建構子參數為 10。
+![](https://i.imgur.com/G61f7F0.png)
+因為繼承了 `A` 合約，所以 `A` 合約的建構子參數被指定為 10 * 10，將 `A` 合約的狀態變數 `a` 修改為 100。
+
+## 呼叫父合約的函數
+1. 直接呼叫：子合約可以直接用 `<父合約名>.<函數名>()` 呼叫父合約函數。
+```
+function callParent() public {
+    Grandpa.f2();
+}
+```
+2. 利用 `super` 關鍵字：子合約可以利用 `super.<函數名稱>()` 來呼叫**最近的**父合約函數。Solidity 繼承關係依宣告時從右到左的順序是：`contract Son is Grandpa, Father`，Father 是最近的父合約，`super.f2()` 將呼叫 `Father.f2()` 而不是`Grandpa.f2()`。
+```
+function callParentSuper() public{
+    super.f2();
+}
+```
+![](https://i.imgur.com/Hd0CkS4.png)
+新增 `callParent()` 和 `callParentSuper()` 到 `Son` 合約並重新部署 `Son` 合約。
+![](https://i.imgur.com/3N3bFcW.png)
+可以觀察到子合約函數可以用合約名稱呼叫繼承的父合約的函數。
+![](https://i.imgur.com/5Kz9UL3.png)
+利用 `super` 呼叫的是最近的父合約函數。
+
+## 鑽石繼承（菱形繼承）
+在物件導向程式設計中，鑽石繼承（菱形繼承）指一個衍生類別同時有兩個或兩個以上的基底類別。在多重+菱形繼承鏈上使用 `super` 關鍵字時，需要注意的是使用 `super` 會呼叫繼承鏈上的每一個合約的相關函數，而不是只呼叫最近的父合約。
+我們先寫一個合約 `God`，再寫 `Adam` 和 `Eve` 兩個合約繼承 `God` 合約，最後讓創建合約 `people` 繼承自 `Adam` 和`Eve`，每個合約都有 `foo` 和`bar` 兩個函數。
+![](https://i.imgur.com/Di06trk.png)
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+contract God {
+    event Log(string message);
+    function foo() public virtual {
+        emit Log("God.foo called");
+    }
+    function bar() public virtual {
+        emit Log("God.bar called");
+    }
+}
+contract Adam is God {
+    function foo() public virtual override {
+        emit Log("Adam.foo called");
+        super.foo();
+    }
+    function bar() public virtual override {
+        emit Log("Adam.bar called");
+        super.bar();
+    }
+}
+contract Eve is God {
+    function foo() public virtual override {
+        emit Log("Eve.foo called");
+        super.foo();
+    }
+    function bar() public virtual override {
+        emit Log("Eve.bar called");
+        super.bar();
+    }
+}
+contract people is Adam, Eve {
+    function foo() public override(Adam, Eve) {
+        super.foo();
+    }
+    function bar() public override(Adam, Eve) {
+        super.bar();
+    }
+}
+```
+在這個範例中，呼叫合約 `people` 中的 `super.bar()` 會依序呼叫 Eve、Adam，最後是 God 合約。雖然 Eve、Adam 都是 God 的子合約，但整個過程中 God 合約只會被呼叫一次。原因是 Solidity 借鑒了 Python 的方式，強制一個由基類構成的 DAG（有向無環圖）使其保證一個特定的順序。
+![](https://i.imgur.com/aYgBLGw.png)
+
+### 2024.10.02
+# 抽象合約
+如果一個智能合約至少有一個未實現的函數，即某個函數缺少主體 {} 中的內容，則必須將該合約標為 `abstract`，不然編譯會報錯。另外，未實現的函數需要加 `virtual`，以便子合約重寫。如果我們還沒想好具體怎麼實現函數，那麼可以把合約標為 `abstract`，之後讓別人補寫上。例如插入排序函數可以先用 `abstract` 標示：
+```
+abstract contract InsertSort{
+    function insertSort(uint[] memory a) public pure virtual returns(uint[] memory);
+}
+```
+抽象合約範例：
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+abstract contract Base{
+    string public name = "Base";
+    function getAlias() public pure virtual returns(string memory);
+}
+
+contract BaseImpl is Base {
+    function getAlias() public pure override returns(string memory){
+        return "BaseTmpl";
+    }
+}
+```
+![](https://i.imgur.com/DILmo5F.png)
+抽象合約是不能部署的，要選擇非抽象合約部署。
+# 介面
+介面類似於抽象合約，但它不實現任何功能。
+## 介面規則
+1. 不能包含狀態變數
+2. 不能包含建構子
+3. 不能繼承除介面外的其他合約
+4. 所有函數都必須是 `external` 且不能有函數本體 `{}`
+5. 繼承介面的非抽象合約必須實作介面定義的所有功能
+雖然介面不實作任何功能，但它非常重要，是智能合約的骨架，定義了合約的功能以及如何觸發它們。
+
+如果智能合約實現了某種介面（例如ERC20或ERC721），其他 Dapps 和智能合約就知道如何與它互動。因為介面提供了兩個重要的資訊：
+1. 合約裡每個函數的 `bytes4` 選擇器，以及函數簽章 `<函數名稱>(每個參數型別)`。
+2. 介面 id（[ERC-165](https://eips.ethereum.org/EIPS/eip-165)）。
+介面與合約 ABI（Application Binary Interface）等價，可以互相轉換。編譯介面可以得到合約的 ABI，利用 [abi-to-sol 工具](https://gnidan.github.io/abi-to-sol/)，也可以將 `ABI json` 檔轉換為`介面 sol` 檔。
+
+以 ERC721 介面合約 IERC721 為例，它定義了 3 個 event 和 9 個 function，所有 ERC721 標準的 NFT 都實作了這些函數。介面和常規合約的區別在於每個函數都以 `;` 代替函數本體 `{ }` 結尾。
+```
+interface IERC721 is IERC165{
+    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+    event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
+    event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
+    function balanceOf(address owner) external view returns (uint256 balance);
+    function ownerOf(uint256 tokenId) external view returns (address owner);
+    function safeTransferFrom(address from, address to, uint256 tokenId) external;
+    function TransferFrom(address from, address to, uint256 tokenId) external;
+    function approve(address to, uint256 tokenId) external;
+    function getApproved(uint tokenId) external view returns (address operator);
+    function setApprovalForAll(address operator, bool _approved) external;
+    function isApprovedForAll(address owner, address operator) external view returns (bool);
+    function safeTransferFrom(address from, address to, uint256 tokenId, bytes calldata data) external;
+}
+```
+
+### IERC 721 事件
+* `Transfer` 事件：在轉帳時被釋放，記錄代幣的發出地址 `from` ，接收地址 `to` 和 `tokenId`。
+* `Approval` 事件：在授權時被釋放，記錄授權地址 `owner`，被授權地址 `approved` 和 `tokenId`。
+* `ApprovalForAll` 事件：在批量授權時被釋放，記錄批量授權的發出地址 `owner`，被授權地址 `operator` 和是否授權的 `approved`。
+
+### IERC 721 函數
+* `balanceOf`：傳回某地址的 NFT 持有量 `balance`。
+* `ownerOf`：回傳某 `tokenId` 的主人 `owner`。
+* `transferFrom`：普通轉賬，參數為轉出地址 `from`，接收地址 `to` 和 `tokenId`。
+* `safeTransferFrom`：安全轉帳（如果接收方是合約位址，會要求實作 `ERC721Receiver` 介面）。
+* `approve`：授權另一個位址使用你的 NFT。參數為被授權位址 `approve` 和 `tokenId`。
+* `getApproved`：查詢 `tokenId` 被批准給了哪個位址。
+* `setApprovedForAll`：將自己持有的該系列 NFT 批次授權給某個地址 `operator`。
+* `isApprovedForAll`：查詢某位址的 NFT 是否大量授權給了另一個 `operator` 位址。
+* `safeTransferFrom`：安全轉帳的重載函數，參數裡包含了 `data`。
+
+### 介面的使用時機
+如果我們知道一個合約實現了 `IERC721` 介面，我們不需要知道它具體程式碼實現，就可以與它互動。
+
+[無聊猿](https://startingedu.com/bayc/) `BAYC` 屬於 `ERC721` 代幣，實現了 `IERC721` 介面的功能。我們不需要知道它的原始碼，只要知道它的合約地址，用 `IERC721` 介面就可以與它互動，例如用 `balanceOf()` 來查詢某個地址的 `BAYC` 餘額，用 `safeTransferFrom()` 來轉帳 `BAYC`。
+```
+contract interactBAYC{
+    // 利用BAYC位址建立介面合約變數（在 ETH 主網）
+    IERC721 BAYC = IERC721(0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D);
+    
+    // 透過介面呼叫 BAYC 的 balanceOf() 查詢持倉量
+    function balanceOfBAYC(address owner) external view returns (uint256 balance){
+        return BAYC.balanceOf(owner);
+    }
+    
+    // 透過介面呼叫 BAYC 的 safeTransferFrom() 安全轉賬
+    function safeTransferFromBAYC(address from, address to, uint256 tokenId) external {
+        BAYC.safeTransferFrom(from, to, tokenId);
+    }
+}
+```
+介面範例：
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+interface Base{
+    function getFirstName() external pure returns(string memory);
+    function getLastName() external pure returns(string memory);
+}
+contract BaseImpl is Base{
+    function getFirstName() external pure override returns(string memory){
+        return "Amazing";
+    }
+    function getLastName() external pure override returns(string memory){
+        return "Ang";
+    }
+}
+```
+![](https://i.imgur.com/UEpvrS1.png)
+
+### 2024.10.03
+# 異常
+Solidity 有三種拋出異常的方法：`error`、`require` 和 `assert`，三種方法的 gas 消耗不同。寫智能合約常常會出 bug，Solidity 中的異常指令能幫我們 debug。
+## Error
+`error` 是 solidity 0.8.4 版本新加的內容，方便且高效（省 gas）地向使用者解釋操作失敗的原因，同時還可以在拋出異常的同時攜帶參數，幫助開發者更好地 debug。人們可以在 contract 之外定義異常。
+定義一個 `TransferNotOwner` 異常，當使用者不是代幣 owner 的時候嘗試轉賬，會拋出錯誤：
+```
+error TransferNotOwner(); // 自訂 error
+```
+我們也可以定義一個攜帶參數的異常，來提示嘗試轉帳的帳戶地址：
+```
+error TransferNotOwner(address sender); // 自訂帶參數的 error
+```
+在執行當中，`error` 必須搭配 `revert` 指令使用。
+```
+function transferOwner1(uint256 tokenId, address newOwner) public {
+    if(_owners[tokenId] != msg.sender){
+        revert TransferNotOwner();
+        // revert TransferNotOwner(msg.sender);
+    }
+    _owners[tokenId] = newOwner;
+}
+```
+我們定義了一個 `transferOwner1()` 函數，它會檢查代幣的 `owner` 是不是發起人，如果不是，就會拋出 `TransferNotOwner` 異常；如果是的話，就會轉帳。
+## Require
+`require` 指令是 solidity 0.8 版本之前拋出異常的常用方法，目前許多主流合約仍然還在使用它。它很好用，唯一的缺點就是 gas 隨著描述異常的字串長度增加，比 `error` 指令要高。使用方法：`require` (檢查條件，"異常的描述")，當檢查條件不成立的時候，就會拋出異常。
+用 `require` 指令重寫上面的 `transferOwner1` 函數：
+```
+function transferOwner2(uint256 tokenId, address newOwner) public {
+    require(_owners[tokenId] == msg.sender, "Transfer Not Owner");
+    _owners[tokenId] = newOwner;
+}
+```
+## Assert
+`assert` 指令一般用於程式設計師寫程式 debug，因為它不能解釋拋出例外的原因（比 `require` 少個字串）。它的用法很簡單，`assert` (檢查條件），當檢查條件不成立的時候，就會拋出異常。
+用 `assert` 指令重寫上面的 `transferOwner1` 函數：
+```
+function transferOwner3(uint256 tokenId, address newOwner) public {
+    assert(_owners[tokenId] == msg.sender);
+    _owners[tokenId] = newOwner;
+}
+```
+
+# 程式碼
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+error TransferNotOwner(); // 自訂帶參數的 error
+// error TransferNotOwner(address sender); // 自訂帶參數的 error
+
+contract ErrorContract{
+    mapping(uint256 => address) private _owners; // 紀錄每個 tokenId 的 owner
+
+    // 1. Error 方法
+    function transferOwner1(uint256 tokenId, address newOwner) public {
+        if(_owners[tokenId] != msg.sender){
+            revert TransferNotOwner();
+            // revert TransferNotOwner(msg.sender);
+        }
+        _owners[tokenId] = newOwner;
+    }
+
+    // 2. require 方法
+    function transferOwner2(uint256 tokenId, address newOwner) public {
+        require(_owners[tokenId] == msg.sender, "Transfer Not Owner");
+        _owners[tokenId] = newOwner;
+
+    }
+
+    function transferOwner3(uint256 tokenId, address newOwner) public {
+        assert(_owners[tokenId] == msg.sender);
+        _owners[tokenId] = newOwner;
+    }
+
+}
+```
+## 說明
+![](https://i.imgur.com/36270ih.png)
+Error：當地址不符合條件時會 revert 交易，並拋出 TransferNotOwner 的錯誤。耗費 27185 gas。
+
+![](https://i.imgur.com/Sz83BAQ.png)
+Require：當地址不符合條件時會 revert 交易，並印出錯誤字串，錯誤字串越長耗費的 gas 比 Error 多越多。耗費 27229 gas。
+
+![](https://i.imgur.com/lHzBali.png)
+Assert：當地址不符合條件時只拋出了異常並 revert 交易，並不知道異常原因。耗費 27207 gas。
+## 比較
+理論上消耗的 gas 應該是：
+require 方法 > assert 方法 > error 方法帶參數 > error 方法無參數
+
+### 2024.10.04
+# 重載
+Solidity 中允許函數進行重載（overloading），即名字相同但輸入參數類型不同的函數可以同時存在，他們被視為不同的函數。但 Solidity 不允許修飾器（modifier）重載。
+## 函數重載
+舉個例子，我們可以定義兩個都叫saySomething()的函數，一個沒有任何參數，輸出"Nothing"；另一個接收一個string參數，輸出這個string。
+```
+function saySomething() public pure returns(string memory){
+    return("Nothing");
+}
+
+function saySomething(string memory something) public pure returns(string memory){
+    return(something);
+}
+```
+最終重載函數在經過編譯器編譯後，由於不同的參數類型，都變成了不同的函數選擇器（selector）。關於函數選擇器的具體內容可參考WTF Solidity極簡入門: 29. 函數選擇器Selector。
+以 Overloading.sol 合約為例，在 Remix 上編譯部署後，分別調用重載函數 saySomething() 和 saySomething(string memory something)，可以看到他們返回了不同的結果，被區分為不同的函數。
+## 參數匹配（Argument Matching）
+在呼叫重載函數時，會把輸入的實際參數和函數參數的變數類型做成匹配。 如果出現多個符合的重載函數，則會報錯。下面這個例子有兩個叫f()的函數，一個參數是uint8，另一個為uint256：
+```
+function f(uint8 _in) public pure returns (uint8 out) {
+    out = _in;
+}
+
+function f(uint256 _in) public pure returns (uint256 out) {
+    out = _in;
+}
+```
+我們呼叫f(50)，因為50既可以被轉換為uint8，也可以轉換為uint256，因此會報錯。
+# 庫合約
+庫合約是一種特殊的合約，為了提升Solidity程式碼的複用性和減少gas而存在，庫合約是一系列的函數合集，和普通合約主要有以下幾點不同：
+1. 不能存在狀態變數
+2. 不能繼承或被繼承
+3. 不能接收以太幣
+4. 不可以被銷毀
+需要注意的是，庫合約重的函數可見性如果被設定為public或external，則在呼叫函數時會觸發一次delegatecall。而如果被設定為internal，則不會引起。對於設定為private可見性的函數來說，其僅能在庫合約中可見，在其他合約中不可用。
+## Strings庫合約
+Strings庫合約是將uint256類型轉換為對應的string類型的程式碼庫，範例程式碼如下：
+```
+library Strings {
+    bytes16 private constant _HEX_SYMBOLS = "0123456789abcdef";
+
+    /**
+     * @dev Converts a `uint256` to its ASCII `string` decimal representation.
+     */
+    function toString(uint256 value) public pure returns (string memory) {
+        // Inspired by OraclizeAPI's implementation - MIT licence
+        // https://github.com/oraclize/ethereum-api/blob/b42146b063c7d6ee1358846c198246239e9360e8/oraclizeAPI_0.4.25.sol
+
+        if (value == 0) {
+            return "0";
+        }
+        uint256 temp = value;
+        uint256 digits;
+        while (temp != 0) {
+            digits++;
+            temp /= 10;
+        }
+        bytes memory buffer = new bytes(digits);
+        while (value != 0) {
+            digits -= 1;
+            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
+            value /= 10;
+        }
+        return string(buffer);
+    }
+
+    /**
+     * @dev Converts a `uint256` to its ASCII `string` hexadecimal representation.
+     */
+    function toHexString(uint256 value) public pure returns (string memory) {
+        if (value == 0) {
+            return "0x00";
+        }
+        uint256 temp = value;
+        uint256 length = 0;
+        while (temp != 0) {
+            length++;
+            temp >>= 8;
+        }
+        return toHexString(value, length);
+    }
+
+    /**
+     * @dev Converts a `uint256` to its ASCII `string` hexadecimal representation with fixed length.
+     */
+    function toHexString(uint256 value, uint256 length) public pure returns (string memory) {
+        bytes memory buffer = new bytes(2 * length + 2);
+        buffer[0] = "0";
+        buffer[1] = "x";
+        for (uint256 i = 2 * length + 1; i > 1; --i) {
+            buffer[i] = _HEX_SYMBOLS[value & 0xf];
+            value >>= 4;
+        }
+        require(value == 0, "Strings: hex length insufficient");
+        return string(buffer);
+    }
+}
+```
+他主要包含兩個函數，toString()將uint256轉為string，toHexString()將uint256轉換為16進制，在轉換為string。
+## 如何使用庫合約
+用Strings庫合約的toHexString()來示範兩種使用庫合約中函數的辦法。
+1. 利用using for指令
+指令using A for B;可用於附加庫合約（從庫 A）到任何類型（B）。新增指令後，函式庫A中的函數會自動加入為B類型變數的成員，可以直接呼叫。注意：在呼叫的時候，這個變數會被當作第一個參數傳遞給函數。
+```
+using Strings for uint256;
+function getString1(uint256 _number) public pure returns(string memory){
+    // 庫合約中的函數會自動加入為uint256型變數的成員
+    return _number.toHexString();
+}
+```
+2. 透過庫合約名稱呼叫函數
+```
+// 直接透過庫合約名調用
+function getString2(uint256 _number) public pure returns(string memory){
+    return Strings.toHexString(_number);
+}
+```
+
 <!-- Content_END -->

@@ -91,4 +91,67 @@ mapping(uint => address) public i2addr;
 + 宣告過但還沒被賦值的變數都有預設值。可用`getter()`驗證初始值。
 + 怎麼變回初始值? `delete a`會讓a的值變回初始值。
 
+### 2024.10.01
+學習內容: `9.Constant和immutable`
++ 和其他程式語言相同，constant不可變，immutable可變。
++ constant宣告時須先初始化(賦值)，immutable則不用。
+
+### 2024.10.02
+學習內容: `10.Insertion Sort`
++ 作者特別強調90%的人在Solidity寫插入算法都會出錯。
++ A: 情境: 若宣告`uinit j=i-1`，則當`j=0`時會出錯`underflow`，原因是`uinit是正整數不得為0`
++ 介紹`if-else`,`for`,`while`,`do-while`
++ 介紹三元運算符:`條件?真表達式:假表達式`
+
++ 心得: 不一定要是插入排序，只要是uint的值切記不得為0。
+
+### 2024.10.03
+學習內容: `11.constructor和modifier`
++ 每個合約可以有一個constructor，和其他程式語言類似。
++ modifier是Solidity獨有，類似decorator，modifier用做函數運行前的檢查(地址、變數、餘額等)
++ 另外多學到revert: _和ownable
+
+### 2024.10.04
+學習內容: `12.Event`
++ event用作`響應`、`經濟`
++ 事件的宣告用event開頭
++ emit 釋放事件
++ EVM Log(每條Log都包含`topics`和`data`)
+   - topics
+      * 包含至多3个indexed参数，Transfer事件中的hash、from和to。
+   - data
+      * 事件中不带 indexed的參數會被存在data。
+      * data不能被直接檢索，但可以存任意大小的數據，一般用來存複雜的數據結構，例如array和string。
+   - data消耗的gas比topics少。
+
+### 2024.10.05
+學習內容: `13.Inheritance`
++ 繼承有幾種: `簡單`、`多重`、`Modifier`、`Constructor`、`鑽石(菱形)`
++ 繼承的好處: 減少重複的代碼
++ 規則: `virtual`、`override`
++ 簡單繼承用法: `contract Baba is Yeye`
++ 多重繼承用法: `contract Erziis Yeye, Baba`
++ Modifier繼承用法:
+  ```
+  modifier exactDividedBy2And3(uint _a) virtual {...}
+  contract Identifier is Base1 {...}
+  也可以:
+  modifier exactDividedBy2And3(uint _a) override {...}
+  ```
++ Constructor繼承用法: 
+  ```
+  contract B is A(1)
+  contract C is A {...}
+  function callParent() public{ Yeye.pop(); }
+  function callParentSuper() public{ super.pop(); }
+  ```
++ 鑽石(菱形)繼承用法:
+  ```
+     God
+    /  \
+   Adam Eve
+    \  /
+   people
+   ```
+
 <!-- Content_END -->

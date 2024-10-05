@@ -22,13 +22,21 @@ I studied lessons 01-03 of the Solidity 101 course from WTF Academy and complete
 completed lessons 04-06
 ### 2024.09.26
 completed lessons 07-09
-### 20204.09.27
+### 2024.09.27
 completed lessons 10-12
-### 20204.09.28
+### 2024.09.28
 completed lessons 12-15
-### 20204.09.29
+### 2024.09.29
 completed lessons 16-18
-### 20204.09.30
+### 2024.09.30
 completed lessons 19-21
+### 2024.10.01
+complelted lessons 22-24；
+### 2024.10.02
+complelted lessons 25-27；
+
+Todo:
+- Proxy Contract
+- EIP-2535 Diamonds
 
 <!-- Content_END -->

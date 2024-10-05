@@ -299,10 +299,220 @@ weeks: 7 days = 604800
 在这一讲，我们介绍了Solidity中的引用类型，数据位置和变量的作用域。重点是storage, memory和calldata三个关键字的用法。他们出现的原因是为了节省链上有限的存储空间和降低gas
 
 
+引用类型, array, struct
 
 
 
+###  2024.10.01
 
-###  2024.09.30
+引用类型, array, struct
+
+Solidity中的两个重要变量类型：数组（array）和结构体（struct）
+
+数组（Array）是Solidity常用的一种变量类型，用来存储一组数据（整数，字节，地址等等）。数组分为固定长度数组和可变长度数组两种：
+
+可变长度数组（动态数组）：在声明时不指定数组的长度。用T[]的格式声明，其中T是元素的类型，
+
+注意：bytes比较特殊，是数组，但是不用加[]。另外，不能用byte[]声明单字节数组，可以使用bytes或bytes1[]。bytes 比 bytes1[] 省gas。
+
+创建数组的规则
+
+在Solidity里，创建数组有一些规则：
+
+对于memory修饰的动态数组，可以用new操作符来创建，但是必须声明长度，并且声明后长度不能改变。
+
+数组字面常数(Array Literals)是写作表达式形式的数组，用方括号包着来初始化array的一种方式，并且里面每一个元素的type是以第一个元素为准的，例如[1,2,3]里面所有的元素都是uint8类型，因为在Solidity中，如果一个值没有指定type的话，会根据上下文推断出元素的类型，默认就是最小单位的type，这里默认最小单位类型是uint8。而[uint(1),2,3]里面的元素都是uint类型，因为第一个元素指定了是uint类型了，里面每一个元素的type都以第一个元素为准。
+
+
+数组成员
+
+length: 数组有一个包含元素数量的length成员，memory数组的长度在创建后是固定的。
+
+push(): 动态数组拥有push()成员，可以在数组最后添加一个0元素，并返回该元素的引用。
+
+push(x): 动态数组拥有push(x)成员，可以在数组最后添加一个x元素。
+
+pop(): 动态数组拥有pop()成员，可以移除数组最后一个元素
+
+结构体 struct
+
+Solidity支持通过构造结构体的形式定义新的类型。结构体中的元素可以是原始类型，也可以是引用类型；结构体可以作为数组或映射的元素。创建结构体的方法：
+
+给结构体赋值的四种方法：
+
+ 给结构体赋值
+
+方法1:在函数中创建一个storage的struct引用
+
+方法2:直接引用状态变量的struct
+
+方法3:构造函数式
+
+方法4:key value
+
+
+###  2024.10.02
+
+映射（Mapping）类型，Solidity中存储键值对的数据结构，可以理解为哈希表。
+
+映射Mapping
+在映射中，人们可以通过键（Key）来查询对应的值（Value），比如：通过一个人的id来查询他的钱包地址。
+
+声明映射的格式为mapping(_KeyType => _ValueType)，其中_KeyType和_ValueType分别是Key和Value的变量类型
+
+映射的规则
+规则1：映射的_KeyType只能选择Solidity内置的值类型，比如uint，address等，不能用自定义的结构体。
+
+规则2：映射的存储位置必须是storage，因此可以用于合约的状态变量，函数中的storage变量和library函数的参数（见例子）。不能用于public函数的参数或返回结果中，因为mapping记录的是一种关系 (key - value pair)。
+
+规则3：如果映射声明为public，那么Solidity会自动给你创建一个getter函数，可以通过Key来查询对应的Value。
+
+规则4：给映射新增的键值对的语法为_Var[_Key] = _Value，其中_Var是映射变量名，_Key和_Value对应新增的键值对
+
+映射的原理
+原理1: 映射不储存任何键（Key）的资讯，也没有length的资讯。
+
+原理2: 映射使用keccak256(abi.encodePacked(key, slot))当成offset存取value，其中slot是映射变量定义所在的插槽位置。
+
+原理3: 因为Ethereum会定义所有未使用的空间为0，所以未赋值（Value）的键（Key）初始值都是各个type的默认值，如uint的默认值是0。
+
+###  2024.10.03
+
+变量初始值
+
+
+在Solidity中，声明但没赋值的变量都有它的初始值或默认值
+
+boolean: false
+
+string: ""
+
+int: 0
+
+uint: 0
+
+enum: 枚举中的第一个元素
+
+address: 0x0000000000000000000000000000000000000000 (或 address(0))
+
+function
+
+internal: 空白函数
+
+external: 空白函数
+
+bool public _bool; // false
+string public _string; // ""
+int public _int; // 0
+uint public _uint; // 0
+address public _address; // 0x0000000000000000000000000000000000000000
+
+    enum ActionSet { Buy, Hold, Sell} 
+    
+    ActionSet public _enum; // 第1个内容Buy的索引0
+
+    function fi() internal{} // internal空白函数
+    
+    function fe() external{} // external空白函数 
+
+
+    引用类型初始值
+映射mapping: 所有元素都为其默认值的mapping
+
+结构体struct: 所有成员设为其默认值的结构体
+
+数组array
+
+动态数组: []
+
+静态数组（定长）: 所有成员设为其默认值的静态数组
+
+
+可以用public变量的getter函数验证上面写的初始值是否正确：
+
+    // Reference Types
+
+    uint[8] public _staticArray; // 所有成员设为其默认值的静态数组[0,0,0,0,0,0,0,0]
+
+    uint[] public _dynamicArray; // `[]`
+
+    mapping(uint => address) public _mapping; // 所有元素都为其默认值的mapping
+
+    // 所有成员设为其默认值的结构体 0, 0
+    struct Student{
+    uint256 id;
+    uint256 score; 
+    }
+    Student public student;
+
+ delete操作符
+    
+delete a会让变量a的值变为初始值。
+
+变量被声明但没有赋值的时候，它的值默认为初始值。不同类型的变量初始值不同，delete操作符可以删除一个变量的值并代替为初始值。
+
+###  2024.10.04
+
+常数 constant和immutable
+
+Solidity中和常量相关的两个关键字，constant（常量）和immutable（不变量）。状态变量声明这两个关键字之后，不能在初始化后更改数值。这样做的好处是提升合约的安全性并节省gas。
+
+另外，只有数值变量可以声明constant和immutable；string和bytes可以声明为constant，但不能为immutable。
+
+constant和immutable
+
+constant
+
+constant变量必须在声明的时候初始化，之后再也不能改变。尝试改变的话，编译不通过。
+
+immutable
+
+immutable变量可以在声明时或构造函数中初始化，因此更加灵活。在Solidity v8.0.21以后，immutable变量不需要显式初始化。反之，则需要显式初始化。 若immutable变量既在声明时初始化，又在constructor中初始化，会使用constructor初始化的值。
+
+你可以使用全局变量例如address(this)，block.number 或者自定义的函数给immutable变量初始化。在下面这个例子，我们利用了test()函数给IMMUTABLE_TEST初始化为9：
+
+constant变量初始化之后，尝试改变它的值，会编译不通过并抛出TypeError: Cannot assign to a constant variable.的错误。
+
+immutable变量初始化之后，尝试改变它的值，会编译不通过并抛出TypeError: Immutable state variable already initialized.的错误。
+
+
+onstant（常量）和immutable（不变量），让不应该变的变量保持不变。这样的做法能在节省gas的同时提升合约的安全性。
+
+
+
+###  2024.10.05
+
+控制流
+
+Solidity的控制流与其他语言类似，主要包含以下几种：
+
+if-else
+
+for循环
+
+while循环
+
+do-while循环
+
+三元运算符
+
+三元运算符是Solidity中唯一一个接受三个操作数的运算符，规则条件? 条件为真的表达式:条件为假的表达式。此运算符经常用作if语句的快捷方式
+
+另外还有continue（立即进入下一个循环）和break（跳出当前循环）关键字可以使用。
+
+用Solidity实现插入排序
+
+写在前面：90%以上的人用Solidity写插入算法都会出错。
+
+插入排序
+
+排序算法解决的问题是将无序的一组数字，例如[2, 5, 3, 1]，从小到大依次排列好。插入排序（InsertionSort）是最简单的一种排序算法，也是很多人学习的第一个算法。它的思路很简单，从前往后，依次将每一个数和排在他前面的数字比大小，如果比前面的数字小，就互换位置。
+
+这一讲，我们介绍了Solidity中控制流，并且用Solidity写了插入排序。看起来很简单，但实际很难。这就是Solidity，坑很多，每个月都有项目因为这些小bug损失几千万甚至上亿美元。掌握好基础，不断练习，才能写出更好的Solidity代码。
+
+
+###  2024.10.06
+
+
 
 <!-- Content_END -->

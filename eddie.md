@@ -15,6 +15,136 @@ timezone: Asia/Shanghai
 ## Notes
 <!-- Content_START -->
 
+### 2024.10.05
+
+Solidity 103章节内容：NFT交易所、ERC1155
+
+- ERC1155
+
+在`ERC721`中，每个代币都有一个`tokenId`作为唯一标识，每个`tokenId`只对应一个代币；而在`ERC1155`中，每一种代币都有一个`id`作为唯一标识，每个`id`对应一种代币。
+
+- 代码
+    
+    [NftSwap.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/NftExchanger)
+    
+    [ERC1155.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/ERC1155)
+
+### 2024.10.04
+
+Solidity103章节内容：数字签名、链上随机数
+
+#### 笔记
+
+- 椭圆曲线签名算法ECDSA
+
+  签名目的为证明当前为私钥的持有者、以及被签名数据没有被篡改过；
+
+  该博客讲的非常详细 [What is the math behind elliptic curve cryptography? | HackerNoon](https://hackernoon.com/what-is-the-math-behind-elliptic-curve-cryptography-f61b25253da3)
+    
+- 和前端如何验证流程
+    
+    hash(A,B) → metamask公钥 →signature
+  
+    hash(A,B) →msgHash
+  
+    verify(msgHash,signature) → signer，这个signer 是否和metamask签名的公钥是否相同
+    
+- 调用LINK生成随机数
+
+  注意：订阅 ID 类型已从 VRF V2 中的 **`uint64`** 变为 VRF V2.5 中的 **`uint256`**
+  
+- 相关代码
+
+  [signature.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/Sign)
+  
+  [RandomNum.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/RandomNum)
+
+### 2024.10.03
+
+Solidity103章节内容：荷兰拍卖、默克尔树
+
+Ethers101章节内容：HelloVitalik
+
+#### 笔记
+
+- merkle tree
+
+  [关于Merkle证明](https://learnblockchain.cn/article/5297)
+  
+  通过两两哈希，来获取根节点，利用根节点的可验证性，来保护整个数据不被篡改；
+
+  Merkle proof即为从叶子节点到根节点的路径；
+
+- 相关代码
+
+  [dutchAuction.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/NftAuction)
+
+  [merkletree.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/NftWhitelist)
+
+### 2024.10.02
+
+WTF103章节内容：ERC721
+
+#### 笔记
+
+- IERC165
+检查一个智能合约是否支持ERC721的接口
+    
+    ```solidity
+    //ERC721中实现该接口
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool)
+        {
+            return
+                interfaceId == type(IERC721).interfaceId ||
+                interfaceId == type(IERC165).interfaceId;
+        }
+    ```
+    
+- 确保目标合约实现了onERC721Received()函数
+    
+    ```solidity
+    function _checkOnERC721Received(address operator,address from,address to,uint256 tokenId,bytes memory data) internal {
+        if (to.code.length > 0) {
+            try IERC721Receiver(to).onERC721Received(operator, from, tokenId, data) returns (bytes4 retval) {
+                if (retval != IERC721Receiver.onERC721Received.selector) {
+                //利用函数选择器来验证，对to地址进行强制转换
+                    revert IERC721Errors.ERC721InvalidReceiver(to);
+                }
+            } catch (bytes memory reason) {
+                if (reason.length == 0) {
+                    // non-IERC721Receiver implementer
+                    revert IERC721Errors.ERC721InvalidReceiver(to);
+                } else {
+                    /// 用汇编抛出更详细和自定义的错误信息
+                    assembly {
+                        revert(add(32, reason), mload(reason))
+                    }
+                }
+            }
+        }
+    }
+    ```
+    
+- 相关代码
+
+    [erc721](https://github.com/eddiehsu66/SolidityCase/tree/main/ERC721)
+
+
+### 2024.10.01
+
+WTF103章节内容: 空投合约
+
+#### 笔记
+
+- 空投合约
+    
+    _to.call(value:amount){””}
+    这里的value默认单位为wei，如果需要发送ether，可以amount * 1 ether 来进行换算
+
+- 相关代码
+
+    [airdrop合约](https://github.com/eddiehsu66/SolidityCase/tree/main/Airdrop)
+
 ### 2024.09.30
 
 WTF103章节内容：ERC20、代币水龙头

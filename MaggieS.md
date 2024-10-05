@@ -166,14 +166,6 @@ Just Like:
 
 ### 2024.09.28
 
-Actually, the function of Language is for communication, no matter the natural language or programming language. In other words, a technology is just a solution, and a solution is only as good as the problems, so we need to make sure we know the problem really well, so we know how to attack it with this smart contract technology.
-
-By the way, It’s a person who gives me huge passions to challenge solidity this time , she is a female security auditor. I remember what she said in a interview that before she intended the ZK audit competition she even never learn ZK language, she just use few days to familiar with ZK language, but she got the champion, soooo fantastic.
-
-I try to find the crucial reason in Step 2 which confusing me for a long time that why and how she could make done it. So it must be something more important than language itself, language is just a language. No one knows whether I will be the solidity auditor in the future. It's a black box, which is interesting. But I'm sure this is not the most important thing.
-
-I know what I’m appreciate and chase for, learning solidity is just a experience to understand something to serve my life goals. Solidity itself is not my goal.
-
 Q1: 
 <img width="777" alt="image" src="https://github.com/user-attachments/assets/c0655440-5342-4d36-b991-33f635506990">
 
@@ -227,25 +219,6 @@ Events allow contracts to communicate with external applications. They are like 
 
 
 ### 2024.09.30
-
-One benefit of learning solidity is to be calm down. Rome was not built in a day.
-
-I am a soooo lucky girl that Web3 is willing to love, protect and support me.  
-
-But it is precisely because I cherish this luck that we should take our time.  
-
-I also need to improve my ability in all aspects if one day Web3 needs me.  
-
-
-Someday he needs me, I can stand up and protect him. I know I can do it.
-
-But the premise is that I must go through enough tempering and growth.
-
-Is there a better opportunity than I can survive the hardest time alone?
-
-Maybe he would say he doesn't need it, but, I have to have this ability.
-
-
 
 Q1: If you want to be a solidity security auditor, what aspects do their safety reports include？
 
@@ -304,5 +277,185 @@ The msg.value == 0 condition check is meaningless in most cases.
 
 Recommendation:
 Avoid meaningless checks
+
+
+### 2024.10.01
+
+
+Q1:If you want to be a solidity security auditor, to what extent should you learn solidity(2.0)?
+There are so many details about Solidity in security audit reports,just like:
+
+5.Unsafe array's length manipulation 
+
+● contracts/ComptrollerG4.sol [Line: 220-220] 
+● contracts/Comptroller.sol [Line: 226-226 ] 
+● contracts/ComptrollerG2.sol [Line: 220-220 ] 
+● contracts/ComptrollerG3.sol [Line: 220-220 ] 
+● contracts/ComptrollerG1.sol [Line: 224-224 ] 
+
+The length of the dynamic array is changed directly. In this case, the appearance of gigantic arrays is possible and it can lead to a storage overlap attack (collisions with other data in storage). Recommendation If possible, avoid changing the length of the dynamic array directly. 
+
+● Use uint[] storage arrayName = new uint[](7) to create a dynamic array of the desired length. 
+● Use delete arrayName to clear a dynamic array. 
+● Use .push() (instead of .length++) to write to the end of the dynamic array. 
+● Starting with version 0.5.0 of the Solidity compiler, use .pop() (instead of .length--) to delete the last element of the dynamic array.
+
+6.Using approve function of the ERC-20 token standard 
+
+The approve function of ERC-20 is vulnerable. Using front-running attack one can spend approved tokens before change of allowance value. 
+● contracts/CErc20Delegator.sol [line: 183-186] 
+● contracts/CToken.sol [line: 158-163] 
+
+Recommendation: Only use the approve function of the ERC-20 standard to change the allowed amount to 0 or from 0 (wait till transaction is mined and approved).
+
+7.Extra gas consumption 
+
+State variable, .balance, or .length of non-memory array is used in the condition of for or while loop. In this case, every iteration of loop consumes extra gas. 
+
+● contracts/Governance/GovernorAlpha.sol [line: 210-212, 180-182, 196,198] 
+● contracts/ComptrollerG4.sol [line: 1018-1020] 
+● contracts/Lens/CompoundLens.sol [line: 230-253, 301-306,] 
+● contracts/Comptroller.sol [Line: 1034-1036] 
+
+Recommendation: If a state variable, .balance, or .length is used several times, holding its value in a local variable is more gas efficient. If .length of calldata-array is placed into a local variable, the optimisation will be less significant.
+
+8.Overpowered role 
+
+● contracts/SimplePriceOracle.sol [Line: 44-47, 25-42] 
+
+This function is callable only from one address. Therefore, the system depends heavily on this address. In this case, there are scenarios that may lead to undesirable consequences for investors, e.g. if the private key of this address becomes compromised. 
+
+Recommendation We recommend designing contracts in a trustless manner. For instance, this functionality can be implemented in the contract's constructor. Another option is to use MultiSig wallet at this address.
+
+9.Compiler version not fixed 
+
+Solidity source files indicate the versions of the compiler they can be compiled with. 
+
+pragma solidity ^0.4.17; // bad: compiles w 0.4.17 and above 
+pragma solidity 0.4.24; // good : compiles w 0.4.24 only 
+
+It is recommended to follow the latter example, as future compiler versions may handle certain language constructions in a way the developer did not foresee. 
+
+Recommendation: Specify the exact compiler version (pragma solidity x.y.z;).
+
+Q2: What is the purpose of security audit ?
+
+The focus of the audit is to verify whether the smart contract is secure, resilient, and working properly according to the specs. The audit activity can be grouped in three categories. Security: Identifying the security-related issue within each contract and system of contracts. Sound architecture: Evaluating the architect of a system through the lens of established smart contract best practice and general software practice. Code correctness and quality: A full review of contract source code. The primary area of focus includes. 
+
+● Correctness. 
+● Section of code with high complexity. 
+● Readability. 
+● Quantity and quality of test coverage.
+
+
+
+### 2024.10.02
+
+Q1：How To Write A Good Audit Report(1.0)?
+
+1.Introduction: 
+
+This section sets the stage for the audit report. Introduce the auditing team, including their credentials and expertise. Emphasize the importance of the audit process and its role in enhancing the security of smart contracts. Clearly state the purpose of the audit and the methodologies employed in the analysis.
+
+2.Project Description: '
+
+Provide a comprehensive overview of the project being audited. Detail the audit methodology, outlining the techniques and tools used during the evaluation. Specify the type of smart contracts that were audited, the programming language they are written in, and their ecosystem. Include information such as the project repository link, GitHub commit hash, documentation sources, unit testing details, project website, and audit submission and completion dates. 
+
+3.Contracts In Scope: 
+
+Define the scope of the audit by listing the smart contracts that were audited. 
+
+4.Executive Summary: 
+
+Write a concise summary of the audit process, including details about the evaluation criteria, audit dates, and the auditors involved. Provides an overview of the vulnerabilities discovered, categorizing them based on severity levels. Highlight the number of issues found, resolved, and acknowledged during the audit.
+
+5.Severity Definitions: 
+
+Define the severity levels used in the report and explain clearly what each level signifies, making it easier for readers to comprehend the implications of identified vulnerabilities.
+
+
+Q2: How To Write A Good Audit Report(2.0)?
+
+6.Audit Overview: 
+
+This section should include a security score that captures the overall security posture of the smart contracts. Evaluate the code and documentation quality, summarizing the strengths and weaknesses observed during the analysis. It should also provide a high-level view of the security status, serving as a quick reference point for the readers.
+
+7.Audit Findings: 
+
+Dive deep into the vulnerabilities and issues identified during the audit. Provide a detailed account of each vulnerability, explaining its nature, potential impact, and the steps required to reproduce it. Categorize the vulnerabilities based on severity levels, emphasizing critical issues requiring immediate attention. Use code snippets and examples to illustrate the vulnerabilities, enhancing the clarity of your explanations.
+
+8.Recommendations: 
+
+For each identified vulnerability, offer clear and actionable recommendations for resolution or mitigation. Detail the steps that developers should take to address the issues effectively. Provide code snippets, if applicable, and best practices that can be employed to improve the security of the smart contracts. Ensure the recommendations are practical, feasible, and tailored to the project's context.
+
+9.Disclaimer: 
+
+In this section, include a disclaimer outlining the limitations of the audit and the scope of the auditing team's responsibilities. While the audit aims to enhance security, it cannot guarantee absolute immunity from all potential threats. Highlight the collaborative nature of security, emphasizing the importance of continuous vigilance and proactive measures from the development team.
+
+10.In Conclusion 
+
+Effective documentation, comments, and reporting are essential for smart contracts. They help developers understand and verify contract functions, facilitate auditing and debugging, and allow stakeholders to monitor performance, fostering trust and accountability in the blockchain ecosystem. This is why smart contract audits, bug bounties, and reviews are crucial in every stage of development. They increase the number of eyes scouting for vulnerabilities and decrease the chance of critical vulnerabilities slipping through.
+Stay safe. 
+
+### 2024.10.03
+
+Q1: What is Solidity?
+
+Solidity is an object-oriented, high-level language for implementing smart contracts. Smart contracts are programs that
+govern the behavior of accounts within the Ethereum state.
+
+Solidity is a curly-bracket language designed to target the Ethereum Virtual Machine (EVM). It is influenced by C++,
+Python, and JavaScript. You can find more details about which languages Solidity has been inspired by in the language
+influences section.
+
+Solidity is statically typed, supports inheritance, libraries, and complex user-defined types, among other features.
+With Solidity, you can create contracts for uses such as voting, crowdfunding, blind auctions, and multi-signature
+wallets.
+
+When deploying contracts, you should use the latest released version of Solidity. Apart from exceptional cases, only the
+latest version receives security fixes. Furthermore, breaking changes, as well as new features, are introduced regularly.
+We currently use a 0.y.z version number to indicate this fast pace of change.
+
+Q2: What means the Ethereum Virtual Machine?
+
+The Ethereum Virtual Machine
+
+Overview
+The Ethereum Virtual Machine or EVM is the runtime environment for smart contracts in Ethereum. It is not only sandboxed but actually completely isolated, which means that code running inside the EVM has no access to network, filesystem or other processes. Smart contracts even have limited access to other smart contracts.
+
+Accounts
+There are two kinds of accounts in Ethereum which share the same address space: External accountsthat are controlled by public-private key pairs (i.e. humans) and contract accounts which are controlled by the code stored together with the account.
+The address of an external account is determined from the public key while the address of a contract is determined at the time the contract is created (it is derived from the creator address and the number of transactions sent from that address, the so-called “nonce”).
+
+Regardless of whether or not the account stores code, the two types are treated equally by the EVM. 
+
+Every account has a persistent key-value store mapping 256-bit words to 256-bit words called storage. 
+
+Furthermore, every account has a balance in Ether (in “Wei” to be exact, 1 ether is 10**18 wei) which can be modified by sending transactions that include Ether.
+
+Transactions
+A transaction is a message that is sent from one account to another account (which might be the same or empty, see below). It can include binary data (which is called “payload”) and Ether.
+
+If the target account contains code, that code is executed and the payload is provided as input data.
+
+If the target account is not set (the transaction does not have a recipient or the recipient is set to null), the transaction creates a new contract. As already mentioned, the address of that contract is not the zero address but an address derived from the sender and its number of transactions sent (the “nonce”). The payload of such a contract creation
+transaction is taken to be EVM bytecode and executed. The output data of this execution is permanently stored as the code of the contract. This means that in order to create a contract, you do not send the actual code of the contract, but in fact code that returns that code when executed.
+
+Gas
+Gas Upon creation, each transaction is charged with a certain amount of gas that has to be paid for by the originator of the transaction (tx.origin). While the EVM executes the transaction, the gas is gradually depleted according to specific rules. If the gas is used up at any point (i.e. it would be negative), an out-of-gas exception is triggered, which ends execution and reverts all modifications made to the state in the current call frame. This mechanism incentivizes economical use of EVM execution time and also compensates EVM executors (i.e. miners / stakers) for their work. Since each block has a maximum amount of gas, it also limits the amount of work needed to validate a block.
+
+The gas price is a value set by the originator of the transaction, who has to pay gas_price * gas up front to the EVM executor. If some gas is left after execution, it is refunded to the transaction originator. In case of an exception that reverts changes, already used up gas is not refunded.
+
+Since EVM executors can choose to include a transaction or not, transaction senders cannot abuse the system by setting a low gas price.
+
+
+
+### 2024.10.04
+
+Q1:
+
+Q2:
+
+
 
 <!-- Content_END -->

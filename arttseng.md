@@ -66,6 +66,19 @@ string和 bytes不能用 immutable修飾。
 string public immutable _string = "Hello Web3! 0923-2"; => X
 TypeError: Immutable variables cannot have a non-value type.
 
+### 2024.10.02
+solidity版的 insert sort的眉角是
+uint，也就是正整数，取到负值的话，会报underflow错误。而在插入算法中，变量j有可能会取到-1，引起报错。
+
+### 2024.10.03
+學習 constructor,和修飾function的修飾器, 可以自定義修飾器
+
+### 2024.10.04
+將101完結，且做考題。
+interface那邊，對於選擇器怎麼理解比較好，就是一個指標，給呼叫者指過去?
+
+### 2024.10.05
+WTF solidity 102開始
 
 
 <!-- Content_END -->

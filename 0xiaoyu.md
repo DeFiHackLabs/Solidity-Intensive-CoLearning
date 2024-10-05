@@ -683,4 +683,281 @@ function test() public pure returns(uint256){
    - 这与 Solidity 的内部实现有关。constant 变量在编译时就完全确定，可以直接嵌入字节码。而 immutable 变量虽然也是常量，但其值是在构造函数中设置的。对于定长类型（如 uint、address），这种延迟初始化很容易实现。但对于不定长类型（如 string 和 bytes），在构造函数中初始化会涉及到复杂的存储分配问题，因此目前不支持将它们声明为 immutable。
 
 
+### 2024.10.01
+
+學習內容: 
+
+- [solidity-101 第十课  控制流，用Solidity实现插入排序](https://www.wtf.academy/docs/solidity-101/InsertionSort/)
+
+笔记
+
+#### Solidity 控制流
+Solidity 的控制流与其他编程语言类似，主要包括：
+
+1. if-else 语句
+2. for 循环
+3. while 循环
+4. do-while 循环
+5. 三元运算符
+
+此外，还有 `continue` 和 `break` 关键字可用于控制循环流程。
+
+#### 插入排序算法实现
+
+##### Python 实现
+首先看一下 Python 中的插入排序实现：
+
+```python
+def insertionSort(arr):
+    for i in range(1, len(arr)):
+        key = arr[i]
+        j = i-1
+        while j >=0 and key < arr[j] :
+            arr[j+1] = arr[j]
+            j -= 1
+        arr[j+1] = key
+    return arr
+```
+
+##### Solidity 实现（错误版本）
+直接将 Python 代码转换为 Solidity 可能导致错误：
+
+```solidity
+function insertionSortWrong(uint[] memory a) public pure returns(uint[] memory) {    
+    for (uint i = 1;i < a.length;i++){
+        uint temp = a[i];
+        uint j=i-1;
+        while( (j >= 0) && (temp < a[j])){
+            a[j+1] = a[j];
+            j--;
+        }
+        a[j+1] = temp;
+    }
+    return(a);
+}
+```
+
+##### Solidity 实现（正确版本）
+修复后的正确 Solidity 实现：
+
+```solidity
+function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
+    for (uint i = 1;i < a.length;i++){
+        uint temp = a[i];
+        uint j=i;
+        while( (j >= 1) && (temp < a[j-1])){
+            a[j] = a[j-1];
+            j--;
+        }
+        a[j] = temp;
+    }
+    return(a);
+}
+```
+
+#### 思考与解答
+
+1. 为什么直接将 Python 代码转换为 Solidity 会导致错误？
+   - 解答：主要原因是 Solidity 中的 uint 类型不能取负值。在 Python 版本中，j 可能会变为 -1，而在 Solidity 中这会导致下溢（underflow）错误。
+
+2. Solidity 中的控制流与其他语言有什么显著区别？
+   - 解答：Solidity 的控制流结构与其他语言大致相同。然而，由于 Solidity 是为智能合约设计的语言，在使用循环时需要特别注意 gas 消耗。过于复杂或长时间运行的循环可能导致交易失败。
+
+3. 在实现算法时，Solidity 相比其他语言有哪些需要特别注意的地方？
+   - 解答：
+     - 类型安全：需要格外注意变量类型，特别是有符号和无符号整数的使用。
+     - Gas 优化：需要考虑算法的效率，尽量减少循环次数和存储操作。
+     - 数组操作：Solidity 中的数组操作可能比其他语言更受限制，需要谨慎处理。
+     - 精度问题：处理小数时需要特别注意，因为 Solidity 不直接支持浮点数。
+
+### 2024.10.02
+
+學習內容: 
+
+- [solidity-101 第十一课  构造函数和修饰器](https://www.wtf.academy/docs/solidity-101/Modifier/)
+
+笔记
+
+#### 构造函数（Constructor）
+
+构造函数是一种特殊的函数，在合约部署时自动运行一次，用于初始化合约状态。
+
+##### 特点：
+- 每个合约只能有一个构造函数
+- 在合约部署时自动执行
+- 可以用来初始化合约的状态变量
+
+##### 示例代码：
+```solidity
+address owner; // 定义owner变量
+
+constructor(address initialOwner) {
+    owner = initialOwner; // 在部署合约的时候，将owner设置为传入的initialOwner地址
+}
+```
+
+##### 注意：
+Solidity 0.4.22 版本之前，构造函数使用与合约同名的函数来定义。新版本使用 `constructor` 关键字，以避免潜在的命名错误。
+
+#### 修饰器（Modifier）
+
+修饰器是 Solidity 特有的语法，用于在函数执行前进行条件检查，可以减少代码重复并提高可读性。
+
+##### 特点：
+- 用于函数的声明
+- 可以在函数执行前进行条件检查
+- 使用 `_` 符号表示函数主体的插入点
+
+##### 示例代码：
+```solidity
+modifier onlyOwner {
+   require(msg.sender == owner); // 检查调用者是否为owner地址
+   _; // 如果是的话，继续运行函数主体；否则报错并revert交易
+}
+
+function changeOwner(address _newOwner) external onlyOwner {
+   owner = _newOwner; // 只有owner地址运行这个函数，并改变owner
+}
+```
+
+#### 思考与解答
+
+1. 为什么构造函数在合约中很重要？
+   - 解答：构造函数对于合约的初始化至关重要。它允许我们在部署时设置关键的状态变量，如所有者地址、初始代币供应量等。这种机制确保了合约在开始运行时就处于正确的初始状态。
+
+2. 修饰器和普通函数有什么区别？为什么要使用修饰器？
+   - 解答：修饰器与普通函数的主要区别在于其用途和语法。修饰器主要用于在函数执行前进行条件检查，而不是执行具体的业务逻辑。使用修饰器可以提高代码的可重用性和可读性，特别是在需要对多个函数应用相同的访问控制或验证逻辑时。
+
+3. 在使用修饰器时，`_` 符号的作用是什么？
+   - 解答：在修饰器中，`_` 符号表示被修饰函数的执行点。修饰器中 `_` 之前的代码会在函数主体执行之前运行，`_` 之后的代码会在函数主体执行之后运行。这允许开发者在函数执行的不同阶段插入自定义逻辑。
+
+
+### 2024.10.03
+
+學習內容: 
+
+- [solidity-101 第十二课  事件](https://www.wtf.academy/docs/solidity-101/Event/)
+
+笔记
+
+
+#### 事件的特点
+1. 响应性：应用程序可以通过 RPC 接口订阅和监听这些事件，并在前端做出响应。
+2. 经济性：相比于链上存储变量，事件是一种更经济的数据存储方式。
+
+#### 事件的声明和使用
+
+##### 声明事件
+```solidity
+event Transfer(address indexed from, address indexed to, uint256 value);
+```
+
+- 使用 `event` 关键字声明
+- 可以包含 `indexed` 参数，最多 3 个
+
+##### 释放事件
+```solidity
+function _transfer(address from, address to, uint256 amount) external {
+    _balances[from] -= amount;
+    _balances[to] += amount;
+    emit Transfer(from, to, amount);
+}
+```
+
+- 使用 `emit` 关键字释放事件
+
+#### EVM 日志结构
+
+EVM 日志包含两部分：
+1. 主题（topics）：
+   - 第一个元素是事件签名的哈希
+   - 最多可包含 3 个 indexed 参数
+2. 数据（data）：
+   - 存储非 indexed 参数
+   - 可以存储任意大小的数据
+
+#### 思考与解答
+
+1. 为什么事件比直接存储状态变量更经济？
+   - 解答：事件数据存储在交易的日志中，而不是在合约的存储空间。日志操作的 gas 成本远低于存储操作。此外，事件数据不占用合约的永久存储空间，进一步降低了成本。
+
+2. `indexed` 参数和非 `indexed` 参数有什么区别？
+   - 解答：
+     - `indexed` 参数：
+       - 存储在日志的 topics 中
+       - 可以被高效地检索和过滤
+       - 最多 3 个
+       - 如果是大型数据（如字符串），会被哈希处理
+     - 非 `indexed` 参数：
+       - 存储在日志的 data 部分
+       - 可以存储任意大小的数据
+       - 不能直接被检索，但存储成本更低
+
+3. 事件在智能合约开发中有哪些常见用途？
+   - 解答：
+     - 记录重要的状态变化（如代币转账）
+     - 为 DApp 前端提供数据更新通知
+     - 作为去中心化预言机的数据源
+     - 提供合约操作的审计跟踪
+     - 在不增加存储成本的情况下保存历史数据
+
+
+
+### 2024.10.04
+
+學習內容: 
+
+- [solidity-101 第十三课  继承](https://www.wtf.academy/docs/solidity-101/Inheritance/)
+
+笔记
+
+
+#### 继承的基本规则
+- `virtual`: 父合约中希望子合约重写的函数需要加上此关键字。
+- `override`: 子合约重写父合约函数时需要加上此关键字。
+
+#### 继承类型
+
+1. 简单继承
+   - 使用 `is` 关键字实现继承
+   - 子合约可以重写父合约的函数
+
+2. 多重继承
+   - 可以继承多个合约
+   - 继承顺序应从最高辈分到最低
+   - 重写多个父合约的同名函数时，需要指明所有父合约名
+
+3. 修饰器继承
+   - 修饰器可以像函数一样被继承和重写
+
+4. 构造函数继承
+   - 可以在继承声明时指定父构造函数参数
+   - 可以在子合约构造函数中调用父构造函数
+
+5. 钻石继承（菱形继承）
+   - 一个派生类同时有两个或以上的基类
+   - 使用 `super` 关键字时会调用继承链上的每个相关函数
+
+#### 调用父合约函数
+1. 直接调用：`父合约名.函数名()`
+2. 使用 `super` 关键字：`super.函数名()`
+
+#### 思考与解答
+
+1. 为什么 Solidity 中的继承顺序很重要？
+   - 解答：Solidity 中的继承顺序决定了函数的优先级。在多重继承中，越靠右的合约优先级越高。这影响了 `super` 关键字的行为和函数重写的解析顺序。
+
+2. `virtual` 和 `override` 关键字的作用是什么？
+   - 解答：`virtual` 表明一个函数可以被子合约重写，`override` 表示该函数重写了父合约的函数。这种机制增加了代码的可读性和安全性，防止意外重写。
+
+3. 钻石继承中的 `super` 关键字与普通继承有何不同？
+   - 解答：在钻石继承中，`super` 会按照特定顺序调用所有相关的父合约函数，而不仅仅是最近的父合约。这种行为基于 C3 线性化算法，确保每个合约只被调用一次，避免重复执行。
+
+
+
+
+
+
+
+
 <!-- Content_END -->

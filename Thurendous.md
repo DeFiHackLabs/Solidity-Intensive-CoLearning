@@ -1002,6 +1002,22 @@ function myFunction(uint256 a) public pure returns (uint256) {
 
 注意solidity不允许修饰器重载。
 
+如果两个函数名相同，但是参数类型不同，那么这两个函数就是不同的函数。因为最终重载函数在经过编译器编译后，由于不同的参数类型，都变成了不同的函数选择器（selector）。
+
+
+- 实参匹配（Argument Matching）
+在调用重载函数时，会把输入的实际参数和函数参数的变量类型做匹配。 如果出现多个匹配的重载函数，则会报错。下面这个例子有两个叫f()的函数，一个参数为uint8，另一个为uint256
+
+```solidity
+function f(uint8 a) public pure returns (uint8) {
+    return a * 2;
+}
+
+function f(uint256 a) public pure returns (uint256) {
+    return a * 2;
+}
+```
+我们调用f(50)，因为50既可以被转换为uint8，也可以被转换为uint256，因此会报错。
 
 
 ### 2024.10.2
@@ -1009,6 +1025,169 @@ function myFunction(uint256 a) public pure returns (uint256) {
 (Day 9)
 
 学习笔记
+
+#### 库合约
+
+库合约是一种特殊的合约，为了提升Solidity代码的复用性和减少gas而存在。
+
+库合约是solidity中的一种合约类型，它和普通的合约不同，库合约不能被继承，也不能被销毁。库合约的目的是提供一些常用的函数，可以在多个合约中复用。
+
+库合约的语法：
+
+```solidity
+library Math {
+    function add(uint256 a, uint256 b) public pure returns (uint256) {
+        return a + b;
+    }
+}
+```
+
+他和普通合约主要有以下几点不同：
+
+- 不能存在状态变量
+- 不能够继承或被继承
+- 不能接收以太币
+- 不可以被销毁
+
+需要注意的是，库合约重的函数可见性如果被设置为public或者external，则在调用函数时会触发一次delegatecall。而如果被设置为internal，则不会引起。对于设置为private可见性的函数来说，其仅能在库合约中可见，在其他合约中不可用。
+
+Strings合约库
+
+```solidity
+library Strings {
+    bytes16 private constant _HEX_SYMBOLS = "0123456789abcdef";
+
+    /**
+     * @dev Converts a `uint256` to its ASCII `string` decimal representation.
+     */
+    function toString(uint256 value) public pure returns (string memory) {
+        // Inspired by OraclizeAPI's implementation - MIT licence
+        // https://github.com/oraclize/ethereum-api/blob/b42146b063c7d6ee1358846c198246239e9360e8/oraclizeAPI_0.4.25.sol
+
+        if (value == 0) {
+            return "0";
+        }
+        uint256 temp = value;
+        uint256 digits;
+        while (temp != 0) {
+            digits++;
+            temp /= 10;
+        }
+        bytes memory buffer = new bytes(digits);
+        while (value != 0) {
+            digits -= 1;
+            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
+            value /= 10;
+        }
+        return string(buffer);
+    }
+
+    /**
+     * @dev Converts a `uint256` to its ASCII `string` hexadecimal representation.
+     */
+    function toHexString(uint256 value) public pure returns (string memory) {
+        if (value == 0) {
+            return "0x00";
+        }
+        uint256 temp = value;
+        uint256 length = 0;
+        while (temp != 0) {
+            length++;
+            temp >>= 8;
+        }
+        return toHexString(value, length);
+    }
+
+    /**
+     * @dev Converts a `uint256` to its ASCII `string` hexadecimal representation with fixed length.
+     */
+    function toHexString(uint256 value, uint256 length) public pure returns (string memory) {
+        bytes memory buffer = new bytes(2 * length + 2);
+        buffer[0] = "0";
+        buffer[1] = "x";
+        for (uint256 i = 2 * length + 1; i > 1; --i) {
+            buffer[i] = _HEX_SYMBOLS[value & 0xf];
+            value >>= 4;
+        }
+        require(value == 0, "Strings: hex length insufficient");
+        return string(buffer);
+    }
+}
+```
+
+这里我们来理解一下这个`toString`函数吧。
+- 首先函数检查这里的函数输入值是否为0，如果为0，那么直接返回"0"。
+- 如果不为0，那么函数会进行一个循环，这个循环的目的是计算出这个输入值有多少位数。比如12345，那么他的位数就是5。使用除以10的方式来计算的。
+- 然后，函数会创建一个bytes类型的变量，这个变量的长度就是输入值的位数。
+- 接下来，从个位开始，逐位构建字符串：
+```solidity
+   while (value != 0) {
+       digits -= 1;
+       buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
+       value /= 10;
+   }
+```
+
+- value % 10 得到当前位的数字（0-9）
+- 48 + uint256(value % 10) 将数字转换为对应的ASCII码（'0'的ASCII码是48）
+- bytes1(uint8(...)) 将ASCII码转换为单个字节
+- 从buffer的末尾开始填充，因为我们是从个位开始处理的
+- 最后，函数返回这个bytes变量。
+
+
+- 如何使用库合约
+  - 利用using for指令
+```solidity
+// 利用using for指令
+using Strings for uint256;
+function getString1(uint256 _number) public pure returns(string memory){
+    // 库合约中的函数会自动添加为uint256型变量的成员
+    return _number.toHexString();
+}
+```
+  - 库合约的函数调用
+```solidity
+// 直接通过库合约名调用
+function getString2(uint256 _number) public pure returns(string memory){
+    return Strings.toHexString(_number);
+}
+```
+Some usually used library contracts:
+
+- Strings：将uint256转换为String
+- Address：判断某个地址是否为合约地址
+- Create2：更安全的使用Create2 EVM opcode
+- Arrays：跟数组相关的库合约
+
+
+### 2024.10.3
+
+(Day 10)
+
+学习笔记
+
+#### import
+在Solidity中，import语句可以帮助我们在一个文件中引用另一个文件的内容，提高代码的可重用性和组织性。本教程将向你介绍如何在Solidity中使用import语句。
+
+- import 的用法
+  - import 可以在源文件之中使用，导入另一个文件。
+  - 通过源文件网址导入网上的合约的全局符号
+
+```solidity
+// 通过网址引用
+import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+```
+
+  - 通过npm的目录导入，例子：
+
+```solidity
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+```
+
+- 通过指定全局符号导入合约特定的全局符号，例子：
+```solidity
+import {Yeye} from './Yeye.sol';
+```
 
 
 

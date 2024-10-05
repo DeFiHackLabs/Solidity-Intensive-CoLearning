@@ -902,4 +902,196 @@ contract structType{
          ```
      ![image](https://github.com/user-attachments/assets/eddca6ba-278c-466f-a51a-7eed768b1323)
 两种方法均能返回正确的16进制string “0xaa”。证明我们调用库合约成功！
+
+###  2024.10.01
+
+複習
+**變量類型**
+   * 值類型: 布林、整數、地址、字節數組。直接傳遞數據。
+   * 引用類型: 字串、數組、結構體。只存指向數據的引用。
+      * 數組:
+        1. 固定長度array: 以`memory`修飾的動態數組，可用new創建，但必須宣告長度，且宣告後長度不能改變。
+        2. 可變長度array
+      * 結構體: 定義新的類型，裡面可以是值類型也可以是引用類型。本身也可作為數組或映射類型使用。
+   * 映射類型: mapping。只存在`stroage`。
+      * 透過key來查詢對應的value
+        
+**變量作用域**
+   * 狀態變量: 存在鏈上，合約內、函數外宣告，合約內函數皆可訪問，gas高。
+   * 局部變量: 存在記憶體上，函數內宣告，生命週期為函數執行期間，gas低。
+   * 全域變量: 在全域範圍工作，是Solidity預留的關鍵字，可不宣告就使用。
+      * eg. 乙太單位、時間單位
+     
+**函數**
+   * 需定義可見性: internal、external、public、private
+      * internal: 只能從本合約內部訪問，繼承的合約可使用。
+      * external: 只能從合約外部訪問(內部可通過`this.f()`調用)。
+      * public: 內外部均可見。
+      * private: 只能從本合約內部訪問，繼承的合約不可使用。
+   * 決定函數權限或功能: pure、view、payable
+      * pure: 不能讀也不能寫入鏈上
+      * view: 能讀不能寫入鏈上
+      * payable: 可支付的
+   * 返回: 命令式返回、解構式返回
+      * 命令式返回: `returns`中標明返回變量的名稱，會自動返回，不需使用return。
+      * 解構式返回: 聲明變量，將要賦值的變量用 , 隔開，依序排列。若是只讀取部分返回值，則留空。
+    
+###  2024.10.02
+**變量初始值**
+* 值类型初始值：
+   * boolean: false
+   * string: ""
+   * int: 0
+   * uint: 0
+   * enum: 枚举中的第一个元素
+   * address: 0x0000000000000000000000000000000000000000 (或 address(0))
+   * function
+   * internal: 空白函数
+   * external: 空白函数
+* 引用类型初始值：
+   * 映射mapping: 所有元素都为其默认值的mapping
+   * 结构体struct: 所有成员设为其默认值的结构体
+   * 数组array
+   * 动态数组: []
+   * 静态数组（定长）: 所有成员设为其默认值的静态数组
+
+**常數**
+    * `constant`跟`immutable`
+       * constant: 聲明時初始化，不可改變
+       * immutable: 聲明或在構造函數初始化，若同時，會採用構造函數的值。
+       
+**控制流**
+   * `if-else`、`for`、`while`、`do while`、三元運算子
+     
+**構造函數**
+   * constructor: 每個合約可定義一個，部屬合約時自動執行一次
+
+**修飾器**
+   * modifier: 聲明函數擁有的特性，主要用來在執行函數前的檢查。
+
+**事件**
+   * event: 是`EVM`上日記的抽象，有兩個特色:
+     1. 響應: 應用程式(ethers.js)可以透過RPC街口訂閱和監聽這些事件，並在前端做響應。
+     2. 經濟: 比較經濟的存數據方式，每個大概消耗2000gas，但鏈上存一個變量要消耗20000gas
+   * 聲明事件: event event_name( 變量類型 變量名, ... )
+   * 釋放事件: emit event event_name( 變量名, ... )
+
+**EVM日記 Log**
+   * 以太坊虛擬機(EVM)用日記`Log`來儲存Solidity事件，每條日記都包含主題`topics`和數據`data`兩部分
+     1. `topics`: 描述事件，長度不超過4，第一個元素是事件的簽名(哈希)，除了哈希還可以包含最多三個`indexed`參數，固定為256bits
+     2. `data`: event中不帶`indexed`的參數，即為事件的值。不能被直接搜尋，但可以存任意大小的數據，消耗的gas相對於topics`更少。
+
+###  2024.10.03
+
+**繼承**
+   * 規則:
+     1. `virtual`: 希望子合約重寫的函數，需要在父合約中加上`virtual`
+     2. `override`: 子合約重寫的函數要加上`override`。且用`override`修飾`public`變量，會重寫與變量同名的`getter`函數
+   * 簡單繼承: contract A is B，A是子合約，B是父合約
+   * 多重繼承:
+      * 規則:
+        1. 繼承時按照輩份最高到最低順序排
+        2. 某一個函數在多個繼承的合約裡都有，子合約就必須重寫
+        3. 重寫在多個父合約中都一樣名稱的函數時，`override`後面要加上所有父合約的名字。e.g. `override(A, B)`
+   * 修飾器的繼承: 跟函數繼承一樣，在對應的地方加`virtual`和`override`就好。
+   * 構造函數的繼承:
+     1. 在繼承時聲明父合約構造函數的參數
+     2. 在子合約的構造函數聲明構造函數的參數
+   * 調用父合約的函數:
+     1. 直接調用: `父合約名稱.函數名()`
+     2. `super`: `super.函數名()`
+   * 鑽石繼承: 一個派生類同時有兩個或兩個以上的基類。
+      * 使用`super`的話會調用繼承鏈條勝的每一個合約的相關函數，而非最近的父合約。
+   ```Solidity
+     /* 继承树：
+     God
+    /  \
+   Adam Eve
+    \  /
+   people
+   */
+   ```
+
+**抽象合约**
+   * 一個合約裡面至少有一個未實現的函數，必須將該合約標為`abstract`。
+   * 未實現的函數需加`virtual`，以便子合約重寫。
+
+**介面(接口)**
+   * 類似抽象合約，但不實現任何功能。
+   * 介面的規則：
+     1. 不能包含狀態變數。
+     2. 不能包含建構子。
+     3. 不能繼承除介面外的其他合約。
+     4. 所有函數都必須是external且不能有函數體。
+     5. 繼承介面的非抽象合約必須實作介面定義的所有功能。
+   * 介面是智慧合約的骨架，定義了合約的功能以及如何觸發它們。
+   * 如果智慧合約實現了某種介面（例如`ERC20`或`ERC721`），其他Dapps和智能合約就知道如何與它互動。因為介面提供了兩個重要的資訊：
+     1. 合約裡每個函數的`bytes4`選擇器，以及函數簽名`函數名(每個參數類型）`。
+     2. 接口id。
+   * 介面與合約`ABI`（Application Binary Interface）等價，可以互相轉換。
+   * 編譯介面可以得到合約的`ABI`，利用abi-to-sol工具，也可以將`ABI json`檔轉換為介面`sol`檔。
+
+**IERC721事件**
+
+   `IERC721`包含3個事件，其中`Transfer`和`Approval`事件在`ERC20`中也有。
+   1. `Transfer`事件：在轉帳時被釋放，記錄代幣的發出地址`from`，接收地址`to`和`tokenId`。
+   2. `Approval`事件：在授權時被釋放，記錄授權位址`owner`，被授權位址`approved`和`tokenId`。
+   3. `ApprovalForAll`事件：在批量授權時被釋放，記錄批量授權的發出地址`owner`，被授權地址`operator`和授權與否的`approved`。
+
+**IERC721函數**
+   1. `balanceOf`：傳回某地址的NFT持有量`balance`。
+   2. `ownerOf`：回傳某`tokenId`的主人`owner`。
+   3. `transferFrom`：普通轉賬，參數為轉出地址`from`，接收地址`to`和`tokenId`。
+   4. `safeTransferFrom`：安全轉帳（如果接收方是合約位址，會要求實作`ERC721Receiver`介面）。參數為轉出位址`from`，接收位址`to`和`tokenId`。
+   5. `approve`：授權另一個位址使用你的NFT。參數為被授權位址`approve`和`tokenId`。
+   6. `getApproved`：查詢`tokenId`被核准給了哪個位址。
+   7. `setApprovalForAll`：將自己持有的該系列NFT批次授權給某個位址`operator`。
+   8. `isApprovedForAll`：查詢某個位址的NFT是否批次授權給了另一個`operator`位址。
+   9. `safeTransferFrom`：安全轉帳的重載函數，參數裡麵包含了`data`。
+
+**什麼時候使用介面**
+   * 一個合約實現了`IERC721`接口，我們不需要知道它具體代碼實現，就可以與它交互。
+
+**異常**
+   * 檢查條件不成立的時候，就會拋出異常。
+   * Error
+      * 方便且有效率（省`gas`）地向使用者解釋操作失敗的原因
+      * 拋出例外的同時可攜帶參數
+      * 可以在`​​contract`之外定義異常
+      * `error`必須搭配`revert`（回退）指令使用。
+   * Require
+      * 唯一的缺點就是`gas`隨著描述異常的字串長度增加，比`error`指令要高。
+      * 使用方法：`require(檢查條件，"異常的描述")`
+   * Assert
+      * 一般用於程式設計師寫入程式`debug`
+      * 不能解釋拋出異常的原因（比`require`少個字串）
+      * 使用方法：`assert(檢查條件）`
+    
+###  2024.10.04
+
+**`import`**
+   * 用法:
+      * 通过源文件相对位置导入
+      ```Solidity
+         文件结构
+         ├── Import.sol
+         └── Yeye.sol
+         
+         // 通过文件相对位置import
+         import './Yeye.sol';
+      ```
+      * 通过源文件网址导入网上的合约的全局符号
+      ```Solidity
+      // 通过网址引用
+      import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+        ```
+      * 通过npm的目录导入
+      ```Solidity
+         import '@openzeppelin/contracts/access/Ownable.sol';
+      ```
+      * 通过指定全局符号导入合约特定的全局符号
+      ```Solidity
+         import {Yeye} from './Yeye.sol';
+      ```  
+
 <!-- Content_END -->

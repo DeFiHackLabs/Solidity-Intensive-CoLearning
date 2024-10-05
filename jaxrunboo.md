@@ -585,6 +585,122 @@ contract Sender {
 
 ###
 
+### 2024.10.03
+
+#### 合约创建新合约
+
+1. create
+
+```solidity
+//如果被调用方构造合约是payable，可以通过下面这个value的方式发送eth
+Contract x = new Contract{value:value}(params);
+```
+
+```solidity
+contract Pair{
+    address public factory;
+    address public token1;
+    address public token2;
+
+    constructor() payable {
+        factory = msg.sender;
+    }
+
+    function initialize(address _token1,address _token2) external {
+        require(msg.sender == factory,"");
+        token1 = _token1;
+        token2 = _token2;
+    }
+
+}
+
+contract Factory {
+    mapping(address => mapping (address => address)) public getPair;
+    address[] public allPairs;
+
+    function createPair(address _token1,address _token2) external returns(address){
+        Pair pair = new Pair();
+        pair.initialize(_token1, _token2);
+        allPairs.push(address(pair));
+        getPair[_token1][_token2] = address(pair);
+        getPair[_token2][_token1] = address(pair);
+        return address(pair);
+    }
+}
+```
+###
+
+### 2024.10.04
+
+#### 1. create2
+
+计算地址方式
+
+1. create
+
+address = hash(msg.sender,nonce)
+
+nonce往往会产生变更，因此产生的地址不好预测
+
+2. create2 
+
+而create2是想要，不论未来发生什么，产生的地址是不变的。
+
+address = hash("0xff",msg.sender,salt,initCode);
+
+所需参数：
+
+1. 固定常数 0xff
+2. 合约创建者，msg.sender
+3. salt bytes32字节的值，主要用来影响新合约创建的地址
+4. initcode  新合约的初始字节码，合约的creationCode和构造函数的参数
+
+用法：
+
+```solidity
+Contract x = new Contract{salt: salt,value: value}(params);
+```
+
+按这个用法，固定常数 、 initcode都没在create的时候展示，但是在预计算地址时，计算所需用到了这些信息。
+
+合约实现：
+
+```solidity 
+contract Factory2 {
+    mapping (address => mapping (address => address)) public getPair;
+    address[] public allPairs;
+
+    function createPair(address _token0,address _token1) external returns(address) {
+        (address token0,address token1) = _token0 > _token1?(_token1,_token0):(_token0,_token1);
+        bytes32 salt = keccak256(abi.encodePacked(token0,token1));
+        Pair pair = new Pair{salt: salt}();
+        pair.initialize(_token0, _token1);
+
+        address p = address(pair);
+        allPairs.push(p);
+
+        getPair[_token0][_token1] = p;
+        getPair[_token1][_token0] = p;
+        return p;
+    }
+}
+```
+
+地址计算：
+
+```solidity
+function caculateAddr(address _token0,address _token1) external view returns(address) {
+    (address token0,address token1) = _token0 > _token1?(_token1,_token0):(_token0,_token1);
+    bytes32 salt = keccak256(abi.encodePacked(token0,token1));
+    address predictAddress = address(uint160(uint(keccak256(
+        abi.encodePacked(bytes1(0xff),address(this),salt,keccak256(type(Pair).creationCode))
+        ))));
+    return predictAddress;
+}
+```
+
+###
+
 ### 2024.10.05 
 
 #### 合约自毁
@@ -606,4 +722,5 @@ selfdestruct
 确实是违背去中心化的本意，但是没做这件事情，eth还能不能活着都不一定。
 
 ###
+
 <!-- Content_END -->

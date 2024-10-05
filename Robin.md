@@ -668,4 +668,123 @@ contract JdCalculator is EBusinessCalculator{
             }
         ```
 
+   ### 2024.10.02
+
+學習內容:
+
+- [x] import关键字
+    - 通过源文件相对位置引入：import './A.sol';
+    - 通过源文件网络地址引入：import 'https://github.com/xxx/xxx/xxx/A.sol';
+    - 通过npm目录导入源文件：import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+    - 导入特定的内容：import {A, B, C} from './A.sol';
+  
+- [x] 接收ETH
+    - receive函数
+        - 一个合约最多有一个receive函数
+        - 声明不需要function关键字
+        - 不能有任何参数和返回值
+        - 必须包含payable和external
+        - receive函数不应该有复杂逻辑
+    - fallback函数
+        - 一个合约最多有一个fallback函数
+        - 不能有任何参数和返回值
+        - 必须包含payable和external
+        - 不需要function关键字
+        - msg为空且存在receive函数时调用receive函数
+        - msg不为空或者不存在receive函数时调用fallback函数
+        - fallback函数必须是payable
+receive函数和fallback函数都不存在的时候 直接向合约发送ETH会报错。但是可以通过其他payable函数发送ETH。
+
+ * 在恶意合约中，可能存在嵌入恶意消耗gas的内容或者直接让转账失败的代码，导致一些退款、转账等操作失败，造成合约不能正常工作 。所以在写合约的时候一定要注意这种情况
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract MyReceiveAndFallbackContract{
+    event ReceiveEvent(address sender, uint256 balance);
+    event FallbackEvent(address sender, uint256 balance, bytes data);
+    receive() external payable {
+        emit ReceiveEvent(msg.sender, msg.value);
+     }
+
+     fallback() external payable{
+        emit FallbackEvent(msg.sender, msg.value, msg.data);
+     }
+
+}
+```
+
+### 2024.10.03
+
+學習內容:
+
+- [x] 发送ETH
+    - call: 没有gas限制，不会revert，返回值是bool，代表转账正常或者失败（推荐）
+        - 接收方地址.call({value: 发送ETH的数额})("")，返回值是bool
+    - transfer: 2300gas限制，转账失败会revert
+        - 接收方地址.transfer(发送ETH的数额);  无返回值
+    - send: 2300gas限制，转账失败会返回false 不会revert，几乎不使用
+           - 接收方地址.send(发送ETH的数额);  返回值是bool
+
+
+### 2024.10.04
+
+學習內容:
+
+- [x] 调用其他合约的几种方法
+   - 通过其他合约地址调用：OtherContract(_addresss).functionName();
+   - 通过参数直接传入合约：function callOtherContract(OtherContract _address);
+   - 通过合约地址获取合约：OtherContract _otherContract = OtherContract(_address);
+
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract MyContract{
+    function method1(OtherContract _address, uint256 cakeNum) external {
+        _address.setMyCake(cakeNum);
+    }
+    function method2(address _address, uint256 cakeNum)external {
+        OtherContract(_address).setMyCake(cakeNum);
+    }
+    function method3(address _address, uint256 cakeNum) external {
+        OtherContract oc = OtherContract(_address);
+        oc.setMyCake(cakeNum);
+    }
+
+}
+
+
+contract OtherContract{
+
+   mapping(address => uint256) private cake;
+
+   function setMyCake(uint256 cakeNum)external payable {
+    cake[msg.sender] = cakeNum;
+   }
+
+    // 通过指定合约地址查询对应合约地址拥有的cake数量
+   function showMyCake(address owner) external view returns(uint256 cakeNum){
+    cakeNum = cake[owner];
+   }
+
+}
+```
+
+
+### 2024.10.05
+
+學習內容:
+
+- [x] call调用其他函数
+     - call函数是低级函数，返回值为(bool, bytes memory),其中bool代表调用是否成功，bytes memory代表调用的返回值
+     - call是官方推荐发送以太币，触发fallback和receive函数的方式
+     - 一般来说不建议使用call调用其他函数，推荐采用声明合约变量后的调用方式
+     - call的使用规则：目标函数地址.call(abi.encodeWithSignature("functionName(parameterType[,...])", parameterValue[,...]))
+     - call调用其他函数的时候还可以指定eth和gas: 目标函数地址.call{value: 1 ether, gas: 100000}(abi.encodeWithSignature("functionName(parameterType[,...])", parameterValue[,...]))
+     - 如果call调用的目标函数不存在，则会触发调用fallback函数
+
+
 <!-- Content_END -->

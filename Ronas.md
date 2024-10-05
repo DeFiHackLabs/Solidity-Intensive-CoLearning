@@ -344,4 +344,207 @@ timezone: Asia/Shanghai
             f(50);
             ```
 
+### 2024.10.01
+
+> 進度: Solidity 102 17~18
+
+- 庫合約 (Library)
+    ```
+    library Strings {
+    }
+    ```
+    - 性質
+        - 不能有狀態變數
+        - 不能繼承或被繼承
+        - 不能接收發送 ETH
+        - 不可被銷毀
+    - `public` 或 `external` 的函數, 會觸發 `delegatecall`
+    - 語法
+        ```
+        using Strings for uint256;
+        function getString1(uint256 _number) public pure returns(string memory){
+            return _number.toHexString();
+        }
+
+        function getString2(uint256 _number) public pure returns(string memory){
+            return Strings.toHexString(_number);
+        }
+        ```
+
+- 引入外部合約 (import)
+    > https://docs.soliditylang.org/en/latest/path-resolution.html#imports
+
+### 2024.10.02
+
+> 進度: Solidity 102 19~20
+
+- 回調函數 (Callback function) `fallback` 以及 `receive`
+    - 版本沿革
+        - 0.6 版本前, 只有 `fallback()` 函數
+        - 0.6 版本後, 多出 `receive()` 拆分原本 `fallback()` 功能
+    - 負責處理以下兩種情況 (不應也不能在合約裡被呼叫)
+        - 接收 ETH 時調用
+        - 被呼叫的函數簽名不存在時
+    - `receive`
+        - 語法
+            ```
+            receive() external payable { ... }
+            ```
+            - 不用 `function` 關鍵字
+            - 必須為 `external payable`
+            - 無參數、無回傳值
+    - `fallback`
+        - 語法
+            ```
+            fallback() external payable { ... }
+            ```
+            - 必須為 `external`, 通常也會用 `payable` 修飾
+    - 接收 ETH 時觸發方式
+        - 條件1: `msg.data` 是否為空, 非空執行 `fallback()`
+        - 條件2: `receive()` 是否存在, 不存在執行 `fallback()`
+        - `receive()`, `payable fallback()` 都不存在時, 向合約發送 ETH 將會報錯
+
+- 發送 ETH
+    - `transfer`
+        ```
+        _to.transfer(amount);
+        ```
+        - 有 `gas` 限制 (2300), 遇到目標合約回調函數過於複雜很容易超過
+        - 失敗會自動 revert
+    - `send`
+        ```
+        _to.send(amount);
+        ```
+        - 有 `gas` 限制 (2300)
+        - 失敗不會自動 revert, 會回傳 `bool` (`true` or `false`) 代表成功或失敗
+    - `call`
+        ```
+        (bool success,) = _to.call{value: amount}("");
+        ```
+        - 無 `gas` 限制
+        - 失敗不會自動 revert, 會回傳 `(bool, bytes)`
+    - 選擇 
+        - `call` > `transfer` > `send`
+
+
+### 2024.10.03
+
+> 進度: Solidity 102 21
+
+- 呼叫已布署的合約的做法
+    - 傳入地址, 將地址強轉型為目標合約
+        ```
+        function callSetX(address _Address, uint256 x) external{
+            OtherContract(_Address).setX(x);
+        }
+
+        function callGetX(OtherContract _Address) external view returns(uint x){
+            x = _Address.getX();
+        }
+        ```
+    - 運用合約變數
+        ```
+        function callGetX2(address _Address) external view returns(uint x){
+            OtherContract oc = OtherContract(_Address);
+            x = oc.getX();
+        }
+        ```
+- 呼叫目標合約 `payable` 函數發送 ETH 語法
+    ```
+    _Name(_Address).f{value: _Value}()
+    ```
+    - e.g.
+        ```
+        function setXTransferETH(address otherContract, uint256 x) payable external{
+            OtherContract(otherContract).setX{value: msg.value}(x);
+        }
+        ```
+
+### 2024.10.04
+
+> 進度: Solidity 102 22~23
+
+- call
+    ```
+    目標合約地址.call(abi.encodeWithSignature("函數簽名", 逗號分隔的具體參數));
+    目標合約地址.call{value:發送數量, gas:gas數量}(abi.encodeWithSignature("函數簽名", 逗號分隔的具體參數));
+    ```
+    - 為 `address` 的 low-level 成員函數, 回傳值 `(bool, bytes memory)`
+    - 為推薦發送 ETH 的方式
+    - 在目標合約名稱未知情況下, 可使用 call 呼叫另一個合約的函數, 但應盡量避免 (安全問題)
+
+- delegatecall
+    ```
+    目標合約地址.delegatecall(abi.encodeWithSignature("函數簽名", 逗號分隔的具體參數));
+    目標合約地址.call{gas:gas數量}(abi.encodeWithSignature("函數簽名", 逗號分隔的具體參數));
+    ```
+    - 使用場景為代理合約 (Proxy Contract), 代理合約儲存狀態, 邏輯合約實作邏輯, 使用者透過代理合約呼叫邏輯合約中的功能
+    - 為 `address` 的 low-level 成員函數, 回傳值 `(bool, bytes memory)`
+    - 不能指定 ETH 數量
+    - 狀態變數: 名稱可以不同, 類型及順序必須相同
+
+### 2024.10.05
+
+> 進度: Solidity 102 24~25
+
+- 在合約中建立新合約
+    - create
+        ```
+        Contract x = new Contract{value: _value}(params)
+        ```
+        - 合約地址生成演算法
+            ```
+            新地址 = hash(創建者地址, nonce)
+            ```
+        - Example
+            ```
+            contract PairFactory{
+                mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+                address[] public allPairs; // 保存所有Pair地址
+
+                function createPair(address tokenA, address tokenB) external returns (address pairAddr) {
+                    // 创建新合约
+                    Pair pair = new Pair(); 
+                    // 调用新合约的initialize方法
+                    pair.initialize(tokenA, tokenB);
+                    // 更新地址map
+                    pairAddr = address(pair);
+                    allPairs.push(pairAddr);
+                    getPair[tokenA][tokenB] = pairAddr;
+                    getPair[tokenB][tokenA] = pairAddr;
+                }
+            }
+            ```
+    - create2
+        ```
+        Contract x = new Contract{salt: _salt, value: _value}(params)
+        ```
+        - 合約地址生成演算法
+            ```
+            新地址 = hash("0xFF",創建者地址, salt, initcode)
+            ```
+        - Example
+            ```
+            contract PairFactory2{
+                mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+                address[] public allPairs; // 保存所有Pair地址
+
+                function createPair2(address tokenA, address tokenB) external returns (address pairAddr) {
+                    require(tokenA != tokenB, 'IDENTICAL_ADDRESSES'); //避免tokenA和tokenB相同产生的冲突
+                    // 用tokenA和tokenB地址计算salt
+                    (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); //将tokenA和tokenB按大小排序
+                    bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+                    // 用create2部署新合约
+                    Pair pair = new Pair{salt: salt}(); 
+                    // 调用新合约的initialize方法
+                    pair.initialize(tokenA, tokenB);
+                    // 更新地址map
+                    pairAddr = address(pair);
+                    allPairs.push(pairAddr);
+                    getPair[tokenA][tokenB] = pairAddr;
+                    getPair[tokenB][tokenA] = pairAddr;
+                }
+            }
+            ```
+
 <!-- Content_END -->

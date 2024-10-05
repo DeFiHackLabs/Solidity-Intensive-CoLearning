@@ -403,7 +403,7 @@ function test() public pure returns (uint256) {
     - Each event contains a maximum of 4 `topics`
     - The first topic is the event hash, calculated as follows:
     ```
-    keccak256("Transfer(address,address,uint256)")
+    keccak256("transfer(address,address,uint256)")
     // 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
     ```
 
@@ -845,7 +845,7 @@ There are 3 way to transfer `ETH` in contract
 - `call()` <- Recommended
   - No gas limit
   - Transaction will still executed even failed to call
-  - Have return values of `(bool, bytes)` which `bool` indicate calling failed or successful, `bytes` is data return
+  - Have return values of `(bool, bytes memory)` which `bool` indicate calling failed or successful, `bytes` is data return
 - `transfer()`
   - Gas limit `2300`, if recipient is contract and it's `fallback()` or `receive()` is complex, transfer will fail
   - Transaction will revert if transfer failed
@@ -875,9 +875,343 @@ function sendETH(address payable _to) external payable {
 
 ### 2024.10.02
 
+#### Chapter 21: Call to Other Contract
+
+In Solidity, one contract able to call another contract deployed or contract going to deploy where contract address to update later once deployed.
+
+```
+contract Target {
+  function echo() external pure returns (bool) {
+    return true;
+  }
+
+  function deposit() external payable {
+    ...
+  }
+}
+
+contract Source {
+  function callToAddress(address _target) external view returns (bool) {
+    return Target(_target).echo();
+  }
+
+  function callToContract(Target _target) external view returns (bool) {
+    return _target.echo();
+  }
+
+  function callToVariable(address _target) external view returns (bool) {
+    Target target = Target(_target);
+    return target.echo();
+  }
+
+  function callToPayable(address _target) external payable {
+    Target(_target).deposit{value: msg.value}("");
+  }
+}
+```
+
+#### Chapter 22: Call
+
+`call` is low level function of `address` variable. This function will return `(bool, bytes memory)`, which `bool` indicate calling failed or successful, `bytes` is data return.
+
+- `call` is recommended way to trigger `fallback` or `receive` when transferring `ETH`
+- However `call` is not recommended to use for calling another contract, especially to an unknown/malicious contract
+-
+
+```
+bytes someBytes = abi.encodeWithSignature("functionName(params, ...)", params, ...);
+
+someContract.call(someBytes); // Call without value (ETH)
+someContract.call{value: wei, gas: wei}(someBytes); // value and gas are optional
+
+// Call function with 1 ETH and capture return values
+(bool success, bytes memory data) = someContract.call{value: 1 ether}(
+  abi.encodeWithSignature("someFunction(uint256)", 100)
+);
+```
+
+- `call` will go to `fallback` if the function calling does not exist.
+
+#### Chapter 23: Delegatecall
+
+`delegatecall` is also a low level function of `address` variable.
+
+- delegate call able to forward the context of origin to another contract, eg
+
+```
+// call
+Address A -call-> Contract B -call-> Contract C
+===============================================
+                context=B            context=C
+                msg.sender=A         msg.sender=B
+                msg.value=A          msg.value=B
+
+// delegatecall
+Address A -call-> Contract B -delegatecall-> Contract C
+=======================================================
+                context=B                    context=B
+                msg.sender=A                 msg.sender=A
+                msg.value=A                  msg.value=A
+
+
+// Example
+(bool success, bytes memory data) = someContract.delegatecall(
+  abi.encodeWithSignature("someFunction(uint256)", 100)
+);
+```
+
+- Can specific `gas` but not `value`
+
+- When to use:
+  - Proxy contract: Which usually separate into State Contract and Logic Contract. All the functions of Logic Contract can call to State Contract through `delegatecall`. Thus Logic Contract can be update/replace when needed.
+  - [EIP-2535](https://eips.ethereum.org/EIPS/eip-2535): Also known as Diamonds, Multi-Facet Proxy. The smart contract is modular that can be extended after deployment.
+
 ### 2024.10.03
 
+#### Chapter 24: Contract Factory
+
+In Solidity, both EOA and Contract can also create/deploy new Contract. The most popular contract factory is Uniswap's `PairFactory`, which create a smart contract contain two tokens, eg: `USDT/PEPE`.
+
+- There are two ways to create new contract from a contract:
+  - CREATE
+  ```
+  Contract x = new Contract{value: _value}(params);
+  // Contract: Name of new contract
+  // x: New contract variable
+  // value: To transfer ETH into new contract if new contract's constructor is payable
+  // params: Parameters of new contract's constructor
+  ```
+  - CREATE2
+
+How address calculated by CREATE
+
+```
+new_contract_address = hash(creator_address, nonce);
+// creator_address can be EOA or contract
+```
+
+- `nonce` after the transaction count of EOA, or contract created count for contract, increase by 1 every tx/contract made
+- The address of new contract is hard to predict as nonce might change often
+
+#### Chapter 25: CREATE2
+
+How address calculated by CREATE2:
+
+```
+new_contract_address = hash("0xFF", creator_address, salt, initcode);
+// 0xFF: A constant to differentiate from CREATE
+// creator_address: The address of contract called CREATE2
+// salt: A bytes32 variable prefix by creator
+// initcode: New contract byte code with the constructor arguments and logic included
+```
+
+How to use:
+
+```
+Contract x = new Contract{salt: _salt, value: _value}(params);
+```
+
+Example WITH constructor parameters:
+
+```
+bytes32 salt = heccak256(abi.encodePacked(params...));
+
+NewContract nc = new NewContract{salt: salt}();
+
+address predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+        bytes1(0xff),
+        address(this),
+        salt,
+        keccak256(type(NewContract).creationCode)
+        )))));
+```
+
+Example WITH constructor parameters:
+
+```
+bytes32 salt = heccak256(abi.encodePacked(params...));
+
+NewContract nc = new NewContract{salt: salt}(constructorParams...);
+
+address predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+        bytes1(0xff),
+        address(this),
+        salt,
+        keccak256(abi.encodePacked(type(NewContract).creationCode, abi.encode(constructorParams...)))
+        )))));
+```
+
 ### 2024.10.04
+
+#### Chapter 26: Delete Contract
+
+`selfdestruct`
+
+- To remove/erase the contract bytecode from the chain, then transfer remaining chain native token `ETH` to specific address
+- Notes: `selfdestruct` deprecated in v0.8.18, but still available to use as don't have better alternative yet
+- `EIP-6780` included along the `Cancun` upgrade have limit the feature of `selfdestruct`, which only transfer the remaining `ETH`, the remove of contract bytecode only work when contract creation + selfdestruct in single transaction. This applied to deployed contract too.
+
+```
+selfdestruct(addr);
+// addr: Address to receive remaing ETH
+
+// Creation and Destruct
+function createContract() external {
+  SomeContract sc = new SomeContract();
+  sc.doSomething();
+  sc.selfdestruct(payable(msg.sender));
+}
+```
+
+#### Chapter 27: Application Binary Interface (ABI) Encoding & Decoding
+
+ABI is the standard for interacting with EVM's smart contract. Data encoded based on their type; and since the encoding does not contain type information, it is necessary to specify their type when decoding them.
+Functions of ABI:
+
+Encoding:
+
+- `abi.encode`
+  - Designed to interact with smart contracts by padding each parameter with 32 bytes of data
+  ```
+  res = abi.encode(params...);
+  ```
+- `abi.encodePacked`
+  - Encodes the given parameter according to its minimum required space. For example, only 1 byte is used to encode uint8 types. Usually used for data hashing or when don't interact with the contract
+  ```
+  res = abi.encodePacked(params...);
+  ```
+- `abi.encodeWithSignature`
+  - Same as `abi.encode` but with function signature in first param
+  - Notes: In signature, variable type `uint` and `int` need to write as `uint256` and `int256` respectively
+  ```
+  res = abi.encodeWithSignature("someFunction(variableTypes...)", params...);
+  ```
+- `abi.encodeWithSelector`
+  - Same as `abi.encodeWithSignature`, but the first param is first 4 bytes of function selector's hash
+  ```
+  res = abi.encodeWithSelect(bytes4(keccak256("someFunction(variableTypes...)")), params...);
+  ```
+
+Decoding:
+
+- `abi.decode`
+  - Decode the binary encoding generated by abi.encode
+  ```
+  (var...) = abi.decode(data, (variableTypes...));
+  ```
+
+Use cases:
+
+- Used with `call` to call to the contract
+
+```
+bytes4 selector = someContract.doSomething.selector;
+
+bytes memory data = abi.encodeWithSelector(selector, _x);
+(bool success, bytes memory returnedData) = address(someContract).staticcall(data);
+```
+
+- Used in ethers.js to implement contract imports and function calls
+
+```
+const someContract = new ethers.Contract(contractAddress, contractABI, signer);
+const res = await someContract.doSomething();
+```
+
+- Used in contract decompiling, most of the functions in non-open-source contract was able to get encoded function hash but not the function signature, but at least can use with `abi.encodeWithSelector`
+
+```
+bytes memory data = abi.encodeWithSelector(bytes4(0x533ba33a));
+
+(bool success, bytes memory returnedData) = address(someContract).staticcall(data);
+require(success);
+```
+
+#### Chapter 28: Hash
+
+A hash function is a cryptographic concept that converts a message of arbitrary length into a fixed-length value.
+Properties of a Fine Hash:
+
+- Unidirectionary: Hashing is simple and uniquely determined, while the reverse is almost impossible and can only be done by brute force enumeration
+- Sensitivity: Any modification of input change the hash a lot
+- Efficient: Easy to compute
+- Brute force resistance: Almost possible to brute force
+
+Use cases:
+
+- Get a unique identifier
+- Signature encryption
+- Encryption
+
+Keccak256
+
+- Most commonly used hashing function in Solidity
+
+#### Chapter 29: Function selector
+
+We're actually sending `calldata` to contract when making transaction to it
+
+- First 4 bytes of `calldata` is the function `selector`
+
+`msg.data`
+
+- Is the complete `calldata` sent into the contract
+
+```
+Calldata: 0x6a6278420000000000000000000000002c44b726adf1963ca47af88b284c06f30380fc78
+================
+Function selector: 0x6a627842
+Parameters: 0x0000000000000000000000002c44b726adf1963ca47af88b284c06f30380fc78
+```
+
+`method id` are the first 4 bytes of function signature's keccak256 hash, also the `selector`
+
+```
+functionSignature = "someFunction(uint256,bool,...)";
+functionSignatureHash = keccak256(functionSignature);
+selectorOrMethodId = bytes4(functionSignatureHash);
+
+// To call someFunction
+(bool success1, bytes memory data1) = address(this).call(abi.encodeWithSelector(selectorOrMethodId, 1, true));
+```
+
+#### Chapter 30: Try catch
+
+Solidity introduce exception handling since `0.6`. `try-catch` can only using with external function or contract creation
+
+```
+try someContract.someFunction() {
+  // do something if success
+} catch {
+  // do something if failed
+}
+
+// external function of current deployed contract
+try this.someFunction() {
+  // do something if success
+} catch {
+  // do something if failed
+}
+
+// external function with data returns
+try someContract.someFunction returns(returnType var) {
+  // do something with var if success
+} catch {
+  // do something if failed
+}
+
+// Conditional catch
+try ... {
+} catch Error(string memory reason) {
+  // do something with reason
+} catch Panic(uint errorCode) {
+  // do something with errorCode
+} catch (bytes memory lowLevelReason) {
+  // do something with lowLevelReason
+}
+```
+
+End of WTF Solidity 102
 
 ### 2024.10.05
 
@@ -892,11 +1226,3 @@ function sendETH(address payable _to) external payable {
 ### 2024.10.10
 
 <!-- Content_END -->
-
-```
-
-```
-
-```
-
-```

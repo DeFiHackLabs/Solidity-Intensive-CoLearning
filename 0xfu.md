@@ -337,4 +337,288 @@ contract SignatureNFT is ERC721 {
 ###
 
 
+
+### 2024.09.30
+
+
+#### NFT 交易所
+
+用Solidity搭建一个零手续费的NFT交易所
+- 卖家：出售NFT的一方，可以挂单list、撤单revoke、修改价格update。
+- 买家：购买NFT的一方，可以购买purchase。
+- 订单：卖家发布的NFT链上订单，一个系列的同一tokenId最多存在一个订单，其中包含挂单价格price和持有人owner信息。当一个订单交易完成或被撤单后，其中信息清零。
+
+
+#### 合约事件
+
+```Solidity
+event List(address indexed seller, address indexed nftAddr, uint256 indexed tokenId, uint256 price);
+event Purchase(address indexed buyer, address indexed nftAddr, uint256 indexed tokenId, uint256 price);
+event Revoke(address indexed seller, address indexed nftAddr, uint256 indexed tokenId);
+event Update(address indexed seller, address indexed nftAddr, uint256 indexed tokenId, uint256 newPrice);
+```
+
+###
+
+
+### 2024.10.1
+
+#### 随机数
+
+由于以太坊上所有数据都是公开透明（public）且确定性（deterministic）的，没法像其他编程语言一样给
+开发者提供生成随机数的方法，在web3上可以使用链上或链下方法生成随机数。
+
+
+#### 链上随机数生成
+可以将一些链上的全局变量作为种子，利用keccak256()哈希函数来获取伪随机数。
+
+```Solidity
+function getRandomOnchain() public view returns(uint256){
+    bytes32 randomBytes = keccak256(abi.encodePacked(block.timestamp, msg.sender, blockhash(block.number-1)));
+
+    return uint256(randomBytes);
+}
+```
+这种方法因为使用的种子数据都是公开的， 所以使用者可以预测出这些种子生成的随机数, 其次旷工可以操纵 blockhash 和 
+block.timestamp 使得生成的随机数符合他的利益。
+
+###
+
+
+
+### 2024.10.2
+
+#### ERC1155 
+
+
+以太坊EIP1155提出了一个多代币标准ERC1155，允许一个合约包含多个同质化和非同质化代币。ERC1155在GameFi应用最多，
+Decentraland、Sandbox等知名链游都使用它。
+
+
+在ERC1155中，每一种代币都有一个id作为唯一标识，每个id对应一种代币。这样代币种类就可以非同质的在同一个合约里
+管理了，并且每种代币都有一个网址uri来存储它的元数据，类似ERC721的tokenURI。
+
+
+#### ERC1155的元数据接口合约IERC1155MetadataURI
+
+```Solidity
+interface IERC1155MetadataURI is IERC1155 {
+    /**
+     * @dev 返回第`id`种类代币的URI
+     */
+    function uri(uint256 id) external view returns (string memory);
+}
+
+```
+
+如果某个id对应的代币总量为1，就是非同质化代币；如果某个id对应的代币总量大于1，就是同质化代币，因为这些代币都
+分享同一个id，类似ERC20。
+
+
+#### IERC1155 合约
+
+IERC1155接口合约抽象了EIP1155需要实现的功能，其中包含4个事件和6个函数。与ERC721不同，因为ERC1155包含多类代币，它实
+现了批量转账和批量余额查询，可以一次操作多种代币。
+
+
+
+#### ERC1155 接收合约
+
+与ERC721标准类似，为了避免代币被转入黑洞合约，ERC1155要求代币接收合约继承IERC1155Receiver并实现两个接收函数：
+
+- onERC1155Received()：单币转账接收函数，接受ERC1155安全转账safeTransferFrom 需要实现并返回自己的选择器0xf23a6e61。
+
+- onERC1155BatchReceived()：多币转账接收函数，接受ERC1155安全多币转账safeBatchTransferFrom 需要实现并返回自己的选择器0xbc197c81。
+
+
+###
+
+
+### 2024.10.3
+
+####  WETH
+
+当 ERC20 标准出现的时候， ETH本身并不符合 ERC20 标准，为了提高ETH在链上的互操作性，并使 ETH 可被用在 Dapp 中, 
+WTH 只是对 ETH 进行封装以符合 ERC20 标准。
+
+
+#### WETH 合约
+
+目前在用的主网WETH合约写于2015年，那时候solidity是0.4版本，用0.8版本重新写一个WETH。
+- 存款：包装，用户将ETH存入WETH合约，并获得等量的WETH。
+- 取款：拆包装，用户销毁WETH，并获得等量的ETH。
+
+
+```Solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+contract WETH is ERC20{
+    // 事件：存款和取款
+    event  Deposit(address indexed dst, uint wad);
+    event  Withdrawal(address indexed src, uint wad);
+
+    // 构造函数，初始化ERC20的名字和代号
+    constructor() ERC20("WETH", "WETH"){
+    }
+
+    // 回调函数，当用户往WETH合约转ETH时，会触发deposit()函数
+    fallback() external payable {
+        deposit();
+    }
+    // 回调函数，当用户往WETH合约转ETH时，会触发deposit()函数
+    receive() external payable {
+        deposit();
+    }
+
+    // 存款函数，当用户存入ETH时，给他铸造等量的WETH
+    function deposit() public payable {
+        _mint(msg.sender, msg.value);
+        emit Deposit(msg.sender, msg.value);
+    }
+
+    // 提款函数，用户销毁WETH，取回等量的ETH
+    function withdraw(uint amount) public {
+        require(balanceOf(msg.sender) >= amount);
+        _burn(msg.sender, amount);
+        payable(msg.sender).transfer(amount);
+        emit Withdrawal(msg.sender, amount);
+    }
+}
+```
+
+###
+
+
+
+### 2024.10.4
+
+#### 分账
+可以事先把每个人应分的比例写在智能合约中，获得收入后，再由智能合约来进行分账。
+
+#### 分账合约
+
+分账合约(PaymentSplit)具有以下几个特点：
+- 在创建合约时定好分账受益人payees和每人的份额shares。
+- 份额可以是相等，也可以是其他任意比例。
+- 在该合约收到的所有ETH中，每个受益人将能够提取与其分配的份额成比例的金额。
+- 分账合约遵循Pull Payment模式，付款不会自动转入账户，而是保存在此合约中。受益人通过调用release()函数触发实际转账。
+
+```Solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+/**
+ * 分账合约 
+ * @dev 收到ETH会存在分账合约中，需要每个受益人调用release()函数来领取。
+ */
+contract PaymentSplit{
+    // 事件
+    event PayeeAdded(address account, uint256 shares); // 增加受益人事件
+    event PaymentReleased(address to, uint256 amount); // 受益人提款事件
+    event PaymentReceived(address from, uint256 amount); // 合约收款事件
+
+    uint256 public totalShares; // 总份额
+    uint256 public totalReleased; // 总支付
+
+    mapping(address => uint256) public shares; // 每个受益人的份额
+    mapping(address => uint256) public released; // 支付给每个受益人的金额
+    address[] public payees; // 受益人数组
+
+    /**
+     * @dev 初始化受益人数组_payees和分账份额数组_shares
+     * 数组长度不能为0，两个数组长度要相等。_shares中元素要大于0，_payees中地址不能为0地址且不能有重复地址
+     */
+    constructor(address[] memory _payees, uint256[] memory _shares) payable {
+        // 检查_payees和_shares数组长度相同，且不为0
+        require(_payees.length == _shares.length, "PaymentSplitter: payees and shares length mismatch");
+        require(_payees.length > 0, "PaymentSplitter: no payees");
+        // 调用_addPayee，更新受益人地址payees、受益人份额shares和总份额totalShares
+        for (uint256 i = 0; i < _payees.length; i++) {
+            _addPayee(_payees[i], _shares[i]);
+        }
+    }
+
+    /**
+     * @dev 回调函数，收到ETH释放PaymentReceived事件
+     */
+    receive() external payable virtual {
+        emit PaymentReceived(msg.sender, msg.value);
+    }
+
+    /**
+     * @dev 为有效受益人地址_account分帐，相应的ETH直接发送到受益人地址。任何人都可以触发这个函数，但钱会打给account地址。
+     * 调用了releasable()函数。
+     */
+    function release(address payable _account) public virtual {
+        // account必须是有效受益人
+        require(shares[_account] > 0, "PaymentSplitter: account has no shares");
+        // 计算account应得的eth
+        uint256 payment = releasable(_account);
+        // 应得的eth不能为0
+        require(payment != 0, "PaymentSplitter: account is not due payment");
+        // 更新总支付totalReleased和支付给每个受益人的金额released
+        totalReleased += payment;
+        released[_account] += payment;
+        // 转账
+        _account.transfer(payment);
+        emit PaymentReleased(_account, payment);
+    }
+
+    /**
+     * @dev 计算一个账户能够领取的eth。
+     * 调用了pendingPayment()函数。
+     */
+    function releasable(address _account) public view returns (uint256) {
+        // 计算分账合约总收入totalReceived
+        uint256 totalReceived = address(this).balance + totalReleased;
+        // 调用_pendingPayment计算account应得的ETH
+        return pendingPayment(_account, totalReceived, released[_account]);
+    }
+
+    /**
+     * @dev 根据受益人地址`_account`, 分账合约总收入`_totalReceived`和该地址已领取的钱`_alreadyReleased`，计算该受益人现在应分的`ETH`。
+     */
+    function pendingPayment(
+        address _account,
+        uint256 _totalReceived,
+        uint256 _alreadyReleased
+    ) public view returns (uint256) {
+        // account应得的ETH = 总应得ETH - 已领到的ETH
+        return (_totalReceived * shares[_account]) / totalShares - _alreadyReleased;
+    }
+
+    /**
+     * @dev 新增受益人_account以及对应的份额_accountShares。只能在构造器中被调用，不能修改。
+     */
+    function _addPayee(address _account, uint256 _accountShares) private {
+        // 检查_account不为0地址
+        require(_account != address(0), "PaymentSplitter: account is the zero address");
+        // 检查_accountShares不为0
+        require(_accountShares > 0, "PaymentSplitter: shares are 0");
+        // 检查_account不重复
+        require(shares[_account] == 0, "PaymentSplitter: account already has shares");
+        // 更新payees，shares和totalShares
+        payees.push(_account);
+        shares[_account] = _accountShares;
+        totalShares += _accountShares;
+        // 释放增加受益人事件
+        emit PayeeAdded(_account, _accountShares);
+    }
+}
+```
+
+###
+
+
+### 2024.10.5
+
+#### 线性释放
+项目方一般会约定代币归属条款（token vesting），在归属期内逐步释放代币，减缓抛压，并防止团队和资本
+方过早躺平, 线性释放指的是代币在归属期内匀速释放。
+
+### 
+
 <!-- Content_END -->

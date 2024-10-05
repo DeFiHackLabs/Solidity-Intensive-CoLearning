@@ -355,11 +355,266 @@ Solidity三种抛出异常的方法：error，require和assert
    Create2：更安全的使用Create2 EVM opcode
    Arrays：跟数组相关的库合约
 
-### 2024.10.
+### 2024.10.02
 
-學習內容：WTF #18
+學習內容：WTF #18 
 
-# 18:
+# 18:import
+4種:
+ // 通过文件相对位置import
+import './Yeye.sol';
+// 通过`全局符号`导入特定的合约
+import {Yeye} from './Yeye.sol';
+// 通过网址引用
+import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+// 引用OpenZeppelin合约
+import '@openzeppelin/contracts/access/Ownable.sol';
+
+contract Import {
+    // 成功导入Address库
+    }
+
+### 2024.10.04
+
+學習內容: WTF 19~20
+
+![image](https://github.com/user-attachments/assets/dbb32a08-fe16-43ee-be33-57dd1ec1eff0)
+
+
+# 19: 接收ETH
+Solidity支持两种特殊的回调函数，receive()和fallback()，他们主要在两种情况下被使用：1)接收ETH，2)处理合约中不存在的函数调用（代理合约proxy contract)
+fallback(or receive)函数不能在合约内部调用
+
+1. receive():
+      1. 不要执行太多的逻辑,太复杂可能会触发Out of Gas报错。除非用call自訂gas
+      2. 一个合约最多有一个,不需要function
+      3. 不能有任何的参数，不能返回任何值，必须包含external和payable
+      4. 恶意合约，会在receive() 函数（老版本的话，就是 fallback() 函数）嵌入恶意消耗gas的内容或者使得执行故意失败的代码，导致一些包含退款和转账逻辑的合约不能正常工作
+
+     ```
+         // 定义事件
+         event Received(address Sender, uint Value);
+         // 接收ETH时释放Received事件
+         receive() external payable {
+             emit Received(msg.sender, msg.value);
+         }
+     ```
+
+
+2. fallback():
+      1. 会在调用合约不存在的函数时被触发。可用于接收ETH，也可以用于代理合约proxy contract
+      2. 不需要function关键字，必须由external修饰，一般也会用payable修饰，用于接收ETH:fallback() external payable { ... }
+      3. 想部署一个能接收ETH和msg.data的合约必須用它
+      4. 沒有定義會ETH value和msg.data發送失敗(不可只用receive)
+
+         ```
+         event fallbackCalled(address Sender, uint Value, bytes Data);
+         // fallback
+         fallback() external payable{
+             emit fallbackCalled(msg.sender, msg.value, msg.data);
+         }
+         ```
+   
+3. 触发fallback() 还是 receive()? (receive()和payable fallback()均不存在的时候，向合约直接发送ETH将会报错)
+           接收ETH
+              |
+         msg.data是空？
+            /  \
+          是    否
+          /      \
+receive()存在?   fallback()
+        / \
+       是  否
+      /     \
+receive()   fallback()
+
+# 20:發送ETH
+
+Solidity有三种方法向其他合约发送ETH，他们是：transfer()，send()和call()，其中call()是被鼓励的用法
+call没有gas限制，最为灵活，是最提倡的方法；
+transfer有2300 gas限制，但是发送失败会自动revert交易，是次优选择；
+send有2300 gas限制，而且发送失败不会自动revert交易，几乎没有人用它。
+
+1. 先寫一個接收:
+   先部署一个接收ETH合约ReceiveETH。ReceiveETH合约里有一个事件Log，记录收到的ETH数量和gas剩余。还有两个函数，一个是receive()函数，收到ETH被触发，并发送Log事件；另一个是查询合约ETH余额的getBalance()函数
+   contract ReceiveETH {
+    // 收到eth事件，记录amount和gas
+    event Log(uint amount, uint gas);
+    
+    // receive方法，接收eth时被触发
+    receive() external payable{
+        emit Log(msg.value, gasleft());
+    }
+    
+    // 返回合约ETH余额 (getBalance()函数，可以看到当前合约的ETH余额)
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+}
+
+2. 發送:
+   contract SendETH {
+    // 构造函数，payable使得部署的时候可以转eth进去
+    constructor() payable{}
+    // receive方法，接收eth时被触发
+    receive() external payable{}
+}
+
+3. 3 WAYS
+      1. TRANSFER:接收方地址.transfer(发送ETH数额)，失敗會revert
+            function transferETH(address payable _to, uint256 amount) external payable{
+                   _to.transfer(amount);
+               }
+
+      2. SEND:接收方地址.send(发送ETH数额)
+            转账失败，不会revert。返回值是bool，代表着转账成功或失败，需要额外代码处理
+            
+            error SendFailed(); // 用send发送ETH失败error
+   
+            // send()发送ETH
+            function sendETH(address payable _to, uint256 amount) external payable{
+                // 处理下send的返回值，如果失败，revert交易并发送error
+                bool success = _to.send(amount);
+                if(!success){
+                    revert SendFailed();
+                }
+            }
+      3. CALL:接收方地址.call{value: 发送ETH数额}("")
+         转账失败，不会revert。call()的返回值是(bool, bytes)，其中bool代表着转账成功或失败，需要额外代码处理。無gas限制
+         
+         error CallFailed(); // 用call发送ETH失败error
+
+         // call()发送ETH
+         function callETH(address payable _to, uint256 amount) external payable{
+             // 处理下call的返回值，如果失败，revert交易并发送error
+             (bool success,) = _to.call{value: amount}("");
+             if(!success){
+                 revert CallFailed();
+             }
+         }
+
+### 2024.10.05
+
+學習內容: WTF 21~22
+![image](https://github.com/user-attachments/assets/176d1942-2f85-4dfb-b0e0-7863fb78ea8c)
+
+
+# 21:調用其他合約
+1. 传入合约地址
+         function callSetX(address _Address, uint256 x) external{
+          OtherContract(_Address).setX(x);
+         }
+2. 传入合约变量:调用目标合约的getX()
+          function callGetX(OtherContract _Address) external view returns(uint x){
+             x = _Address.getX();
+         }
+3. 创建合约变量
+         function callGetX2(address _Address) external view returns(uint x){
+             OtherContract oc = OtherContract(_Address);
+             x = oc.getX();
+         }
+   //变量oc存储了OtherContract合约的引用
+   //复制OtherContract合约的地址，填入callGetX2函数的参数中，调用后成功获取x的值
+
+4. 调用合约并发送ETH
+         function setXTransferETH(address otherContract, uint256 x) payable external{
+          OtherContract(otherContract).setX{value: msg.value}(x);
+         }
+   //目标合约的函数是payable的，那么我们可以通过调用它来给合约转账：_Name(_Address).f{value: _Value}()，其中_Name是合约名，_Address是合约地址，f是目标函数名，_Value是要转的ETH数额（以wei为单位)
+
+   兩種都可:
+(1) OtherContract other = OtherContract(0xd9145CCE52D386f254917e481eB44e9943F39138)
+(2) IOtherContract other = IOtherContract(0xd9145CCE52D386f254917e481eB44e9943F39138)
+
+# 22:Call
+
+1. call 是address类型的低级成员函数，它用来与其他合约交互。它的返回值为(bool, bytes memory)，分别对应call是否成功以及目标函数的返回值。
+
+2. call是Solidity官方推荐的通过触发fallback或receive函数发送ETH的方法。不推荐用call来调用另一个合约，因为当你调用不安全合约的函数时，你就把主动权交给了它。推荐的方法仍是声明合约变量后调用函数，见第21讲：调用其他合约。当我们不知道对方合约的源代码或ABI，就没法生成合约变量；这时，我们仍可以通过call调用对方合约的函数。
+
+3. 目标合约地址.call(字节码);
+   字节码利用结构化编码函数abi.encodeWithSignature获得：abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)
+      函数签名为"函数名（逗号分隔的参数类型）"。例如abi.encodeWithSignature("f(uint256,address)", _x, _addr)。
+
+4. 另外call在调用合约时可以指定交易发送的ETH数额和gas数额：目标合约地址.call{value:发送数额, gas:gas数额}(字节码);
+
+5. ```
+       contract OtherContract {
+       uint256 private _x = 0; // 状态变量x
+       // 收到eth的事件，记录amount和gas
+       event Log(uint amount, uint gas);
+       
+       fallback() external payable{}
+   
+       // 返回合约ETH余额
+       function getBalance() view public returns(uint) {
+           return address(this).balance;
+       }
+   
+       // 可以调整状态变量_x的函数，并且可以往合约转ETH (payable)
+       function setX(uint256 x) external payable{
+           _x = x;
+           // 如果转入ETH，则释放Log事件
+           if(msg.value > 0){
+               emit Log(msg.value, gasleft());
+           }
+       }
+   
+       // 读取x
+       function getX() external view returns(uint x){
+           x = _x;
+       }    }
+
+5. 利用call调用目标合约
+   1. Response事件
+      
+      // 定义Response事件，输出call返回的结果success和data
+         event Response(bool success, bytes data);
+
+      
+ 2. 调用setX函数
+    
+    function callSetX(address payable _addr, uint256 x) public payable {
+       // call setX()，同时可以发送ETH
+       (bool success, bytes memory data) = _addr.call{value: msg.value}(
+           abi.encodeWithSignature("setX(uint256)", x)
+       );
+   
+       emit Response(success, data); //释放事件
+      }
+
+    3. 调用getX函数
+       
+      function callGetX(address _addr) external returns(uint256){
+    // call getX()
+    (bool success, bytes memory data) = _addr.call(
+        abi.encodeWithSignature("getX()")
+    );
+
+    emit Response(success, data); //释放事件
+    return abi.decode(data, (uint256));
+   }
+
+   4. 调用不存在的函数:觸發fallback
+      
+      function callNonExist(address _addr) external{
+    // call 不存在的函数
+    (bool success, bytes memory data) = _addr.call(
+        abi.encodeWithSignature("foo(uint256)")
+    );
+
+    emit Response(success, data); //释放事件
+}
+
+
+
+### 2024.10.0
+
+學習內容: WTF 23~
+
+
+# 23:
+
 
 
 <!-- Content_END -->

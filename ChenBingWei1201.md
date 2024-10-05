@@ -650,6 +650,450 @@ This works because `address(0)` is a known constant value, and you're assigning 
 
 </details>
 
-###
+### 2024.10.02
+<details>
+<summary>10. Control Flow</summary>
+
+#### Control Flow
+Solidity's control flow is similar to other languages, mainly including the following components:
+
+1. `if`-`else`
+```solidity
+function ifElseTest(uint256 _number) public pure returns(bool){
+    if(_number == 0){
+    return(true);
+    }else{
+    return(false);
+    }
+}
+```
+2. `for` loop
+```solidity
+function forLoopTest() public pure returns(uint256){
+    uint sum = 0;
+    for(uint i = 0; i < 10; i++){
+    sum += i;
+    }
+    return(sum);
+}
+```
+3. `while` loop
+```solidity
+function whileTest() public pure returns(uint256){
+    uint sum = 0;
+    uint i = 0;
+    while(i < 10){
+    sum += i;
+    i++;
+    }
+    return(sum);
+}
+```
+4. `do-while` loop
+```solidity
+function doWhileTest() public pure returns(uint256){
+    uint sum = 0;
+    uint i = 0;
+    do{
+    sum += i;
+    i++;
+    }while(i < 10);
+    return(sum);
+}
+```
+5. Conditional (`ternary`) operator
+
+The `ternary` operator is the only operator in Solidity that accepts three operands：a condition followed by a question mark (`?`), then an expression `x` to execute if the condition is true followed by a colon (`:`), and finally the expression `y` to execute if the condition is false: `condition ? x : y`.
+
+This operator is frequently used as an alternative to an `if`-`else` statement.
+
+// ternary/conditional operator
+function ternaryTest(uint256 x, uint256 y) public pure returns(uint256){
+    // return the max of x and y
+    return x >= y ? x: y; 
+}
+
+In addition, there are `continue` (immediately enter the next loop) and `break` (break out of the current loop) keywords that can be used.
+
+#### Solidity Implementation of Insertion Sort
+
+##### Insertion Sort
+
+The sorting algorithm solves the problem of arranging an unordered set of numbers from small to large, for example, sorting `[2, 5, 3, 1]` to `[1, 2, 3, 5]`. Insertion Sort (InsertionSort) is the simplest and first sorting algorithm that most developers learn in their computer science class. The logic of InsertionSort:
+1. from the beginning of the array x to the end, compare the element x[i] with the element in front of it x[i-1]; if x[i] is smaller, switch their positions, compare it with x[i-2], and continue this process. 
+
+##### Solidity Implementation (with Bug)
+Python version of Insertion Sort takes up 9 lines. Let's rewrite it into Solidity by replacing `functions`, `variables`, and `loops` with solidity syntax accordingly. It only takes up 9 lines of code:
+```solidity
+    // Insertion Sort (Wrong version）
+    function insertionSortWrong(uint[] memory a) public pure returns(uint[] memory) {
+        for (uint i = 1;i < a.length;i++){
+            uint temp = a[i];
+            uint j=i-1;
+            while( (j >= 0) && (temp < a[j])){
+                a[j+1] = a[j];
+                j--;
+            }
+            a[j+1] = temp;
+        }
+        return(a);
+    }
+```
+But when we compile the modified version and try to sort `[2, 5, 3, 1]`. BOOM! There are bugs! After 3-hour debugging, I still could not find where the bug was. I googled "Solidity insertion sort", and found that all the insertion algorithms written with Solidity are all wrong, such as: [Sorting in Solidity without Comparison](https://medium.com/coinmonks/sorting-in-solidity-without-comparison-4eb47e04ff0d)
+
+##### Solidity Implementation (Correct)
+
+The most commonly used variable type in Solidity is `uint`, which represent a non-negative integer. If it takes a negative value, we will encounter an `underflow` error. In the above code, the variable `j` will get `-1`, causing the bug.
+
+So, we need to add `1` to `j` so it can never take a negative value. The correct insertion sort solidity code:
+```solidity
+    // Insertion Sort（Correct Version）
+    function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
+        // note that uint can not take negative value
+        for (uint i = 1;i < a.length;i++){
+            uint temp = a[i];
+            uint j=i;
+            while( (j >= 1) && (temp < a[j-1])){
+                a[j] = a[j-1];
+                j--;
+            }
+            a[j] = temp;
+        }
+        return(a);
+    }
+```
+
+#### Summary
+
+In this lecture, I learned control flow in Solidity and wrote a simple but bug-prone sorting algorithm. Solidity looks simple but have many traps. Every month, projects get hacked and lose millions of dollars because of small bugs in the smart contract. To write a safe contract, we need to master the basics of the Solidity and keep practicing.
+
+</details>
+
+### 2024.10.03
+<details>
+<summary>11. Constructor & Modifier</summary>
+
+#### Constructor
+`constructor` is a special function, which will automatically run once during contract deployment. Each contract can have one `constructor`. It can be used to initialize parameters of a contract, such as an `owner` address:
+```solidity
+   address owner; // define owner variable
+
+   // constructor
+   constructor() {
+      owner = msg.sender; //  set owner to the deployer address
+   }
+```
+Note: The syntax of `constructor` in solidity is not consistent for different versions: Before `solidity 0.4.22`, constructors did not use the `constructor` keyword. Instead, the constructor had the same name as the contract name. This old syntax is prone to mistakes: the developer may mistakenly name the contract as `Parents`, while the constructor as `parents`. So in `0.4.22` and later version, the new `constructor` keyword is used. Example of constructor prior to `solidity 0.4.22`:
+```solidity
+pragma solidity = 0.4.21;
+contract Parents {
+    // The function with the same name as the contract name(Parents) is constructor
+    function Parents () public {
+    }
+}
+```
+
+#### Modifier
+`modifier` is similar to `decorator` in object-oriented programming, which is used to declare dedicated properties of functions and reduce code redundancy. `modifier` is Iron Man Armor for functions: the function with `modifier` will have some magic properties. The popular use case of `modifier` is restrict the access of functions.
+
+Let's define a `modifier` called onlyOwner, functions with it can only be called by `owner`:
+```solidity
+   // define modifier
+   modifier onlyOwner {
+      require(msg.sender == owner); // check whether caller is address of owner
+      _; // execute the function body
+   }
+```
+Next, let us define a `changeOwner` function, which can change the `owner` of the contract. However, due to the `onlyOwner` modifier, only original `owner` is able to call it. This is the most common way of access control in smart contracts.
+```solidity
+   function changeOwner(address _newOwner) external onlyOwner{
+      owner = _newOwner; // only owner address can run this function and change owner
+   }
+```
+
+#### Summary
+In this lecture, I learned `constructor` and `modifier` in Solidity, and wrote an `Ownable` contract that controls access of the contract.
+
+</details>
+
+### 2024.10.04
+<details>
+<summary>12. Events</summary>
+
+#### Events
+The `event` in solidity are the transaction logs stored on the `EVM` (Ethereum Virtual Machine). They can be emitted during function calls and are accessible with the contract address. Events have two characteristics：
+- Responsive: Applications (e.g. `ether.js`) can subscribe and listen to these events through `RPC` interface and respond at frontend.
+- Economical: It is cheap to store data in events, costing about 2,000 `gas` each. In comparison, store a new variable on-chain takes at least 20,000 `gas`.
+
+##### Declare events
+The events are declared with the `event` keyword, followed by event name, then the type and name of each parameter to be recorded. Let's take the `Transfer` event from the `ERC20` token contract as an example：
+```solidity
+event Transfer(address indexed from, address indexed to, uint256 value);
+```
+`Transfer` event records three parameters: `from`，`to`, and `value`，which correspond to the address where the tokens are sent, the receiving address, and the number of tokens being transferred. Parameter `from` and `to` are marked with `indexed` keywords, which will be stored at a special data structure known as `topics` and easily queried by programs.
+
+##### Emit events
+We can `emit` events in functions. In the following example, each time the `_transfer()` function is called, `Transfer` events will be emitted and corresponding parameters will be recorded.
+```solidity
+    // define _transfer function，execute transfer logic
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) external {
+
+        _balances[from] = 10000000; // give some initial tokens to transfer address
+
+        _balances[from] -=  amount; // "from" address minus the number of transfer
+        _balances[to] += amount; // "to" address adds the number of transfer
+
+        // emit event
+        emit Transfer(from, to, amount);
+    }
+```
+
+#### EVM Log
+EVM uses `Log` to store Solidity events. Each log contains two parts: `topics` and `data`.
+
+##### `Topics`
+`Topics` is used to describe events. Each event contains a maximum of 4 `topics`. Typically, the first `topic` is the event hash: the hash of the event signature. The event hash of `Transfer` event is calculated as follows:
+```solidity
+keccak256("Transfer(addrses,address,uint256)")
+
+// 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+```
+Besides event hash, `topics` can include 3 `indexed` parameters, such as the `from` and `to` parameters in `Transfer` event. The anonymous event is special: it does not have a event name and can have 4 indexed parameters at maximum.
+
+`indexed` parameters can be understood as the indexed "key" for events, which can be easily queried by programs. The size of each `indexed` parameter is 32 bytes. For the parameter is larger than 32 bytes, such as `array` and `string`, the hash of the underlying data is stored.
+
+##### `Data`
+Non-indexed parameters will be stored in the `data` section of the log. They can be interpreted as "value" of the event and can't be retrieved directly. But they can store data with larger size. Therefore, `data` section can be used to store complex data structures, such as `array` and `string`. Moreovrer, `data` consumes less gas compared to `topic`.
+
+#### Summary
+In this lecture, I learned how to use and query events in solidity. Many on-chain analysis tools are based on solidity events, such as `Dune Analytics`.
+
+</details>
+
+
+### 2024.10.05
+<details>
+<summary>13. Inheritance</summary>
+
+#### Inheritance
+
+Inheritance is one of the core concepts in object-oriented programming, which can significantly reduce code redundancy. It is a mechanism where you can to derive a class from another class for a hierarchy of classes that share a set of attributes and methods. In solidity, smart contracts can be viewed objects, which supports inheritance.
+
+##### Rules
+
+There are two important keywards for inheritance in Solidity:
+
+- `virtual`: If the functions in the **parent** contract are expected to be overridden in its child contracts, they should be declared as `virtual`.
+- `override`： If the functions in the **child** contract override the functions in its parent contract, they should be declared as `override`.
+
+**Note 1**: If a function both overrides and is expected to be overridden, it should be labeled as `virtual override`.
+
+**Note 2**: If a public state variable is labeled as `override`, its `getter` function will be overridden. For example:
+```solidity
+mapping(address => uint256) public override balanceOf;
+```
+
+##### Simple inheritance
+Let's start by writing a simple `Grandfather` contract, which contains 1 `Log` event and 3 functions: `hip()`, `pop()`, `grandfather()`, which outputs a string `"Grandfather"`.
+```solidity
+contract Grandfather {
+    event Log(string msg);
+
+    // Apply inheritance to the following 3 functions: hip(), pop(), man()，then log "Grandfather".
+    function hip() public virtual{
+        emit Log("Grandfather");
+    }
+
+    function pop() public virtual{
+        emit Log("Grandfather");
+    }
+
+    function Grandfather() public virtual {
+        emit Log("Grandfather");
+    }
+}
+```
+Let's define another contract called `Father`, which inherits the `Grandfather` contract. The syntax for inheritance is `contract Father is Grandfather`, which is very intuitive. In the `Father` contract, we rewrote the functions `hip()` and `pop()` with the `override` keyword, changing their output to `"Father"`. We also added a new function called `father`, which output a string `"Father"`.
+```solidity
+contract Father is Grandfather{
+    // Apply inheritance to the following 2 functions: hip() and pop()，then change the log value to "Father".
+    function hip() public virtual override{
+        emit Log("Father");
+    }
+
+    function pop() public virtual override{
+        emit Log("Father");
+    }
+
+    function father() public virtual{
+        emit Log("Father");
+    }
+}
+```
+After deploying the contract, we can see that `Father` contract contains 4 functions. The outputs of `hip()` and `pop()` are successfully rewritten with output `"Father"`, while the output of the inherited `grandfather()` function is still `"Gatherfather"`.
+
+##### Multiple inheritance
+
+A solidity contract can inherit multiple contracts. The rules are:
+1. For multiple inheritance, parent contracts should be ordered by seniority, from the highest to the lowest. For example: `contract Son is Gatherfather, Father`. A error will be thrown if the order is not correct.
+2. If a function exists in multiple parent contracts, it must be overridden in the child contract, otherwise an error will occur.
+3. When a function exists in multiple parent contracts, you need to put all parent contract names after the override keyword. For example: `override(Grandfather, Father)`.
+
+Example：
+```solidity
+contract Son is Grandfather, Father{
+    // Apply inheritance to the following 2 functions: hip() and pop()，then change the log value to "Son".
+    function hip() public virtual override(Grandfather, Father){
+        emit Log("Son");
+    }
+
+    function pop() public virtual override(Grandfather, Father) {
+        emit Log("Son");
+    }
+```
+After deploying the contract, we can see that we successfully rewrote the `hip()` and `pop()` functions in `Son` contract, changing the output to `"Son"`. While the `grandfather()` and `father()` functions inherited from its parent contracts remain unchanged.
+
+##### Inheritance of modifiers
+Likewise, modifiers in Solidity can be inherited as well. Rules for modifier inheritance are similar as the function inheritance, using the `virtual` and `override` keywords.
+```solidity
+contract Base1 {
+    modifier exactDividedBy2And3(uint _a) virtual {
+        require(_a % 2 == 0 && _a % 3 == 0);
+        _;
+    }
+}
+
+contract Identifier is Base1 {
+    // Calculate _dividend/2 and _dividend/3, but the _dividend must be a multiple of 2 and 3
+    function getExactDividedBy2And3(uint _dividend) public exactDividedBy2And3(_dividend) pure returns(uint, uint) {
+        return getExactDividedBy2And3WithoutModifier(_dividend);
+    }
+
+    // Calculate _dividend/2 and _dividend/3
+    function getExactDividedBy2And3WithoutModifier(uint _dividend) public pure returns(uint, uint){
+        uint div2 = _dividend / 2;
+        uint div3 = _dividend / 3;
+        return (div2, div3);
+    }
+}
+```
+`Identifier` contract can directly use the `exactDividedBy2And3` modifier, because it inherits `Base1` contract. We can also rewrite the modifier in the contract:
+```solidity
+    modifier exactDividedBy2And3(uint _a) override {
+        _;
+        require(_a % 2 == 0 && _a % 3 == 0);
+    }
+```
+
+##### Inheritance of constructors
+Constructors can also be inherited. Let first consider a parent contract `A` with a state variable `a`, which is initialized in its constructor:
+```solidity
+// Applying inheritance to the constructor functions
+abstract contract A {
+    uint public a;
+
+    constructor(uint _a) {
+        a = _a;
+    }
+}
+```
+There are two ways for a child contract to inherit the constructor from its parent `A`:
+1. Declare the parameters of the parent constructor at inheritance:
+```solidity
+    contract B is A(1){}
+```
+2. Declare the parameter of the parent constructor in the constructor of the child contract:
+```solidity
+contract C is A {
+    constructor(uint _c) A(_c * _c) {}
+}
+```
+
+##### Calling the functions from the parent contracts
+
+There are two ways for a child contract to call the functions of the parent contract:
+1. Direct calling： The child contract can directly call the parent's function with `parentContractName.functionName()`. For example:
+```solidity
+        function callParent() public {
+            Grandfather.pop();
+        }
+```
+2. `super` keyword： The child contract can use the `super.functionName()` to call the function in the **neareast** parent contract in the inheritance hierarchy. Solidity inheritance are declared in a right-to-left order: for `contract Son is Grandfather, Father`, `Father` contract is closer than the `Grandfather` contract. Thus, `super.pop()` in the `Son` contract will call `Father.pop()` but not `Grandfather.pop()`.
+```solidity
+    function callParentSuper() public{
+        // call the function one level higher up in the inheritance hierarchy
+        super.pop();
+    }
+```
+
+##### Diamond inheritance
+
+In Object-Oriented Programming, the diamond inheritance refers the scenario that **a derived class has two or more base classes**.
+
+When using the `super` keyword on a diamond inheritance chain, it should be noted that it will call **the relevant function of each contract in the inheritance chain, not just the nearest parent contract**.
+
+First, we write a base contract called `God`. Then we write two contracts `Adam` and `Eve` inheriting from `God` contract. Lastly, we write another contract `people` inheriting from `Adam` and `Eve`. Each contract has two functions, `foo()` and `bar()`:
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.13;
+
+/* Inheritance tree visualized：
+  God
+ /  \
+Adam Eve
+ \  /
+people
+*/
+contract God {
+    event Log(string message);
+    function foo() public virtual {
+        emit Log("God.foo called");
+    }
+    function bar() public virtual {
+        emit Log("God.bar called");
+    }
+}
+contract Adam is God {
+    function foo() public virtual override {
+        emit Log("Adam.foo called");
+        Adam.foo();
+    }
+    function bar() public virtual override {
+        emit Log("Adam.bar called");
+        super.bar();
+    }
+}
+contract Eve is God {
+    function foo() public virtual override {
+        emit Log("Eve.foo called");
+        Eve.foo();
+    }
+    function bar() public virtual override {
+        emit Log("Eve.bar called");
+        super.bar();
+    }
+}
+contract people is Adam, Eve {
+    function foo() public override(Adam, Eve) {
+        super.foo();
+    }
+    function bar() public override(Adam, Eve) {
+        super.bar();
+    }
+}
+```
+In this example, calling the `super.bar()` function in the people contract will call the `Eve`, `Adam`, and `God `contract's `bar()` function, which is different from ordinary multiple inheritance.
+
+Although `Eve` and `Adam` are both child contracts of the `God` parent contract, the `God` contract will only be called once in the whole process. This is because Solidity borrows the paradigm from Python, forcing a DAG (directed acyclic graph) composed of base classes to guarantee a specific order based on C3 Linearization. For more information on inheritance and linearization, read the official [Solidity docs here](https://docs.soliditylang.org/en/v0.8.17/contracts.html#multiple-inheritance-and-linearization).
+
+#### Summary
+In this tutorial, I learned the basic uses of inheritance in Solidity, including simple inheritance, multiple inheritance, inheritance of modifiers and constructors, and calling functions from parent contracts.
+
+</details>
+
 
 <!-- Content_END -->

@@ -275,5 +275,57 @@ function (<parameter types>) {internal|external} [pure|view|payable] [returns (<
 
 在调用函数时，可以指定gas和要发送的ether：`this.f{gas: 10, value: 800}();`
 
+### 2024.10.01
+**学习内容：**<br>
+ERC, Ethereum Request for Comments. 即：以太坊征求意见。是以太坊开发者的协议提案，是以太坊智能合约开发人员使用的技术文档，为以太坊生态系统中的特定用户组提供方法、创新、研究和特征的规范。这些文档通常由开发人员创建，并且包含有关协议规范和合约说明的信息。
+
+任何人都可以创建ERC，但它需要通过以太坊改进提案（EIP）的流程。
+
+常见：ERC-20、ERC-777为同质化代币标准，ERC-721、ERC-1155为非同质化代币标准。
+
+### 2024.10.02
+**学习内容：**<br>
+event和emit：
+
+`event` 是Solidity中声明事件的关键字。事件类似于日志记录，允许合约将一些数据记录到区块链的日志中。这些日志可以被外部应用程序监听和处理。
+
+`emit` 是用于触发事件的关键字。当事件被触发时，它会将指定的数据记录到区块链的日志中，并且外部应用可以监听这些日志。
+
+外部应用程序（例如使用Web3.js或Ethers.js的前端应用）可以监听并处理合约触发的事件。
+
+### 2024.10.03
+**学习内容：**<br>
+引用类型包括：struct、array、mapping。使用引用类型，则必须显式提供数据区域：memory、storage、calldata
+
+> 更改数据位置的赋值或类型转换将始终引发自动复制操作，而同一数据位置内的赋值在某些情况下仅复制存储类型。
+
+固定数组：T[k]，动态数组：T[ ]。eg：`uint[][5]`：含有5个动态数组的数组。.push()和.push(value)用于在动态数组末尾附加新元素。
+
+### 2024.10.04
+**学习内容：**<br>
+库函数是一种特殊的合约，为提升solidity代码的复用性和减少gas而存在。
+
+与普通合约的不同点：
+
+1. 不能存在状态变量；
+2. 不能继承或被继承；
+3. 不能接收以太币；
+4. 不可以被销毁；
+
+常见的库合约有`String`、`Address`、`Create2`、`Arrays`
+
+### 2024.10.05
+**学习内容：**<br>
+Hardhat：https://hardhat.org/
+
+配置文件：hardhat.config.js
+
+`npx hardhat compile` 编译合约
+
+单元测试，需要编写js脚本，会用到chai和ethers.js两个库，分别用于测试和链上交互。最好运行测试`npx hardhat test`
+
+部署合约，在remix只需点击`deploy`就可以部署，不过在本地hardhat需要编写部署脚本。hardhat会提供一个默认网络进行部署，`npx hardhat run --network hardhat  scripts/deploy.js`
+
+通过配置hardhat.config.js，也可以部署到非本地测试网
 
 <!-- Content_END -->

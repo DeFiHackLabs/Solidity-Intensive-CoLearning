@@ -92,5 +92,35 @@ just like normal old struct nothing special
 
 can be quered by key like normal mapping
 
+### 2024.10.01
+
+#### mapping rules
+
+keytype must be default types of solidity => no struct
+but value type can be anything
+
+must be storage but cant be used in return result of public func
+
+if mapping is public,  a getter function will be created auto for quering value by key
+
+adding mapping pair by _Var[_Key] = _Value
+
+### 2024.10.02
+
+#### principle of mapping
+
+doesnt store key or length info
+uses keccak256(key) as offset ?
+
+#### 08 initla value
+
+getter func => var()
+deleting a var will reset it to default
+
+### 2024.10.03
+
+#### why mapping?
+efficient memory space and fast access
+like hash tables
 
 <!-- Content_END -->

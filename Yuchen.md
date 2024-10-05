@@ -946,5 +946,333 @@ function getString2(uint256 _number) public pure returns(string memory){
 * `Create2`：更安全的使用`Create2 EVM opcode`。
 * `Arrays`：跟數組相關的庫合約。
 
+### 2024.10.02
+#### `import`
+`import`可以用來在一個文件中引用另一個文件的內容，提高程式的可重用性、組織性。  
+
+**用法：**  
+* 通過源文件相對位置導入：  
+    ```Solidity
+    文件结构
+    ├── Import.sol
+    └── Yeye.sol
+
+    // 通过文件相对位置import
+    import './Yeye.sol';
+    ```
+* 通過源文件網址導入網上合約的全局符號：  
+    ```Solidity
+    // 通过网址引用
+    import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+    ```
+* 通過`npm`的目錄導入：  
+    ```Solidity
+    import '@openzeppelin/contracts/access/Ownable.sol';
+    ```
+* 通過指定`全局符號`導入合約特定的全局符號。  
+    ```Solidity
+    import {Yeye} from './Yeye.sol';
+    ```
+<img src="https://github.com/user-attachments/assets/b89ea127-e9a5-4d3f-bd5e-3997e88a4a32" height="400px" width="600px" />  
+
+> Q：Solidity中import的作用是：
+>
+> A. 导入其他合约中的接口  
+> B. 导入其他合约中的私有变量  
+> **C. 导入其他合约中的全局符号**  
+> D. 导入其他合约中的内部变量  
+> 
+> Ans：import 可以導入所有全局可用的符號（如函數、結構、事件等），這是最全面的描述。
+
+> Q：import导入文件中的全局符号可以单独指定其中的：
+> 
+> A. 合约  
+> B. 纯函数  
+> C. 结构体类型  
+> **D. 以上都可以**
+>
+> Ans：  
+> A. 合約：可以單獨導入合約，例如 import {Yeye} from "./Yeye.sol";。
+> 
+> B. 纯函数：可以導入純函數（如果存在），例如 import {someFunction} from "./SomeLib.sol";。
+> 
+> C. 结构体类型：結構體類型也可以單獨導入，例如 import {SomeStruct} from "./SomeStruct.sol";。
+
+> Q：被导入文件中的全局符号想要被其他合约单独导入，应该怎么编写？
+> 
+> A. 将合约结构包含  
+> B. 包含在合约结构中  
+> **C. 与合约并列在文件结构中** 
+> 
+> Ans：在 Solidity 中，如果你想要導入某個文件中的全局符號（例如合約、函數、結構體等），這些符號必須在文件的最外層與合約並列定義，而不是在合約內部。這樣才能被其他合約單獨導入。 
+
+### 2024.10.03
+
+#### 接收ETH
+Solidity支持兩種特殊的回調函數，`receive()`和`fallback()`。  
+* 使用情況：
+    1. 接收ETH
+    2. 處理合約中不存在的函數調用 (代理合約proxy contract)
+
+※ 在Solidity 0.6.x版本之前，只有`fallback()`函數，0.6版本之後`fallback()`函数才被拆分成`receive()`和`fallback()`。
+
+
+**`receive()`**  
+* 用途：`receive()` 函數在合約收到 ETH 轉帳時被呼叫的函數。
+* 特點：
+    * 只能有一個 receive() 函數
+    * 宣告時不用`function`關鍵字
+    * 不接受任何參數，並且沒有返回值，且必須包含`external`和`payable`。
+    * 合約接收 ETH 的時候，`receive()`會被觸發，函數中不能執行太多邏輯，因為當用`send`、`transfer`方法發送 ETH 時，gas 會被限制在`2300`，此時`receive()`太複雜會觸發`Out of Gas`報錯；如果用`call`就可以自定義gas以執行更複雜的邏輯。
+    
+
+    ```Solidity
+    // 定义事件
+    event Received(address Sender, uint Value);
+    // 接收ETH时释放Received事件
+    receive() external payable {
+        emit Received(msg.sender, msg.value);
+    }
+    ```
+    ※ 有些恶意合约，会在receive() 函数（老版本的话，就是 fallback() 函数）嵌入恶意消耗gas的内容或者使得执行故意失败的代码，导致一些包含退款和转账逻辑的合约不能正常工作，因此写包含退款等逻辑的合约时候，一定要注意这种情况。
+
+
+**`fallback()`**  
+* 用途：`fallback()` 函數會在呼叫不存在的函數時被觸發。可用於接收 ETH；也可用於代理合約`proxy contract`。
+* 特點：
+    * 宣告時不用`function`關鍵字
+    * 必須由`external`和`payable`修飾，用於接收ETH:`fallback() external payable { ... }`。
+event fallbackCalled(address Sender, uint Value, bytes Data);
+
+    ex.以下程式，觸發時會釋放`fallbackCalled`事件，並輸出`msg.sender`，`msg.value`和`msg.data`：
+    ```Solidity
+    // fallback
+    fallback() external payable{
+        emit fallbackCalled(msg.sender, msg.value, msg.data);
+    }
+    ```
+
+**`receive`和`fallback`的區別**  
+`receive`和`fallback`都能用於接收 ETH，觸發規則如下：
+```
+触发fallback() 还是 receive()?
+           接收ETH
+              |
+         msg.data是空？
+            /  \
+          是    否
+          /      \
+receive()存在?   fallback()
+        / \
+       是  否
+      /     \
+receive()   fallback()
+```  
+※ 合約接收到 ETH 時，`msg.data`為空且存在`receive()`時，會觸發`receive()`；`msg.data`不為空或不存在`receive()`時，會觸發`fallback()`，此時`fallback()`必須為`payable`。  
+
+`receive()`和`payable fallback()`均不存在時，向合約直接發送 ETH 將會報錯(但仍可以通過帶有`payable`的函數向合約發送 ETH)。
+
+
+### 2024.10.04
+#### 發送 ETH
+Solidity 中向其他合約發送`ETH`的方法共有三種：`transfer()`、`send()`、`call()`(最鼓勵使用)。  
+
+**接收 ETH 合約**  
+部署一個接收`ETH`的合約 `ReceiveETH`，其中有一個事件`Log`，事件會記錄收到的`ETH`數量和`gas`剩餘；兩個函數(1)`receive()`，收到`ETH`後被觸發，(2)`getBalance()`，查詢合約的`ETH`餘額。
+```Solidity
+contract ReceiveETH {
+    // 收到eth事件，紀錄amount和gas
+    event Log(uint amount, uint gas);
+
+    // receive 方法，接收eth時被觸發
+    receive() external payable{
+        emit Log(msg.value, gasleft());
+    }
+
+    // 返回合約ETH餘額
+    function getBalance() view public returns(uint) {
+        retuen address(this).balance;
+    }
+}
+```
+
+**發送 ETH 合約**  
+實作三種方法向`ReceiveETH`合約發送`ETH`。先在發送ETH合約的`SendETH`中實現`payable`的`constructor`和`receive()`，使我們能在部署時和部署後向合約轉帳。  
+```Solidity
+contract SendETH{
+    // 構造函數，payable使的部署的時向合約發送eth
+    constructor() payable{}
+    // receuve方法，接收eth時被觸發
+    receive() external payable{}
+}
+```
+**transfer**  
+* `接收方地址.transfer(發送ETH數額)`
+* `transfer()`的`gas`限制是`2300`，足夠用於轉帳，但對方合約的`fallback()`、`receive()`不能實作太複雜的邏輯。
+* `transfer()`如果轉帳失敗，會自動`revert`(回滾交易)。
+```Solidity
+// 用transfer()發送ETH
+function transferETH(address payable  _to, uint256 amount) external payable{
+    _to.transfer(amount); // 接收方地址.transfer(發送ETH數額)
+}
+```
+
+**send**  
+* `接收方地址.send(發送ETH數額)`
+* `send()`的`gas`限制是`2300`，足夠用於轉帳，但對方合約的`fallback()`、`receive()`不能實作太複雜的邏輯。
+* `send()`如果轉帳失敗，不會自動`revert`。
+* `send()`的返回值是`bool`，代表轉帳成功或失敗。
+```Solidity
+error SendFailed(); // 用send發送ETH失敗
+
+// send()發送ETH
+function sendETH(address payable _to, uint256 amount) external payable{
+    // 處理send的返回值，如果失敗，revert交易並發送error
+    bool success = _to.send(amount);
+    if(!success){
+        revert SendFailed();
+    }
+}
+```
+
+**call**  
+* `接收方地址.call{value: 發送ETH數額}("")`
+* `call()`沒有`gas`限制，可支持對方合約實作複雜邏輯。
+* `call()`如果轉帳失敗，不會自動`revert`。
+* `call()`的返回值是`(bool, bytes)`，`bool`代表轉帳成功或失敗。
+```Solidity
+error CallFailed(); // 用call發送ETH失敗
+
+// call()發送ETH
+function callETH(address payable _to, uint256 amount) external payable{
+    // 處理call的返回值，如果失敗，revert交易並發送error
+    (bool success,) = _to.call{value: amount}("");
+    if(!success){
+        revert CallFailed();
+    }
+}
+```
+### 2024.10.05
+
+#### 調用已部署合約
+Solidity 中，一個合約可以調用另一個合約的函數，在建構 DAPP 時非常有用。
+
+**目標合約**  
+假設現在有一個簡單的合約`OtherContract`，用於被其他合約調用。  
+其中包含狀態變量`_x`，事件`Log`在收到`ETH`時觸發，三個函數：`getBalance()`、`seX()`、`getX()`。
+```Solidity
+contract OtherContract {
+    uint256 private _x = 0; // 状态变量_x
+    // 收到eth的事件，记录amount和gas
+    event Log(uint amount, uint gas);
+    
+    // 返回合约ETH余额
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+
+    // 可以调整状态变量_x的函数，并且可以往合约转ETH (payable)
+    function setX(uint256 x) external payable{
+        _x = x;
+        // 如果转入ETH，则释放Log事件
+        if(msg.value > 0){
+            emit Log(msg.value, gasleft());
+        }
+    }
+
+    // 读取_x
+    function getX() external view returns(uint x){
+        x = _x;
+    }
+}
+```
+1. 傳入合約地址  
+    在函數中傳入目標合約地址，生成目標合約的引用，然後調用目標函數。  
+    ```Solidity
+    function callSetX(address _Address, uint256 x) external{
+        OtherContract(_Address).setX(x);
+    }
+    ```  
+    <img src="https://github.com/user-attachments/assets/3406e27f-908e-4710-ad58-6fc2da0d0d59" height="360px" width="640px" />  
+
+2. 傳入合約變量  
+    直接在函數裡傳入合約的引用。  
+    ```Solidity
+    function callGetX(OtherContract _Address) external view returns(uint x){
+        x = _Address.getX();
+    }
+    ```
+    <img src="https://github.com/user-attachments/assets/940b17e9-9eeb-44b2-bdc2-1c271e8f436b" height="360px" width="640px" />  
+
+3. 創建合約變量  
+    創建新合約變量，並通過合約變量來調用目標函數。  
+    ```Solidity
+    function callGetX2(address _Address) external view returns(uint x){
+        OtherContract oc = OtherContract(_Address);
+        x = oc.getX();
+    }
+    ```
+    <img src="https://github.com/user-attachments/assets/bf1c009f-6160-40ad-a7c4-9903487c5936" height="360px" width="640px" />  
+
+4. 調用合約並發送`ETH`  
+    如果目標合約的函數是`payable`的，可通過調用其來給合約轉帳。  
+    `_Name(_Address).f{value: _Value}()`，其中`_Name`是合约名，`_Address`是合约地址，`f`是目标函数名，`_Value`是要转的`ETH`数额（以`wei`为单位）。  
+    ```Solidity
+    function setXTransferETH(address otherContract, uint256 x) payable external{
+        OtherContract(otherContract).setX{value: msg.value}(x);
+    }
+    ```
+    <img src="https://github.com/user-attachments/assets/095b828f-adbe-4e85-938d-4709c7636194" height="360px" width="640px" />  
+    <img src="https://github.com/user-attachments/assets/0ee4ba76-40cd-4261-9709-30334d81f5d2" height="120px" width="640px" />  
+
+> Q:假设我们部署了合约 OtherContract （合约内容见下）  
+> 其合约地址为 0xd9145CCE52D386f254917e481eB44e9943F39138。我们希望在另一个合约中调用该合约，考虑如下两种方式：
+> ```
+> //OtherContract 合约如下：
+> // SPDX-License-Identifier: MIT
+> pragma solidity ^0.8.6;
+> 
+> interface IOtherContract {
+>     function getBalance() external returns(uint);
+>     function setX(uint256 x) external payable;
+>     function getX() external view returns(uint x);
+> }
+> 
+> contract OtherContract is IOtherContract{
+>     uint256 private _x = 0;
+>     event Log(uint amount, uint gas);
+>     
+>     function getBalance() external view override returns(uint) {
+>         return address(this).balance;
+>     }
+> 
+>     function setX(uint256 x) external override payable{
+>         _x = x;
+>         if(msg.value > 0){
+>             emit Log(msg.value, gasleft());
+>         }
+>     }
+> 
+>     function getX() external view override returns(uint x){
+>         x = _x;
+>     }
+> }
+> ```
+> ```
+> (1) OtherContract other = OtherContract(0xd9145CCE52D386f254917e481eB44e9943F39138)
+> (2) IOtherContract other = IOtherContract(0xd9145CCE52D386f254917e481eB44e9943F39138)
+> ```
+> 下列说法正确的是：  
+> A. (1)(2) 两种写法均会报错  
+> B. 仅 (1) 是调用其他合约的正确写法，(2) 会报错  
+> C. 仅 (2) 是调用其他合约的正确写法，(1) 会报错  
+> D. (1)(2) 均是调用其他合约的正确写法  
+> 
+> Ans:D  
+> (1) 直接实例化合约 OtherContract：这是通过已知的合约地址实例化一个合约对象。这种方式在合约内部执行的操作和直接在其他合约中执行是等价的，因为合约 OtherContract 已经被部署，并且已知其地址。
+>
+> (2) 通过接口 IOtherContract 实例化：这是一种更灵活的方式，通过接口可以在合约的不同版本之间更轻松地进行交互。只要目标合约实现了 IOtherContract 接口，便可以通过该接口的方式进行调用。这也同样是正确的调用方法。
+
+
 
 <!-- Content_END -->

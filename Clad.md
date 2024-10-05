@@ -420,7 +420,8 @@ function callETH(address payable _to, uint256 amount) external payable{
 筆記:  
 
 #### 調用其他合約
-
+- 目標, 如何在已知合約代碼和地址的情況下, 調用已部屬的合約
+  
 ex: 目標合約
 ```Solidity
 contract OtherContract{
@@ -447,19 +448,21 @@ contract OtherContract{
 ```
 
 1. 傳入合約的地址
-- 在函數裡傳入要調用的合約地址, 生成目標合約的引用, 調用目標函數
+- 在函數裡傳入要調用的合約地址, 來生成目標合約的引用, 然後調用目標函數
 ```Solidity
 function callSetX(address _Address, uint256 x) external{
    otherContract(_Address).setX(x);
 }
 ```
 2. 傳入合約的變數
+- 可以直接在函數裡傳入合約的引用, ex: 把參數類型 address 改為要調用的合約 OtherContract
 ```Solidity
 function callGetX(OtherContract _Address) external view returns(uint x){
    x = Address.getX(); 
 }
 ```
 3. 創建合約的變數
+- 創建合約變數, 通過這個變數來調用目標合約
 ```Solidity
 function callGetX2(address _Address) external view returns(uint x){
    OtherContract oc = OtherContract(_Address);
@@ -467,11 +470,174 @@ function callGetX2(address _Address) external view returns(uint x){
 }
 ```
 4. 調用合約並發送 eth
+- 如果要調用的合約函數是 payable, 那麼可以通過調用它來給合約轉帳
+- 規則, contractName(_Address).f{value: _Value}()
 ```Solidity
 function setXTransferETH(address otherContract, uint256 x) payable external{
    OtherContract(otherContract).setX{value: msg.value}(x);
 }
-```   
+```
+### 2024.10.1
+學習內容  
+筆記:  
+
+#### Call
+功用
+- call 是 address 類型的低級成員函數, 用來與其它合約交互, return (bool bytes memory), 對應 call 是否成功和目標函數的返回值
+- call 通過觸發 fallback 或 receive 函數發送 eth
+
+寫法
+- 目標合約地址.call(字節碼)
+- 自節碼 利用結構化編碼函數取得, abi.encodeWithSignature("函數名(參數類型)", 參數)  
+  ex: abi.encodeWithSignature("f(uint256, address)", _x, _addr)
+- call 在調用合約時可以指定交易發送的 eth 數量和 gas 數量
+  目標合約地址.call{value: 發送數量, gas: gas 數量}(字節碼)
+
+安全注意
+- 不要用 call 調用另一個合約, 當調用不安全的合約函數時, 就會把主動權給對方, 建議方法是聲明合約變數後調用函數
+
+### 2024.10.2
+學習內容  
+筆記:  
+
+#### Delegatecall
+功用
+- 與 call 類似, 地址類型的低級成員函數
+- delegatecall 在調用合約時可以指定交易發送的 gas, 但不能指定發送的 eth
+- 智能合約將儲存合約和邏輯合約分開
+  代理合約儲存所有相關變數, 並且保存邏輯合約的地址; 邏輯合約儲存所有函數, 通過 delegate 執行
+- EIP-2535 Diamonds 鑽石, 鑽石是具有多個實施合約的代理合約
+  
+寫法
+- 目標合約地址.delegatecall(二進制編碼)
+- 二進制編碼 利用結構化編碼函數獲得, abi.encodeWithSignature("簽名函數", 具體參數)
+
+安全注意
+- 使用時要確保當前合約和目標合約的狀態變數儲存結構相同, 並且目標合約安全, 不然會造成資產損失
+
+#### 在合約中創建新合約
+寫法
+Contract 要創建的合約名, x 合約對象(地址), 如果構造函數是 payable 可以創建時轉入 _value 數量的 eth, params 新合約構造函數的參數 
+```Solidity
+Contract x = new Contract{value: _value}(params)
+```
+### 2024.10.3  
+學習內容  
+筆記:  
+
+#### Creat2
+功用
+- 不管未來區塊鏈上發生甚麼, 你都可以把合約部屬在事先計算好的地址上
+- 交易所為新用戶預留創建錢包合約的地址
+- 
+
+計算 Creat2 地址
+- 新地址 = hash("0xFF", 創建者地址, salt, initcode)
+- OxFF, 常數  
+  創建者地址, 調用 creat2 的當前合約地址
+  salt, 創建者指定的 bytes32 類型的值, 主要是用來影響新創見合約的地址
+  initcode, 新合約的初始字節碼
+
+寫法
+```Solidity
+Contract x = new Contract{salt: _salt, value: _value}(parms)
+```
+
+```Solidity
+// salt 為 token1 和 token2 的 hash
+bytes32 salt = keccak256(abi.endcodePacked(token1, token2));
+```
+### 2024.10.4    
+學習內容  
+筆記:  
+
+#### 刪除合約
+- 目前 selfdestruct 僅會被用來將合約中的 eth 轉移到指定地址 
+- 原先刪除的功能只有在合約 創建, 自毀 這兩個操作處在同一筆交易時才會生效
+
+寫法
+- selfdestruct(_addr);
+- _addr 是接收合約剩餘 eth 的地址
+
+```Solidity
+function deleteContract() external{
+   selfdestruct(payable(msg.sender));
+}
+```
+
+安全注意
+- 對外提供合約銷毀時, 最好設置為只有合約所有者可以調用, 使用函數修飾符 onlyOwner 進行函數聲明
+- selfdestruct 常會帶來安全問題和信任問題, 建議避免使用
+- selfdestruct 是智能合約的緊急按鈕, 銷毀合約並將剩餘 eth 轉移到指定帳戶, 在最壞的情況下停止黑客攻擊
+
+### 2024.10.5      
+學習內容  
+筆記:  
+
+#### ABI 編碼解碼
+- 數據必須編寫成字節碼才能和智能合約互動
+- 
+編碼
+1. abi.encode
+- 將每個參數填充為 32 字節的數據, 並拼接在一起, 如果要和合約互動, 可以用 abi.encode
+```Solidity
+function encode() public view returns(bytes memory result){
+   result = abi.encode(x, addr, name, array);
+}
+```
+2. abi.encodePacked
+- 類似 abi.encode, 但是會把其中填充很多的 0 省略
+- 當想省空間, 並且不與合約互動時, 可以使用 abi.encodePacked, ex: 算一些數據的 hash
+```Solidity
+function encodePacked() public view returns(bytes memory result){
+   result = abi.encodePacked(x, addr, name, array);
+}
+```
+3. abi.encodeSignature
+- 調用其他合約時可以使用
+```Solidity
+function encodeWithSignature() public view returns(bytes memory result){
+   result = abi.encodeWithSignature("foo(uint256, address, string, uint256[2])", x, addr, name, array);
+}
+```
+4. abi.encodeWithSelector
+- 與 abi.encodeWithSignature 類似, 不過第一個參數為函數選擇器, 為函數簽名 Keccak 哈希的前 4 個字節
+- 編碼後的結果與 abi.encodeSignature 一樣
+```Solidity
+function encodeWithSelector() public view returns(bytes memory result){
+   result = abi.encodeWithSelector(bytes4(keccak256("foo(uint256, address, string, uint256[2])", x, addr, name, array)));
+}
+```
+
+解碼
+1. abi.decode
+```Solidity
+function decode() public pure returns(uint dx, address daddr, string memory dname, uint[2] memory darray){
+   (dx, daddr, dname, darray) = abi.decode(data, (uint, address, string, uint[2]));
+}
+```
+#### Hash
+- 將任意長度的消息轉換為一個固定長度的值
+
+Keccak256
+- Solidity 中最常用的哈希函數
+```Solidity
+哈希 = keccak256(數據);
+```
+生成數據唯一標示
+```Solidity
+function hash(uint _num, string memory _string, address _addr) public pure returns{
+   return keccak256(abi.encodePacked(_num, _string, _addr));
+}
+```
+
+弱抗碰撞性
+- 給定一個特定的輸入, 難以找到另一個具有相同散列值的輸入
+  
+強抗碰撞性
+- 難以找到任何兩個不同的輸入, 它們散列值相同
+
+
 
 
 

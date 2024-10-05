@@ -112,5 +112,48 @@ Arrays：跟数组相关的库合约
 7. 字节码 = abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)
 8. 函数签名为"函数名（逗号分隔的参数类型）"。例如abi.encodeWithSignature("f(uint256,address)", _x, _addr)
 9. call不是调用合约的推荐方法，因为不安全。但他能让我们在不知道源代码和ABI的情况下调用目标合约，很有用。
-   
+
+### 2024.10.02
+1. 此时，调用合约B中的callSetVars，传入参数为合约C地址和10。运行后，合约C中的状态变量将被修改：num被改为10，sender变为合约B的地址
+2. 由于是delegatecall，上下文为合约B。在运行后，合约B中的状态变量将被修改：num被改为100，sender变为你的钱包地址。合约C中的状态变量不会被修改。
+3. B call C，上下文为C；而B delegatecall C，上下文为B
+4. delegatecall在调用合约时可以指定交易发送的gas，但不能指定发送的ETH数额
+5. create的用法很简单，就是new一个合约，并传入新合约构造函数所需的参数：Contract x = new Contract{value: _value}(params)
+6. 其中Contract是要创建的合约名，x是合约对象（地址），如果构造函数是payable，可以创建时转入_value数量的ETH，params是新合约构造函数的参数。
+
+### 2024.10.03
+1. CREATE2的目的是为了让合约地址独立于未来的事件。不管未来区块链上发生了什么，你都可以把合约部署在事先计算好的地址上。
+2. create2的实际应用场景  
+- 交易所为新用户预留创建钱包合约地址。  
+- 由 CREATE2 驱动的 factory 合约，在Uniswap V2中交易对的创建是在 Factory中调用CREATE2完成。这样做的好处是: 它可以得到一个确定的pair地址, 使得 Router中就可以通过 (tokenA, tokenB) 计算出pair地址, 不再需要执行一次 Factory.getPair(tokenA, tokenB) 的跨合约调用。
+3. 对外提供合约销毁接口时，最好设置为只有合约所有者可以调用，可以使用函数修饰符onlyOwner进行函数声明。
+4. selfdestruct命令可以用来删除智能合约，并将该合约剩余ETH转到指定地址
+5. abi.encode:将每个参数填充为32字节的数据，并拼接在一起。如果你要和合约交互，你要用的就是abi.encode。
+6. 当你想省空间，并且不与合约交互的时候，可以使用abi.encodePacked，例如算一些数据的hash时
+7. abi.encodeWithSignature: 与abi.encode功能类似，只不过第一个参数为函数签名，比如"foo(uint256,address,string,uint256[2])"。当调用其他合约的时候可以使用。
+8. abi.encodeWithSelector: 与abi.encodeWithSignature功能类似，只不过第一个参数为函数选择器，为函数签名Keccak哈希的前4个字节。  
+  
+一个好的哈希函数应该具有以下几个特性：  
+
+单向性：从输入的消息到它的哈希的正向运算简单且唯一确定，而反过来非常难，只能靠暴力枚举。  
+灵敏性：输入的消息改变一点对它的哈希改变很大。  
+高效性：从输入的消息到哈希的运算高效。  
+均一性：每个哈希值被取到的概率应该基本相等。  
+抗碰撞性：  
+弱抗碰撞性：给定一个消息x，找到另一个消息x'，使得hash(x) = hash(x')是困难的。  
+强抗碰撞性：找到任意x和x'，使得hash(x) = hash(x')是困难的。  
+
+sha3由keccak标准化而来，在很多场合下Keccak和SHA3是同义词，但在2015年8月SHA3最终完成标准化时，NIST调整了填充算法。所以SHA3就和keccak计算的结果不一样，这点在实际开发中要注意。  
+以太坊在开发的时候sha3还在标准化中，所以采用了keccak，所以Ethereum和Solidity智能合约代码中的SHA3是指Keccak256，而不是标准的NIST-SHA3，为了避免混淆，直接在合约代码中写成Keccak256是最清晰的。  
+
+### 2024.10.04
+1. msg.data是Solidity中的一个全局变量，值为完整的calldata（调用函数时传入的数据）。
+2. 前4个字节为函数选择器selector，后面32个字节为输入的参数
+3. 注意，在函数签名中，uint和int要写为uint256和int256。
+4. 映射类型参数通常有：contract、enum、struct等。在计算method id时，需要将该类型转化成为ABI类型。例如，如下函数mappingParamSelector中DemoContract需要转化为address，结构体User需要转化为tuple类型(uint256,bytes)，枚举类型School需要转化为uint8。因此，计算该函数的method id的代码为bytes4(keccak256("mappingParamSelector(address,(uint256,bytes),uint256[],uint8)"))。
+5. try-catch只能被用于external函数或创建合约时constructor
+6. 只能用于外部合约调用和合约创建。
+7. 如果try执行成功，返回变量必须声明，并且与返回的变量类型相同。
+8. SuccessEvent是调用成功会释放的事件，而CatchEvent和CatchByte是抛出异常时会释放的事件，分别对应require/revert和assert异常的情况。even是个OnlyEven合约类型的状态变量。
+
 <!-- Content_END -->
