@@ -993,6 +993,114 @@ contract DeleteContract {
 
 ### 2024.10.04
 
+28. hash
+
+- 用途： 唯一标识、签名、加密
+- Ethereum 和 Solidity 智能合约代码中的 SHA3 是指**Keccak256**，而不是标准的 NIST-SHA3
+
+29. 函数选择器
+
+- 当我们调用智能合约时，本质上是向目标合约发送了一段 calldata，发送的 calldata 中前 4 个字节是 selector，calldata 就是告诉智能合约，我要调用哪个函数，以及参数是什么。
+
+- msg.data 是 Solidity 中的一个全局变量，值为完整的 calldata
+
+```solidity
+// event 返回msg.data
+event Log(bytes data);
+function mint(address to) external{
+    emit Log(msg.data);
+}
+
+/*
+输出：0x6a6278420000000000000000000000002c44b726adf1963ca47af88b284c06f30380fc78
+前4个字节为函数选择器selector：0x6a627842
+后面32个字节为输入的参数：0x0000000000000000000000002c44b726adf1963ca47af88b284c06f30380fc78
+*/
+```
+
+- 函数签名：函数名（逗号分隔的参数类型)，在函数签名中，**uint 和 int 要写为 uint256 和 int256**
+- method id：函数签名的 Keccak 哈希后的前 4 个字节，**当 selector 与 method id 相匹配时，即表示调用该函数**
+- 使用 selector 调用目标函数，[在线计算 keccak_256](https://crypot.51strive.com/keccak_256.html)
+
+```solidity
+    function callWithSignature() external{
+    ...
+        // 调用elementaryParamSelector函数,打包编码 method id + 参数
+        (bool success1, bytes memory data1) = address(this).call(abi.encodeWithSelector(0x3ec37834, 1, 0));
+    ...
+    }
+```
+
+30. Try Catch
+
+- 只能被用于 external 函数 或 创建合约时 constructor  
+  this.f()也被视作为外部调用，但不可在构造函数中使用，因为此时合约还未创建  
+  如果调用的函数有返回值，那么必须在 try 之后声明 returns(returnType val)  
+  如果是创建合约，那么返回值是新创建的合约变量
+
+```solidity
+contract OnlyEven{
+    //构造函数有一个参数a，当a=0时，require会抛出异常；当a=1时，assert会抛出异常；其他情况均正常。
+    constructor(uint a){
+        require(a != 0, "invalid number");
+        assert(a != 1);
+    }
+
+    //onlyEven函数有一个参数b，当b为奇数时，require会抛出异常。
+    function onlyEven(uint256 b) external pure returns(bool success){
+        // 输入奇数时revert
+        require(b % 2 == 0, "Ups! Reverting");
+        success = true;
+    }
+}
+
+contract TryCatch{
+  // 成功event
+  event SuccessEvent();
+
+  // 失败event
+  event CatchEvent(string message);
+  event CatchByte(bytes data);
+
+  // 声明OnlyEven合约变量
+  OnlyEven even;
+
+  constructor() {
+      even = new OnlyEven(2);
+  }
+
+  // 在external call中使用try-catch
+  function execute(uint amount) external returns (bool success) {
+      try even.onlyEven(amount) returns(bool _success){
+          // call成功的情况下
+          emit SuccessEvent();
+          return _success;
+      } catch Error(string memory reason){
+          // call不成功的情况下
+          emit CatchEvent(reason);
+      }
+  }
+
+  // 在创建新合约中使用try-catch （合约创建被视为external call）
+  // executeNew(0)会失败并释放`CatchEvent`
+  // executeNew(1)会失败并释放`CatchByte`
+  // executeNew(2)会成功并释放`SuccessEvent`
+  function executeNew(uint a) external returns (bool success) {
+      try new OnlyEven(a) returns(OnlyEven _even){
+          // call成功的情况下
+          emit SuccessEvent();
+          success = _even.onlyEven(a);
+      } catch Error(string memory reason) {
+          // catch失败的 revert() 和 require()
+          emit CatchEvent(reason);
+      } catch (bytes memory reason) {
+          // catch失败的 assert()
+          emit CatchByte(reason);
+      }
+  }
+}
+```
+
 ### 2024.10.05
 
 ### 2024.10.06

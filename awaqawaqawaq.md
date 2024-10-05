@@ -244,4 +244,6 @@ contract MyTokenTest is IERC20 {
 ```
 ### 2024.10.03
 - 学习了ERC721相关知识
+### 2024.10.04
+- 学习了荷兰拍卖和空投合约相关知识
 <!-- Content_END -->

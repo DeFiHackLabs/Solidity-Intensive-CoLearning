@@ -922,4 +922,20 @@ contract ImplementationV1 {
 
 因为合约B调用合约C或者合约D 使用的都是 `delegatecall`, 所以在合约C或者D看来，就和用户A直接调用他们没有差别，通过 `delegatecall` 就实现了合约的平滑升级，类似CI/CD中的灰度发布了.
 
+### 2024.10.05
+#### 24 Create 
+
+创建合约有两种用法, 本节提及的是 `create`
+```
+Contract x = new Contract{value: _value}(params);
+```
+
+乍看之下，觉得就是Java的类实例化，Java程序员自然是非常熟悉。的确如此，但是背后还有个本质的区别，Java程序是运行在Java virtual machine 上的，创建的类实例自然是分配在堆内存上。
+
+如果想要部署某个服务，并且让用户可以访问，无论使用 docker 之类的容器化技术，或者使用 Lambda/Cloudflare worker 之类的 serverless 服务，都需要将代码打包，然后部署成服务器或者Serverless 平台，提供一个Ip地址或者域名供用户进行调用。
+
+而合约的美妙便捷之处在于，智能合约是运行在EVM之上的，新创建的合约就是直接对全世界用户可见的， `new` 相当于是Java视角的实例化+打包+部署，或者理解成全世界的用户都可以使用你Java程序的内存地址来访问你的JVM堆分配的对象.
+
+这种天生的分布式让我想起的Erlang的进程设计, 创建的进程也是默认分布式的, 但是相比之下，智能合约更强大。
+
 <!-- Content_END -->

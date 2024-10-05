@@ -333,4 +333,67 @@ constant變數在宣告時必須設置初始值，且一旦設置就不能更改
 使用constant和immutable的優勢包括節省gas和提高安全性。由於這些變數的值是固定不變的，Solidity編譯器能夠進行優化存儲，從而節約gas。此外，通過限制變數的修改權限，可以防止不應該被更改的值被意外或惡意修改，從而提高合約的安全性。
 
 constant和immutable是Solidity中用於定義不可變變數的關鍵字。這些變數一旦初始化就不能更改，這不僅確保了智能合約的安全性，也有助於降低gas成本。constant要求在宣告時就進行初始化，而immutable則提供了更多靈活性，允許在構造函數中初始化。
+
+
+### 2024.10.04
+
+今天將介紹Solidity中的控制流程，並透過插入排序法（Insertion Sort）的具體範例來展示如何使用Solidity實作此算法。在學習過程中，我們不僅掌握了控制流的基礎結構，還深入了解了Solidity特有的一些陷阱，尤其是處理無符號整數時可能遇到的問題。
+
+控制流簡介：
+Solidity的控制流結構與多數編程語言類似，包含以下常見的結構：
+
+if-else條件判斷：
+用於根據條件執行不同的代碼塊。
+範例：
+
+```solidity
+function ifElseTest(uint256 _number) public pure returns(bool) {
+    return _number == 0 ? true : false;
+}
+```
+for迴圈：
+用於重複執行代碼塊，直至條件不再滿足。
+範例：
+
+```solidity
+function forLoopTest() public pure returns(uint256) {
+    uint256 sum = 0;
+    for (uint256 i = 0; i < 10; i++) {
+        sum += i;
+    }
+    return sum;
+}
+```
+while迴圈：
+類似for迴圈，但更靈活，條件為真時持續執行。
+範例：
+
+```solidity
+function whileTest() public pure returns(uint256) {
+    uint256 sum = 0;
+    uint256 i = 0;
+    while (i < 10) {
+        sum += i;
+        i++;
+    }
+    return sum;
+}
+```
+do-while迴圈：
+至少執行一次代碼塊，再根據條件判斷是否繼續。
+範例：
+
+```solidity
+function doWhileTest() public pure returns(uint256) {
+    uint256 sum = 0;
+    uint256 i = 0;
+    do {
+        sum += i;
+        i++;
+    } while (i < 10);
+    return sum;
+}
+```
+三元運算符：用於簡化if-else結構，使代碼更為簡潔。
+
 <!-- Content_END -->
