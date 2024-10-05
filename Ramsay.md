@@ -959,4 +959,115 @@ Contract x = new Contract{value: _value}(params);
 ##### 不足
 凡事有利就有弊， `create2` 也不例外，如果不同的合约使用相同的 `salt` 和 `initcode`, 且由同一个地址部署，那么就会出现地址冲突的问题，所以需要确保 `salt` 的唯一.
 
+### 2024.10.07
+#### 26 Delete Contract
+
+`selfdestruct` 是用来删除合约，如果从Web2的视角来理解，创建合约就相当将代码部署上线，而删除合约就相当于是将代码下线，正常业务肯定是希望业务7x24小时运行，100%可用的，需要将网站下线的情况一般都比较极端，比如遭受攻击，例如曾经的索尼，或者是提桶跑路。
+
+DAO 指的是Decentralized Autonomous Organization，去中心化的投资资金, 而课程中的提到的The DAO攻击原理就是我在笔记中提到的重入攻击:
+1. 用户可以在DAO提现，正常情况下，用户想要提现，那么就会向指定合约打钱，然后合约再更新余额
+2. 而重入攻击就是黑客调用提现功能，在合约更新余额前再递归调用，就可以在一次交易中实现多次提现，以耗尽DAO的钱.
+
+而2016年那次攻击，黑客通过重入攻击转走了当时价值3.6 M的资金，但是被盗资金因为DAO的机制，需要先被锁定28天，就给了Ethereum 基金会反应的时间，当时有3个选项：
+1. 啥都不干
+2. Soft Fork: 修改代码，冻结被盗奖金
+3. Hark Fork: 将区块链回滚到被盗前的状态
+
+最后基金会选择了选项3，回滚。
+
+这个决定引发了极大的争议，也导致了社区的分裂，毕竟区块链标榜的就是不可窜改，现在创始人带头回滚改状态，相当于与设计初衷相背了, Ethereum 就分裂成 Ethereum(ETH) 和 Ethereum(ETC)
+
+言归正传, `selfdestruct` 就可以理解成一键清空余额并删库的操作，现在 `Remix` 都给出编译警告了:
+
+```
+Warning: "selfdestruct" has been deprecated. Note that, starting from the Cancun hard fork, the underlying opcode no longer deletes the code and data associated with an account and only transfers its Ether to the beneficiary, unless executed in the same transaction in which the contract was created (see EIP-6780). Any use in newly deployed contracts is strongly discouraged even if the new behavior is taken into account. Future changes to the EVM might further reduce the functionality of the opcode.
+  --> contracts/DeleteContract.sol:10:9:
+   |
+10 |         selfdestruct(payable(msg.sender));
+   |         ^^^^^^^^^^^^
+```
+
+而 `selfdestruct(_addr)` 中的 `_addr` 是接收合约中剩余 `ETH` 的地址， `_addr` 地址不需要有 `receive` 或 `fallback` 也能接收 `ETH`（这个就种coinbase 地址一样了）, 也就是没有拒收的余地.
+
+利用这个自毁并且强制转账的功能, 也可以实现某种攻击手段.
+
+例如有这么个游戏，每次只能转入1个ETH，当你是第7个转入者，合约余额累计到7ETH的时候，你就可以把钱给领走:
+
+```
+contract EtherGame {
+    uint256 public targetAmount = 7 ether;
+    address public winner;
+
+    function deposit() public payable {
+        require(msg.value == 1 ether, "You can only send 1 Ether");
+
+        uint256 balance = address(this).balance;
+        require(balance <= targetAmount, "Game is over");
+
+        if (balance == targetAmount) {
+            winner = msg.sender;
+        }
+    }
+
+    function claimReward() public {
+        require(msg.sender == winner, "Not winner");
+
+        (bool sent,) = msg.sender.call{value: address(this).balance}("");
+        require(sent, "Failed to send Ether");
+    }
+}
+```
+
+上面的代码作了限制，如果转入的金额不是1ETH，转出就会失败，最后比较余额是否等于7，但是作为攻击者，就可以利用 `selfdestruct` 的强制转账的机制，可以直接把游戏给搞挂：
+
+```solidity
+
+contract Attack {
+    EtherGame etherGame;
+
+    constructor(EtherGame _etherGame) {
+        etherGame = EtherGame(_etherGame);
+    }
+
+    function attack() public payable {
+        address payable addr = payable(address(etherGame));
+        selfdestruct(addr);
+    }
+}
+```
+
+假如我合约余额是 0.00000324 ETH, 强制转账就能绕过 `require(msg.value==1)` 的限制，那么这个游戏就永远不会有赢家，因为它每次只能转入1ETH，没法实现 `balance==targetAmount`, 除非你用类似的攻击手段，再转入个 `0.99999676`, 湊够 1ETH.
+
+更进一步，这里的预防手段是不要依赖 `address(this).blanace`, 而是要用自定义的变量:
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.26;
+
+contract EtherGame {
+    uint256 public targetAmount = 3 ether;
+    uint256 public balance;
+    address public winner;
+
+    function deposit() public payable {
+        require(msg.value == 1 ether, "You can only send 1 Ether");
+
+        balance += msg.value;
+        require(balance <= targetAmount, "Game is over");
+
+        if (balance == targetAmount) {
+            winner = msg.sender;
+        }
+    }
+
+    function claimReward() public {
+        require(msg.sender == winner, "Not winner");
+
+        (bool sent,) = msg.sender.call{value: balance}("");
+        require(sent, "Failed to send Ether");
+    }
+}
+```
+
+
 <!-- Content_END -->
