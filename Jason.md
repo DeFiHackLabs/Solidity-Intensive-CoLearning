@@ -1058,5 +1058,126 @@ function getString1(uint256 _number) public pure returns(string memory){
 
 總的來說，這種方法展示了 Solidity 中庫使用的靈活性，允許開發者根據自己的偏好和項目需求選擇最合適的使用方式。
 
+### 2024.10.05
+以下是對Solidity中import語句的重述與解釋,以及一些補充思考:
+
+## import語句簡介
+
+在Solidity中,import語句用於在一個合約文件中引用其他文件的內容,提高代碼的可重用性和組織性。這對於大型項目和模塊化開發非常有用。
+
+## import的基本用法
+
+### 1. 通過相對路徑導入
+
+```solidity
+import './Yeye.sol';
+```
+
+這會導入同一目錄下的Yeye.sol文件。
+
+### 2. 通過URL導入
+
+```solidity
+import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+```
+
+這允許直接從網絡上導入合約。
+
+### 3. 通過npm包導入
+
+```solidity
+import '@openzeppelin/contracts/access/Ownable.sol';
+```
+
+這用於導入通過npm安裝的依賴包。
+
+### 4. 導入特定符號
+
+```solidity
+import {Yeye} from './Yeye.sol';
+```
+
+這只導入Yeye.sol文件中的Yeye合約。
+
+## 使用位置
+
+import語句通常放在solidity文件的頂部,在版本聲明之後,其他代碼之前。
+
+## 補充思考
+
+1. **模塊化設計**: import允許將大型合約拆分成多個小文件,提高代碼的可讀性和維護性。
+
+2. **代碼重用**: 可以輕鬆重用自己或他人編寫的合約庫,如OpenZeppelin。
+
+3. **版本控制**: 使用特定URL或npm包版本可以確保導入的代碼版本一致性。
+
+4. **安全性考慮**: 從外部源導入代碼時,需要確保源代碼的安全性和可信度。
+
+5. **gas優化**: 合理使用import可以減少重複代碼,潛在地降低部署成本。
+
+6. **依賴管理**: 在大型項目中,需要仔細管理導入的依賴,避免版本衝突。
+
+7. **編譯時間**: 過多的import可能會增加編譯時間,需要權衡。
+
+通過掌握import的使用,開發者可以更好地組織和構建複雜的智能合約系統,提高開發效率和代碼質量。
+
+Citations:
+[1] https://vocus.cc/article/646d3ab0fd89780001f8cf5b
+[2] https://binschool.org/solidity-basic/solidity-import.html
+[3] https://blog.csdn.net/qq_52708261/article/details/127064930
+[4] https://docs.soliditylang.org/zh/v0.8.16/path-resolution.html
+[5] https://vocus.cc/article/6254ed24fd89780001a38745
+[6] https://wtf.academy/docs/solidity-102/Import/
+[7] https://remix-ide.readthedocs.io/zh-cn/latest/import.html
+[8] https://blog.csdn.net/u013288190/article/details/123807010
+
+### 題目
+以下是對這些題目的回答:
+
+1. Solidity中import的作用是:
+   在一個合約文件中引用其他文件的內容,提高代碼的可重用性和組織性。
+   C. 導入其他合約中的全局符號，解釋如下:
+      import語句的主要作用是在一個合約文件中引用其他文件的內容,提高代碼的可重用性和組織性。
+      通過import,可以導入其他合約文件中定義的全局符號,包括:合約、函數、結構體、枚舉等
+   
+        （a） import不能直接導入其他合約的私有變量或內部變量,這些只能在定義它們的合約內部訪問。
+   
+         (b) 雖然可以導入接口,但這只是全局符號導入的一種特殊情況,而不是import的主要目的。
+   
+         (d) import的作用範圍是全局的,可以導入任何公開的全局符號,而不僅限於某種特定類型。
+
+所以,C選項"導入其他合約中的全局符號"最準確地概括了Solidity中import的主要作用。它允許開發者重用和組織代碼,提高開發效率。
+
+3. 以下import寫法錯誤的是:
+   A. import from "./Yeye.sol";
+
+   這個選項是錯誤的。正確的寫法應該是:
+   import "./Yeye.sol";
+   或者
+   import {Yeye} from "./Yeye.sol";
+
+4. import導入文件中的全局符號可以單獨指定其中的:
+   D. 以上都可以
+
+   Solidity允許導入合約、函數、結構體等多種類型的全局符號。
+
+5. 被導入文件中的全局符號想要被其他合約單獨導入,應該怎麼編寫?
+   C. 與合約並列在文件結構中
+
+   為了使全局符號能被單獨導入,它們應該定義在合約結構之外,與合約並列在文件結構中。這樣可以使這些符號成為真正的全局符號,能夠被其他文件單獨導入使用。
+
+這些答案反映了Solidity中import語句的用法和特性。import提供了模塊化和代碼重用的能力,是Solidity開發中非常重要的一個特性。
+
+Citations:
+[1] https://vocus.cc/article/646d3ab0fd89780001f8cf5b
+[2] https://binschool.org/solidity-basic/solidity-import.html
+[3] https://www.wtf.academy/docs/solidity-102/Import/
+[4] https://remix-ide.readthedocs.io/zh-cn/latest/import.html
+[5] https://blog.csdn.net/qq_52708261/article/details/127064930
+[6] https://blog.csdn.net/u013288190/article/details/123807010
+[7] https://docs.soliditylang.org/zh/v0.8.16/path-resolution.html
+[8] https://vocus.cc/article/6254ed24fd89780001a38745
+
+
 
 <!-- Content_END -->
