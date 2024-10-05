@@ -1131,5 +1131,7 @@ msg.data 不為空或不存在 receive() 則觸發 fallback()
 編寫包含退款邏輯的合約時需謹慎
 如果兩個函數都不存在，直接發送 ETH 到合約會報錯
 
+### 2024.10.05
+bootcamp作業
 
 <!-- Content_END -->
