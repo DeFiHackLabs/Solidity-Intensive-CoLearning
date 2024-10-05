@@ -50,6 +50,157 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 ## Notes
 
 <!-- Content_START -->
+### 2024.10.05
+
+Day 11
+
+WTF Academy Solidity 101 36_MerkleTree, 37_Signature
+
+
+WTF Merkle Tree lib (Modified from OpenZepplin)
+
+```
+   library MerkleProof {
+      /**
+      * @dev Returns `true` when the `root` reconstructed from `proof` and `leaf` equals to the given `root`, meaning the data is valid.
+      * During reconstruction, both the leaf node pairs and element pairs are sorted.
+      */
+      function verify(
+         bytes32[] memory proof,
+         bytes32 root,
+         bytes32 leaf
+      ) internal pure returns (bool) {
+         return processProof(proof, leaf) == root;
+      }
+
+      /**
+      * @dev Returns the `root` of the Merkle tree computed from a `leaf` and a `proof`.
+      * The `proof` is only valid when the reconstructed `root` equals to the given `root`.
+      * During reconstruction, both the leaf node pairs and element pairs are sorted.
+      */
+      function processProof(bytes32[] memory proof, bytes32 leaf) internal pure returns (bytes32) {
+         bytes32 computedHash = leaf;
+         for (uint256 i = 0; i < proof.length; i++) {
+               computedHash = _hashPair(computedHash, proof[i]);
+         }
+         return computedHash;
+      }
+
+      // Sorted Pair Hash
+      function _hashPair(bytes32 a, bytes32 b) private pure returns (bytes32) {
+         return a < b ? keccak256(abi.encodePacked(a, b)) : keccak256(abi.encodePacked(b, a));
+      }
+   }
+```
+
+[Solady MerkleProofLib](https://github.com/vectorized/solady/blob/main/src/utils/MerkleProofLib.sol)
+
+- Gas optimized
+- Midified from Solamte, OpenZeppelin
+
+```
+    function verify(bytes32[] memory proof, bytes32 root, bytes32 leaf)
+        internal
+        pure
+        returns (bool isValid)
+    {
+        /// @solidity memory-safe-assembly
+        assembly {
+            if mload(proof) {
+                // Initialize `offset` to the offset of `proof` elements in memory.
+                let offset := add(proof, 0x20)
+                // Left shift by 5 is equivalent to multiplying by 0x20.
+                let end := add(offset, shl(5, mload(proof)))
+                // Iterate over proof elements to compute root hash.
+                for {} 1 {} {
+                    // Slot of `leaf` in scratch space.
+                    // If the condition is true: 0x20, otherwise: 0x00.
+                    let scratch := shl(5, gt(leaf, mload(offset)))
+                    // Store elements to hash contiguously in scratch space.
+                    // Scratch space is 64 bytes (0x00 - 0x3f) and both elements are 32 bytes.
+                    mstore(scratch, leaf)
+                    mstore(xor(scratch, 0x20), mload(offset))
+                    // Reuse `leaf` to store the hash to reduce stack operations.
+                    leaf := keccak256(0x00, 0x40)
+                    offset := add(offset, 0x20)
+                    if iszero(lt(offset, end)) { break }
+                }
+            }
+            isValid := eq(leaf, root)
+        }
+    }
+```
+
+[Solmate MekleProofLib](https://github.com/transmissions11/solmate/blob/main/src/utils/MerkleProofLib.sol)
+
+- Gas optimized than others
+  - `calldata` is more gas efficient than `memory`
+- Midified from Solady
+  
+```
+   library MerkleProofLib {
+      function verify(
+         bytes32[] calldata proof,
+         bytes32 root,
+         bytes32 leaf
+      ) internal pure returns (bool isValid) {
+         /// @solidity memory-safe-assembly
+         assembly {
+               if proof.length {
+                  // Left shifting by 5 is like multiplying by 32.
+                  let end := add(proof.offset, shl(5, proof.length))
+
+                  // Initialize offset to the offset of the proof in calldata.
+                  let offset := proof.offset
+
+                  // Iterate over proof elements to compute root hash.
+                  // prettier-ignore
+                  for {} 1 {} {
+                     // Slot where the leaf should be put in scratch space. If
+                     // leaf > calldataload(offset): slot 32, otherwise: slot 0.
+                     let leafSlot := shl(5, gt(leaf, calldataload(offset)))
+
+                     // Store elements to hash contiguously in scratch space.
+                     // The xor puts calldataload(offset) in whichever slot leaf
+                     // is not occupying, so 0 if leafSlot is 32, and 32 otherwise.
+                     mstore(leafSlot, leaf)
+                     mstore(xor(leafSlot, 32), calldataload(offset))
+
+                     // Reuse leaf to store the hash to reduce stack operations.
+                     leaf := keccak256(0, 64) // Hash both slots of scratch space.
+
+                     offset := add(offset, 32) // Shift 1 word per cycle.
+
+                     // prettier-ignore
+                     if iszero(lt(offset, end)) { break }
+                  }
+               }
+
+               isValid := eq(leaf, root) // The proof is valid if the roots match.
+         }
+      }
+   }
+```
+
+[OpenZeppelin MerkelProof lib](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/cryptography/MerkleProof.sol)
+
+```
+   // Check link above
+```
+
+
+|Gas | WTF Version | Solady version | Solmate Version |
+| -- | -- | -- | -- |
+|Gas|109577|108433|108222|
+|Transaction cost|95284|94289|94106|
+|Execute cost|72420|71425|71242|
+
+**Signature**
+
+- [OpenZeppelin ECDSA](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/cryptography/ECDSA.sol)
+- [Solady ECDSA (gas optimized)](https://github.com/vectorized/solady/blob/main/src/utils/ECDSA.sol)
+
+---
 ### 2024.10.04
 
 Day 10
