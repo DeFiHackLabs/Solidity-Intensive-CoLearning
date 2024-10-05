@@ -15,6 +15,33 @@ timezone: Asia/Shanghai
 ## Notes
 
 <!-- Content_START -->
+### 2024.10.04
+
+1. `public` 函數
+在10.03的範例中，`setNumber` 函數是一個 `public` 函數，可以被內部和外部的任何人調用。
+```solidity
+function setNumber(uint256 _number) public {
+    number = _number;
+}
+```
+ `public` 函數會修改合約中的狀態變量 `number`，因此`需要`支付 gas。
+
+ 2. `view `函數
+`getNumber` 函數是一個 view 函數，`它只能讀取 number 的值`，`不能`修改。
+調用 view 函數`不會`改變鏈上的數據，直接從本地調用時`不需要`支付 gas。
+```solidity
+function getNumber() public view returns (uint256) {
+    return number;
+}
+```
+3. `pure` 函數
+pure 函數既不會讀取也不會修改鏈上的狀態變量。它們純粹是`計算函數`，像 add 函數一樣，執行簡單的加法運算。
+```solidity
+function add(uint256 a, uint256 b) public pure returns (uint256) {
+    return a + b;
+}
+```
+
 ### 2024.10.03
 ### 函數的結構 (發現仍有點陌生重讀）
 ```solidity
@@ -79,7 +106,7 @@ contract Example {
     function deposit() public payable {}
 
     // external 函數：只能從外部訪問
-    function externalFunction() external pure returns (string memory) {
+    function external Function() external pure returns (string memory) {
         return "This is an external function";
     }
 }

@@ -154,4 +154,8 @@ Add source codes for 35.DutchAuction and its tests
 
 Add source codes for 36.MerkleTree_v2 and its tests
 
+### 2024.10.05
+
+Add source codes for 33.Airdrop and its tests
+
 <!-- Content_END -->
