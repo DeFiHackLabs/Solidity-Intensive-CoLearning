@@ -110,4 +110,18 @@ mapping(uint => address) public i2addr;
 + 每個合約可以有一個constructor，和其他程式語言類似。
 + modifier是Solidity獨有，類似decorator，modifier用做函數運行前的檢查(地址、變數、餘額等)
 + 另外多學到revert: _和ownable
+
+### 2024.10.04
+學習內容: `12.Event`
++ event用作`響應`、`經濟`
++ 事件的宣告用event開頭
++ emit 釋放事件
++ EVM Log(每條Log都包含`topics`和`data`)
+   - topics
+      * 包含至多3个indexed参数，Transfer事件中的hash、from和to。
+   - data
+      * 事件中不带 indexed的參數會被存在data。
+      * data不能被直接檢索，但可以存任意大小的數據，一般用來存複雜的數據結構，例如array和string。
+   - data消耗的gas比topics少。
+
 <!-- Content_END -->

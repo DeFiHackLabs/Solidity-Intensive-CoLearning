@@ -141,4 +141,30 @@ timezone: Asia/Shanghai
 十九章 接收ETH receive和fallback
  1 使用场景 接收ETH 处理合约中不存在的函数调用（代理合约proxy contract）
  2 msg.data为空且存在receive()时，会触发receive()；msg.data不为空或不存在receive()时，会触发fallback()，此时fallback()必须为payable。
+
+### 2024.10.05
+二十章 发送ETH
+1 transfer gas限制是2300 如果转账失败，会自动revert
+2 send()的gas限制是2300 如果转账失败，不会revert
+3 接收方地址.call{value: 发送ETH数额}("") ，无限制 如果转账失败，不会revert
+
+
+二十一章 调用其他合约
+1  调用已部署合约 _Name(_Address).f(）
+2 创建合约变量，然后通过它来调用目标函
+
+二十二章 call 详解
+1 目标合约地址.call(字节码); 其中字节码利用结构化编码函数abi.encodeWithSignature获得：abi.encodeWithSignature("函数签名", 逗号分隔的具体参数) ，函数签名为"函数名（逗号分隔的参数类型）"。例如abi.encodeWithSignature("f(uint256,address)", _x, _addr)。
+2 目标合约地址.call{value:发送数额, gas:gas数额}(字节码);
+
+二十三章 Delegatecall 代理委托
+1 代理合约（Proxy Contract）：将智能合约的存储合约和逻辑合约分开 
+2 EIP-2535 Diamonds（钻石）：钻石是一个支持构建可在生产中扩展的模块化智能合约系统的标准。
+
+二十四章 二十五章 创建合约
+
+1 CREATE 与 CREATE2 创建合约的区别 CREATE2不需要部署 可以提前计算创建合约地址
+
+
+
 <!-- Content_END -->

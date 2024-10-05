@@ -822,5 +822,187 @@ contract ABIEncode{
     }
 }
 ```
+### 2024.10.04
+1、Solidity 中常用 `keccak256` 哈希函数，由于 `SHA3` 在 15 年标准化，所以 Ethereum 和 Solidity 智能合约代码中的 `SHA3` 是指 `Keccak256`，而不是标准的 `NIST-SHA3`
+
+```solidity
+function hash(
+    uint _num,
+    string memory _string,
+    address _addr
+    ) public pure returns (bytes32) {
+    return keccak256(abi.encodePacked(_num, _string, _addr));
+}
+```
+2、`msg.data` 是 Solidity 中的一个全局变量，值为完整的 `calldata`（调用函数时传入的数据），其中前 4 个字节为函数选择器 selector
+
+selector 或者说 method id 的计算方式和调用
+
+```solidity
+contract DemoContract {
+    // empty contract
+}
+
+contract Selector{
+    // event 返回msg.data
+    event Log(bytes data);
+    event SelectorEvent(bytes4);
+
+    // Struct User
+    struct User {
+        uint256 uid;
+        bytes name;
+    }
+
+    // Enum School
+    enum School { SCHOOL1, SCHOOL2, SCHOOL3 }
+
+    // 输入参数 to: 0x2c44b726ADF1963cA47Af88B284C06f30380fC78
+    function mint(address /*to*/) external{
+        emit Log(msg.data);
+    } 
+
+    // 输出selector
+    // "mint(address)"： 0x6a627842
+    function mintSelector() external pure returns(bytes4 mSelector){
+        return bytes4(keccak256("mint(address)"));
+    }
+
+    // 无参数selector
+    // 输入： 无
+    // nonParamSelector() ： 0x03817936
+    function nonParamSelector() external returns(bytes4 selectorWithNonParam){
+        emit SelectorEvent(this.nonParamSelector.selector);
+        return bytes4(keccak256("nonParamSelector()"));
+    }
+
+    // elementary（基础）类型参数selector
+    // 输入：param1: 1，param2: 0
+    // elementaryParamSelector(uint256,bool) : 0x3ec37834
+    function elementaryParamSelector(uint256 param1, bool param2) external returns(bytes4 selectorWithElementaryParam){
+        emit SelectorEvent(this.elementaryParamSelector.selector);
+        return bytes4(keccak256("elementaryParamSelector(uint256,bool)"));
+    }
+
+    // fixed size（固定长度）类型参数selector
+    // 输入： param1: [1,2,3]
+    // fixedSizeParamSelector(uint256[3]) : 0xead6b8bd
+    function fixedSizeParamSelector(uint256[3] memory param1) external returns(bytes4 selectorWithFixedSizeParam){
+        emit SelectorEvent(this.fixedSizeParamSelector.selector);
+        return bytes4(keccak256("fixedSizeParamSelector(uint256[3])"));
+    }
+
+    // non-fixed size（可变长度）类型参数selector
+    // 输入： param1: [1,2,3]， param2: "abc"
+    // nonFixedSizeParamSelector(uint256[],string) : 0xf0ca01de
+    function nonFixedSizeParamSelector(uint256[] memory param1,string memory param2) external returns(bytes4 selectorWithNonFixedSizeParam){
+        emit SelectorEvent(this.nonFixedSizeParamSelector.selector);
+        return bytes4(keccak256("nonFixedSizeParamSelector(uint256[],string)"));
+    }
+
+    // mapping（映射）类型参数selector
+    // 输入：demo: 0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99， user: [1, "0xa0b1"], count: [1,2,3], mySchool: 1
+    // mappingParamSelector(address,(uint256,bytes),uint256[],uint8) : 0xe355b0ce
+    function mappingParamSelector(DemoContract demo, User memory user, uint256[] memory count, School mySchool) external returns(bytes4 selectorWithMappingParam){
+        emit SelectorEvent(this.mappingParamSelector.selector);
+        return bytes4(keccak256("mappingParamSelector(address,(uint256,bytes),uint256[],uint8)"));
+    }
+
+    // 使用selector来调用函数
+    function callWithSignature() external{
+        // 初始化uint256数组
+        uint256[] memory param1 = new uint256[](3);
+        param1[0] = 1;
+        param1[1] = 2;
+        param1[2] = 3;
+
+        // 初始化struct
+        User memory user;
+        user.uid = 1;
+        user.name = "0xa0b1";
+
+        // 利用abi.encodeWithSelector将函数的selector和参数打包编码
+        // 调用nonParamSelector函数
+        (bool success0, bytes memory data0) = address(this).call(abi.encodeWithSelector(0x03817936));
+        // 调用elementaryParamSelector函数
+        (bool success1, bytes memory data1) = address(this).call(abi.encodeWithSelector(0x3ec37834, 1, 0));
+        // 调用fixedSizeParamSelector函数
+        (bool success2, bytes memory data2) = address(this).call(abi.encodeWithSelector(0xead6b8bd, [1,2,3]));
+        // 调用nonFixedSizeParamSelector函数
+        (bool success3, bytes memory data3) = address(this).call(abi.encodeWithSelector(0xf0ca01de, param1, "abc"));
+        // 调用mappingParamSelector函数
+        (bool success4, bytes memory data4) = address(this).call(abi.encodeWithSelector(0xe355b0ce, 0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99, user, param1, 1));
+        require(success0 && success1 && success2 && success3 && success4);
+    }
+}
+```
+3、异常处理
+
+在 Solidity 中，`try-catch` 只能被用于 `external` 函数或创建合约时 `constructor`（被视为 `external`函数）的调用
+
+```solidity
+
+contract OnlyEven{
+    constructor(uint a){
+        require(a != 0, "invalid number");
+        assert(a != 1);
+    }
+
+    function onlyEven(uint256 b) external pure returns(bool success){
+        // 输入奇数时revert
+        require(b % 2 == 0, "Ups! Reverting");
+        success = true;
+    }
+}
+
+contract TryCatch {
+    // 成功event
+    event SuccessEvent();
+    // 失败event
+    event CatchEvent(string message);
+    event CatchByte(bytes data);
+
+    // 声明OnlyEven合约变量
+    OnlyEven even;
+
+    constructor() {
+        even = new OnlyEven(2);
+    }
+    
+    // 在external call中使用try-catch
+    // execute(0)会成功并释放`SuccessEvent`
+    // execute(1)会失败并释放`CatchEvent`
+    function execute(uint amount) external returns (bool success) {
+        try even.onlyEven(amount) returns(bool _success){
+            // call成功的情况下
+            emit SuccessEvent();
+            return _success;
+        } catch Error(string memory reason){
+            // call不成功的情况下
+            emit CatchEvent(reason);
+        }
+    }
+
+    // 在创建新合约中使用try-catch （合约创建被视为external call）
+    // executeNew(0)会失败并释放`CatchEvent`
+    // executeNew(1)会失败并释放`CatchByte`
+    // executeNew(2)会成功并释放`SuccessEvent`
+    function executeNew(uint a) external returns (bool success) {
+        try new OnlyEven(a) returns(OnlyEven _even){
+            // call成功的情况下
+            emit SuccessEvent();
+            success = _even.onlyEven(a);
+        } catch Error(string memory reason) {
+            // catch revert("reasonString") 和 require(false, "reasonString")
+            emit CatchEvent(reason);
+        } catch (bytes memory reason) {
+            // catch失败的assert assert失败的错误类型是Panic(uint256) 不是Error(string)类型 故会进入该分支
+            emit CatchByte(reason);
+        }
+    }
+}
+```
+
+
 
 <!-- Content_END -->

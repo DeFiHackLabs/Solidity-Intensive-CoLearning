@@ -2157,5 +2157,207 @@ timezone: Asia/Shanghai
         ```
 ###
 
+### 2024.10.04
+
+学习内容:
+1. 第三十五讲
+
+    - 荷兰拍卖（`Dutch Auction`）是一种反向拍卖机制，起源于荷兰的鲜花拍卖市场。与传统拍卖的出价方式不同，荷兰拍卖从高价开始，价格逐步下降，直到找到愿意接受当前价格的买家为止。
+
+    - 荷兰拍卖的优势
+
+        - 效率高：由于价格不断下降，买家会迅速做出决策，避免了传统拍卖的漫长竞价过程。
+
+        - 市场反应快：拍卖价格逐步下降可以迅速反映市场对拍卖品的真实需求。
+
+        - 避免价格泡沫：在传统的拍卖中，多个买家争相出价可能导致价格过高，而荷兰拍卖则是买家根据自己的需求和市场判断来接受价格，价格相对更合理。
+    
+    - 荷兰拍卖的挑战
+
+        - 不确定性：买家可能希望等待更低的价格，导致心理博弈，最终可能导致价格过低。
+
+	    - 流拍风险：如果没有买家接受价格，商品可能会流拍，特别是在保留价设定过高的情况下。
+    
+    - NFT领域简单的荷兰拍实例
+
+        ```Solidity
+        // SPDX-License-Identifier: MIT
+        pragma solidity ^0.8.21;
+
+        import "@openzeppelin/contracts/access/Ownable.sol";
+        import "../34_ERC721/ERC721.sol";
+
+        contract DutchAuction is Ownable, ERC721 {
+            uint256 public constant COLLECTION_SIZE = 10000; // NFT总数
+            uint256 public constant AUCTION_START_PRICE = 1 ether; // 起拍价
+            uint256 public constant AUCTION_END_PRICE = 0.1 ether; // 结束价（最低价）
+            uint256 public constant AUCTION_TIME = 10 minutes; // 拍卖时间，为了测试方便设为10分钟
+            uint256 public constant AUCTION_DROP_INTERVAL = 1 minutes; // 每过多久时间，价格衰减一次
+            uint256 public constant AUCTION_DROP_PER_STEP =
+                (AUCTION_START_PRICE - AUCTION_END_PRICE) /
+                (AUCTION_TIME / AUCTION_DROP_INTERVAL); // 每次价格衰减步长
+            
+            uint256 public auctionStartTime; // 拍卖开始时间戳
+            string private _baseTokenURI;   // metadata URI
+            uint256[] private _allTokens; // 记录所有存在的tokenId 
+
+            //设定拍卖起始时间：我们在构造函数中会声明当前区块时间为起始时间，项目方也可以通过`setAuctionStartTime(uint32)`函数来调整
+            constructor() Ownable(msg.sender) ERC721("WTF Dutch Auction", "WTF Dutch Auction") {
+                auctionStartTime = block.timestamp;
+            }
+
+            /**
+            * ERC721Enumerable中totalSupply函数的实现
+            */
+            function totalSupply() public view virtual returns (uint256) {
+                return _allTokens.length;
+            }
+
+            /**
+            * Private函数，在_allTokens中添加一个新的token
+            */
+            function _addTokenToAllTokensEnumeration(uint256 tokenId) private {
+                _allTokens.push(tokenId);
+            }
+
+            // 拍卖mint函数
+            function auctionMint(uint256 quantity) external payable{
+                uint256 _saleStartTime = uint256(auctionStartTime); // 建立local变量，减少gas花费
+                require(
+                _saleStartTime != 0 && block.timestamp >= _saleStartTime,
+                "sale has not started yet"
+                ); // 检查是否设置起拍时间，拍卖是否开始
+                require(
+                totalSupply() + quantity <= COLLECTION_SIZE,
+                "not enough remaining reserved for auction to support desired mint amount"
+                ); // 检查是否超过NFT上限
+
+                uint256 totalCost = getAuctionPrice() * quantity; // 计算mint成本
+                require(msg.value >= totalCost, "Need to send more ETH."); // 检查用户是否支付足够ETH
+                
+                // Mint NFT
+                for(uint256 i = 0; i < quantity; i++) {
+                    uint256 mintIndex = totalSupply();
+                    _mint(msg.sender, mintIndex);
+                    _addTokenToAllTokensEnumeration(mintIndex);
+                }
+                // 多余ETH退款
+                if (msg.value > totalCost) {
+                    payable(msg.sender).transfer(msg.value - totalCost); //注意一下这里是否有重入的风险
+                    // 这里没有重入风险，因为退款是发生在状态变量之后的，还有transfer默认的gas是23000即便msg.sender是智能合约，也很难执行复杂的重入逻辑。
+
+                    // 不过可以优化下这个函数，加入检查msg.sender是不是合约，将transfer改成call来退款。
+                }
+            }
+
+            // 获取拍卖实时价格
+            function getAuctionPrice()
+                public
+                view
+                returns (uint256)
+            {
+                if (block.timestamp < auctionStartTime) {
+                return AUCTION_START_PRICE;
+                }else if (block.timestamp - auctionStartTime >= AUCTION_TIME) {
+                return AUCTION_END_PRICE;
+                } else {
+                uint256 steps = (block.timestamp - auctionStartTime) /
+                    AUCTION_DROP_INTERVAL;
+                return AUCTION_START_PRICE - (steps * AUCTION_DROP_PER_STEP);
+                }
+            }
+
+            // auctionStartTime setter函数，onlyOwner
+            function setAuctionStartTime(uint32 timestamp) external onlyOwner {
+                auctionStartTime = timestamp;
+            }
+
+            // BaseURI
+            function _baseURI() internal view virtual override returns (string memory) {
+                return _baseTokenURI;
+            }
+            // BaseURI setter函数, onlyOwner
+            function setBaseURI(string calldata baseURI) external onlyOwner {
+                _baseTokenURI = baseURI;
+            }
+            // 提款函数，onlyOwner
+            function withdrawMoney() external onlyOwner {
+                (bool success, ) = msg.sender.call{value: address(this).balance}("");
+                require(success, "Transfer failed.");
+            }
+        }
+        ```
+
+2. 第三十六讲
+
+    - `Merkle Tree`（默克尔树）是一种数据结构，用于高效地验证和确保数据完整性与一致性。它是通过将多个数据块的哈希值逐层组合、生成根哈希（Merkle Root）而形成的树状结构，常用于区块链、分布式系统和文件系统中。
+
+    - Merkle Tree 的结构
+
+        - 叶子节点：树的最底层，每个叶子节点存储的是数据块（如交易信息）的哈希值。
+
+	    - 非叶子节点：树中的其他节点是其子节点的哈希值组合，通常通过将子节点的哈希值拼接并再次哈希得到。
+
+	    - Merkle 根（Merkle Root）：树的顶端节点，是树中所有数据的最终哈希值，是整个树的唯一代表。
+
+                      Merkle Root
+                        /      \
+                    Hash0-1    Hash2-3
+                    /   \      /   \
+                Hash0  Hash1 Hash2  Hash3
+    - Merkle Tree 的优点
+
+        - 高效的数据完整性验证：只需检查特定数据块的哈希与根哈希之间的路径，即可验证该数据块是否在整棵树中存在，无需重新检查所有数据块。
+
+	    - 分布式验证：各节点可以验证树中任意部分数据的正确性而无需持有全部数据。例如，在比特币等区块链中，轻节点可以通过验证Merkle Proof（默克尔证明）来验证一笔交易是否在某个区块中，而不需要下载整个区块链。
+
+	    - 数据完整性保护：任何篡改的数据都会导致哈希链的破坏，最终引起Merkle Root的变化。通过对Merkle Root的比较，可以有效检测数据的篡改。
+    
+    - 可以利用Merkle Tree的特性用于发放NFT白名单和空投代币。
+
+        ```Solidity
+
+        // 利用Merkle Tree发放NFT白名单示例
+        contract MerkleTree is ERC721 {
+            bytes32 public immutable root; // Merkle树的根
+            mapping(address => bool) public mintedAddress; // 记录已经mint的地址
+
+            // 构造函数，初始化NFT合集的名称、代号、Merkle树的根
+            constructor(
+                string memory name,
+                string memory symbol,
+                bytes32 merkleroot
+            ) ERC721(name, symbol) {
+                root = merkleroot;
+            }
+
+            // 利用Merkle树验证地址并完成mint
+            function mint(
+                address account,
+                uint256 tokenId,
+                bytes32[] calldata proof
+            ) external {
+                require(_verify(_leaf(account), proof), "Invalid merkle proof"); // Merkle检验通过
+                require(!mintedAddress[account], "Already minted!"); // 地址没有mint过
+                _mint(account, tokenId); // mint
+                mintedAddress[account] = true; // 记录mint过的地址
+            }
+
+            // 计算Merkle树叶子的哈希值
+            function _leaf(address account) internal pure returns (bytes32) {
+                return keccak256(abi.encodePacked(account));
+            }
+
+            // Merkle树验证，调用MerkleProof库的verify()函数
+            function _verify(bytes32 leaf, bytes32[] memory proof)
+                internal
+                view
+                returns (bool)
+            {
+                return MerkleProof.verify(proof, root, leaf);
+            }
+        }
+        ```
+### 
 
 <!-- Content_END -->

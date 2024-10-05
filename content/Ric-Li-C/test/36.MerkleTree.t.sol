@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "forge-std/Test.sol";
+import {Test, console} from "forge-std/Test.sol";
 import {MerkleTree} from "../src/36.MerkleTree.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
