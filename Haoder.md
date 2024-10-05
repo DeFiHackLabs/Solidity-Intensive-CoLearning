@@ -74,5 +74,20 @@ LFG～～～～～ 會完成的
 
 [**WTF Solidity 極簡入門：18. import**](<content/Haoder/md/218.md>)
 
+### 2024.10.05
+
+[**WTF Solidity 極簡入門：19. 接收 eth**](<content/Haoder/md/219.md>)
+
+[**WTF Solidity 極簡入門：20. 發送 eth**](<content/Haoder/md/220.md>)
+
+[**WTF Solidity 極簡入門：21. 調用其他和約**](<content/Haoder/md/221.md>)
+
+[**WTF Solidity 極簡入門：22. Call**](<content/Haoder/md/222.md>)
+
+[**WTF Solidity 極簡入門：23. Delegatecall**](<content/Haoder/md/223.md>)
+
+[**WTF Solidity 極簡入門：24. 在合約中創建新合約**](<content/Haoder/md/224.md>)
+
+[**WTF Solidity 極簡入門：25. Create2**](<content/Haoder/md/225.md>)
 
 <!-- Content_END -->
