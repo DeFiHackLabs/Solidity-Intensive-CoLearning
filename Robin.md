@@ -772,4 +772,19 @@ contract OtherContract{
 
 }
 ```
+
+
+### 2024.10.05
+
+學習內容:
+
+- [x] call调用其他函数
+     - call函数是低级函数，返回值为(bool, bytes memory),其中bool代表调用是否成功，bytes memory代表调用的返回值
+     - call是官方推荐发送以太币，触发fallback和receive函数的方式
+     - 一般来说不建议使用call调用其他函数，推荐采用声明合约变量后的调用方式
+     - call的使用规则：目标函数地址.call(abi.encodeWithSignature("functionName(parameterType[,...])", parameterValue[,...]))
+     - call调用其他函数的时候还可以指定eth和gas: 目标函数地址.call{value: 1 ether, gas: 100000}(abi.encodeWithSignature("functionName(parameterType[,...])", parameterValue[,...]))
+     - 如果call调用的目标函数不存在，则会触发调用fallback函数
+
+
 <!-- Content_END -->

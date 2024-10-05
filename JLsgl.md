@@ -81,6 +81,9 @@ Solidity的控制流是能實現插入排序，
 0.4.22之後用constructor語法。
 修飾器（modifier）是Solidity獨有的語法，
 主要使用場景是運行函數前的檢查，例如地址，變數，餘額等等。
-
+### 2024.10.05
+12章節中，
+Solidity中的事件（event），是EVM上比較不消耗gas的數據存儲方式。
+EVM用日誌Log來儲存Solidity的事件，每個日誌都包含主題topics和資料data。
 
 <!-- Content_END -->
