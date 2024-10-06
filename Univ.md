@@ -685,19 +685,6 @@ fallback() external payable {
 #### 這兩個函數的主要區別在於何時觸發：
 - 當合約接收 ETH 且 msg.data 為空，並且 receive() 存在時，會觸發 receive()。
 - 如果 msg.data 不為空或 receive() 不存在，則會觸發 fallback()。
-ˋˋˋscss
-接收 ETH
-   |
-msg.data 為空？
-  /  \
- 是   否
- /     \
-存在 receive() ? -> fallback()
- / \
-是  否
-/    \
-receive() -> fallback()
-ˋˋˋ
 
 ### 2024.10.07
 
