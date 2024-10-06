@@ -1291,6 +1291,7 @@ call contract6 in remix
 这一讲，我们介绍了如何通过目标合约代码（或接口）和地址来创建合约的引用，从而调用目标合约的函数。
 
 ### 2024.10.06
+
 週日複習前面的內容。
 Delegatecall
 delegatecall与call类似，是Solidity中地址类型的低级成员函数。delegate中是委托/代表的意思，那么delegatecall委托了什么？
