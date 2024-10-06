@@ -1351,5 +1351,240 @@ Citations:
 [1] https://pplx-res.cloudinary.com/image/upload/v1728188437/user_uploads/klgmxzjrh/19840b7416712478526285cdcee6e76.jpg
 [2] https://pplx-res.cloudinary.com/image/upload/v1728188294/user_uploads/hytotohit/48778bbd8fd53abdd6c7cbd727881bc.jpg
 
+### 2024.10.07
+
+## 發送 ETH 的三種方法
+
+在 Solidity 中，有三種方法可以向其他合約發送 ETH：
+
+1. transfer()
+2. send()
+3. call()
+
+其中，call() 是目前被鼓勵使用的方法。
+
+## 接收 ETH 合約
+
+首先，我們來看一個接收 ETH 的合約範例：
+
+```solidity
+contract ReceiveETH {
+    event Log(uint amount, uint gas);
+    
+    receive() external payable {
+        emit Log(msg.value, gasleft());
+    }
+    
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+}
+```
+
+這個合約包含：
+- 一個 Log 事件，記錄接收的 ETH 數量和剩餘的 gas
+- 一個 receive() 函數，在接收 ETH 時被觸發
+- 一個 getBalance() 函數，用於查詢合約的 ETH 餘額
+
+## 發送 ETH 合約
+
+接下來，我們實現一個可以發送 ETH 的合約：
+
+```solidity
+contract SendETH {
+    constructor() payable {}
+    receive() external payable {}
+    
+    // 以下將實現三種發送方法
+}
+```
+
+### 1. transfer() 方法
+
+```solidity
+function transferETH(address payable _to, uint256 amount) external payable {
+    _to.transfer(amount);
+}
+```
+
+特點：
+- gas 限制為 2300
+- 轉賬失敗會自動 revert
+
+### 2. send() 方法
+
+```solidity
+error SendFailed();
+
+function sendETH(address payable _to, uint256 amount) external payable {
+    bool success = _to.send(amount);
+    if (!success) {
+        revert SendFailed();
+    }
+}
+```
+
+特點：
+- gas 限制為 2300
+- 轉賬失敗不會自動 revert，需要手動處理
+- 而且發送失敗不會自動revert交易，幾乎沒有人用它
+
+### 3. call() 方法
+
+```solidity
+error CallFailed();
+
+function callETH(address payable _to, uint256 amount) external payable {
+    (bool success,) = _to.call{value: amount}("");
+    if (!success) {
+        revert CallFailed();
+    }
+}
+```
+
+特點：
+- 沒有 gas 限制
+- 最靈活，可支援複雜邏輯
+- 轉賬失敗不會自動 revert，需要手動處理
+
+## 補充見解
+
+1. **安全性考慮**：雖然 call() 是最靈活的方法，但也需要格外小心。因為它沒有 gas 限制，可能會被惡意合約利用來耗盡 gas。
+
+2. **重入攻擊**：使用 call() 時要特別注意重入攻擊（reentrancy attacks）的風險。建議遵循 checks-effects-interactions 模式來編寫代碼。
+
+3. **錯誤處理**：send() 和 call() 方法需要手動處理錯誤，這可以提供更大的靈活性，但也增加了代碼的複雜性。
+
+## 延伸思考
+
+1. **為什麼 call() 成為推薦方法**？隨著以太坊網絡的發展，合約邏輯變得越來越複雜。call() 的靈活性使得它能夠適應各種場景，而 transfer() 和 send() 的 gas 限制可能會在某些情況下造成問題。
+
+2. **gas 優化**：在使用這些方法時，如何平衡安全性和 gas 消耗？是否有辦法在使用 call() 的同時限制 gas 使用量？
+
+3. **跨鏈轉賬**：隨著區塊鏈技術的發展，跨鏈轉賬變得越來越重要。這些方法如何適應跨鏈場景？未來可能會出現什麼新的轉賬方法？
+
+4. **智能合約升級**：考慮到這些方法的限制和優缺點，在設計可升級的智能合約時，應該如何選擇和實現轉賬功能？
+
+## 問題4
+
+Vitalik 寫了一個合約，該合約在被部署時可以轉 ETH 進去。這意味著構造函數需要是 payable 的。讓我們逐一檢視選項：
+
+A. constructor() payable{}
+B. constructor() {}
+C. constructor(uint256 _amount) payable{ (address(this)).transfer(_amount); }
+
+正確答案是 **A. constructor() payable{}**
+
+解釋：
+- 選項 A 是正確的，因為它使用了 payable 關鍵字，允許在部署時接收 ETH。
+- 選項 B 沒有 payable 關鍵字，所以不能在部署時接收 ETH。
+- 選項 C 雖然也是 payable 的，但它多了一個不必要的參數和轉賬操作。在構造函數中，合約已經自動接收了發送的 ETH，不需要額外的轉賬操作。
+
+## 問題5
+5. 
+error SendFailed(); 
+function sendETH(address payable _to, uint256 amount) external payable{
+            ______________________________________
+    }
+   
+在問題 5 中，我們需要選擇一個選項，使得 `sendETH` 函數在執行失敗時自動 revert 交易。
+該函數執行失敗時會自動revert交易，那麼下面哪個選項可以填入橫線處？
+A. bool success = _to.send(amount); if( !success ){ revert SendFailed(); }
+B. bool success = _to.call(amount); if( !success ){ revert SendFailed(); }
+C. _to.send(amount);
+D. bool success = _to.send{value: amount}(" "); if( !success ){ revert SendFailed(); }
+
+### 選項分析
+
+- **A.** `bool success = _to.send(amount); if( !success ){ revert SendFailed(); }`
+  - `send()` 方法返回一個布爾值，表示成功或失敗。這個選項正確地檢查了返回值，並在失敗時使用 `revert` 來回滾交易。
+
+- **B.** `bool success = _to.call(amount); if( !success ){ revert SendFailed(); }`
+  - `call()` 方法的語法不正確。`call` 返回兩個值，不應直接賦值給單個布爾變量。
+
+- **C.** `_to.send(amount);`
+  - 這個選項沒有處理返回值，因此不會自動 revert。
+
+- **D.** `bool success = _to.send{value: amount}(" "); if( !success ){ revert SendFailed(); }`
+  - 語法錯誤，`send` 不接受 `{value: amount}` 語法，這是 `call` 的用法。
+
+### 正確答案
+正確答案是 **A**。這個選項使用了 `send()` 方法，並在失敗時通過檢查返回值來手動 revert 交易。這符合題目要求，即在執行失敗時自動 revert。
+
+## 問題6
+vitalik又寫了一個用call()發送ETH的函數：
+該函數執行失敗時會自動revert交易，那麼下面哪個選項可以填入橫線處？
+A. (bool success,) = _to.call{value: amount}(" "); if( !success ){ revert CallFailed(); }
+B. bool success = _to.call{value: amount}(" "); if( !success ){ revert CallFailed(); }
+C. _to.call(amount);
+D. (bool success,) = _to.call(amount); if( !success ){ revert CallFailed(); }
+error CallFailed();
+function callETH(address payable _to, uint256 amount) external payable{
+            ______________________________________
+    }
+
+首先，我們需要理解 `call()` 方法的特性：
+1. `call()` 不會自動 revert 交易。
+2. `call()` 返回兩個值：一個布爾值（表示成功或失敗）和一個 bytes 類型的數據（通常可以忽略）。
+3. 發送 ETH 時，需要使用 `{value: amount}` 語法。
+
+現在讓我們逐一檢查選項：
+
+A. `(bool success,) = _to.call{value: amount}(" "); if( !success ){ revert CallFailed(); }`
+   這是正確的語法和邏輯。它使用了 `call()` 方法發送 ETH，檢查了返回值，並在失敗時 revert。
+
+B. `bool success = _to.call{value: amount}(" "); if( !success ){ revert CallFailed(); }`
+   這個語法是錯誤的，因為 `call()` 返回兩個值，不能直接賦值給單個變量。
+
+C. `_to.call(amount);`
+   這個語法是錯誤的。它沒有使用 `{value: amount}` 來發送 ETH，也沒有檢查返回值或處理失敗情況。
+
+D. `(bool success,) = _to.call(amount); if( !success ){ revert CallFailed(); }`
+   這個語法也是錯誤的。它沒有使用 `{value: amount}` 來發送 ETH。
+
+因此，正確的答案是 **A**。
+
+完整的函數應該是這樣的：
+
+```solidity
+error CallFailed();
+
+function callETH(address payable _to, uint256 amount) external payable {
+    (bool success,) = _to.call{value: amount}("");
+    if (!success) {
+        revert CallFailed();
+    }
+}
+```
+
+這個實現正確地使用了 `call()` 方法發送 ETH，並在失敗時 revert 交易。雖然 `call()` 本身不會自動 revert，但通過手動檢查返回值並使用 `revert`，我們實現了在失敗時自動 revert 交易的效果。
+
+## 問題7
+
+7. 假設存在如下附件兩個合約(sendETH和ReceiveETH)，兩個合約目前ETH餘額皆為0，現在vitalik想通過SendETH合約的callETH函數往ReceiveETH合約轉入1ETH，他將交易的value設置為2ETH，同時交易成功執行，那麼此時sendETH合約和ReceiveETH的ETH餘額分別為？
+
+A. 1ETH；1ETH
+B. 0ETH；2ETH
+C. 0ETH；1ETH
+D. 2ETH；0ETH
+
+在這個情境中，Vitalik 使用 `SendETH` 合約的 `callETH` 函數來向 `ReceiveETH` 合約轉入 1 ETH。交易的 `value` 設置為 2 ETH。
+
+讓我們分析發生了什麼：
+
+1. **交易開始時**，`SendETH` 合約有 2 ETH 的餘額（因為交易的 `value` 是 2 ETH）。
+2. **執行 `callETH` 函數**：
+   - 該函數從 `SendETH` 合約中提取 1 ETH 並使用 `call()` 發送到 `ReceiveETH` 合約。
+   - 由於交易成功，1 ETH 被轉移到 `ReceiveETH` 合約。
+
+3. **交易結束時**：
+   - `SendETH` 合約剩下的餘額是 1 ETH（2 ETH 初始值 - 1 ETH 發送）。
+   - `ReceiveETH` 合約收到 1 ETH。
+
+因此，答案是：
+
+**A. 1ETH；1ETH**
+
+
 
 <!-- Content_END -->
