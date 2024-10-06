@@ -114,5 +114,10 @@ timezone: Asia/Shanghai
 4. emit釋放事件
 5. 用log來儲存solidity事件，每條log都包括topics、data
 
+### 2024.10.05
+1. virtual: 父合約中的函数，如果希望子合約重寫，需要加上virtual關鍵字
+2. override：子合約重寫了父合約中的函數，需要加上override關鍵字
+3. 多重繼承，Solidity的合約可以繼承多個合約：(1)繼承時要按輩分最高到最低的順序排(2)如果某一個函數在多個繼承的合約裡都存在，在子合約裡必須重寫，不然會報錯(3)重寫在多個父合約中都重名的函數時，override關鍵字後面要加上所有父合約名字
+
 
 <!-- Content_END -->

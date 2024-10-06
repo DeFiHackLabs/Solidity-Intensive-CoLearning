@@ -1203,11 +1203,11 @@ try someContract.someFunction returns(returnType var) {
 // Conditional catch
 try ... {
 } catch Error(string memory reason) {
-  // do something with reason
+  // catch failing revert() and require()
 } catch Panic(uint errorCode) {
-  // do something with errorCode
+  // catch overflow, serious error
 } catch (bytes memory lowLevelReason) {
-  // do something with lowLevelReason
+  // catch failing assert()
 }
 ```
 
@@ -1215,7 +1215,135 @@ End of WTF Solidity 102
 
 ### 2024.10.05
 
+#### Chapter 31: ERC20
+
+ERC20
+
+- A token standard on Ethereum, which originated from the EIP20 proposed by Vitalik Buterin in November 2015
+- Implements the basic logic of token transfer:
+  - Account balance
+  - Transfer
+  - Approve transfer
+  - Total token supply
+  - Token information: name, symbol, decimal
+
+IERC20
+
+- Interface contract of `ERC20` token standard
+  - Event
+    - `event Transfer(address indexed from, address indexed to, uint256 value);`
+    - `event Approval(address indexed owner, address indexed spender, uint256 value);`
+  - Functions
+    - `function totalSupply() external view returns (uint256);`
+    - `function balanceOf(address account) external view returns (uint256);`
+    - `function transfer(address to, uint256 amount) external returns (bool);`
+    - `function allowance(address owner, address spender) external view returns (uint256);`
+    - `function approve(address spender, uint256 amount) external returns (bool);`
+    - `function transferFrom(address from, address to, uint256 amount) external returns (bool);`
+
+Implementation of ERC20
+
+- State Variables
+
+```
+mapping(address => uint256) public override balanceOf;
+
+mapping(address => mapping(address => uint256)) public override allowance;
+
+uint256 public override totalSupply;   // total supply of the token
+
+string public name;   // the name of the token
+
+string public symbol;  // the symbol of the token
+
+uint8 public decimals = 18; // decimal places of the token
+```
+
+- Functions
+
+```
+// Initializes the token name and symbol
+constructor(string memory name_, string memory symbol_){
+  name = name_;
+  symbol = symbol_;
+}
+
+// Handle token transfer
+function transfer(address recipient, uint amount) external override returns (bool) {
+  balanceOf[msg.sender] -= amount;
+  balanceOf[recipient] += amount;
+  emit Transfer(msg.sender, recipient, amount);
+  return true;
+}
+
+// Handle token authorization logic
+function approve(address spender, uint amount) external override returns (bool) {
+  allowance[msg.sender][spender] = amount;
+  emit Approval(msg.sender, spender, amount);
+  return true;
+}
+
+// Logic for authorized transfer
+function transferFrom(address sender, address recipient, uint amount) external override returns (bool) {
+  allowance[sender][msg.sender] -= amount;
+  balanceOf[sender] -= amount;
+  balanceOf[recipient] += amount;
+  emit Transfer(sender, recipient, amount);
+  return true;
+}
+
+// Token minting
+function mint(uint amount) external {
+  balanceOf[msg.sender] += amount;
+  totalSupply += amount;
+  emit Transfer(address(0), msg.sender, amount);
+}
+
+// Destroy token
+function burn(uint amount) external {
+  balanceOf[msg.sender] -= amount;
+  totalSupply -= amount;
+  emit Transfer(msg.sender, address(0), amount);
+}
+```
+
 ### 2024.10.06
+
+#### Chapter 32: Token Faucet
+
+An apps or smart contract for claiming token, usually happen on testnet for dapps testing or learning to interact with blockchain.
+
+- However, the first blockchain faucet was introduced in Bitcoin mainnet during early time, had gave away over 19,700 BTC.
+
+Example of ERC20 Token Faucet
+
+```
+contract TokenFaucet {
+  uint256 public amountAllowed = 100; // the allowed amount for each request is 100
+  address public tokenContract;   // contract address of the token
+  mapping(address => bool) public requestedAddress;   // a map contains requested address
+
+  // Event SendToken
+  event SendToken(address indexed Receiver, uint256 indexed Amount);
+
+  // Set the ERC20'S contract address during deployment
+  constructor(address _tokenContract) {
+    tokenContract = _tokenContract; // set token contract
+  }
+
+  // Function for users to request tokens
+  function requestTokens() external {
+    require(requestedAddress[msg.sender] == false, "Can't Request Multiple Times!"); // Only one request per address
+    IERC20 token = IERC20(tokenContract); // Create an IERC20 contract object
+    require(token.balanceOf(address(this)) >= amountAllowed, "Faucet Empty!"); // Faucet is empty
+
+    token.transfer(msg.sender, amountAllowed); // Send token
+    requestedAddress[msg.sender] = true; // Record the requested address
+
+    emit SendToken(msg.sender, amountAllowed); // Emit SendToken event
+  }
+}
+```
 
 ### 2024.10.07
 

@@ -547,4 +547,16 @@ timezone: Asia/Shanghai
             }
             ```
 
+### 2024.10.06
+
+> 進度: Solidity 102 26
+
+- selfdestruct
+    - 觸發 `selfdestruct` 後, 會將合約內的 ETH 發送到指定地址
+    - deprecated since 0.8.18 - [solidity-0.8.18](https://blog.soliditylang.org/2023/02/01/solidity-0.8.18-release-announcement/) [EIP-6049](https://eips.ethereum.org/EIPS/eip-6049)
+    - 坎昆升級後, 加入了 [EIP-6780](https://eips.ethereum.org/EIPS/eip-6780), 更改了 `selfdestruct` 功能, 升級後的 `selfdestruct` 只會轉移 ETH, 刪除功能必須在同時發生創建-自毀才會發生
+        - 已部署的合約已無法被刪除
+
+- ABI 編碼解碼
+
 <!-- Content_END -->

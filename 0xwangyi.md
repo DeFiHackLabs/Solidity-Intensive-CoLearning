@@ -304,3 +304,39 @@ Solidity 103-31 erc20
 6 allowance( )用于允许第三方账户在有限额度内操作代币所有者的代币，
 7 allowance( )提供了授权额度的查询功能，确保了代币的授权和转移机制的安全性和灵活性，8 allowance( )是transferFrom函数的重要组成部分【transferFrom函数需要通过allowance( )来检查spender是否有足够的授权额度】
 <!-- Content_END -->
+<!-- Content_START -->
+### 2024.10.05
+Day13
+Solidity 103-32代币水龙头TokenFaucet
+
+Solidity 103-33 空头合约 airdrop
+1 Airdrop空投合约逻辑：利用循环，一笔交易将ERC20代币发送给多个地址
+2 合约中包含两个函数：getSum()函数（返回uint数组的和）& multiTransferToken()函数（发送ERC20代币空投
+3 i++ 是一种递增操作，表示每次循环结束时，将变量 i 的值增加 1（保证了每次循环处理数组中的下一个元素）
+4 i++ 就是是 “i 加 1”，是 i = i + 1 的简写形式。每次循环完成后，i 的值都会增加 1，从而遍历数组的每一个元素
+5 arr 是 数组array 的缩写
+<!-- Content_END -->
+<!-- Content_START -->
+### 2024.10.06
+Day14
+Solidity 103-34 ERC721
+1 EIP = ethereum imporvement proposald以太坊改进建议
+2 ERC = ethereum request for comment以太坊标准提案请求，比如token标准erc20，erc721
+3 EIP包含ERC
+4 ERC165就是检查一个智能合约是否支持ERC721，ERC1155接口
+5 @dev 给程序员看的解析
+6 @param 解析每一个参数意思
+7 mload( )是内联汇编中一个函数，用于从内存中加载32字节的数据
+8 memory safe assembly是内联汇编的写法，确保内存访问是安全的（因为EVM的内存是有限的）
+9 内联汇编inline assembly是指在高级语言（如solidity）中直接用汇编语言来编写某些操作，汇编语言是低级语言，直接操作CPU和内存
+10 returns（byte4）函数返回一个4字节长的值
+11 try和catch用于处理错误的结构，try块尝试执行代码，catch块处理错误
+12 retval是return value返回值的缩写
+13 函数执行后通常会返回一个值，就是返回值
+14 if (to.code.length>0) 这一行检查to地址是否是合约地址，EOA地址的代码长度是0，而合约地址有合约代码，代码长度大于0，用这种方式区分目标地址EOA地址还是合约地址
+15 IERC721Metadata是一个扩展自IERC721接口的接口，用于定义元数据相关的函数【NFT名称name( ), 符号symbol( ), URI tokenURI( )】
+16 URI = uniform resource identifier 统一资源标识符
+17 JSON = javascript object notation是一种轻量级的数据交换格式，用于储存和传送数据，基于健值对key- value pairs结构
+18 在NFT中，JSON文件用于储存和描述每个NFT的元数据（每个NFT都有一份对应的JSON文件，里边包含了该NFT的各种属性）
+19 JSON文件包括：name代币名称，description代币描述，image指向NFT的图片链接URL，attribute代币属性，是数组，包含了代币各类属性，包括trait_type属性类型，value属性值
+<!-- Content_END -->
