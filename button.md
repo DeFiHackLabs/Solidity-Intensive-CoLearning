@@ -17,6 +17,9 @@ timezone: Asia/Shanghai
 ## Notes
 
 <!-- Content_START -->
+### 2024.10.06
+学习代币对的创建方式和流程，create代币后，通过PairFactory创建代币对，然后通过pair进行管理。
+
 ### 2024.10.05
 学习委托函数，了解委托函数的运行状态依赖之前的调用函数状态。
 
