@@ -637,6 +637,26 @@ function hash(uint _num, string memory _string, address _addr) public pure retur
 強抗碰撞性
 - 難以找到任何兩個不同的輸入, 它們散列值相同
 
+### 2024.10.6      
+學習內容  
+筆記:  
+
+#### 函數選擇器
+- 當調用智能合約時, 本質上是向目標合約發送一段 calldata, 可以在 remix 的詳細信息中看見 input 就是該次交易的 calldata
+- calldata 的錢 4 個字節是 selector 函數選擇器
+
+msg.data
+
+method id, selector, 函數簽名
+函數的參數類型
+1. 基礎類型參數
+2. 固定長度類型參數
+3. 可變長度類型參數
+4. 映射類型參數
+
+使用 selector
+- 可以利用 selector 調用目標函數
+  ex: 利用 abi.encodeWithSelector 將 elementaryParamSelector 函數的 method id 作為 selector 和參數打包編碼, 傳給 call 函數
 
 
 
