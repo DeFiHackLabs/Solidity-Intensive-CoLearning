@@ -123,4 +123,12 @@ deleting a var will reset it to default
 efficient memory space and fast access
 like hash tables
 
+### 2024.10.05
+
+#### control flow
+just like normal control 
+if/else/for/while/do/ternary
+
+uint sortting trap, notice dont let uint gets negative
+
 <!-- Content_END -->
