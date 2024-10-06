@@ -12,9 +12,9 @@ timezone: Asia/Shanghai
    
 ## Notes
 
-- WTF Academy Solidity 101 1-15
-- WTF Academy Solidity 102 16-30
-- WTF Academy Solidity 103 31-50
+- WTF Academy Solidity 101 1-15 [✅]
+- WTF Academy Solidity 102 16-30 [✅]
+- WTF Academy Solidity 103 31-50 []
 - 完成取得 Solidity 101、102 链上证书
 
 <!-- Content_START -->
@@ -1118,16 +1118,13 @@ import '@openzeppelin/contracts/access/Ownable.sol';
             // 目前只能用assembly (内联汇编)来从签名中获得r,s,v的值
             assembly {
                 /*
-                前32 bytes存储签名的长度 (动态数组存储规则)
-                add(sig, 32) = sig的指针 + 32
-                等效为略过signature的前32 bytes
-                mload(p) 载入从内存地址p起始的接下来32 bytes数据
+                【前32 bytes存储签名的长度 (动态数组存储规则)】
+                    add(sig, 32) = sig的指针 + 32
+                    等效为略过signature的前32 bytes
+                    mload(p) 载入从内存地址p起始的接下来32 bytes数据
                 */
-                // 读取长度数据后的32 bytes
-                r := mload(add(_signature, 0x20)) // mload 从传入的地址向前读取32bytes，即[0,32)
-                // 读取之后的32 bytes
+                r := mload(add(_signature, 0x20))
                 s := mload(add(_signature, 0x40))
-                // 读取最后一个byte
                 v := byte(0, mload(add(_signature, 0x60)))
             }
             // 使用ecrecover(全局函数)：利用 msgHash 和 r,s,v 恢复 signer 地址
@@ -2049,7 +2046,110 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 
 ### 2024.10.10
 
-- [103-52] EIP712 类型化数据签名
+- [103-52] [EIP712](https://eips.ethereum.org/EIPS/eip-712) 类型化数据签名: 更先进、安全的签名方法，EIP712 类型化数据签名
+    - 之前的 ECDSA 签名是 EIP191 签名标准（personal sign），可以给一段消息签名。但是它过于简单，当签名数据比较复杂时，用户只能看到一串十六进制字符串（数据的哈希），无法核实签名内容是否与预期相符。当支持 EIP712 的 Dapp 请求签名时，钱包会展示签名消息的原始数据，用户可以在验证数据符合预期之后签名。EIP712 的应用一般包含链下签名（前端或脚本）和链上验证（合约）两部分。
+    - 链下签名：
+        - EIP712 签名必须包含一个 EIP712Domain 部分，它包含了合约的 name，version（一般约定为 “1”），chainId，和 verifyingContract（验证签名的合约地址）。这些信息会在用户签名时显示，并确保只有特定链的特定合约才能验证签名。你需要在脚本中传入相应参数。
+        ```js
+        const domain = {
+            name: "EIP712Storage",
+            version: "1",
+            chainId: "1",
+            verifyingContract: "0xf8e81D47203A594245E36C48e151709F0C19fBe8",
+        };
+        ```
+        - 根据使用场景自定义一个签名的数据类型，他要与合约匹配。
+        - 调用钱包对象的 signTypedData() 方法，传入前面步骤中的 domain，types，和 message 变量进行签名（
+        ```js
+        const domain = {
+            name: name,
+            version: version,
+            chainId: chainId,
+            verifyingContract: contractAddress,
+        };
+
+        const types = { // 自定义类型
+            Storage: [
+            { name: "spender", type: "address" },
+            { name: "number", type: "uint256" },
+            ],
+        };
+
+        const message = { // 自定义类型的数据
+            spender: spender,
+            number: number,
+        };
+
+        try {
+            console.log(message)
+            const signature = await signer.signTypedData(domain, types, message);
+            console.log("Signature:", signature);
+            showSignature.innerHTML = `${signature}`;
+        } catch (error) {
+            console.error("Error signing permit:", error);
+        }
+        ```
+    - 链上验证：验证签名，如果通过，则修改；
+        - 
+    ```solidity
+    contract EIP712Storage {
+        using ECDSA for bytes32;
+        // EIP712Domain 的类型哈希
+        bytes32 private constant EIP712DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+        // Storage 的类型哈希
+        bytes32 private constant STORAGE_TYPEHASH = keccak256("Storage(address spender,uint256 number)");
+        bytes32 private DOMAIN_SEPARATOR; // 由 EIP712DOMAIN_TYPEHASH 以及 EIP712Domain （name, version, chainId, verifyingContract）组成, 每个 DApp 尽可能唯一
+        uint256 number;
+        address owner;
+
+        constructor(){
+            DOMAIN_SEPARATOR = keccak256(abi.encode(
+                EIP712DOMAIN_TYPEHASH, // type hash
+                keccak256(bytes("EIP712Storage")), // name
+                keccak256(bytes("1")), // version
+                block.chainid, // chain id
+                address(this) // contract address
+            ));
+            owner = msg.sender;
+        }
+        function permitStore(uint256 _num, bytes memory _signature) public {
+            // 检查签名长度，65是标准r,s,v签名的长度
+            require(_signature.length == 65, "invalid signature length");
+            bytes32 r;
+            bytes32 s;
+            uint8 v;
+            assembly {
+                /*
+                    前32 bytes存储签名的长度 (动态数组存储规则)
+                    add(sig, 32) = sig的指针 + 32
+                    等效为略过signature的前32 bytes
+                    mload(p) 载入从内存地址p起始的接下来32 bytes数据
+                */
+                // 读取长度数据后的32 bytes
+                r := mload(add(_signature, 0x20))
+                // 读取之后的32 bytes
+                s := mload(add(_signature, 0x40))
+                // 读取最后一个byte
+                v := byte(0, mload(add(_signature, 0x60)))
+            }
+
+            // 获取签名消息hash
+            bytes32 digest = keccak256(abi.encodePacked(
+                "\x19\x01",
+                DOMAIN_SEPARATOR,
+                keccak256(abi.encode(STORAGE_TYPEHASH, msg.sender, _num))
+            )); 
+            
+            address signer = digest.recover(v, r, s);                     // 恢复签名者
+            require(signer == owner, "EIP712Storage: Invalid signature"); // 检查签名
+
+            // 修改状态变量
+            number = _num;
+        }
+        function retrieve() public view returns (uint256){
+            return number;
+        }    
+    ```
 - [103-53] ERC-2612 ERC20Permit
 - [103-54] 跨链桥
 
