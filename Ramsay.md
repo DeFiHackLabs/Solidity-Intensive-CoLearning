@@ -1069,5 +1069,83 @@ contract EtherGame {
 }
 ```
 
+### 2024.10.08
 
+#### ABI encode/decode
+在理解ABI 编码之前，首先要了解什么ABI.
+
+在其他编程语言的语境下（主要是C），ABI(Application Binary Interface)指的是应用程序或操作系统中的二进制接口，定义了不同程序模块（例如函数，库，操作系统内核用户究竟程序）在编译后的二进制是如何交互的, 包括函数调用方式，参数传递方式，返回值的处理，系统调用，内存布局等等。
+
+而智能合约的ABI(Application Binary Interface), 是智能合约在以太坊等区块链网络中与外部应用程序(类如其他合约或前端应用)通信的标准.
+
+例如有这样的ABI 部署在地址 `0xC1666a11E5Ac3feAE09388f31AEff1ac014f9900`:
+
+```py
+erc_20_abi = [
+    {
+        "constant": False,
+        "inputs": [
+            {
+                "name": "_to",
+                "type": "address"
+            },
+            {
+                "name": "_value",
+                "type": "uint256"
+            }
+        ],
+        "name": "transfer",
+        "outputs": [
+            {
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "type": "function"
+    }
+]
+```
+
+就可以通过Python 脚本来调用这个合约，完成Web2与Web3的交互.
+```py
+w3 = Web3()
+my_contract = w3.eth.contract(address=0xC1666a11E5Ac3feAE09388f31AEff1ac014f9900, abi=erc_20_abi)
+my_contract.functions.transfer(_to=other_account.address,_value=420202020).call()
+```
+
+而所谓的ABI编码就是把数据编码成十六进制(或者二进制, 其实都可以), 例如 0x7a58c0be72be218b41c608b7fe7c5bb630736c71000000, 编码的方式多种多样, 比如有数据 `uint a = 1`, `string b = "string"`, 你可以把它们都转换成对应的十六进制，然后拼接起来
+
+`a = 1` 的十六进制就是 `0x1`, 但是uint是uint256, 是256位长度的, 换成十六进制, 就是有64位长, 补0之后变成: `0x1000000000000000000000000000000000000000000000000000000000000000`
+
+所以 `abi.encode` 就是补0版本的, 而 `abi.encodePacked` 就是不补0版本的, 可以直观看到 `abi.encode` 更耗费存储空间，但是如果是合约相互调用, 你使用 `abi.encodePacked` 来编码，使用`abi.decode` 解码就会报错，因为decode uint256, 它就是按照256个bit 来解码的，但是你说应该只取一个1bit,那么它就解不出正确的数值了.
+
+而`abi.encodeWithSignature()` 就是配合 `call` 使用的, 其实参数类型 `abi.encode` 和 `abi.encodePacked` 都可以通过传入参数推断出来，而 `abi.encodeWithSignature` 特别之处在于它还传入了调用的函数名.
+
+`abi.encodeWithSelector` 与 `abi.encodeWithSignature`功能类似，只不过第一个参数为函数选择器，为函数签名Keccak哈希的前4个字节
+
+```
+function encodeWithSelector() public view returns(bytes memory result) {
+    result = abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array);
+}
+```
+但是任何哈希相关的操作，尤其是截取部分hash的情况，都需要注意可能会出现的哈希冲突，我没有深挖到 `keccak256` 的实现原理，但是如果有两个函数生成的hash 如下:
+
+0x5467872....
+0x5467087....
+
+他们的前4个字节就是一样的，当然这个只是存在理论冲突的可能，总不能无限地创建函数.
+
+abi解码就是把对应的十六进制/二进制数据翻译成原来正常的参数，因为标准的解码就是按照参数类型解码，你是`uint256`, 就把256个bit 转换成数字， 所以就只有一种解码方式.
+
+#### Hash
+
+Hash 这个概念在编程中就非常常见了，在Java和C++中就有不同的Hash函数实现，而整个区块链技术都可以说是在构建在 hash function 之上的。
+
+所谓的区块链，不同之间的区块(block) 就是通过每个区块自身的 hash 以及记录前一个区块的 hash 串连起来，成为「链」的。
+
+生成钱包地址，交易的唯一标识，这些都和 hash function 息息相关。谈起好的 hash function, 最关键的是它是否能尽量降低 hash 碰撞的函数，即两个不同的参数，生成了相同的 hash 值。
+
+不过按照已知技术（2024）年，想要碰撞出相同值的 hash 也是非常难的.
+
+另外一个关于 keccak hash function 的趣事是, keccak hash function 是赢得了美国国家标准与技术研究院(National Institute of Standards and Technology)的 hash function 大赛，然后被选为SHA3的标准.
 <!-- Content_END -->
