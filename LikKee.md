@@ -1309,6 +1309,42 @@ function burn(uint amount) external {
 
 ### 2024.10.06
 
+#### Chapter 32: Token Faucet
+
+An apps or smart contract for claiming token, usually happen on testnet for dapps testing or learning to interact with blockchain.
+
+- However, the first blockchain faucet was introduced in Bitcoin mainnet during early time, had gave away over 19,700 BTC.
+
+Example of ERC20 Token Faucet
+
+```
+contract TokenFaucet {
+  uint256 public amountAllowed = 100; // the allowed amount for each request is 100
+  address public tokenContract;   // contract address of the token
+  mapping(address => bool) public requestedAddress;   // a map contains requested address
+
+  // Event SendToken
+  event SendToken(address indexed Receiver, uint256 indexed Amount);
+
+  // Set the ERC20'S contract address during deployment
+  constructor(address _tokenContract) {
+    tokenContract = _tokenContract; // set token contract
+  }
+
+  // Function for users to request tokens
+  function requestTokens() external {
+    require(requestedAddress[msg.sender] == false, "Can't Request Multiple Times!"); // Only one request per address
+    IERC20 token = IERC20(tokenContract); // Create an IERC20 contract object
+    require(token.balanceOf(address(this)) >= amountAllowed, "Faucet Empty!"); // Faucet is empty
+
+    token.transfer(msg.sender, amountAllowed); // Send token
+    requestedAddress[msg.sender] = true; // Record the requested address
+
+    emit SendToken(msg.sender, amountAllowed); // Emit SendToken event
+  }
+}
+```
+
 ### 2024.10.07
 
 ### 2024.10.08
