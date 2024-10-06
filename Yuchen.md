@@ -1273,6 +1273,122 @@ contract OtherContract {
 >
 > (2) 通过接口 IOtherContract 实例化：这是一种更灵活的方式，通过接口可以在合约的不同版本之间更轻松地进行交互。只要目标合约实现了 IOtherContract 接口，便可以通过该接口的方式进行调用。这也同样是正确的调用方法。
 
+### 2024.10.06
+#### Call
+`call`是`address`類型的低級成員函數，運行時動態調用其他合約的函數。返回值為`(bool, bytes memory)`，分别對應`call`是否成功以及目標函數的返回值。
+* `Gas`：調用者可以控制調用時提供的 `gas`，多餘的 `gas` 會退還给調用者。
+* `call`是solidity官方推薦的通過觸發`fallback`或`receive`函數發送`ETH`的方法。
+* 不建議用`call`調用另一個合約，因為當調用的是不安全合約的函數時，就等於將主動權交給了它。建議使用先宣告合約變量再調用函數的方式。
+* 當不知道對方合約的源代碼或者ABI時，就沒辦法生成合約變量，此時仍可以通過`call`調用對方合約的函數。
+
+**call使用規則**
+```Solidity
+目标合约地址.call(字节码);
+```
+其中`字節碼`利用結構化編碼函數`abi.encodeWithSignature`獲得：
+
+```Solidity
+// abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)
+
+(bool success, bytes memory data) = targetContract.call(
+    abi.encodeWithSignature("someFunction(uint256)", 123)
+);
+```
+`函數簽名`為`"函數名（逗號分隔的參數類型）"`。例如`abi.encodeWithSignature("f(uint256,address)", _x, _addr)`。
+
+另外`call`在調用合約時可以指定交易發送的`ETH`數額和`gas`數額：
+```Solidity
+目标合约地址.call{value:发送数额, gas:gas数额}(字节码);
+```
+
+**目標合約**
+與上章的`OtherContract`基本相同，但多了`fallback`函數。
+```Solidity
+contract OtherContract {
+    uint256 private _x = 0; // 状态变量x
+    // 收到eth的事件，记录amount和gas
+    event Log(uint amount, uint gas);
+    
+    fallback() external payable{}
+
+    // 返回合约ETH余额
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+
+    // 可以调整状态变量_x的函数，并且可以往合约转ETH (payable)
+    function setX(uint256 x) external payable{
+        _x = x;
+        // 如果转入ETH，则释放Log事件
+        if(msg.value > 0){
+            emit Log(msg.value, gasleft());
+        }
+    }
+
+    // 读取x
+    function getX() external view returns(uint x){
+        x = _x;
+    }
+}
+```
+
+**利用`call`調用目標合約**
+
+1.Response事件
+我們寫一個`call`合約來呼叫目標合約的函數，首先定義一個`Response`事件，輸出`call`返回的`success`和`data`，以觀察返回值。
+
+```solidity
+// 定义Response事件，输出call返回的结果success和data
+event Response(bool success, bytes data);
+```
+
+2.調用setX函數
+定義`callSetX`函數去調用目標合約的`setX()`，轉入`msg.value`數額的`ETH`，並釋放`Response`事件輸出`success`和`data`:
+```solidity
+function callSetX(address payable _addr, uint256 x) public payable {
+    // call setX()，同时可以发送ETH
+    (bool success, bytes memory data) = _addr.call{value: msg.value}(
+        abi.encodeWithSignature("setX(uint256)", x)
+    );
+
+    emit Response(success, data); //释放事件
+}
+```
+接著調用`callSetX`把狀態變量`_x`改為5，參數為`OtherContract`地址和`5`，由於目標函數`setX()`沒有返回值，因此`Response`事件輸出的`data`為`0x`，意即空。  
+<img src="https://github.com/user-attachments/assets/f0942773-38a4-4cd4-b576-c8ca371f6541" height="320px" width="600px" />  
+
+3.調用getX函數
+
+調用`getX`函數，將返回目標合約`_x`的值，類型為`uint256`。可以用`abi.decode`解碼`call`的返回值`data`，並輸出數值。
+
+```Solidity
+function callGetX(address _addr) external returns(uint256){
+    // call getX()
+    (bool success, bytes memory data) = _addr.call(
+        abi.encodeWithSignature("getX()")
+    );
+
+    emit Response(success, data); //释放事件
+    return abi.decode(data, (uint256));
+}
+```  
+<img src="https://github.com/user-attachments/assets/e95459d3-8916-4e39-a701-3ffbd0855874" height="200px" width="600px" /> 
+
+
+4.調用不存在的函數
+如果輸入`call`的目標函數不存在目標合約，那麼目標合約的`fallback`被觸發。
+
+```Solidity
+function callNonExist(address _addr) external{
+    // call 不存在的函数
+    (bool success, bytes memory data) = _addr.call(
+        abi.encodeWithSignature("foo(uint256)")
+    );
+
+    emit Response(success, data); //释放事件
+}
+```
+<img src="https://github.com/user-attachments/assets/f37fc1bf-4da7-4590-824a-1aff8f86d161" height="100px" width="600px" /> 
 
 
 <!-- Content_END -->
