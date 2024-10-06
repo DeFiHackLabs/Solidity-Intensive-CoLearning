@@ -1536,7 +1536,7 @@ contract MKNFT is ERC721 {
 
     function mint() external {
         uint256 tokenId = currentIndex;
-        require(tokenId >= 0 && tokenId < MAX, "minted out");
+        require(tokenId < MAX, "minted out");
         _mint(msg.sender, tokenId);
         currentIndex++;
     }
