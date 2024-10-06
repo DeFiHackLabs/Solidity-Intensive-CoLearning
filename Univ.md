@@ -639,8 +639,65 @@ function getString2(uint256 _number) public pure returns(string memory){
 `Strings`、`Address`、`Create2`、`Arrays`
 
 ### 2024.10.05
+## 18_Import
+- 通過檔案相對位置導入
+- 通過網址引用合約
+- 通過 npm 目錄導入
+- 通過指定全局符號導入
 
 ### 2024.10.06
+## Fallback
+receive() 和 fallback() 是兩種特殊的回調函數，主要用於以下兩種情況：
+1. 接收 ETH：
+   - 當合約接收 ETH 時，會觸發這些函數。
+2. 處理不存在的函數調用：
+   - 當合約中不存在被調用的函數時，會觸發 fallback()，這個功能常見於代理合約 proxy contract。
+* Solidity 0.6.x 版本之前，只有 fallback() 函數來處理接收 ETH 和處理函數未匹配的情況。從 0.6.x 版本開始，fallback() 函數被拆分為 receive() 和 fallback()。
+
+### receive() 函數
+#### ˋreceive()ˋ函數專門用於處理合約接收 ETH 的情況，每個合約最多只能定義一個 receive() 函數。<br>它有以下特點：
+- 不需要ˋfunctionˋ關鍵字。
+- 必須使用`externalˋ和ˋpayableˋ修飾詞。
+- 不能接受參數，也不會返回任何值。
+- 當合約收到ˋETHˋ並且ˋmsg.dataˋ為空時會觸發。
+- ˋreceive()ˋ不應執行過於複雜的邏輯，否則可能因 gas 限制（2300 gas）導致合約報錯。
+ˋˋˋsolidity
+// 定義事件
+event Received(address Sender, uint Value);
+// 接收ETH時釋放事件
+receive() external payable {
+    emit Received(msg.sender, msg.value);
+}
+ˋˋˋ
+### fallback() 函數
+#### fallback() 函數在以下情況下會被觸發：
+- 當調用合約中不存在的函數。
+- 當合約接收 ETH 並且 msg.data 不為空，或 receive() 函數不存在。
+ˋˋˋsolidity
+// 定義事件
+event fallbackCalled(address Sender, uint Value, bytes Data);
+// fallback 函數
+fallback() external payable {
+    emit fallbackCalled(msg.sender, msg.value, msg.data);
+}
+ˋˋˋ
+### receive() 和 fallback() 的區別
+#### 這兩個函數的主要區別在於何時觸發：
+- 當合約接收 ETH 且 msg.data 為空，並且 receive() 存在時，會觸發 receive()。
+- 如果 msg.data 不為空或 receive() 不存在，則會觸發 fallback()。
+ˋˋˋscss
+接收 ETH
+   |
+msg.data 為空？
+  /  \
+ 是   否
+ /     \
+存在 receive() ? -> fallback()
+ / \
+是  否
+/    \
+receive() -> fallback()
+ˋˋˋ
 
 ### 2024.10.07
 
