@@ -31,14 +31,19 @@ completed lessons 16-18
 ### 2024.09.30
 completed lessons 19-21
 ### 2024.10.01
-complelted lessons 22-24；
+completed lessons 22-24；
 ### 2024.10.02
-complelted lessons 25-27；
+completed lessons 25-27；
 ### 2024.10.05
-complelted lessons 28-30；
+completed lessons 28-30；
 
 Todo:
 - Proxy Contract
 - EIP-2535 Diamonds
+### 2024.10.06
+completed lessons 31-33；
+
+Todo:
+- design fintness token by using ERC20
 
 <!-- Content_END -->
