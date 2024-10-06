@@ -131,4 +131,18 @@ if/else/for/while/do/ternary
 
 uint sortting trap, notice dont let uint gets negative
 
+### 2024.10.06
+
+#### constructor
+
+runs when contract deploys
+used to init params eg owner addr
+
+syntax not consistent for solidity ver
+
+#### modifier 
+used to declare dedicated properties of functions
+sually used for restrict access => require(msg.sender == owner)
+
+
 <!-- Content_END -->
