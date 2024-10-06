@@ -655,12 +655,12 @@ receive() 和 fallback() 是兩種特殊的回調函數，主要用於以下兩�
 * Solidity 0.6.x 版本之前，只有 fallback() 函數來處理接收 ETH 和處理函數未匹配的情況。從 0.6.x 版本開始，fallback() 函數被拆分為 receive() 和 fallback()。
 
 ### receive() 函數
-#### ˋreceive()ˋ函數專門用於處理合約接收 ETH 的情況，每個合約最多只能定義一個 receive() 函數。<br>它有以下特點：
-- 不需要ˋfunctionˋ關鍵字。
-- 必須使用`externalˋ和ˋpayableˋ修飾詞。
+#### receive()函數專門用於處理合約接收 ETH 的情況，每個合約最多只能定義一個 receive() 函數。<br>它有以下特點：
+- 不需要`function`關鍵字。
+- 必須使用`external`和`payable`修飾詞。
 - 不能接受參數，也不會返回任何值。
-- 當合約收到ˋETHˋ並且ˋmsg.dataˋ為空時會觸發。
-- ˋreceive()ˋ不應執行過於複雜的邏輯，否則可能因 gas 限制（2300 gas）導致合約報錯。
+- 當合約收到`ETH`並且`msg.data`為空時會觸發。
+- `receive()`不應執行過於複雜的邏輯，否則可能因 gas 限制（2300 gas）導致合約報錯。
 ```solidity
 // 定義事件
 event Received(address Sender, uint Value);
