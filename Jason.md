@@ -1178,6 +1178,178 @@ Citations:
 [7] https://docs.soliditylang.org/zh/v0.8.16/path-resolution.html
 [8] https://vocus.cc/article/6254ed24fd89780001a38745
 
+### 2024.10.06
+
+## 特殊回調函數:receive()和fallback()
+
+Solidity支持兩種特殊的回調函數:receive()和fallback()。這兩個函數主要用於以下兩種情況:
+
+1. 接收ETH
+2. 處理合約中不存在的函數調用(用於代理合約)
+
+**重要注意事項:**
+在Solidity 0.6.x版本之前,只有fallback()函數,用於接收ETH和處理未匹配的函數調用。0.6版本後,Solidity將fallback()拆分為receive()和fallback()兩個函數。
+
+### receive()函數
+
+receive()函數在合約接收ETH時被調用。每個合約最多只能有一個receive()函數,其聲明方式特殊:
+
+```solidity
+receive() external payable { ... }
+```
+
+receive()函數不能有參數,不能返回值,必須是external和payable。
+
+**最佳實踐:**
+receive()函數應保持簡單,因為使用send和transfer方法發送ETH時,gas限制為2300。複雜的receive()可能導致Out of Gas錯誤。
+
+### fallback()函數
+
+fallback()函數在調用不存在的合約函數時觸發。它可用於接收ETH和實現代理合約功能。聲明如下:
+
+```solidity
+fallback() external payable { ... }
+```
+
+### receive()和fallback()的區別
+
+兩者都能用於接收ETH,但觸發規則不同:
+
+1. 如果msg.data為空且存在receive(),則觸發receive()
+2. 如果msg.data不為空或不存在receive(),則觸發fallback()
+
+如果兩者都不存在,直接發送ETH到合約將會失敗。
+
+## 補充見解
+
+1. **安全考慮:** 惡意合約可能在receive()或fallback()中嵌入耗費大量gas或故意失敗的代碼,影響正常的退款和轉賬邏輯。開發包含這些功能的合約時需特別注意。
+
+2. **代理合約應用:** fallback()在代理合約中扮演重要角色,允許合約動態更新邏輯。
+
+3. **事件記錄:** 在這些函數中發送事件是好的做法,有助於跟蹤和調試。
+
+## 延伸思考
+
+1. **合約設計:** 如何設計一個既安全又靈活的合約,能夠處理各種ETH接收情況?
+
+2. **升級策略:** 考慮到Solidity版本的變化,如何設計向後兼容的合約?
+
+3. **gas優化:** 在receive()和fallback()中如何平衡功能實現和gas消耗?
+
+4. **跨鏈應用:** 這些特殊函數在不同區塊鏈平台上的實現有何異同?
+
+5. **智能合約互操作性:** receive()和fallback()如何促進不同合約間的互動?
+
+6. 這是一個很好的問題。讓我來解釋「不存在的合約函數」的概念,以及fallback()函數如何在這種情況下被觸發。
+
+## 「不存在的合約函數」的概念，當我們說「不存在的合約函數」時,我們指的是:
+
+1. 調用者試圖調用一個在合約中沒有定義的函數。
+2. 調用的函數簽名(包括函數名和參數類型)與合約中的任何函數都不匹配。
+
+## 如何觸發「不存在的函數」
+
+雖然這些函數「不存在」,但它們仍然可以被「調用」,主要通過以下方式:
+
+1. **直接調用:** 當外部賬戶或其他合約嘗試調用目標合約中不存在的函數時。
+
+2. **低級調用:** 使用Solidity的低級調用方法(如call、delegatecall等)時,可以發送任意的函數簽名,即使該函數在合約中不存在。
+
+3. **錯誤的接口:** 如果使用了錯誤或過時的合約接口(ABI),可能會導致調用不存在的函數。
+
+4. **代理模式:** 在使用代理合約模式時,如果邏輯合約更新但代理合約的調用沒有相應更新,可能會嘗試調用不存在的函數。
+
+## fallback()函數如何被觸發
+
+當合約收到一個不匹配任何已定義函數的調用時,fallback()函數會自動被觸發。這個機制允許合約優雅地處理意外或錯誤的調用,而不是簡單地拋出錯誤。
+
+例如:
+
+```solidity
+contract MyContract {
+    fallback() external payable {
+        // 處理未知調用
+    }
+}
+```
+
+如果有人嘗試調用MyContract中不存在的函數,fallback()將被執行。
+
+## 實際應用
+
+1. **錯誤處理:** 可以在fallback()中記錄錯誤調用,幫助調試。
+
+2. **默認行為:** 為合約定義一個默認行為,處理所有未預期的交互。
+
+3. **代理模式:** 在代理合約中,fallback()可以將調用轉發到實現合約。
+
+4. **接收以太幣:** 如果合約沒有定義receive()函數,fallback()可以用來接收以太幣轉賬。
+
+Understanding this mechanism is crucial for developing robust and flexible smart contracts. It provides a safety net for unexpected interactions and enables advanced contract patterns like upgradeable contracts.
+
+Citations:
+[1] https://dev.to/shlok2740/fallback-functions-in-solidity-13nb
+[2] https://bitsbyblocks.com/everything-you-need-to-know-about-solidity-fallback-functions/
+[3] https://docs.soliditylang.org/en/latest/contracts.html
+[4] https://solidity-by-example.org/fallback/
+
+### 題目
+讓我們來逐一分析這些問題:
+
+1. 下面哪個選項語法是正確的？
+
+正確答案是 A. receive() external payable { }
+
+解釋:
+- receive()函數必須是external和payable的。
+- 不需要使用function關鍵字。
+- 不能有任何參數。
+- 必須是payable的,因為它用於接收ETH。
+
+2. fallback(or receive)函數能否在合約內部調用？
+
+正確答案是 B. 不能
+
+解釋:
+- fallback和receive函數都必須是external的。
+- external函數只能從合約外部調用,不能在合約內部直接調用。
+- 這些函數的設計目的是處理外部調用,特別是處理未預期的調用或純ETH轉賬。
+
+3. vitalik想部署一個能接收ETH和msg.data的合約，那麼他部署的合約中______________________
+
+正確答案是 B. 必須含有fallback函數
+
+解釋:
+- receive()函數只能處理純ETH轉賬(沒有msg.data)。
+- fallback()函數可以處理帶有msg.data的調用,同時如果聲明為payable,也可以接收ETH。
+- 要同時處理ETH和msg.data,fallback()函數是必需的。
+- 雖然同時包含receive()和fallback()函數可以更精確地處理不同情況,但題目只問最低要求,所以只需fallback()函數就足夠了。
+
+這些問題很好地測試了對Solidity中特殊函數的理解。記住,receive()主要用於純ETH轉賬,而fallback()則更加靈活,可以處理各種未預期的調用情況。
+
+Citations:
+[1] https://docs.soliditylang.org/en/latest/contracts.html
+[2] https://ethereum-blockchain-developer.com/2022-03-deposit-withdrawals/09-sending-ether-to-smart-contracts/
+[3] https://coinsbench.com/fallback-and-receive-function-in-solidity-6e65fe2556f8?gi=3ee523785c67
+[4] https://bitsbyblocks.com/everything-you-need-to-know-about-solidity-fallback-functions/
+
+4. 根據合約的內容和問題描述，正確答案是 C. error：'Fallback' function is not defined，value和msg.data均發送失敗。
+**解釋:**
+- 合約中只有 `receive()` 函數，這個函數會在接收純 ETH 轉賬（即 `msg.data` 為空）時被調用。
+- 當 `msg.data` 不為空（如 `0xaa`），`receive()` 不會被觸發。
+- 由於合約中沒有定義 `fallback()` 函數，因此當帶有 `msg.data` 的交互發生時，合約無法處理這種情況，導致錯誤。
+
+5. 根據提供的合約代碼，正確答案是 A. error：'Fallback' function is not defined，value和msg.data均發送失敗。
+
+**解釋:**
+
+- 合約中只有 `receive()` 函數，這個函數只會在接收純 ETH 轉賬時（即 `msg.data` 為空）被調用。
+- 當 `msg.data` 不為空時（例如包含函數選擇器），`receive()` 不會被觸發。
+- 合約中沒有定義 `fallback()` 函數，因此當帶有 `msg.data` 的交互發生時，合約無法處理這種情況，導致錯誤。
+
+Citations:
+[1] https://pplx-res.cloudinary.com/image/upload/v1728188437/user_uploads/klgmxzjrh/19840b7416712478526285cdcee6e76.jpg
+[2] https://pplx-res.cloudinary.com/image/upload/v1728188294/user_uploads/hytotohit/48778bbd8fd53abdd6c7cbd727881bc.jpg
 
 
 <!-- Content_END -->
