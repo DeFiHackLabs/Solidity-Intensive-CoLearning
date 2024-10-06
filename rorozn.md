@@ -1103,7 +1103,168 @@ contract TryCatch{
 
 ### 2024.10.05
 
+31. ERC20
+
+- IERC20:对外接口
+
+```solidity
+//IERC20定义了2个事件
+/**
+ * @dev 释放条件：当 `value` 单位的货币从账户 (`from`) 转账到另一账户 (`to`)时.
+ */
+event Transfer(address indexed from, address indexed to, uint256 value);
+
+/**
+ * @dev 释放条件：当 `value` 单位的货币从账户 (`owner`) 授权给另一账户 (`spender`)时.
+ */
+event Approval(address indexed owner, address indexed spender, uint256 value);
+
+//IERC20定义了6个函数
+/**
+ * @dev 返回代币总供给.
+ */
+function totalSupply() external view returns (uint256);
+
+/**
+ * @dev 返回账户`account`所持有的代币数.
+ */
+function balanceOf(address account) external view returns (uint256);
+
+/**
+ * @dev 转账 `amount` 单位代币，从调用者账户到另一账户 `to`.
+ * 如果成功，返回 `true`.
+ * 释放 {Transfer} 事件.
+ */
+function transfer(address to, uint256 amount) external returns (bool);
+
+/**
+ * @dev 返回`owner`账户授权给`spender`账户的额度，默认为0。
+ * 当{approve} 或 {transferFrom} 被调用时，`allowance`会改变.
+ */
+function allowance(address owner, address spender) external view returns (uint256);
+
+/**
+ * @dev 调用者账户给`spender`账户授权 `amount`数量代币。
+ * 如果成功，返回 `true`.
+ * 释放 {Approval} 事件.
+ */
+function approve(address spender, uint256 amount) external returns (bool);
+
+/**
+ * @dev 通过授权机制，从`from`账户向`to`账户转账`amount`数量代币。转账的部分会从调用者的`allowance`中扣除。
+ * 如果成功，返回 `true`.
+ * 释放 {Transfer} 事件.
+ */
+function transferFrom(
+    address from,
+    address to,
+    uint256 amount
+) external returns (bool);
+```
+
+- ERC20  
+   账户余额(balanceOf()),  
+   转账(transfer()),  
+   授权转账(transferFrom()),  
+   授权(approve()),  
+   代币总供给(totalSupply()),  
+   授权转账额度(allowance()),  
+   代币信息（可选）：名称(name())，代号(symbol())，小数位数(decimals())
+- ERC20 实现
+
+```solidity
+contract MyContract {
+    mapping(address => uint256) public override balanceOf;
+    mapping(address => mapping(address => uint256)) public override allowance;
+    uint256 public override totalSupply;   // 代币总供给
+    string public name;   // 名称
+    string public symbol;  // 代号
+    uint8 public decimals = 18; // 小数位数
+
+    constructor(string memory name_, string memory symbol_){
+        name = name_;
+        symbol = symbol_;
+    }
+
+    function transfer(address recipient, uint amount) public override returns (bool) {
+        //代币转账逻辑。调用方扣除amount数量代币，接收方增加相应代币。土狗币会魔改这个函数，加入税收、分红、抽奖等逻辑。
+        balanceOf[msg.sender] -= amount;
+        balanceOf[recipient] += amount;
+        emit Transfer(msg.sender, recipient, amount);
+        return true;
+    }
+
+    function approve(address spender, uint amount) public override returns (bool) {
+    //代币授权逻辑。被授权方spender可以支配授权方的amount数量的代币。spender可以是EOA账户，也可以是合约账户：当你用uniswap交易代币时，你需要将代币授权给uniswap合约。
+        allowance[msg.sender][spender] = amount;
+        emit Approval(msg.sender, spender, amount);
+        return true;
+    }
+
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint amount
+    ) public override returns (bool) {
+        //授权转账逻辑。被授权方将授权方sender的amount数量的代币转账给接收方recipient。
+        allowance[sender][msg.sender] -= amount;
+        balanceOf[sender] -= amount;
+        balanceOf[recipient] += amount;
+        emit Transfer(sender, recipient, amount);
+        return true;
+    }
+
+    function mint(uint amount) external {
+        //铸造代币函数，不在IERC20标准中。这里为了教程方便，任何人可以铸造任意数量的代币，实际应用中会加权限管理，只有owner可以铸造代币
+        balanceOf[msg.sender] += amount;
+        totalSupply += amount;
+        emit Transfer(address(0), msg.sender, amount);
+    }
+
+    function burn(uint amount) external {
+        //销毁代币函数，不在IERC20标准中
+        balanceOf[msg.sender] -= amount;
+        totalSupply -= amount;
+        emit Transfer(msg.sender, address(0), amount);
+    }
+}
+```
+
 ### 2024.10.06
+
+32. 代币水龙头
+
+```solidity
+contract MyERC20{ //代币合约
+    ...
+}
+
+contract MyFauct{ //领水合约
+    uint256 public amountAllowed = 100; // 每次领 100 单位代币
+    address public tokenContract;   // token合约地址
+    mapping(address => bool) public requestedAddress;   // 记录领取过代币的地址
+
+    // SendToken事件，记录了每次领取代币的地址和数量，，在requestTokens()函数被调用时释放
+    event SendToken(address indexed Receiver, uint256 indexed Amount);
+
+    // 部署时设定ERC20代币合约
+    constructor(address _tokenContract) {
+        tokenContract = _tokenContract; // set token contract
+    }
+
+    // 领水函数
+    function requestTokens() external {
+        require(!requestedAddress[msg.sender], "Can't Request Multiple Times!"); // 每个地址只能领一次
+        IERC20 token = IERC20(tokenContract); // 创建IERC20合约对象
+        require(token.balanceOf(address(this)) >= amountAllowed, "Faucet Empty!"); // 水龙头空了
+
+        token.transfer(msg.sender, amountAllowed); // 发送token
+        requestedAddress[msg.sender] = true; // 记录领取地址
+
+        emit SendToken(msg.sender, amountAllowed); // 释放SendToken事件
+    }
+}
+```
 
 ### 2024.10.07
 

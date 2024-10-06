@@ -15,6 +15,20 @@ timezone: Asia/Shanghai
 ## Notes
 <!-- Content_START -->
 
+### 2024.10.05
+
+Solidity 103章节内容：NFT交易所、ERC1155
+
+- ERC1155
+
+在`ERC721`中，每个代币都有一个`tokenId`作为唯一标识，每个`tokenId`只对应一个代币；而在`ERC1155`中，每一种代币都有一个`id`作为唯一标识，每个`id`对应一种代币。
+
+- 代码
+    
+    [NftSwap.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/NftExchanger)
+    
+    [ERC1155.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/ERC1155)
+
 ### 2024.10.04
 
 Solidity103章节内容：数字签名、链上随机数

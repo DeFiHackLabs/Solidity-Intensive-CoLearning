@@ -279,4 +279,36 @@ receive()   fallback()
    - 用法：`目标合约地址.delegatecall(二进制编码);`
    - 使用场景：代理合约（Proxy Contract）：将智能合约的存储合约和逻辑合约分开：代理合约（Proxy Contract）存储所有相关的变量，并且保存逻辑合约的地址；所有函数存在逻辑合约（Logic Contract）里，通过`delegatecall`执行。当升级时，只需要将代理合约指向新的逻辑合约即可。
 
+### 2024.10.05
+
+1. 使用`create`创建合约
+   - 如何计算地址: `新地址 = hash(创建者地址, nonce)` 由于`nonce`会随着时间改变，因此`CREATE`创建的合约地址不好预测。
+   - 如何使用: `Contract x = new Contract{value: _value}(params)`
+   - `param`为构造函数参数；如果构造函数是`payable`则可以使用`{value: _value}`的方式在创建合约的时候发送ETH。
+
+
+2. 使用`create2`创建合约
+> `CREATE2` 操作码使我们在智能合约部署在以太坊网络之前就能预测合约的地址。
+   - 如何计算地址: `新地址 = hash("0xFF",CreatorAddress, salt, initcode)`。`CREATE2`确保，如果创建者使用`CREATE2`和提供的`salt`部署给定的合约`initcode`，它将存储在`新地址`中。
+      - `0xFF`：一个常数，避免和`CREATE`冲突
+      - `CreatorAddress`: 调用`CREATE2`的当前合约（创建合约）地址。
+      - `salt`: 一个创建者指定的`bytes32`类型的值，它的主要目的是用来影响新创建的合约的地址。
+      - `initcode`: 新合约的初始字节码（合约的Creation Code和构造函数的参数）。
+   - 如何使用: `Contract x = new Contract{salt: _salt, value: _value}(params)`
+
+### 2024.10.06
+
+1. `selfdestruct`删除合约
+   - `selfdestruct`命令可以用来删除智能合约，并将该合约剩余ETH转到指定地址。
+   - 坎昆（Cancun）升级后:
+      - `selfdestruct`仅会被用来将合约中的ETH转移到指定地址
+      - 已经部署的合约无法被`SELFDESTRUCT`
+      - 如果要使用原先的`SELFDESTRUCT`功能，必须在同一笔交易中创建并`SELFDESTRUCT`
+   - 用法: `selfdestruct(_addr);` 表示销毁当前合约，且将合约内ETH转移至`_addr`. `_addr`地址不需要有`receive()`或`fallback()`也能接收ETH。
+     
+2. ABI编码解码
+> ABI (Application Binary Interface，应用二进制接口)是与以太坊智能合约交互的标准。数据基于他们的类型编码；并且由于编码后不包含类型信息，解码时需要注明它们的类型。
+   - 编码: ABI编码有4个函数：`abi.encode`, `abi.encodePacked`, `abi.encodeWithSignature`, `abi.encodeWithSelector`.
+   - 解码: ABI解码有1个函数：`abi.decode`，用于解码`abi.encode`的数据。
+
 <!-- Content_END -->

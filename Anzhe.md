@@ -1375,5 +1375,150 @@ function getString2(uint256 _number) public pure returns(string memory){
     return Strings.toHexString(_number);
 }
 ```
+### 2024.10.05
+在寫接收 ETH 合約時，會用到有兩個特殊的函數：`receive()` 和 `fallback()`。
+寫發送合約則可以用 `transfer()`、`send()` 和`call()` 三種方法。
+# 接收 ETH
+Solidity 支援兩種特殊的回退函數，`receive()` 和 `fallback()`，他們主要在兩種情況下被使用：
+1. 接收ETH
+2. 處理合約中不存在的函數呼叫（代理合約 proxy contract）
+
+註：Solidity 0.6.x 版本之前，語法上只有 fallback() 函數，用來接收用戶發送的 ETH 時調用以及在被調用函數簽名沒有匹配到時來調用。 0.6 版本之後，Solidity 才將 fallback() 函式拆分成 receive() 和 fallback() 兩個函式。
+## 接收 ETH 函數 `receive`
+`receive()` 函數是在合約收到 ETH 轉帳時被呼叫的函數。一個合約最多有一個`receive()` 函數，宣告方式與一般函數不一樣，不需要 function 關鍵字，語法：
+```
+receive() external payable { ... }
+```
+`receive()` 函數不能有任何的參數，不能傳回任何值，必須包含 `external` 和`payable`。
+當合約接收 ETH 的時候，`receive()` 會被觸發。 `receive()` 最好不要執行太多的邏輯，因為如果別人用 `send` 和 `transfer` 方法發送 ETH 的話，gas 會限制在 2300，`receive()` 太複雜可能會觸發 Out of Gas 報錯；如果用 `call` 就可以自訂 gas 執行更複雜的邏輯（這三種發送ETH的方法之後會提）。
+在 `receive()` 裡發送一個 `event`：
+```
+// 定義事件
+event Received(address Sender, uint Value);
+// 接收 ETH 時釋放 Received 事件
+receive() external payable {
+    emit Received(msg.sender, msg.value);
+}
+```
+有些惡意合約，會在 `receive()` 函數（舊版就是 `fallback()` 函數）嵌入惡意消耗 gas 的內容或使得執行故意失敗的程式碼，導致一些包含退款和轉帳邏輯的合約不能正常運作，因此寫包含退款等邏輯的合約時候，一定要注意這種情況。
+## 回退函數 `fallback`
+`fallback()` 函數會在呼叫合約不存在的函數時被觸發。可用於接收 ETH，也可以用於代理合約 proxy contract。`fallback()` 聲明時不需要 `function` 關鍵字，必須由 `external` 修飾，一般也會用 `payable` 修飾，用來接收 ETH，語法：
+```
+fallback() external payable { ... }
+```
+定義一個 `fallback()` 函數，被觸發時候會釋放 `fallbackCalled` 事件，並輸出 `msg.sender`、`msg.value` 和 `msg.data`:
+```
+event fallbackCalled(address Sender, uint Value, bytes Data);
+
+// fallback
+fallback() external payable{
+    emit fallbackCalled(msg.sender, msg.value, msg.data);
+}
+```
+## `receive` 和 `fallback` 的差別
+receive 和 fallback 都能夠用來接收 ETH，他們觸發的規則如下：
+```
+觸發fallback() 還是 receive()?
+           接收ETH
+              |
+        msg.data是空？
+             /  \
+           是    否
+          /        \
+ receive()存在?    fallback()
+       /  \
+     是    否
+     /      \
+receive()  fallback()
+```
+簡單來說，合約接收 ETH 時，`msg.data` 為空且存在 `receive()` 時，會觸發 `receive()`；`msg.data` 不為空或不存在 `receive()` 時，會觸發 `fallback()`，此時 `fallback()` 必須為 `payable`。 `receive()` 和 `payable fallback()` 皆不存在的時候，向合約直接發送 ETH 將會報錯（你仍可以透過帶有 `payable` 的函數向合約發送 ETH）。
+## 接收 ETH 合約
+我們先部署一個接收 ETH 合約 `ReceiveETH`。 `ReceiveETH` 合約裡有一個事件 Log，記錄收到的 ETH 數量和 gas 剩餘。還有兩個函數，一個是 `receive()` 函數，收到 ETH 被觸發，並且傳送 Log 事件；另一個是查詢合約 ETH 餘額的 `getBalance()` 函數。
+```
+contract ReceiveETH {
+    // 收到 ETH 事件，記錄 amount 和 gas
+    event Log(uint amount, uint gas);
+    
+    // receive 方法，接收 eth 時被觸發
+    receive() external payable{
+        emit Log(msg.value, gasleft());
+    }
+    
+    // 返回合約 ETH 餘額
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+}
+```
+# 發送 ETH
+Solidity 有三種方法向其他合約發送 ETH：`transfer()`、`send()` 和`call()`，其中 `call()` 是比較好的作法。
+首先定義一個 `SendETH` 合約，實現 `payable` 的建構子和 `receive`，讓我們在部署時和部署後可以向 `ReceiveETH` 合約發送ETH。
+```
+contract SendETH {
+    // 建構函數，payable 使得部署的時候可以轉 ETH 進去
+    constructor() payable{}
+    // receive 方法，接收 ETH 時被觸發
+    receive() external payable{}
+}
+```
+## 1. `transfer` 函數
+```
+    <接收方位址>.transfer(<發送ETH金額>)
+```
+* `transfer()` 的 gas 限制是 2300，足夠用於轉賬，但對方合約的 `fallback()` 或` receive()` 函數不能實現太複雜的邏輯。
+* `transfer()` 如果轉帳失敗，會自動 revert（回滾交易）。
+* 範例：`_to` 寫 `ReceiveETH` 合約的地址，`amount` 是 ETH 轉帳金額
+    ```
+    // 用 transfer() 發送 ETH
+    function tranferETH(address payable _to, uint256 amount) external payable{
+        _to.transfer(amount);
+    }
+    ```
+    <!--部署 SendETH 合約後，對 ReceiveETH 合約發送 ETH，此時 amount 為 10，value 為 0，amount > value，轉帳失敗，發生 revert。-->
+## 2. `send` 函數
+```
+<接收方位址>.send(<發送ETH金額>)
+```
+* `send()` 的 gas 限制是 2300，足夠用於轉賬，但對方合約的 `fallback()` 或`receive()` 函數不能實現太複雜的邏輯。
+* `send()` 如果轉帳失敗，不會 revert。
+* `send()` 的回傳值是 `bool`，代表轉帳成功或失敗，需要額外程式碼處理一下。
+* 範例：
+    ```
+    error SendFailed(); // 用 send 發送 ETH 失敗 error
+
+    // send() 發送 ETH
+    function sendETH(address payable _to, uint256 amount) external payable{
+        // 處理下 send 的回傳值，如果失敗，revert 交易並傳送 error
+        bool success = _to.send(amount);
+        if(!success){
+            revert SendFailed();
+        }
+    }
+    ```
+## 3. `call` 函數
+```
+<接收方位址>.call{value: <發送ETH金額>}("")
+```
+* `call()` 沒有 gas 限制，可以支援對方合約 `fallback()` 或 `receive()` 函數實現複雜邏輯。
+* `call()` 如果轉帳失敗，不會 revert。
+* `call()` 的回傳值是 `(bool, bytes)`，其中 bool 代表著轉帳成功或失敗，需要額外程式碼處理一下。
+* 範例：
+    ```
+    error CallFailed(); // // 使用 call 發送 ETH 失敗 error
+
+    // call() 發送 ETH
+    function callETH(address payable _to, uint256 amount) external payable{
+        // 處理下 call 的回傳值，如果失敗，revert 交易並發送 error
+        (bool success,) = _to.call{value: amount}("");
+        if(!success){
+            revert CallFailed();
+        }
+    }
+    ```
+
+## 發送 ETH 函數比較
+* `call` 沒有 gas 限制，最靈活，是最提倡的方法
+* `transfer` 有 2300 gas 限制，但發送失敗會自動 revert 交易，是次優選擇
+* `send` 有 2300 gas 限制，而且發送失敗不會自動 revert 交易，幾乎沒有人使用它
 
 <!-- Content_END -->

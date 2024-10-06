@@ -955,6 +955,83 @@ EVM 日志包含两部分：
 
 
 
+### 2024.10.05
+
+學習內容: 
+
+- [solidity-101 第十四课  抽象合约和接口](https://www.wtf.academy/docs/solidity-101/Interface/)
+
+笔记
+
+
+#### 抽象合约
+- 定义：包含至少一个未实现函数的合约
+- 特点：
+  - 必须使用 `abstract` 关键字声明
+  - 未实现的函数需要加 `virtual` 关键字
+- 示例：
+  ```solidity
+  abstract contract InsertionSort {
+      function insertionSort(uint[] memory a) public pure virtual returns(uint[] memory);
+  }
+  ```
+
+#### 接口
+- 定义：类似于抽象合约，但不实现任何功能
+- 规则：
+  1. 不能包含状态变量
+  2. 不能包含构造函数
+  3. 不能继承除接口外的其他合约
+  4. 所有函数都必须是 external 且没有函数体
+  5. 继承接口的非抽象合约必须实现所有功能
+- 重要性：
+  - 定义了合约的骨架和交互方式
+  - 提供函数选择器和接口 ID 信息
+- 示例（IERC721 接口）：
+  ```solidity
+  interface IERC721 is IERC165 {
+      event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+      // ... 其他事件和函数声明
+      function balanceOf(address owner) external view returns (uint256 balance);
+      // ... 其他函数声明
+  }
+  ```
+
+#### 接口的应用
+- 用于与已知实现特定接口的合约交互
+- 示例：与 BAYC (ERC721 代币) 交互
+  ```solidity
+  contract interactBAYC {
+      IERC721 BAYC = IERC721(0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D);
+      
+      function balanceOfBAYC(address owner) external view returns (uint256 balance) {
+          return BAYC.balanceOf(owner);
+      }
+      
+      // ... 其他交互函数
+  }
+  ```
+
+#### 思考与解答
+
+1. 抽象合约和接口的主要区别是什么？
+   - 解答：
+     - 抽象合约可以包含已实现的函数和状态变量，而接口不能。
+     - 抽象合约的函数可以有不同的可见性，接口的所有函数必须是 external。
+     - 抽象合约可以继承其他合约和接口，而接口只能继承其他接口。
+
+2. 为什么接口在智能合约开发中如此重要？
+   - 解答：
+     - 标准化：接口定义了标准（如 ERC20、ERC721），使得不同的合约可以遵循相同的规范。
+     - 互操作性：通过接口，不同的合约可以轻松地相互交互，而不需要了解具体实现。
+     - 抽象：接口提供了一层抽象，使得开发者可以专注于功能而不是实现细节。
+     - 升级性：通过接口，可以更容易地升级合约实现而不影响其他依赖它的合约。
+
+3. 在实际开发中，如何选择使用抽象合约或接口？
+   - 解答：
+     - 使用抽象合约：当你想要提供一些基本实现，但又想留下一些函数供子合约实现时。
+     - 使用接口：当你想定义一个纯粹的契约或标准，不包含任何实现时。
+     - 通常，对于标准化的协议（如 ERC 标准），使用接口更为常见。
 
 
 
