@@ -661,26 +661,26 @@ receive() 和 fallback() 是兩種特殊的回調函數，主要用於以下兩�
 - 不能接受參數，也不會返回任何值。
 - 當合約收到ˋETHˋ並且ˋmsg.dataˋ為空時會觸發。
 - ˋreceive()ˋ不應執行過於複雜的邏輯，否則可能因 gas 限制（2300 gas）導致合約報錯。
-ˋˋˋsolidity
+```solidity
 // 定義事件
 event Received(address Sender, uint Value);
 // 接收ETH時釋放事件
 receive() external payable {
     emit Received(msg.sender, msg.value);
 }
-ˋˋˋ
+```
 ### fallback() 函數
 #### fallback() 函數在以下情況下會被觸發：
 - 當調用合約中不存在的函數。
 - 當合約接收 ETH 並且 msg.data 不為空，或 receive() 函數不存在。
-ˋˋˋsolidity
+```solidity
 // 定義事件
 event fallbackCalled(address Sender, uint Value, bytes Data);
 // fallback 函數
 fallback() external payable {
     emit fallbackCalled(msg.sender, msg.value, msg.data);
 }
-ˋˋˋ
+```
 ### receive() 和 fallback() 的區別
 #### 這兩個函數的主要區別在於何時觸發：
 - 當合約接收 ETH 且 msg.data 為空，並且 receive() 存在時，會觸發 receive()。
