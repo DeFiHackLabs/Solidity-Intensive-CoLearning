@@ -723,4 +723,90 @@ selfdestruct
 
 ###
 
+### 10.06 abi编码解码
+
+Application Binary Interface 
+
+#### ABI编码
+
+编码函数
+
+1. abi.encode 
+
+将每个参数填充为32字节(64位16进制)的数据，所有参数会拼接在一起。
+
+用途：
+
+直接跟合约进行交互
+
+2. abi.encodePacked
+
+根据参数所需的最低空间编码。动作是跟encode相同，但是他会省略对存储来说多余的0。
+
+用途：
+
+不直接跟合约交互，节省空间，计算数据的hash。
+
+3. abi.encodeWithSignature
+
+功能与encode相同，32字节全字节填充，只是限定了第一个参数必须是函数签名。
+
+4. abi.encodeWithSelector
+
+功能与encodeWithSignature相同，但是限定了第一个参数必须是函数选择器。
+
+函数签名：
+
+```solidity
+foo(uint256,address,string)
+```
+
+函数选择器：
+
+```solidity
+//函数选择器为函数签名经过keccak hash加密后的前四个字节 结果例如： 0xe87082f1
+bytes4(keccak256("foo(uint256,address,string)"))
+```
+
+编码函数的返回类型都是： bytes
+
+#### ABI解码
+
+abi.decode
+
+只能用于解码encode生成的二进制编码，把它还原成原本的参数。其他的编码方式无法解码。
+
+#### 用途
+
+1. 合约底层调用
+
+```solidity
+
+    function Test() public returns(address) {
+        DC dc = new DC();
+        //获取函数选择器
+        bytes4 selector = dc.Say.selector;
+        bytes memory data = abi.encodeWithSelector(selector,msg.sender);
+        //合约底层调用
+        (bool success , bytes memory returnData ) = address(dc).staticcall(data);
+        require(success);
+        return abi.decode(returnData, (address));
+    }
+```
+2. ethers.js实现合约调用
+3. 不开源的合约反编译或者不知道合约代码，但是知道函数选择器的4个字节，可以通过1中的方式调用
+
+```solidity
+    function Test1() public returns(address ){
+        DC dc = new DC();//假设一个合约地址
+        bytes memory data = abi.encodeWithSelector(bytes4(0x533ba33a),msg.sender);
+        //静态调用
+        (bool success,bytes memory res) = address(dc).staticcall(data);
+        require(success);
+        return abi.decode(res, (address));
+    }
+```
+
+###
+
 <!-- Content_END -->
