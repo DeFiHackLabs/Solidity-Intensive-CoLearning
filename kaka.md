@@ -328,4 +328,37 @@ Hardhat：https://hardhat.org/
 
 通过配置hardhat.config.js，也可以部署到非本地测试网
 
+### 2024.10.06
+**学习内容：**<br>
+合约给用户转账的方法：
+
+1、transfer：会自动转送2300gas给接收方，用于执行其fallback函数。如果fallback函数使用超过2300gas，转账将失败，并回滚交易。（安全性比较好）但0.8版本后，gas限额改变
+
+```
+address payable recipient = payable(0xRecipientAddress);
+recipient.transfer(1 ether);
+
+```
+
+2、send：
+
+与transfer类似，不过在失败时不会抛出异常，而是返回false，可让合约处理异常情况。（因为需要手动处理失败情况，所以安全性不如transfer）
+
+```
+address payable recipient = payable(0xRecipientAddress);
+bool success = recipient.send(1 ether);
+require(success, "Send failed");
+```
+
+3、call方法：
+
+call是一个底层函数，用于发起外部函数调用。因为它蕴蓄指定要发送的gas量，因此也算是可以用于转账。交易失败返回false，需要手动处理异常。
+
+```
+(bool success, ) = payable(0xRecipientAddress).call{value: 1 ether}("");
+require(success, "Call failed");
+```
+
+
+
 <!-- Content_END -->
