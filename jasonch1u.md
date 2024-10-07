@@ -1125,11 +1125,83 @@ contract Import {
 接收 ETH 時，msg.data 為空且存在 receive() 則觸發 receive()
 msg.data 不為空或不存在 receive() 則觸發 fallback()
 
-
 注意事項：
 惡意合約可能在這些函數中嵌入有害代碼
 編寫包含退款邏輯的合約時需謹慎
 如果兩個函數都不存在，直接發送 ETH 到合約會報錯
 
+### 2024.10.04
+bootcamp作業
+### 2024.10.05
+bootcamp作業
+ERC20
+ERC721
+ERC1155
 
+### 2024.10.07
+bootcamp作業+助教課
+完成task1+task2
+
+```solidity
+// MagicWallet 的 transferFrom 函數（簡化版）
+function transferFrom(address from, address to, uint256 amount) external {
+    // ... (省略了一些檢查)
+
+    uint256 fromBalance = balances[from];
+    uint256 toBalance = balances[to];
+
+    balances[from] = fromBalance - amount;
+    balances[to] = toBalance + amount;
+
+    // ... (省略了授權額度的更新)
+}
+
+// 漏洞演示
+// 假設 Alice 的初始餘額是 100
+// Alice 調用 transferFrom(Alice, Alice, 50)
+
+// 執行前：
+// balances[Alice] = 100
+
+// 執行過程：
+// fromBalance = 100
+// toBalance = 100
+// balances[Alice] = fromBalance - amount = 100 - 50 = 50
+// balances[Alice] = toBalance + amount = 100 + 50 = 150
+
+// 執行後：
+// balances[Alice] = 150
+
+// 結果：Alice 的餘額從 100 增加到了 150
+```
+```solidity
+function _transfer(address from, address to, uint256 amount) internal virtual {
+    require(from != address(0), "ERC20: transfer from the zero address");
+    require(to != address(0), "ERC20: transfer to the zero address");
+
+    uint256 fromBalance = _balances[from];
+    require(fromBalance >= amount, "ERC20: transfer amount exceeds balance");
+    unchecked {
+        _balances[from] = fromBalance - amount;
+        _balances[to] += amount;
+    }
+
+    emit Transfer(from, to, amount);
+}
+
+// 使用示例
+// 假設 Alice 的初始餘額是 100
+// 調用 _transfer(Alice, Alice, 50)
+
+// 執行前：
+// _balances[Alice] = 100
+
+// 執行過程：
+// fromBalance = 100
+// _balances[Alice] = fromBalance - amount = 100 - 50 = 50
+// _balances[Alice] += amount = 50 + 50 = 100
+
+// 執行後：
+// _balances[Alice] = 100 (保持不變)
+```
 <!-- Content_END -->

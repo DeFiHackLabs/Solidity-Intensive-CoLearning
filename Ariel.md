@@ -608,12 +608,132 @@ send有2300 gas限制，而且发送失败不会自动revert交易，几乎没�
 
 
 
+### 2024.10.06
+
+學習內容: WTF 23
+
+# 23:delegatecall与call类似，是Solidity中地址类型的低级成员函数
+
+1. 当用户A通过合约B来call合约C的时候，执行的是合约C的函数，上下文(Context，可以理解为包含变量和状态的环境)也是合约C的：msg.sender是B的地址，并且如果函数改变一些状态变量，产生的效果会作用于合约C的变量上。
+2. 而当用户A通过合约B来delegatecall合约C的时候，执行的是合约C的函数，但是上下文仍是合约B的：msg.sender是A的地址，并且如果函数改变一些状态变量，产生的效果会作用于合约B的变量上。
+   （用户A）把他的资产（B合约的状态变量）都交给一个风险投资代理（C合约）来打理。执行的是风险投资代理的函数，但是改变的是资产的状态。
+
+3. 目标合约地址.delegatecall(二进制编码);
+   二进制编码利用结构化编码函数abi.encodeWithSignature -->abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)
+
+4. delegatecall在调用合约时可以指定交易发送的gas，但不能指定发送的ETH数额
+
+5. delegatecall有安全隐患，使用时要保证当前合约和目标合约的状态变量存储结构相同，并且目标合约安全，不然会造成资产损失。
+
+6. delegatecall主要有两个应用场景：
+      1. 代理合约（Proxy Contract）：将智能合约的存储合约和逻辑合约分开：代理合约（Proxy Contract）存储所有相关的变量，并且保存逻辑合约的地址；所有函数存在逻辑合约（Logic Contract）里，通过delegatecall执行。当升级时，只需要将代理合约指向新的逻辑合约即可。
+      2. EIP-2535 Diamonds（钻石）：钻石是一个支持构建可在生产中扩展的模块化智能合约系统的标准。钻石是具有多个实施合约的代理合约。 更多信息请查看：钻石标准简介。
+
+7. 你（A）通过合约B调用目标合约C
+
+         // 被调用的合约C
+         contract C {
+             uint public num;
+             address public sender;
+         
+             function setVars(uint _num) public payable {
+                 num = _num;
+                 sender = msg.sender;
+             }
+         }
+         
+         contract B {
+             uint public num;
+             address public sender;
+         }
+         
+         // 通过call来调用C的setVars()函数，将改变合约C里的状态变量
+         function callSetVars(address _addr, uint _num) external payable{
+             // call setVars()
+             (bool success, bytes memory data) = _addr.call(
+                 abi.encodeWithSignature("setVars(uint256)", _num)
+             );
+         }
+         
+         // 通过delegatecall来调用C的setVars()函数，将改变合约B里的状态变量
+         function delegatecallSetVars(address _addr, uint _num) external payable{
+             // delegatecall setVars()
+             (bool success, bytes memory data) = _addr.delegatecall(
+                 abi.encodeWithSignature("setVars(uint256)", _num)
+             );
+         }
+
+### 2024.10.07
+
+學習內容: WTF 24
+
+# 24:
+
+1. 以太坊链上，用户（外部账户，EOA）可以创建智能合约，智能合约同样也可以创建新的智能合约。去中心化交易所uniswap就是利用工厂合约（PairFactory）创建了无数个币对合约（Pair）。
+两种方法可以在合约中创建新合约，create和create2(#25)
+
+2. create的用法:
+   Contract x = new Contract{value: _value}(params)
+//Contract:合约名，x:合约对象（地址），如果构造函数是payable，可以创建时转入_value数量的ETH，params:新合约构造函数的参数。
+
+3. Uniswap V2核心合约中包含两个合约：
+- UniswapV2Pair: 币对合约，用于管理币对地址、流动性、买卖。
+- UniswapV2Factory: 工厂合约，用于创建新的币对，并管理币对地址。
+//Pair币对合约负责管理币对地址，PairFactory工厂合约用于创建新的币对，并管理币对地址。
+
+4. Pair合约
+     
+         contract Pair{
+          address public factory; // 工厂合约地址
+          address public token0; // 代币1
+          address public token1; // 代币2
+   
+       constructor() payable {
+           factory = msg.sender;
+       }
+   
+       // called once by the factory at time of deployment
+       function initialize(address _token0, address _token1) external {
+           require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
+           token0 = _token0;
+           token1 = _token1;
+       }
+         }
+
+//3个状态变量：factory，token0和token1。
+//构造函数constructor在部署时将factory赋值为工厂合约地址。initialize函数会初始化代币地址，将token0和token1更新为币对中两种代币的地址。
+   uniswap使用的是create2创建合约，生成的合约地址可以实现预测
+
+5. PairFactory
+
+         contract PairFactory{
+          mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+          address[] public allPairs; // 保存所有Pair地址
+      
+          function createPair(address tokenA, address tokenB) external returns (address pairAddr) {
+              // 创建新合约
+              Pair pair = new Pair(); 
+              // 调用新合约的initialize方法
+              pair.initialize(tokenA, tokenB);
+              // 更新地址map
+              pairAddr = address(pair);
+              allPairs.push(pairAddr);
+              getPair[tokenA][tokenB] = pairAddr;
+              getPair[tokenB][tokenA] = pairAddr;
+          }
+      }
+
+getPair是两个代币地址到币对地址的map，方便根据代币找到币对地址
+allPairs是币对地址的数组，存储了所有代币地址。
+
+PairFactory合约只有一个createPair函数，根据输入的两个代币地址tokenA和tokenB来创建新的Pair合约。其中
+Pair pair = new Pair(); 
+
 ### 2024.10.0
 
-學習內容: WTF 23~
+學習內容: WTF 25
 
-
-# 23:
+# 25:
 
 
 

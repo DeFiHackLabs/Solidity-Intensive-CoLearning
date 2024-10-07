@@ -45,9 +45,7 @@ Solidity 101-4函数输出
 2 return用于函数主体中，返回指定的变量
 3 命名式返回
 4 解构式赋值读取函数全部/部分返回值
-<!-- Content_END -->
 
-<!-- Content_START -->
 ### 2024.09.24
 Day2
 Solidity 101-5 变量数据储存和作用域
@@ -90,8 +88,7 @@ ether ：1e18 = 1后面有18个零的wei
 21 int有符号整数（正数，负数，零）
 22 uint无符号整数（正数，零）
 23 注意：正整数是大于零的整数（不包括零）
-<!-- Content_END -->
-<!-- Content_START -->
+
 ### 2024.09.25
 Day3
 Solidity 101-6 引用类型、array、struct
@@ -144,8 +141,7 @@ Solidity 101-9 常数constant和immutable
 4 initialize v初始化
 5 address(0)表示零地址(空地址)（0x后边40个0，全零地址，用于表示无效或未赋值的地址，或用于销毁代币）
 6 在构造函数中赋值 = 在部署合约时赋值
-<!-- Content_END -->
-<!-- Content_START -->
+
 ### 2024.09.26
 Day4
 Solidity 101-10 控制流 用solidity实现插入排序
@@ -182,8 +178,7 @@ Solidity 101-12 事件event
 11 EVM日志log：以太坊虚拟机EVM用日志log来储存solidity事件，每条日志记录都包含主题topics和数据data两部分
 12 主题topics包括：哈希keccak256（事件的签名），from，to（除了哈希，topics还可以包括最多3个indexed参数）
 13 数据data：事件event中不带indexed的参数会被储存在data中（可以理解成事件event的值value）
-<!-- Content_END -->
-<!-- Content_START -->
+
 ### 2024.09.27
 Day5
 Solidity 101-13 继承inheritance
@@ -195,8 +190,7 @@ Solidity 101-13 继承inheritance
 6 调用父合约函数-直接调用：子合约可以直接用父合约名.函数名()的方式来调用父合约函数，如Yeye.pop()
 7 调用父合约函数-super关键字：子合约可以利用super.函数名()来调用最近的父合约函数
 8 is关键字：表示继承（Child is Parent意思是Child合约继承了Parent合约的功能）
-<!-- Content_END -->
-<!-- Content_START -->
+
 ### 2024.09.29
 Day7
 Solidity 102-17库合约Library Contracts
@@ -211,8 +205,7 @@ Solidity 102-18 import
 6 被导入文件中的全局符号想要被其他合约单独导入，应该：与合约并列在文件结构中
 7 导入的本地文件会被编译成字节码部署到链上
 8 在import 语句中使用*是为了导入一个Solidity 文件中的所有内容，并通过一个命名空间来访问这些内容
-<!-- Content_END -->
-<!-- Content_START -->
+
 ### 2024.09.30
 Day8
 Solidity 102-19 接收ETH receive和fallback
@@ -234,8 +227,7 @@ Solidity 102-21 调用其他合约
 2 安全性依赖合约设计
 3 UI = user interface 用户界面
 4 interface 接口 （关键字interface表示你定义了一个接口）
-<!-- Content_END -->
-<!-- Content_START -->
+
 ### 2024.10.01
 Day9
 Solidity 102-22 call
@@ -250,8 +242,7 @@ Solidity 102-23 delegatecall
 4 使用delegatecall对当前合约和目标合约的状态变量要求是：变量名，变量类型，声明顺序都必须相同
 5 在代理合约中，储存所有相关的变量的是代理合约，储存所有函数的是逻辑合约，同时代理合约delegatecall逻辑合约
 6 代理合约Proxy Contracts
-<!-- Content_END -->
-<!-- Content_START -->
+
 ### 2024.10.02
 Day10 
 Solidity 102-24 在合约中创建新合约
@@ -268,8 +259,7 @@ Solidity 102-25 Create2
 Solidity 102-26 删除合约
 1 删除合约的命令，现在常用：selfdestruct
 2 坎昆升级后，合约依然存在，只是将合约包含的eth转移到指定地址，而合约依然能够调用
-<!-- Content_END -->
-<!-- Content_START -->
+
 ### 2024.10.03
 Day11
 Solidity 102-27 ABI编码解码
@@ -291,8 +281,7 @@ Solidity 102-30 try-catch
 1 try-catch用于处理外部合约调用时的错误
 2 try模块在调用成功的情况下运行，而catch模块则在调用失败时运行
 3 revert() 是 Solidity 中的一个函数，用于显式触发异常，并且它会返回 bytes 类型的数据
-<!-- Content_END -->
-<!-- Content_START -->
+
 ### 2024.10.04
 Day12
 Solidity 103-31 erc20
@@ -303,4 +292,44 @@ Solidity 103-31 erc20
 5 allowance( )主要作用是记录授权机制
 6 allowance( )用于允许第三方账户在有限额度内操作代币所有者的代币，
 7 allowance( )提供了授权额度的查询功能，确保了代币的授权和转移机制的安全性和灵活性，8 allowance( )是transferFrom函数的重要组成部分【transferFrom函数需要通过allowance( )来检查spender是否有足够的授权额度】
+
+### 2024.10.05
+Day13
+Solidity 103-32代币水龙头TokenFaucet
+
+Solidity 103-33 空头合约 airdrop
+1 Airdrop空投合约逻辑：利用循环，一笔交易将ERC20代币发送给多个地址
+2 合约中包含两个函数：getSum()函数（返回uint数组的和）& multiTransferToken()函数（发送ERC20代币空投
+3 i++ 是一种递增操作，表示每次循环结束时，将变量 i 的值增加 1（保证了每次循环处理数组中的下一个元素）
+4 i++ 就是是 “i 加 1”，是 i = i + 1 的简写形式。每次循环完成后，i 的值都会增加 1，从而遍历数组的每一个元素
+5 arr 是 数组array 的缩写
+
+### 2024.10.06
+Day14
+Solidity 103-34 ERC721
+1 EIP = ethereum imporvement proposald以太坊改进建议
+2 ERC = ethereum request for comment以太坊标准提案请求，比如token标准erc20，erc721
+3 EIP包含ERC
+4 ERC165就是检查一个智能合约是否支持ERC721，ERC1155接口
+5 @dev 给程序员看的解析
+6 @param 解析每一个参数意思
+7 mload( )是内联汇编中一个函数，用于从内存中加载32字节的数据
+8 memory safe assembly是内联汇编的写法，确保内存访问是安全的（因为EVM的内存是有限的）
+9 内联汇编inline assembly是指在高级语言（如solidity）中直接用汇编语言来编写某些操作，汇编语言是低级语言，直接操作CPU和内存
+10 returns（byte4）函数返回一个4字节长的值
+11 try和catch用于处理错误的结构，try块尝试执行代码，catch块处理错误
+12 retval是return value返回值的缩写
+13 函数执行后通常会返回一个值，就是返回值
+14 if (to.code.length>0) 这一行检查to地址是否是合约地址，EOA地址的代码长度是0，而合约地址有合约代码，代码长度大于0，用这种方式区分目标地址EOA地址还是合约地址
+15 IERC721Metadata是一个扩展自IERC721接口的接口，用于定义元数据相关的函数【NFT名称name( ), 符号symbol( ), URI tokenURI( )】
+16 URI = uniform resource identifier 统一资源标识符
+17 JSON = javascript object notation是一种轻量级的数据交换格式，用于储存和传送数据，基于健值对key- value pairs结构
+18 在NFT中，JSON文件用于储存和描述每个NFT的元数据（每个NFT都有一份对应的JSON文件，里边包含了该NFT的各种属性）
+19 JSON文件包括：name代币名称，description代币描述，image指向NFT的图片链接URL，attribute代币属性，是数组，包含了代币各类属性，包括trait_type属性类型，value属性值
+
+### 2024.10.07
+Day15
+Solidity 103-35荷兰拍卖Dutch Auction
+
+Solidity 103-36默克尔树(哈希树)Merkle Tree
 <!-- Content_END -->

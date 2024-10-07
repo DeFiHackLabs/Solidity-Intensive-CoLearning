@@ -2428,4 +2428,306 @@ timezone: Asia/Shanghai
         }
         ```
 ###
+
+### 2024.10.06
+
+学习内容:
+1. 第三十八讲
+
+    - 简单的NFT交易所
+
+    - 设计逻辑
+
+        - 卖家：出售`NFT`的一方，可以挂单`list`、撤单`revoke`、修改价格`update`。
+
+        - 买家：购买`NFT`的一方，可以购买`purchase`。
+
+        - 订单：卖家发布的`NFT`链上订单，一个系列的同一`tokenId`最多存在一个订单，其中包含挂单价格`price`和持有人`owner`信息。当一个订单交易完成或被撤单后，其中信息清零。
+    
+    - 事件设计
+        
+        ```Solidity
+
+            // 针对上架、购买、取消订单、更新订单释放链上日志
+            event List(address indexed seller, address indexed nftAddr, uint256 indexed tokenId, uint256 price);
+            event Purchase(address indexed buyer, address indexed nftAddr, uint256 indexed tokenId, uint256 price);
+            event Revoke(address indexed seller, address indexed nftAddr, uint256 indexed tokenId);    
+            event Update(address indexed seller, address indexed nftAddr, uint256 indexed tokenId, uint256 newPrice);
+        ```
+    
+    - **注意**: 此NFT交易所设计的是合约接收用户的NFT，因此合约需要实现onERC721Received()函数，不然无法接收用户NFT。
+
+        ```Solidity
+        contract NFTSwap is IERC721Receiver{
+
+            // 实现{IERC721Receiver}的onERC721Received，能够接收ERC721代币
+            function onERC721Received(
+                address operator,
+                address from,
+                uint tokenId,
+                bytes calldata data
+            ) external override returns (bytes4){
+                return IERC721Receiver.onERC721Received.selector;
+            }
+        }
+        ```
+###
+
+### 2024.10.07
+
+学习内容:
+1. 第三十九讲
+
+    - 获取链上随机数的方式
+
+        - 伪随机 - 利用链上的全局变量生成随机数
+
+            - 优势 - 数据很容易获得，使用起来简单，基本无经济成本。
+
+            - 劣势 - 可预测、不安全、容易被攻击。
+        
+        - 预言机获取随机数(`Chainlink`)
+
+            - 优势
+
+                - 安全：Chainlink VRF 生成的随机数可以通过密码学验证其公正性，无法被操控。
+
+	            - 透明：提供了随机数来源的验证机制，任何人都可以验证结果的真实性。
+
+            - 劣势 - 依赖外部预言机, 如果预言机服务不可用或者发生故障，可能会影响随机数的生成。另外需要花钱。
+    
+    - 使用`Chainlink VRF`生成随机数示例
+    
+        ```Solidity
+        // SPDX-License-Identifier: MIT
+        pragma solidity ^0.8.21;
+
+        import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
+        import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
+
+        contract RandomNumberConsumer is VRFConsumerBaseV2{
+
+            //请求随机数需要调用VRFCoordinatorV2Interface接口
+            VRFCoordinatorV2Interface COORDINATOR;
+            
+            // 申请后的subId
+            uint64 subId;
+
+            //存放得到的 requestId 和 随机数
+            uint256 public requestId;
+            uint256[] public randomWords;
+            
+            /**
+            * 使用chainlink VRF，构造函数需要继承 VRFConsumerBaseV2
+            * 不同链参数填的不一样
+            * 具体可以看：https://docs.chain.link/vrf/v2/subscription/supported-networks
+            * 网络: Sepolia测试网
+            * Chainlink VRF Coordinator 地址: 0x8103B0A8A00be2DDC778e6e7eaa21791Cd364625
+            * LINK 代币地址: 0x01BE23585060835E02B77ef475b0Cc51aA1e0709
+            * 30 gwei Key Hash: 0x474e34a077df58807dbe9c96d3c009b23b3c6d0cce433e59bbf5b34f823bc56c
+            * Minimum Confirmations 最小确认块数 : 3 （数字大安全性高，一般填12）
+            * callbackGasLimit gas限制 : 最大 2,500,000
+            * Maximum Random Values 一次可以得到的随机数个数 : 最大 500          
+            */
+            address vrfCoordinator = 0x8103B0A8A00be2DDC778e6e7eaa21791Cd364625;
+            bytes32 keyHash = 0x474e34a077df58807dbe9c96d3c009b23b3c6d0cce433e59bbf5b34f823bc56c;
+            uint16 requestConfirmations = 3;
+            uint32 callbackGasLimit = 200_000;
+            uint32 numWords = 3;
+            
+            constructor(uint64 s_subId) VRFConsumerBaseV2(vrfCoordinator){
+                COORDINATOR = VRFCoordinatorV2Interface(vrfCoordinator);
+                subId = s_subId;
+            }
+
+            /** 
+            * 向VRF合约申请随机数 
+            */
+            function requestRandomWords() external {
+                requestId = COORDINATOR.requestRandomWords(
+                    keyHash,
+                    subId,
+                    requestConfirmations,
+                    callbackGasLimit,
+                    numWords
+                );
+            }
+
+            /**
+            * VRF合约的回调函数，验证随机数有效之后会自动被调用
+            * 消耗随机数的逻辑写在这里
+            */
+            function fulfillRandomWords(uint256 requestId, uint256[] memory s_randomWords) internal override {
+                randomWords = s_randomWords;
+            }
+
+        }
+
+        ```
+
+2. 第四十讲
+
+    - `ERC-1155` 是一种 以太坊多代币标准，允许合约中管理多种代币（**包括同质化代币和非同质化代币**）的单一接口。它的主要特点是高效地支持大量代币类型的批量操作，同时减少了智能合约的冗余代码和交易成本。
+
+    - 如何区分`ERC1155`中的某类代币是同质化还是非同质化代币？
+
+        - 查询id对应的总量，如果等于1，则是非同质化代币；如果大于1，则是同质化代币。
+
+    - `IERC1155`接口合约
+
+        ```Solidity
+        // SPDX-License-Identifier: MIT
+        pragma solidity ^0.8.0;
+
+        import "https://github.com/AmazingAng/WTF-Solidity/blob/main/34_ERC721/IERC165.sol";
+
+        /**
+        * @dev ERC1155标准的接口合约，实现了EIP1155的功能
+        * 详见：https://eips.ethereum.org/EIPS/eip-1155[EIP].
+        */
+        interface IERC1155 is IERC165 {
+            /**
+            * @dev 单类代币转账事件
+            * 当`value`个`id`种类的代币被`operator`从`from`转账到`to`时释放.
+            */
+            event TransferSingle(address indexed operator, address indexed from, address indexed to, uint256 id, uint256 value);
+
+            /**
+            * @dev 批量代币转账事件
+            * ids和values为转账的代币种类和数量数组
+            */
+            event TransferBatch(
+                address indexed operator,
+                address indexed from,
+                address indexed to,
+                uint256[] ids,
+                uint256[] values
+            );
+
+            /**
+            * @dev 批量授权事件
+            * 当`account`将所有代币授权给`operator`时释放
+            */
+            event ApprovalForAll(address indexed account, address indexed operator, bool approved);
+
+            /**
+            * @dev 当`id`种类的代币的URI发生变化时释放，`value`为新的URI
+            */
+            event URI(string value, uint256 indexed id);
+
+            /**
+            * @dev 持仓查询，返回`account`拥有的`id`种类的代币的持仓量
+            */
+            function balanceOf(address account, uint256 id) external view returns (uint256);
+
+            /**
+            * @dev 批量持仓查询，`accounts`和`ids`数组的长度要想等。
+            */
+            function balanceOfBatch(address[] calldata accounts, uint256[] calldata ids)
+                external
+                view
+                returns (uint256[] memory);
+
+            /**
+            * @dev 批量授权，将调用者的代币授权给`operator`地址。
+            * 释放{ApprovalForAll}事件.
+            */
+            function setApprovalForAll(address operator, bool approved) external;
+
+            /**
+            * @dev 批量授权查询，如果授权地址`operator`被`account`授权，则返回`true`
+            * 见 {setApprovalForAll}函数.
+            */
+            function isApprovedForAll(address account, address operator) external view returns (bool);
+
+            /**
+            * @dev 安全转账，将`amount`单位`id`种类的代币从`from`转账给`to`.
+            * 释放{TransferSingle}事件.
+            * 要求:
+            * - 如果调用者不是`from`地址而是授权地址，则需要得到`from`的授权
+            * - `from`地址必须有足够的持仓
+            * - 如果接收方是合约，需要实现`IERC1155Receiver`的`onERC1155Received`方法，并返回相应的值
+            */
+            function safeTransferFrom(
+                address from,
+                address to,
+                uint256 id,
+                uint256 amount,
+                bytes calldata data
+            ) external;
+
+            /**
+            * @dev 批量安全转账
+            * 释放{TransferBatch}事件
+            * 要求：
+            * - `ids`和`amounts`长度相等
+            * - 如果接收方是合约，需要实现`IERC1155Receiver`的`onERC1155BatchReceived`方法，并返回相应的值
+            */
+            function safeBatchTransferFrom(
+                address from,
+                address to,
+                uint256[] calldata ids,
+                uint256[] calldata amounts,
+                bytes calldata data
+            ) external;
+        }
+        ```
+
+    - `ERC1155`接收合约
+
+        - `onERC1155Received()`：单币转账接收函数，接受`ERC1155`安全转账`safeTransferFrom` 需要实现并返回自己的选择器`0xf23a6e61`。
+
+        - `onERC1155BatchReceived()`：多币转账接收函数，接受`ERC1155`安全多币转账`safeBatchTransferFrom` 需要实现并返回自己的选择器`0xbc197c81`。
+
+            ```Solidity
+            // SPDX-License-Identifier: MIT
+            pragma solidity ^0.8.0;
+
+            import "https://github.com/AmazingAng/WTF-Solidity/blob/main/34_ERC721/IERC165.sol";
+
+            /**
+            * @dev ERC1155接收合约，要接受ERC1155的安全转账，需要实现这个合约
+            */
+            interface IERC1155Receiver is IERC165 {
+                /**
+                * @dev 接受ERC1155安全转账`safeTransferFrom` 
+                * 需要返回 0xf23a6e61 或 `bytes4(keccak256("onERC1155Received(address,address,uint256,uint256,bytes)"))`
+                */
+                function onERC1155Received(
+                    address operator,
+                    address from,
+                    uint256 id,
+                    uint256 value,
+                    bytes calldata data
+                ) external returns (bytes4);
+
+                /**
+                * @dev 接受ERC1155批量安全转账`safeBatchTransferFrom` 
+                * 需要返回 0xbc197c81 或 `bytes4(keccak256("onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)"))`
+                */
+                function onERC1155BatchReceived(
+                    address operator,
+                    address from,
+                    uint256[] calldata ids,
+                    uint256[] calldata values,
+                    bytes calldata data
+                ) external returns (bytes4);
+            }
+            ```
+
+3. 第四十一讲
+
+    - 什么是`WETH`?
+
+        - `WETH` (Wrapped ETH)是ETH的带包装版本。可以简单理解为给`ETH`穿上了衣服。
+
+    - 为什么需要`WETH`？
+
+        - `ETH`作为以太坊的原生`GAS`代币，本身不符合`ERC20`的标准，为了使`ETH`可用于去中心化应用程序（`dApps`）才推出了`WETH`。
+
+    - 通过与[WETH合约](https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2#writeContract)的`deposit()`函数交互将ETH包装为WETH。
+
+    - 通过与[WETH合约](https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2#writeContract)的`withdraw(uint amount)`交互将`WETH`包装为`ETH`。
+    
+###
 <!-- Content_END -->

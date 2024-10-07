@@ -866,23 +866,88 @@ timezone: Asia/Shanghai
 
 ---
 
+### 2024.10.06
+
 #### 学习内容 20. 发送ETH
 
 1. Solidity有三种方法向其他合约发送ETH
-    - transfer: `接收方地址.transfer(发送ETH数额)`
-        - gas 限制: 2300
-        - 失败会 revert 交易
+    - transfer: `接收方地址.transfer(发送ETH数额)` **不建议使用**
+        - 返回值: **无**
+        - gas 限制: 2300, `fallback()`或`receive()`函数,**不支持**实现复杂逻辑
+        - 失败,**会** revert 交易
 
-    - send:`接收方地址.send(发送ETH数额)`
-        - gas 限制: 2300
-        - 失败**不会** revert 交易
+    - send:`接收方地址.send(发送ETH数额)` **次选使用**
+        - 返回值: **bool**,代表成功 or 失败
+        - gas 限制: 2300, `fallback()`或`receive()`函数,**不支持**实现复杂逻辑
+        - 失败,**不会** revert 交易
 
-    - call:`接收方地址.call{value: 发送ETH数额}("")`
+    - call:`接收方地址.call{value: 发送ETH数额}("")` **优选使用**
+        - 返回值: **(bool, bytes)**,bool:成功 or 失败, bytes:返回的数据
+        - gas 限制: **无**, `fallback()`或`receive()`函数,**支持**实现复杂逻辑
+        - 失败,**不会** revert 交易
 
 2. 合约部署
-3. 第 20 节测验得分: 0, 答案: 
+    - ![image-20241006154748232](content/Aris/image-20241006154748232.png)
+
+3. 第 20 节测验得分: 100, 答案: CAAAAAA
 
 ---
+
+### 2024.10.07
+
+#### 学习内容 21. 调用其他合约
+
+1. 传入合约地址
+
+    - 函数里传入目标合约地址，生成目标合约的引用，然后调用目标函数;
+
+    - ```solidity
+        function callSetX(address _address, uint256 x) external {
+            OtherContract(_address).setX(x);
+        }
+        ```
+
+2. 传入合约变量
+
+    - 在函数里传入合约的引用，只需要把上面参数的`address`类型改为目标合约名
+
+    - 参数`OtherContract _Address`底层类型仍然是`address`
+
+    - ```solidity
+        function callGetX(OtherContract _address) external view returns (uint x) {
+            x = _address.getX();
+        }
+        ```
+
+3. 创建合约变量
+
+    - 创建合约变量，然后通过它来调用目标函数
+
+    - ```solidity
+        function callGetX2(address _address) external view returns (uint x) {
+            OtherContract oc = OtherContract(_address);
+            x = oc.getX();
+        }
+        ```
+
+4. 调用合约并发送ETH
+
+    - 合约的函数必须是`payable`
+    - `Name(_Address).f{value: _Value}()`
+    - 其中`_Name`是合约名，`_Address`是合约地址，`f`是目标函数名，`_Value`是要转的`ETH`数额（以`wei`为单位）
+
+5. 合约部署
+
+    - ![image-20241007094048377](content/Aris/image-20241007094048377.png)
+    - ![image-20241007094528601](content/Aris/image-20241007094528601.png)
+    - ![image-20241007094751629](content/Aris/image-20241007094751629.png)
+    - ![image-20241007094906384](content/Aris/image-20241007094906384.png)
+
+6. 第 21 节测验得分: 100, 答案: ADDBD
+
+---
+
+
 
 
 
