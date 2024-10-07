@@ -2047,7 +2047,6 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     ```
 
 ### 2024.10.10
-
 - [103-52] [EIP712](https://eips.ethereum.org/EIPS/eip-712) 类型化数据签名: 更先进、安全的签名方法，EIP712 类型化数据签名
     - 之前的 ECDSA 签名是 EIP191 签名标准（personal sign），可以给一段消息签名。但是它过于简单，当签名数据比较复杂时，用户只能看到一串十六进制字符串（数据的哈希），无法核实签名内容是否与预期相符。当支持 EIP712 的 Dapp 请求签名时，钱包会展示签名消息的原始数据，用户可以在验证数据符合预期之后签名。EIP712 的应用一般包含链下签名（前端或脚本）和链上验证（合约）两部分。
     - 链下签名：
@@ -2092,7 +2091,6 @@ import '@openzeppelin/contracts/access/Ownable.sol';
         }
         ```
     - 链上验证：验证签名，如果通过，则修改；
-        - 
     ```solidity
     contract EIP712Storage {
         using ECDSA for bytes32;
@@ -2367,6 +2365,42 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 ### 2024.10.11
 
 - [103-55] 多重调用
+    - MultiCall 多重调用合约，它的设计目的在于一次交易中执行多个函数调用，这样可以显著降低交易费用并提高效率。由 [Multicall3](https://github.com/mds1/multicall/blob/main/src/Multicall3.sol) 简化而来。
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity ^0.8.19;
+
+    contract Multicall {
+        struct Call {
+            address target;     // 目标合约
+            bool allowFailure;  // 是否允许调用失败allowFailure
+            bytes callData;     // 调用参数
+        }
+
+        struct Result {
+            bool success;
+            bytes returnData;
+        }
+
+        /// @notice 将多个调用（支持不同合约/不同方法/不同参数）合并到一次调用
+        function multicall(Call[] calldata calls) public returns (Result[] memory returnData) {
+            uint256 length = calls.length;
+            returnData = new Result[](length);
+            Call calldata calli;
+            
+            // 在循环中依次调用
+            for (uint256 i = 0; i < length; i++) {
+                Result memory result = returnData[i];
+                calli = calls[i];
+                (result.success, result.returnData) = calli.target.call(calli.callData);
+                // 如果 calli.allowFailure 和 result.success 均为 false，则 revert
+                if (!(calli.allowFailure || result.success)){
+                    revert("Multicall: call failed");
+                }
+            }
+        }
+    }
+    ```
 - [103-56] 去中心化交易所
 - [103-57] 闪电贷
 
