@@ -621,4 +621,70 @@ contract PaymentSplit{
 
 ### 
 
+### 2024.10.6
+
+#### 代币锁
+
+代币锁(Token Locker)是一种简单的时间锁合约，它可以把合约中的代币锁仓一段时间，受益人在
+锁仓期满后可以取走代币。
+代币锁一般是用来锁仓流动性提供者LP代币的。
+
+#### 代币锁合约
+
+锁仓ERC20代币的合约TokenLocker:
+- 在部署合约时规定锁仓的时间，受益人地址，以及代币合约
+- 将代币转入TokenLocker合约
+- 在锁仓期满，受益人可以取走合约里的代币
+
+
+```Solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+contract TokenLocker {
+
+    // 事件
+    event TokenLockStart(address indexed beneficiary, address indexed token, uint256 startTime, uint256 lockTime);
+    event Release(address indexed beneficiary, address indexed token, uint256 releaseTime, uint256 amount);
+
+    // 被锁仓的ERC20代币合约
+    IERC20 public immutable token;
+    // 受益人地址
+    address public immutable beneficiary;
+    // 锁仓时间(秒)
+    uint256 public immutable lockTime;
+    // 锁仓起始时间戳(秒)
+    uint256 public immutable startTime;
+
+    constructor(IERC20 token_, address beneficiary_, uint256 lockTime_) {
+        require(lockTime_ > 0, "TokenLock: lock time should greater than 0");
+
+        token = token_;
+        beneficiary = beneficiary_;
+        lockTime = lockTime_;
+        startTime = block.timestamp;
+
+        emit TokenLockStart(beneficiary_, address(token_), block.timestamp, lockTime_);
+    }
+
+    // 在锁仓时间过后，将代币释放给受益人。
+    function release() public {
+        require(block.timestamp >= startTime+lockTime, "TokenLock: current time is before release time");
+
+        uint256 amount = token.balanceOf(address(this));
+        require(amount > 0, "TokenLock: no tokens to release");
+
+        token.transfer(beneficiary, amount);
+
+        emit Release(msg.sender, address(token), block.timestamp, amount);
+    }
+}
+
+```
+
+### 
+
 <!-- Content_END -->
