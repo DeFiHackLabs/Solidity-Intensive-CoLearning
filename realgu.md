@@ -156,4 +156,10 @@ sha3由keccak标准化而来，在很多场合下Keccak和SHA3是同义词，但
 7. 如果try执行成功，返回变量必须声明，并且与返回的变量类型相同。
 8. SuccessEvent是调用成功会释放的事件，而CatchEvent和CatchByte是抛出异常时会释放的事件，分别对应require/revert和assert异常的情况。even是个OnlyEven合约类型的状态变量。
 
+### 2024.10.06
+1. IERC20是ERC20代币标准的接口合约，规定了ERC20代币需要实现的函数和事件
+2. IERC20定义了2个事件：Transfer事件和Approval事件，分别在转账和授权时被释放
+3. IERC20定义了6个函数: totalSupply, balanceOf, transfer, allowance, approve, transferFrom
+4. 
+
 <!-- Content_END -->

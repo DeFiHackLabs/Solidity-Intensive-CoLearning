@@ -1337,10 +1337,119 @@ God.bar called
 ### 2024.10.06
 #### WTF Academy Solidity 101.14 抽象合约和接口
 
-##### 笔记
+##### 抽象合约
+**定义**：抽象合约是指至少包含一个未实现函数的合约。这意味着这个函数没有实际的逻辑实现，只提供一个接口，具体的实现留给继承这个合约的子合约完成。
 
+1. **未实现的函数**：在抽象合约中，未实现的函数必须使用 `virtual` 关键字，表示这个函数可以被重写。
+2. **抽象合约的使用场景**：当你定义一些通用的接口或功能，但不打算在这个合约中具体实现这些功能时，可以使用抽象合约。子合约可以继承抽象合约，并实现这些函数。当一个子合约继承了一个抽象合约时，子合约**必须重写**抽象合约中所有未实现的函数，否则子合约本身也必须被标记为 `abstract`。这意味着，抽象合约中的未实现函数在子合约中需要被实现，才能编译和部署成功。
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.13;
+
+abstract contract InsertionSort {
+    // 定义一个抽象函数，只提供接口，不提供实现
+    function insertionSort(uint[] memory a) public pure virtual returns (uint[] memory);
+}
+```
+
+在上面的例子中，`InsertionSort` 是一个抽象合约，它定义了一个插入排序函数 `insertionSort()`，但没有具体实现。这个函数被标记为 `virtual`，意思是任何继承该合约的子合约都可以并且必须重写这个函数。
+
+##### 接口
+**定义**：接口类似于抽象合约，但更加严格。接口只定义函数的签名和事件，不能包含任何实现细节。它也不能有状态变量或构造函数。
+
+**规则**：
+1. 不能包含状态变量。
+2. 不能有构造函数。
+3. 只能包含函数签名（必须为 `external` 类型）和事件声明。
+4. 不能继承除其他接口以外的合约。
+5. 继承接口的非抽象合约必须实现接口定义的所有功能。
+
+**接口的作用**：接口定义了合约的功能和交互方式，其他合约只需要知道接口就可以与实现了该接口的合约进行交互，而无需了解合约的具体实现。
+
+接口与合约`ABI`（Application Binary Interface）等价，可以相互转换：编译接口可以得到合约的`ABI`，利用[abi-to-sol工具](https://gnidan.github.io/abi-to-sol/)，也可以将`ABI json`文件转换为`接口sol`文件。
+
+###### 代码示例：定义`IERC721`接口
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.13;
+
+// 定义 IERC721 接口
+interface IERC721 {
+    // 定义事件
+    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+
+    // 定义外部函数
+    function balanceOf(address owner) external view returns (uint256 balance);
+    function ownerOf(uint256 tokenId) external view returns (address owner);
+    function safeTransferFrom(address from, address to, uint256 tokenId) external;
+}
+
+```
+
+- **事件**：`Transfer` 事件记录 NFT 的转账操作，`from` 是发送方，`to` 是接收方，`tokenId` 是 NFT 的 ID。
+- **函数**：
+    - `balanceOf`：返回某个地址持有的 NFT 数量。
+    - `ownerOf`：返回某个 `tokenId` 的拥有者地址。
+    - `safeTransferFrom`：安全转账 NFT，确保接收方能处理 NFT，否则操作失败。
+
+###### 代码示例：使用`IERC721`接口
+```solidity
+contract interactBAYC {
+    // 利用BAYC合约地址创建接口合约变量
+    IERC721 BAYC = IERC721(0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D);
+
+    // 通过接口调用BAYC的balanceOf()查询持仓量
+    function balanceOfBAYC(address owner) external view returns (uint256 balance) {
+        return BAYC.balanceOf(owner); // 查询owner拥有的BAYC数量
+    }
+
+    // 通过接口调用BAYC的safeTransferFrom()安全转账
+    function safeTransferFromBAYC(address from, address to, uint256 tokenId) external {
+        BAYC.safeTransferFrom(from, to, tokenId); // 将BAYC转账给另一个地址
+    }
+}
+```
+- **接口合约变量**：
+    - `IERC721 BAYC = IERC721(0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D);`
+        - `IERC721` 是我们定义的 `ERC721` 接口。
+        - `0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D` 是 Bored Ape Yacht Club (BAYC) 的智能合约地址。
+        - `BAYC` 是通过这个地址创建的接口变量，我们可以用它调用 `IERC721` 接口中的函数来与 BAYC 合约交互。
+- **查询持仓量**：
+    - `balanceOfBAYC(address owner)` 函数使用 `BAYC.balanceOf(owner)`，查询某个地址的 BAYC NFT 数量。
+- **安全转账**：
+    - `safeTransferFromBAYC(address from, address to, uint256 tokenId)` 使用 `BAYC.safeTransferFrom(from, to, tokenId)`，将 BAYC NFT 从 `from` 地址转账到 `to` 地址。
 ##### 测验结果
-
+- 57/100
+- 85/100
 ##### 测验错题
+1. 被标记为`abstract`的合约能否被部署？
+    不能。被标记为`abstract`的合约不能被直接部署。抽象合约包含未实现的函数，意味着它不完整，无法在区块链上运行。如果想要部署一个合约，必须确保该合约实现了所有的函数，或者继承它的子合约实现了所有未实现的函数。
+2. 已知Azuki合约中存在approve(address to, uint256 tokenId)函数可以让NFT的拥有者将自己某一NFT的许可权授予另一地址，且该函数没有返回值，现在某个Azuki拥有者想利用上文中创建的接口合约变量调用这一函数 ，那么他写出的代码可能是？
 
+    ```solidity
+    function approveAzuki(address to, uint256 id) external { Azuki.approve(to, id); }
+    ```
+
+    解释：
+    - `approve(address to, uint256 tokenId)` 是一个改变链上状态的函数，因此它不能是 `view` 函数（`view` 函数表示不会修改链上数据）。
+    - 该函数没有返回值，而不是返回一个布尔值。因为它没有 `view` 限制，也没有错误的返回值定义。
+3. 已知Azuki合约中存在ownerOf(uint256 tokenId)函数可用来查询某一NFT的拥有者，现在vitalik想利用上文中创建的接口合约变量调用这一函数，并写出了如下代码：
+    ```solidity
+    function  ownerOfAzuki(uint256 id) external view returns (address){ 
+        _________________________________
+    }
+    ```
+    横线处应该是：
+    ```solidity
+    return Azuki.ownerOf(id);
+    ```
+
+    解释：
+    - `return Azuki.ownerOf(id);`正确使用了`Azuki`接口变量调用`ownerOf`函数，并传入了`id`作为参数，返回该`tokenId`对应的地址。
+
+    - `return ownerOf(id);`错误，因为直接调用`ownerOf(id)`会导致编译错误，必须通过合约变量`Azuki`来调用接口中的函数。
+
+    - `return Azuki.ownerOfAzuki(id);`错误，`ownerOfAzuki`并不是`IERC721`接口中的函数名。
+
+    - `return Azuki(ownerOf, id);`错误，`Azuki(ownerOf, id)`是无效的语法，函数调用不应以这种形式进行。
 <!-- Content_END -->

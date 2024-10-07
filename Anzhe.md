@@ -1521,4 +1521,150 @@ contract SendETH {
 * `transfer` 有 2300 gas 限制，但發送失敗會自動 revert 交易，是次優選擇
 * `send` 有 2300 gas 限制，而且發送失敗不會自動 revert 交易，幾乎沒有人使用它
 
+### 2024.10.06
+在 Solidity 中，一個合約可以呼叫另一個合約的函數，這對建立複雜的 DApps 時非常有用，而在已知合約程式碼（或介面）和位址的情況下，可以呼叫已部署的合約。
+# 調用其他合約
+## 目標合約
+目標合約，用於被其他合約調用：
+```
+contract OtherContract {
+    uint256 private _x = 0; // 狀態變數_x
+    // 收到 ETH 的事件，記錄 amount 和 gas
+    event Log(uint amount, uint gas);
+    
+    // 回傳合約ETH餘額
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+
+    // 可以調整狀態變數_x的函數，並且可以往合約轉ETH (payable)
+    function setX(uint256 x) external payable{
+        _x = x;
+        // 如果轉入 ETH，則釋放 Log 事件
+        if(msg.value > 0){
+            emit Log(msg.value, gasleft());
+        }
+    }
+
+    // 讀取_x
+    function getX() external view returns(uint x){
+        x = _x;
+    }
+}
+```
+## 呼叫目標合約
+可以利用合約的位址和合約程式碼（或介面）來建立合約的參考：`_Name(_Address)`，其中 `_Name` 是合約名，應與合約程式碼（或介面）中標註的合約名稱保持一致，`_Address` 是合約位址。然後用合約的參考來呼叫它的函數：`_Name(_Address).f()`，其中 `f()` 是要呼叫的函數。
+範例：
+```
+contract CallContract{
+    // 1. 傳入合約地址
+    function callSetX(address _Address, uint256 x) external{
+        OtherContract(_Address).setX(x);
+    }
+    // 2. 傳入合約變數
+    function callGetX(OtherContract _Address) external view returns(uint x){
+        x = _Address.getX();
+    }
+    // 3. 建立合約變數
+    function callGetX2(address _Address) external view returns(uint x){
+        OtherContract oc = OtherContract(_Address);
+        x = oc.getX();
+    }
+    // 4. 呼叫合約並發送 ETH
+    function setXTransferETH(address otherContract, uint256 x) payable external{
+        OtherContract(otherContract).setX{value: msg.value}(x);
+    }
+}
+```
+分別編譯和部署 `OtherContract` 和 `CallContract`。
+## 說明
+### 1. 傳入合約地址
+在函數裡傳入目標合約位址，產生目標合約的引用，然後呼叫目標函數。以呼叫 `OtherContract` 合約的 `setX` 函數為例，我們在新合約中寫一個 `callSetX` 函數，傳入已部署好的 `OtherContract` 合約位址 `_Address` 和 `setX` 的參數 `x`。
+### 2. 傳入合約變數
+直接在函數裡傳入合約的引用，只需要把上面參數的 `address` 類型改為目標合約名，例如`OtherContract`。上面範例實作了呼叫目標合約的 `getX()` 函數。
+注意：此函數參數 `OtherContract _Address` 底層類型仍然是 `address`，產生的 ABI 中、呼叫 `callGetX` 時傳入的參數都是 `address` 類型
+### 3. 建立合約變數
+建立合約變量，然後通過它來呼叫目標函數。範例給變數 `oc` 儲存了 `OtherContract` 合約的引用。
+### 4. 呼叫合約並發送 ETH
+如果目標合約的函數是 payable 的，那麼我們可以透過呼叫它來給合約轉帳：`_Name(_Address).f{value: _Value}()`，其中 `_Name` 是合約名，`_Address` 是合約位址，`f`是目標函數名，`_Value`是要轉的 ETH 金額（以 wei 為單位）。
+
+# Call
+`call` 可以發送ETH，也可以用來呼叫合約。
+`call` 是 `address` 類型的低階成員函數，它用來與其他合約互動。它的回傳值為 `(bool, bytes memory)`，分別對應 call 是否成功以及目標函數的回傳值。
+* `call` 是 Solidity 官方推薦的透過觸發 `fallback` 或 `receive` 函數發送 ETH 的方法。
+* 不建議用 `call` 來呼叫另一個合約，因為當你呼叫不安全合約的函數時，你就把主動權交給了它。建議的方法仍是宣告合約變數後呼叫函數。
+* 當我們不知道對方合約的原始碼或 ABI，就無法產生合約變數；這時，我們仍可以透過 `call` 呼叫對方合約的函數。
+```
+<目標合約位址>.call(<位元組碼>);
+```
+其中 Bytecode 利用結構化編碼函數 `abi.encodeWithSignature` 獲得：
+```
+abi.encodeWithSignature("函數簽章", 逗號分隔的特定參數)
+```
+函數簽章為 `"函數名稱（逗號分隔的參數類型"`，例如 `abi.encodeWithSignature("f(uint256,address)", _x, _addr)`。
+call 在呼叫合約時可以指定交易發送的 ETH 和 gas 的數額：
+```
+<目標合約位址>.call{value:<發送數額>, gas:<gas數額>}(<位元組碼>);
+```
+## Call 呼叫合約範例
+### 目標合約
+```
+contract OtherContract {
+    uint256 private _x = 0; // 狀態變數_x
+    // 收到 ETH 的事件，記錄 amount 和 gas
+    event Log(uint amount, uint gas);
+    
+    // 加入 fallback 函數
+    fallback() external payable{}
+    ...
+}
+```
+### 用 call 呼叫目標合約
+```
+contract Call{
+    // 1. Response 事件
+    // 定義 Response 事件，輸出 call 回傳的結果 success 和 data
+    event Response(bool success, bytes data);
+
+    function callSetX(address payable _addr, uint256 x) public payable {
+        // 2. 呼叫 setX 函數
+        // call setX()，同時可以發送 ETH
+        (bool success, bytes memory data) = _addr.call{value: msg.value}(
+            abi.encodeWithSignature("setX(uint256)", x)
+        );
+
+        emit Response(success, data);
+    }
+
+    function callGetX(address _addr) external returns(uint256){
+        // 3. 呼叫 getX 函數
+        // call getX()
+        (bool success, bytes memory data) = _addr.call(
+            abi.encodeWithSignature("getX()")
+        );
+
+        emit Response(success, data);
+        return abi.decode(data, (uint256));
+    }
+
+    function callNonExist(address _addr) external{
+        // 4. 呼叫不存在的函數
+        (bool success, bytes memory data) = _addr.call(
+            abi.encodeWithSignature("foo(uint256)")
+        );
+
+        emit Response(success, data);
+    }
+}
+```
+## 說明
+### 1. Response 事件
+寫一個 `Call` 合約來呼叫目標合約函數。先定義一個 Response 事件，輸出 call 回傳的 `success` 和 `data`，方便我們觀察回傳值。
+### 2. 呼叫 setX 函數
+定義 `callSetX` 函數來呼叫目標合約的 `setX()`，轉入 `msg.value` 數額的 ETH，並釋放 `Response` 事件輸出 `success` 和 `data`。
+### 3. 呼叫 getX 函數
+呼叫 `getX()` 函數，它將傳回目標合約 `_x` 的值，類型為 `uint256`。我們可以利用 `abi.decode` 來解碼 call 的回傳值 `data`，並讀出數值。
+### 4. 呼叫不存在的函數
+如果我們給 `call` 輸入的函數不存在於目標合約，那麼目標合約的 `fallback` 函數會被觸發。我們 call 了不存在的 `foo` 函數。 call 仍能執行成功，並回傳 `success`，但其實呼叫的目標合約 `fallback` 函數。
+
 <!-- Content_END -->
