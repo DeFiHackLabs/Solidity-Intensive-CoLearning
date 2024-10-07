@@ -160,4 +160,11 @@ mapping(uint => address) public i2addr;
 + 什麼時候用接口? 當我們知道一個合約實現了`IERC721`接口，則我們不需它的源碼只需知道它的合約地址，就能用`IERC721`接口與它進行交互。
 + 作者以`IERC721`為例剛好能實作與`無聊猿BAYC`進行交互。
 
+### 2024.10.07
+學習內容: `15.異常`
++ 異常: `error`、`require`和`assert`
++ `require`缺點gas隨描述異常的字串長度增加，比`error`高，`v0.8版後用error就好`
++ `error`好處省gas，必須搭`revert`，`v0.8版才有error`
++ `assert`好處是方便，`無需像require一樣寫字串`
+
 <!-- Content_END -->
