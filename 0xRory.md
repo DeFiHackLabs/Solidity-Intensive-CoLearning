@@ -86,10 +86,15 @@ timezone: Asia/Taipei
 
 ### 2024.10.06
   day14:
-  
+
   [WTF Academy Solidity 103 31 ERC20 Note](/content/0xRory/114-ERC20/114-ERC20.md)
 
   [WTF Academy Solidity 103 32 水龍頭 Note](/content/0xRory/114-水龍頭、空投/114-水龍頭.md)
 
-  [WTF Academy Solidity 103 33 空投   Note](/content/0xRory/114-水龍頭、空投/114-空投.md)
+  [WTF Academy Solidity 103 33 空投 Note](/content/0xRory/114-水龍頭、空投/114-空投.md)
+
+### 2024.10.07
+  day15:
+
+  [WTF Academy Solidity 103 34-35 NFT,荷蘭拍賣 Note](/content/0xRory/115-ERC721/115-ERC721.md)
 <!-- Content_END -->
