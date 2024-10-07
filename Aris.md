@@ -866,21 +866,30 @@ timezone: Asia/Shanghai
 
 ---
 
+### 2024.10.06
+
 #### 学习内容 20. 发送ETH
 
 1. Solidity有三种方法向其他合约发送ETH
-    - transfer: `接收方地址.transfer(发送ETH数额)`
-        - gas 限制: 2300
-        - 失败会 revert 交易
+    - transfer: `接收方地址.transfer(发送ETH数额)` **不建议使用**
+        - 返回值: **无**
+        - gas 限制: 2300, `fallback()`或`receive()`函数,**不支持**实现复杂逻辑
+        - 失败,**会** revert 交易
 
-    - send:`接收方地址.send(发送ETH数额)`
-        - gas 限制: 2300
-        - 失败**不会** revert 交易
+    - send:`接收方地址.send(发送ETH数额)` **次选使用**
+        - 返回值: **bool**,代表成功 or 失败
+        - gas 限制: 2300, `fallback()`或`receive()`函数,**不支持**实现复杂逻辑
+        - 失败,**不会** revert 交易
 
-    - call:`接收方地址.call{value: 发送ETH数额}("")`
+    - call:`接收方地址.call{value: 发送ETH数额}("")` **优选使用**
+        - 返回值: **(bool, bytes)**,bool:成功 or 失败, bytes:返回的数据
+        - gas 限制: **无**, `fallback()`或`receive()`函数,**支持**实现复杂逻辑
+        - 失败,**不会** revert 交易
 
 2. 合约部署
-3. 第 20 节测验得分: 0, 答案: 
+    - ![image-20241006154748232](content/Aris/image-20241006154748232.png)
+
+3. 第 20 节测验得分: 100, 答案: CAAAAAA
 
 ---
 

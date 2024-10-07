@@ -2428,4 +2428,48 @@ timezone: Asia/Shanghai
         }
         ```
 ###
+
+### 2024.10.06
+
+学习内容:
+1. 第三十八讲
+
+    - 简单的NFT交易所
+
+    - 设计逻辑
+
+        - 卖家：出售`NFT`的一方，可以挂单`list`、撤单`revoke`、修改价格`update`。
+
+        - 买家：购买`NFT`的一方，可以购买`purchase`。
+
+        - 订单：卖家发布的`NFT`链上订单，一个系列的同一`tokenId`最多存在一个订单，其中包含挂单价格`price`和持有人`owner`信息。当一个订单交易完成或被撤单后，其中信息清零。
+    
+    - 事件设计
+        
+        ```Solidity
+
+            // 针对上架、购买、取消订单、更新订单释放链上日志
+            event List(address indexed seller, address indexed nftAddr, uint256 indexed tokenId, uint256 price);
+            event Purchase(address indexed buyer, address indexed nftAddr, uint256 indexed tokenId, uint256 price);
+            event Revoke(address indexed seller, address indexed nftAddr, uint256 indexed tokenId);    
+            event Update(address indexed seller, address indexed nftAddr, uint256 indexed tokenId, uint256 newPrice);
+        ```
+    
+    - **注意**: 此NFT交易所设计的是合约接收用户的NFT，因此合约需要实现onERC721Received()函数，不然无法接收用户NFT。
+
+        ```Solidity
+        contract NFTSwap is IERC721Receiver{
+
+            // 实现{IERC721Receiver}的onERC721Received，能够接收ERC721代币
+            function onERC721Received(
+                address operator,
+                address from,
+                uint tokenId,
+                bytes calldata data
+            ) external override returns (bytes4){
+                return IERC721Receiver.onERC721Received.selector;
+            }
+        }
+        ```
+###
 <!-- Content_END -->

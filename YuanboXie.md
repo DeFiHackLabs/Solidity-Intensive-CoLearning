@@ -1302,7 +1302,6 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     - 注意: 用户申请随机数时调用的requestRandomness()和VRF合约返回随机数时调用的回退函数fulfillRandomness()是两笔交易，调用者分别是用户合约和VRF合约，后者比前者晚几分钟（不同链延迟不一样）。
     - 完整代码参考: [code1](https://github.com/AmazingAng/WTF-Solidity/blob/main/39_Random/Random.sol) [code2](https://github.com/AmazingAng/WTF-Solidity/blob/main/39_Random/RandomNumberConsumer.sol)
 
-<!-- Content_END -->
 ### 2024.10.06
 
 - [103-40] ERC1155 [eip-1155](https://eips.ethereum.org/EIPS/eip-1155)
@@ -1463,6 +1462,7 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     }
     ```
 
+
 ### 2024.10.07
 
 - [103-43] 线性释放
@@ -1600,6 +1600,8 @@ import '@openzeppelin/contracts/access/Ownable.sol';
         return returnData;
     }
     ```
+
+<!-- Content_END -->
 ### 2024.10.08
 
 - [103-46] 代理合约
@@ -1736,7 +1738,314 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     }
     ```
 - [103-50] 多签钱包
-- [103-51] ERC4626代币化金库标准
+    - 极简版多签钱包合约。教学代码（150行代码）由gnosis safe合约（几千行代码）简化而成。
+    - 多签钱包，多个私钥持有者（多签人）授权后才能执行：例如钱包由3个多签人管理，每笔交易需要至少2人签名授权。多签钱包可以防止单点故障（私钥丢失，单人作恶），更加去中心化，更加安全，被很多DAO采用。Gnosis Safe 多签钱包是以太坊最流行的多签钱包，管理近400亿美元资产，合约经过审计和实战测试，支持多链（以太坊，BSC，Polygon等），并提供丰富的 DAPP 支持。在以太坊上的多签钱包其实是智能合约，属于合约钱包。
+    - 多签合约：[MultisigWallet.sol](https://github.com/AmazingAng/WTF-Solidity/blob/main/50_MultisigWallet/MultisigWallet.sol)
+        - 设置多签人和门槛（链上）：初始化多签人列表和执行门槛（至少n个多签人签名授权后，交易才能执行）。
+        - 创建交易（链下）：一笔待授权的交易包含以下内容
+            - to：目标合约。
+            - value：交易发送的以太坊数量。
+            - data：calldata，包含调用函数的选择器和参数。
+            - nonce：初始为0，随着多签合约每笔成功执行的交易递增的值，可以防止签名重放攻击。
+            - chainid：链id，防止不同链的签名重放攻击。
+        - 收集多签签名（链下）：将上一步的交易ABI编码并计算哈希，得到交易哈希，然后让多签人签名，并拼接到一起的到打包签名。
+        - 调用多签合约的执行函数，验证签名并执行交易（链上）。
+    ```solidity
+    function execTransaction(
+        address to,
+        uint256 value,
+        bytes memory data,
+        bytes memory signatures
+    ) public payable virtual returns (bool success) {
+        bytes32 txHash = encodeTransactionData(to, value, data, nonce, block.chainid);
+        nonce++;  // 增加nonce
+        checkSignatures(txHash, signatures); // 检查签名
+        // 利用call执行交易，并获取交易结果
+        (success, ) = to.call{value: value}(data);
+        require(success , "WTF5004");
+        if (success) emit ExecutionSuccess(txHash);
+        else emit ExecutionFailure(txHash);
+    }
+
+    function checkSignatures(
+        bytes32 dataHash,
+        bytes memory signatures
+    ) public view {
+        uint256 _threshold = threshold;
+        require(_threshold > 0, "WTF5005");
+        require(signatures.length >= _threshold * 65, "WTF5006");
+
+        // 利用 currentOwner > lastOwner 确定签名来自不同多签（多签地址递增）[传递的签名按照地址大小排序]
+        address lastOwner = address(0); 
+        address currentOwner;
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+        uint256 i;
+        for (i = 0; i < _threshold; i++) {
+            (v, r, s) = signatureSplit(signatures, i);
+            // 利用ecrecover检查签名是否有效
+            currentOwner = ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", dataHash)), v, r, s);
+            require(currentOwner > lastOwner && isOwner[currentOwner], "WTF5007");
+            lastOwner = currentOwner;
+        }
+    }
+  
+    function signatureSplit(bytes memory signatures, uint256 pos)
+        internal
+        pure
+        returns (
+            uint8 v,
+            bytes32 r,
+            bytes32 s
+        )
+    {
+        // 签名的格式：{bytes32 r}{bytes32 s}{uint8 v}
+        assembly {
+            let signaturePos := mul(0x41, pos)
+            r := mload(add(signatures, add(signaturePos, 0x20)))
+            s := mload(add(signatures, add(signaturePos, 0x40)))
+            v := and(mload(add(signatures, add(signaturePos, 0x41))), 0xff)
+        }
+    }
+    ```
+- [103-51] ERC4626 代币化金库标准：ERC4626 对于 DeFi 的重要性不亚于 ERC721 对于 NFT 的重要性。
+    - 金库合约是 DeFi 乐高中的基础，允许把基础资产（代币）质押到合约中，换取一定收益。可用于：
+        - 收益农场: 在 Yearn Finance 中，你可以质押 USDT 获取利息；
+        - 借贷: 在 AAVE 中，你可以出借 ETH 获取存款利息和贷款；
+        - 质押: 在 Lido 中，你可以质押 ETH 参与 ETH 2.0 质押，得到可以生息的 stETH；
+    - 由于金库合约缺乏标准，写法五花八门，一个收益聚合器需要写很多接口对接不同的 DeFi 项目。ERC4626 代币化金库标准（Tokenized Vault Standard）横空出世，使得 DeFi 能够轻松扩展。它具有以下优点:
+        - 代币化: ERC4626 继承了 ERC20，向金库存款时，将得到同样符合 ERC20 标准的金库份额，比如质押 ETH，自动获得 stETH；
+        - 更好的流通性: 由于代币化，你可以在不取回基础资产的情况下，利用金库份额做其他事情。拿 Lido 的 stETH 为例，你可以用它在 Uniswap 上提供流动性或交易，而不需要取出其中的 ETH；
+        - 更好的可组合性: 有了标准之后，用一套接口可以和所有 ERC4626 金库交互，让基于金库的应用、插件、工具开发更容易；
+    - ERC4626 标准主要实现了以下几个逻辑：
+        - ERC20: ERC4626 继承了 ERC20，金库份额就是用 ERC20 代币代表的：用户将特定的 ERC20 基础资产（比如 WETH）存进金库，合约会给他铸造特定数量的金库份额代币；当用户从金库中提取基础资产时，会销毁相应数量的金库份额代币。
+        - 存款逻辑：让用户存入基础资产，并铸造相应数量的金库份额。
+        - 提款逻辑：让用户销毁金库份额，并提取金库中相应数量的基础资产。
+        - 会计和限额逻辑：ERC4626 标准中其他的函数是为了统计金库中的资产，存款/提款限额，和存款/提款的基础资产和金库份额数量。
+    - IERC4626 接口合约
+        - deposit 和 mint 区别：
+    ```solidity
+    pragma solidity ^0.8.0;
+    import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+    import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+
+    /**
+    * @dev ERC4626 "代币化金库标准"的接口合约
+    * https://eips.ethereum.org/EIPS/eip-4626[ERC-4626].
+    */
+    interface IERC4626 is IERC20, IERC20Metadata {
+        event Deposit(address indexed sender, address indexed owner, uint256 assets, uint256 shares);
+        event Withdraw(address indexed sender,address indexed receiver,address indexed owner,uint256 assets,uint256 shares);
+        // 返回金库的基础资产代币地址 （用于存款，取款）必须是 ERC20 代币合约地址
+        function asset() external view returns (address assetTokenAddress);
+        /**
+        * @dev 存款函数: 用户向金库存入 assets 单位的基础资产，然后合约铸造 shares 单位的金库额度给 receiver 地址
+        * - 必须释放 Deposit 事件.
+        * - 如果资产不能存入，必须 revert，比如存款数额大大于上限等。
+        */
+        function deposit(uint256 assets, address receiver) external returns (uint256 shares);
+
+        /**
+        * @dev 铸造函数: 用户需要存入 assets 单位的基础资产，然后合约给 receiver 地址铸造 share 数量的金库额度
+        * - 必须释放 Deposit 事件.
+        * - 如果全部金库额度不能铸造，必须revert，比如铸造数额大大于上限等。
+        */
+        function mint(uint256 shares, address receiver) external returns (uint256 assets);
+
+        /**
+        * @dev 提款函数: owner 地址销毁 share 单位的金库额度，然后合约将 assets 单位的基础资产发送给 receiver 地址
+        * - 释放 Withdraw 事件
+        * - 如果全部基础资产不能提取，将revert
+        */
+        function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares);
+
+        /**
+        * @dev 赎回函数: owner 地址销毁 shares 数量的金库额度，然后合约将 assets 单位的基础资产发给 receiver 地址
+        * - 释放 Withdraw 事件
+        * - 如果金库额度不能全部销毁，则revert
+        */
+        function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets);
+
+        /*//////////////////////////////////////////////////////////////
+                                会计逻辑
+        //////////////////////////////////////////////////////////////*/
+        /**
+        * @dev 返回金库中管理的基础资产代币总额
+        * - 要包含利息
+        * - 要包含费用
+        * - 不能revert
+        */
+        function totalAssets() external view returns (uint256 totalManagedAssets);
+
+        /**
+        * @dev 返回利用一定数额基础资产可以换取的金库额度
+        * - 不要包含费用
+        * - 不包含滑点
+        * - 不能revert
+        */
+        function convertToShares(uint256 assets) external view returns (uint256 shares);
+
+        /**
+        * @dev 返回利用一定数额金库额度可以换取的基础资产
+        * - 不要包含费用
+        * - 不包含滑点
+        * - 不能revert
+        */
+        function convertToAssets(uint256 shares) external view returns (uint256 assets);
+
+        /**
+        * @dev 用于链上和链下用户在当前链上环境模拟存款一定数额的基础资产能够获得的金库额度
+        * - 返回值要接近且不大于在同一交易进行存款得到的金库额度
+        * - 不要考虑 maxDeposit 等限制，假设用户的存款交易会成功
+        * - 要考虑费用
+        * - 不能revert
+        * NOTE: 可以利用 convertToAssets 和 previewDeposit 返回值的差值来计算滑点
+        */
+        function previewDeposit(uint256 assets) external view returns (uint256 shares);
+
+        /**
+        * @dev 用于链上和链下用户在当前链上环境模拟铸造 shares 数额的金库额度需要存款的基础资产数量
+        * - 返回值要接近且不小于在同一交易进行铸造一定数额金库额度所需的存款数量
+        * - 不要考虑 maxMint 等限制，假设用户的存款交易会成功
+        * - 要考虑费用
+        * - 不能revert
+        */
+        function previewMint(uint256 shares) external view returns (uint256 assets);
+
+        /**
+        * @dev 用于链上和链下用户在当前链上环境模拟提款 assets 数额的基础资产需要赎回的金库份额
+        * - 返回值要接近且不大于在同一交易进行提款一定数额基础资产所需赎回的金库份额
+        * - 不要考虑 maxWithdraw 等限制，假设用户的提款交易会成功
+        * - 要考虑费用
+        * - 不能revert
+        */
+        function previewWithdraw(uint256 assets) external view returns (uint256 shares);
+
+        /**
+        * @dev 用于链上和链下用户在当前链上环境模拟销毁 shares 数额的金库额度能够赎回的基础资产数量
+        * - 返回值要接近且不小于在同一交易进行销毁一定数额的金库额度所能赎回的基础资产数量
+        * - 不要考虑 maxRedeem 等限制，假设用户的赎回交易会成功
+        * - 要考虑费用
+        * - 不能revert.
+        */
+        function previewRedeem(uint256 shares) external view returns (uint256 assets);
+
+        /*//////////////////////////////////////////////////////////////
+                        存款/提款限额逻辑
+        //////////////////////////////////////////////////////////////*/
+        /**
+        * @dev 返回某个用户地址单次存款可存的最大基础资产数额。
+        * - 如果有存款上限，那么返回值应该是个有限值
+        * - 返回值不能超过 2 ** 256 - 1 
+        * - 不能revert
+        */
+        function maxDeposit(address receiver) external view returns (uint256 maxAssets);
+
+        /**
+        * @dev 返回某个用户地址单次铸造可以铸造的最大金库额度
+        * - 如果有铸造上限，那么返回值应该是个有限值
+        * - 返回值不能超过 2 ** 256 - 1 
+        * - 不能revert
+        */
+        function maxMint(address receiver) external view returns (uint256 maxShares);
+
+        /**
+        * @dev 返回某个用户地址单次取款可以提取的最大基础资产额度
+        * - 返回值应该是个有限值
+        * - 不能revert
+        */
+        function maxWithdraw(address owner) external view returns (uint256 maxAssets);
+
+        /**
+        * @dev 返回某个用户地址单次赎回可以销毁的最大金库额度
+        * - 返回值应该是个有限值
+        * - 如果没有其他限制，返回值应该是 balanceOf(owner)
+        * - 不能revert
+        */
+        function maxRedeem(address owner) external view returns (uint256 maxShares);
+    }
+    ```
+    - 具体代码：[code](https://github.com/AmazingAng/WTF-Solidity/blob/main/51_ERC4626/ERC4626.sol)
+    ```solidity
+    contract ERC4626 is ERC20, IERC4626 { // 教学代码，不要用于生产环境
+        ERC20 private immutable _asset;  
+        uint8 private immutable _decimals;
+        constructor(
+            ERC20 asset_,
+            string memory name_,
+            string memory symbol_
+        ) ERC20(name_, symbol_) {
+            _asset = asset_;
+            _decimals = asset_.decimals();
+        }
+        function asset() public view virtual override returns (address) { return address(_asset); } // 返回 ERC20 Token 地址
+        function decimals() public view virtual override(IERC20Metadata, ERC20) returns (uint8) { return _decimals; }
+        
+        function deposit(uint256 assets, address receiver) public virtual returns (uint256 shares) {
+            shares = previewDeposit(assets); // 换算份额
+            _asset.transferFrom(msg.sender, address(this), assets);
+            _mint(receiver, shares);
+            emit Deposit(msg.sender, receiver, assets, shares);
+        }
+
+        function mint(uint256 shares, address receiver) public virtual returns (uint256 assets) {
+            assets = previewMint(shares);
+            _asset.transferFrom(msg.sender, address(this), assets);
+            _mint(receiver, shares);
+            emit Deposit(msg.sender, receiver, assets, shares);
+        }
+
+        function withdraw(
+            uint256 assets,
+            address receiver,
+            address owner
+        ) public virtual returns (uint256 shares) {
+            shares = previewWithdraw(assets);
+            // 如果调用者不是 owner，则检查并更新授权 【 approve-transferFrom 逻辑，所以这里要先扣 approve】
+            if (msg.sender != owner) {
+                _spendAllowance(owner, msg.sender, shares);
+            }
+            _burn(owner, shares);
+            _asset.transfer(receiver, assets);
+            emit Withdraw(msg.sender, receiver, owner, assets, shares);
+        }
+
+        function redeem(
+            uint256 shares,
+            address receiver,
+            address owner
+        ) public virtual returns (uint256 assets) {
+            assets = previewRedeem(shares);
+            if (msg.sender != owner) {
+                _spendAllowance(owner, msg.sender, shares);
+            }
+            _burn(owner, shares);
+            _asset.transfer(receiver, assets);
+            emit Withdraw(msg.sender, receiver, owner, assets, shares);
+        }
+
+        function totalAssets() public view virtual returns (uint256){ return _asset.balanceOf(address(this)); } // Vault 持仓
+        function convertToShares(uint256 assets) public view virtual returns (uint256) {
+            uint256 supply = totalSupply();                                // 当前发行的份额
+            return supply == 0 ? assets : assets * supply / totalAssets(); // 如果 supply 为 0，那么 1:1 铸造金库份额，如果 supply 不为0，那么按比例铸造【由于资产有利息或者其他因素，这里的比例最后不会是1:1，所以需要按比例分配】
+        }
+        function convertToAssets(uint256 shares) public view virtual returns (uint256) {
+            uint256 supply = totalSupply();
+            return supply == 0 ? shares : shares * totalAssets() / supply; // 如果 supply 为 0，那么 1:1 赎回基础资产，如果 supply 不为0，那么按比例赎回
+        }
+
+        function previewDeposit(uint256 assets) public view virtual returns (uint256) { return convertToShares(assets); } // 预计算存款能获得的份额
+        function previewMint(uint256 shares) public view virtual returns (uint256) { return convertToAssets(shares); } // 由份额推算所需资金
+        function previewWithdraw(uint256 assets) public view virtual returns (uint256) { return convertToShares(assets); } // 资金推算份额
+        function previewRedeem(uint256 shares) public view virtual returns (uint256) { return convertToAssets(shares); } // 份额推算资金
+
+        function maxDeposit(address) public view virtual returns (uint256) { return type(uint256).max; }
+        function maxMint(address) public view virtual returns (uint256) { return type(uint256).max; }
+        function maxWithdraw(address owner) public view virtual returns (uint256) { return convertToAssets(balanceOf(owner)); } // 持有份额对应的最大资产
+        function maxRedeem(address owner) public view virtual returns (uint256) { return balanceOf(owner); }
+    }
+    ```
 
 ### 2024.10.10
 

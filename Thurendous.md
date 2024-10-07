@@ -1353,6 +1353,276 @@ function setXTransferETH(address otherContract, uint256 x) payable external{
 }
 ```
 
+### 2024.10.6
+
+(Day 12)
+
+学习笔记
+
+#### Call
+
+`call`是`address`类型的一个内置函数，可以用来调用任何合约。返回值是`(bool, bytes memory)`，其中`bool`代表着转账成功或失败，`bytes`是返回值。
+- `call`是`Solidity`官方推荐的触发`fallback`和`receive`函数的方法。
+- 不推荐`call`来调用另一个合约，因为当你调用不安全合约的函数的时候，你就把主动权给了对方。推荐的方法仍然是声明合约变量后调用函数。
+- 当我们不知道对方合约的源代码或者ABI的时候，就没法生成合约变量。这时候，我们仍然可以通过`call`来调用合约。
+
+```solidity
+function callGetX(address _Address) external view returns(uint x){
+    x = OtherContract(_Address).getX();
+}
+```
+
+- call的使用规则
+
+```solidity
+目标合约地址.call(字节码);
+```
+
+```solidity
+目标合约地址.call{value: 发送ETH数额}(abi.encodeWithSignature("函数签名", 逗号分隔的具体参数));
+```
+
+这样看的话还是有一些复杂。我们看一下这里的合约的内容吧。
+
+```solidity
+function callSetX(address payable _addr, uint256 x) public payable {
+    // call setX()，同时可以发送ETH
+    (bool success, bytes memory data) = _addr.call{value: msg.value}(
+        abi.encodeWithSignature("setX(uint256)", x)
+    );
+
+    emit Response(success, data); //释放事件
+}
+```
+
+- 调用不存在的函数
+  - 如果我们给call输入的函数不存在于目标合约，那么目标合约的fallback函数会被触发。
+
+
+### Delegatecall
+
+`delegatecall`和`call`类似，都是`Solidity`中地址类型的一个低级成员函数。
+
+区别在于`delegatecall`使用的是目标合约的存储空间，而`call`使用的是调用者合约的存储空间。
+然后`delegatecall`和`call`的context是不同的，其区别在于：
+
+- `call`的context是调用者合约的context，而`delegatecall`的context是目标合约的context。
+
+`delegatecall`的返回值是`(bool, bytes memory)`，其中`bool`代表着转账成功或失败，`bytes`是返回值。
+
+" 注意：delegatecall有安全隐患，使用时要保证当前合约和目标合约的状态变量存储结构相同，并且目标合约安全，不然会造成资产损失。
+
+目前`delegatecall`主要有两个使用场景：
+
+1. 代理合约：将智能合约的存储合约和逻辑合约分开。
+2. EIP-2535钻石合约：钻石是一个支持构建可以在生产中扩展的模块化智能合约系统的标准。钻石具有多个实施合约的代理合约。
+
+
+#### 合约中创建一个新的合约
+
+在以太坊链上，用户（外部账户，EOA）可以创建智能合约，智能合约同样也可以创建新的智能合约。去中心化交易所uniswap就是利用工厂合约（PairFactory）创建了无数个币对合约（Pair）。这一讲，我会用简化版的uniswap讲如何通过合约创建合约。
+
+有两种方法可以在合约中创建新合约，create和create2，这里我们讲create，下一讲会介绍create2。
+
+```solidity
+Contract x = new Contract{value: _value}(params)
+```
+
+极简Uniswap
+
+```solidity
+contract Pair{
+    address public factory; // 工厂合约地址
+    address public token0; // 代币1
+    address public token1; // 代币2
+
+    constructor() payable {
+        factory = msg.sender;
+    }
+
+    // called once by the factory at time of deployment
+    function initialize(address _token0, address _token1) external {
+        require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
+        token0 = _token0;
+        token1 = _token1;
+    }
+}
+```
+
+构造函数constructor在部署时将factory赋值为工厂合约地址。initialize函数会由工厂合约在部署完成后手动调用以初始化代币地址，将token0和token1更新为币对中两种代币的地址。
+
+```solidity
+contract PairFactory{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair(address tokenA, address tokenB) external returns (address pairAddr) {
+        // 创建新合约
+        Pair pair = new Pair(); 
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+}
+```
+
+airFactory合约只有一个createPair函数，根据输入的两个代币地址tokenA和tokenB来创建新的Pair合约。其中
+
+```solidity
+Pair pair = new Pair();
+```
+
+
+
+创建了一个Pair合约，并将其地址赋值给pair。
+
+
+#### Create2
+
+Uniswap V2中，创建新合约使用的是create2，而不是create。
+
+CREATE2如何计算地址
+CREATE2的目的是为了让合约地址独立于未来的事件。不管未来区块链上发生了什么，你都可以把合约部署在事先计算好的地址上。用CREATE2创建的合约地址由4个部分决定：
+
+- 0xFF：一个常数，避免和CREATE冲突
+- CreatorAddress: 调用 CREATE2 的当前合约（创建合约）地址。
+- salt（盐）：一个创建者指定的bytes32类型的值，它的主要目的是用来影响新创建的合约的地址。
+- initcode: 新合约的初始字节码（合约的Creation Code和构造函数的参数）。
+
+
+```solidity
+新地址 = hash("0xFF",创建者地址, salt, initcode)
+```
+
+极简Uniswap2
+
+跟上一讲类似，我们使用create2来创建极简Uniswap。
+
+`Pair`
+
+```solidity
+contract Pair{
+    address public factory; // 工厂合约地址
+    address public token0; // 代币1
+    address public token1; // 代币2
+
+    constructor() payable {
+        factory = msg.sender;
+    }
+
+    // called once by the factory at time of deployment
+    function initialize(address _token0, address _token1) external {
+        require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
+        token0 = _token0;
+        token1 = _token1;
+    }
+}
+```
+
+`PairFactory`
+
+```solidity
+contract PairFactory2{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair2(address tokenA, address tokenB) external returns (address pairAddr) {
+        require(tokenA != tokenB, 'IDENTICAL_ADDRESSES'); //避免tokenA和tokenB相同产生的冲突
+        // 用tokenA和tokenB地址计算salt
+        (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); //将tokenA和tokenB按大小排序.如此一来，tokenA和tokenB的顺序就是固定的，就不会出现重复的同样的两个tokne但是顺序是反过来的情况了。
+        bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+        // 用create2部署新合约
+        Pair pair = new Pair{salt: salt}(); 
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+}
+```
+
+工厂合约（PairFactory2）有两个状态变量getPair是两个代币地址到币对地址的map，方便根据代币找到币对地址；allPairs是币对地址的数组，存储了所有币对地址。
+
+PairFactory2合约只有一个createPair2函数，使用CREATE2根据输入的两个代币地址tokenA和tokenB来创建新的Pair合约。其中
+
+
+
+```solidity
+// 提前计算pair合约地址
+function calculateAddr(address tokenA, address tokenB) public view returns(address predictedAddress){
+    require(tokenA != tokenB, 'IDENTICAL_ADDRESSES'); //避免tokenA和tokenB相同产生的冲突
+    // 计算用tokenA和tokenB地址计算salt
+    (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); //将tokenA和tokenB按大小排序
+    bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+    // 计算合约地址方法 hash()
+    predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+        bytes1(0xff),
+        address(this),
+        salt,
+        keccak256(type(Pair).creationCode)
+        )))));
+}
+```
+
+
+create2的用途
+
+交易所为新用户预留创建钱包合约地址。
+
+由 CREATE2 驱动的 factory 合约，在Uniswap V2中交易对的创建是在 Factory中调用CREATE2完成。这样做的好处是: 它可以得到一个确定的pair地址, 使得 Router中就可以通过 (tokenA, tokenB) 计算出pair地址, 不再需要执行一次 Factory.getPair(tokenA, tokenB) 的跨合约调用。
+
+
+#### 删除合约
+
+`selfdestruct`是`address`类型的一个内置函数，可以用来删除合约。selfdestruct命令可以用来删除智能合约，并将该合约剩余ETH转到指定地址。
+
+已经部署的合约无法被SELFDESTRUCT了。
+如果要使用原先的SELFDESTRUCT功能，必须在同一笔交易中创建并SELFDESTRUCT。
+
+```solidity
+selfdestruct(_address);
+```
+
+以下合约在坎昆升级前可以完成合约的自毁，在坎昆升级后仅能实现内部ETH余额的转移。
+
+```solidity
+contract DeleteContract {
+
+    uint public value = 10;
+
+    constructor() payable {}
+
+    receive() external payable {}
+
+    function deleteContract() external {
+        // 调用selfdestruct销毁合约，并把剩余的ETH转给msg.sender
+        selfdestruct(payable(msg.sender));
+    }
+
+    function getBalance() external view returns(uint balance){
+        balance = address(this).balance;
+    }
+}
+```
+
+当我们调用deleteContract()函数，合约将触发selfdestruct操作。在坎昆升级前，合约会被自毁。但是在升级后，合约依然存在，只是将合约包含的ETH转移到指定地址，而合约依然能够调用。
+
+
+Demo-同笔交易内实现合约创建-自毁
+根据提案，原先的删除功能只有在合约创建-自毁这两个操作处在同一笔交易时才能生效。所以我们需要通过另一个合约进行控制。
+
+对外提供合约销毁接口时，最好设置为只有合约所有者可以调用，可以使用函数修饰符onlyOwner进行函数声明。
+当合约中有selfdestruct功能时常常会带来安全问题和信任问题，合约中的selfdestruct功能会为攻击者打开攻击向量(例如使用selfdestruct向一个合约频繁转入token进行攻击，这将大大节省了GAS的费用，虽然很少人这么做)，此外，此功能还会降低用户对合约的信心。
+不推荐使用这个代码命令。
+
+
 
 
 <!-- Content_END -->

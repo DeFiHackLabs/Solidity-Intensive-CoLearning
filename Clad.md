@@ -637,7 +637,63 @@ function hash(uint _num, string memory _string, address _addr) public pure retur
 強抗碰撞性
 - 難以找到任何兩個不同的輸入, 它們散列值相同
 
+### 2024.10.6      
+學習內容  
+筆記:  
 
+#### 函數選擇器
+- 當調用智能合約時, 本質上是向目標合約發送一段 calldata, 可以在 remix 的詳細信息中看見 input 就是該次交易的 calldata
+- calldata 的錢 4 個字節是 selector 函數選擇器
+
+msg.data
+
+method id, selector, 函數簽名
+
+計算 method id
+- 要計算 method id 時, 需要通過函數名和函數的參數類型來計算
+- 函數的參數類型分以下 4 種
+1. 基礎類型參數 (uint8,...,uint256, bool, address 等)
+   寫法, bytes4(keccak256("函數名(參數類型)"))
+   ```Solidity
+   function elementaryParamSelector(uint256 param1, bool param2) external returns(bytes4 selectorWithElementaryParam){
+      // emit 這段的用意是甚麼, 待釐清
+      emit SelectorEvent(this.elementaryParamSelector.selector);
+      return bytes4(keccak256("elementaryParamSelector(uint256, bool)"));
+   ]
+   ```
+   
+2. 固定長度類型參數
+   - ex: uint256[5]
+   寫法, bytes4(keccak256("fixedSizeParamSelector(uint256[3])"));
+   ```Solidity
+   function fixedSizeParamSelector(uint256[3] memory param1) external returns(bytes4 selectorWithFixedSizeParam){
+      emit SelectorEvent(this.fixedSizeParamSelector.selector);
+      return bytes4(keccak256("fixedSizeParamSelector(uint256[3])"));
+   }
+   ```
+   
+3. 可變長度類型參數
+   - ex: address[], uint8[], string
+   寫法, bytes4(keccak256("nonFixedSizeParamSelector(uint256[], string)"))
+   ```Solidity
+   function nonFixedSizeParamSelector(uint256[] memory param1, string memory param2) external returns(bytes4 selectorWithFixedSizeParam){
+      emit SelectorEvent(this.nonFixedSizeParamSelector.selector);
+      return bytes4(keccak256("fixedSizeParamSelector(uint256[], string)"));
+   }
+   ``` 
+5. 映射類型參數
+   - ex: contract, eunm, struct, 在計算 method.id 時, 要將該類型轉成 ABI 類型
+   寫法, bytes4(keccak256("mappingParamSelector(address, (uint256, bytes), uint256[], uint8)"))  
+
+
+使用 selector
+- 可以利用 selector 調用目標函數
+  ex:利用 abi.encodeWithSelector 將 elementaryParamSelector 函數的 method id 作為 selector 和參數打包編碼, 傳給 call 函數
+```Solidity
+function callWithSignature() external{
+   (bool success, bytes memory data1) = address(this).call(abi.encodeWithSelector(0x3ec37834, 1, 0));
+}
+```
 
 
 

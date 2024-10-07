@@ -153,5 +153,11 @@ mapping(uint => address) public i2addr;
     \  /
    people
    ```
+### 2024.10.06
+學習內容: `14.Interface`
++ `ERC721`的`abstract`和`Interface`
++ 定義: 抽象合約為: 若智能合約內有一位實現的函數，則須將合約標為`abtract`、而未實現的函數需加`virtual`否則會報錯。
++ 什麼時候用接口? 當我們知道一個合約實現了`IERC721`接口，則我們不需它的源碼只需知道它的合約地址，就能用`IERC721`接口與它進行交互。
++ 作者以`IERC721`為例剛好能實作與`無聊猿BAYC`進行交互。
 
 <!-- Content_END -->

@@ -90,4 +90,10 @@ LFG～～～～～ 會完成的
 
 [**WTF Solidity 極簡入門：25. Create2**](<content/Haoder/md/225.md>)
 
+### 2024.10.06
+
+[**WTF Solidity 極簡入門：26. 刪除合約**](<content/Haoder/md/226.md>)
+
+[**WTF Solidity 極簡入門：27. ABI編碼解碼**](<content/Haoder/md/227.md>)
+
 <!-- Content_END -->
