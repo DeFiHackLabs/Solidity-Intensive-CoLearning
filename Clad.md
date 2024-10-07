@@ -721,6 +721,16 @@ try externalContract.f() returns(returnType val){
 }
 ```
 
+catch 也支援特殊異常
+```Solidity
+try externalContract.f() returns(returnType){
+}catch Error(){
+}catch Panic(){
+}catch (bytes memory){
+}
+
+```
+
 
 
 <!-- Content_END -->
