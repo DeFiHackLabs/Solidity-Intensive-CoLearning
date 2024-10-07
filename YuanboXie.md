@@ -8,14 +8,18 @@ timezone: Asia/Shanghai
 
 1. 自我介绍: Web3 & AI researcher
 
-2. 你认为你会完成本次残酷学习吗？大概率可以
+2. 你认为你会完成本次残酷学习吗？可以
    
 ## Notes
 
-- WTF Academy Solidity 101 1-15
-- WTF Academy Solidity 102 16-30
-- WTF Academy Solidity 103 31-50
+- WTF Academy Solidity 101 1-15 [✅]
+- WTF Academy Solidity 102 16-30 [✅]
+- WTF Academy Solidity 103 31-50 [✅]
 - 完成取得 Solidity 101、102 链上证书
+    - 捐赠 eth 并 Mint 了 Solidity 101 证书 [✅]
+    - Solidity 102 链上证书 [TODO] <del>据说之后可以免费 Mint，暂时先不 Mint</del>
+- 其他贡献：
+    - 在17、51、56节分别发现3处typos，已提交[PR](https://github.com/AmazingAng/WTF-Solidity/pull/796),目前 under review；
 
 <!-- Content_START -->
 
@@ -1118,16 +1122,13 @@ import '@openzeppelin/contracts/access/Ownable.sol';
             // 目前只能用assembly (内联汇编)来从签名中获得r,s,v的值
             assembly {
                 /*
-                前32 bytes存储签名的长度 (动态数组存储规则)
-                add(sig, 32) = sig的指针 + 32
-                等效为略过signature的前32 bytes
-                mload(p) 载入从内存地址p起始的接下来32 bytes数据
+                【前32 bytes存储签名的长度 (动态数组存储规则)】
+                    add(sig, 32) = sig的指针 + 32
+                    等效为略过signature的前32 bytes
+                    mload(p) 载入从内存地址p起始的接下来32 bytes数据
                 */
-                // 读取长度数据后的32 bytes
-                r := mload(add(_signature, 0x20)) // mload 从传入的地址向前读取32bytes，即[0,32)
-                // 读取之后的32 bytes
+                r := mload(add(_signature, 0x20))
                 s := mload(add(_signature, 0x40))
-                // 读取最后一个byte
                 v := byte(0, mload(add(_signature, 0x60)))
             }
             // 使用ecrecover(全局函数)：利用 msgHash 和 r,s,v 恢复 signer 地址
@@ -1601,7 +1602,7 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     }
     ```
 
-<!-- Content_END -->
+
 ### 2024.10.08
 
 - [103-46] 代理合约
@@ -2048,17 +2049,490 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     ```
 
 ### 2024.10.10
+- [103-52] [EIP712](https://eips.ethereum.org/EIPS/eip-712) 类型化数据签名: 更先进、安全的签名方法，EIP712 类型化数据签名
+    - 之前的 ECDSA 签名是 EIP191 签名标准（personal sign），可以给一段消息签名。但是它过于简单，当签名数据比较复杂时，用户只能看到一串十六进制字符串（数据的哈希），无法核实签名内容是否与预期相符。当支持 EIP712 的 Dapp 请求签名时，钱包会展示签名消息的原始数据，用户可以在验证数据符合预期之后签名。EIP712 的应用一般包含链下签名（前端或脚本）和链上验证（合约）两部分。
+    - 链下签名：
+        - EIP712 签名必须包含一个 EIP712Domain 部分，它包含了合约的 name，version（一般约定为 “1”），chainId，和 verifyingContract（验证签名的合约地址）。这些信息会在用户签名时显示，并确保只有特定链的特定合约才能验证签名。你需要在脚本中传入相应参数。
+        ```js
+        const domain = {
+            name: "EIP712Storage",
+            version: "1",
+            chainId: "1",
+            verifyingContract: "0xf8e81D47203A594245E36C48e151709F0C19fBe8",
+        };
+        ```
+        - 根据使用场景自定义一个签名的数据类型，他要与合约匹配。
+        - 调用钱包对象的 signTypedData() 方法，传入前面步骤中的 domain，types，和 message 变量进行签名（
+        ```js
+        const domain = {
+            name: name,
+            version: version,
+            chainId: chainId,
+            verifyingContract: contractAddress,
+        };
 
-- [103-52] EIP712 类型化数据签名
+        const types = { // 自定义类型
+            Storage: [
+            { name: "spender", type: "address" },
+            { name: "number", type: "uint256" },
+            ],
+        };
+
+        const message = { // 自定义类型的数据
+            spender: spender,
+            number: number,
+        };
+
+        try {
+            console.log(message)
+            const signature = await signer.signTypedData(domain, types, message);
+            console.log("Signature:", signature);
+            showSignature.innerHTML = `${signature}`;
+        } catch (error) {
+            console.error("Error signing permit:", error);
+        }
+        ```
+    - 链上验证：验证签名，如果通过，则修改；
+    ```solidity
+    contract EIP712Storage {
+        using ECDSA for bytes32;
+        // EIP712Domain 的类型哈希
+        bytes32 private constant EIP712DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+        // Storage 的类型哈希
+        bytes32 private constant STORAGE_TYPEHASH = keccak256("Storage(address spender,uint256 number)");
+        bytes32 private DOMAIN_SEPARATOR; // 由 EIP712DOMAIN_TYPEHASH 以及 EIP712Domain （name, version, chainId, verifyingContract）组成, 每个 DApp 尽可能唯一
+        uint256 number;
+        address owner;
+
+        constructor(){
+            DOMAIN_SEPARATOR = keccak256(abi.encode(
+                EIP712DOMAIN_TYPEHASH, // type hash
+                keccak256(bytes("EIP712Storage")), // name
+                keccak256(bytes("1")), // version
+                block.chainid, // chain id
+                address(this) // contract address
+            ));
+            owner = msg.sender;
+        }
+        function permitStore(uint256 _num, bytes memory _signature) public {
+            // 检查签名长度，65是标准r,s,v签名的长度
+            require(_signature.length == 65, "invalid signature length");
+            bytes32 r;
+            bytes32 s;
+            uint8 v;
+            assembly {
+                /*
+                    前32 bytes存储签名的长度 (动态数组存储规则)
+                    add(sig, 32) = sig的指针 + 32
+                    等效为略过signature的前32 bytes
+                    mload(p) 载入从内存地址p起始的接下来32 bytes数据
+                */
+                // 读取长度数据后的32 bytes
+                r := mload(add(_signature, 0x20))
+                // 读取之后的32 bytes
+                s := mload(add(_signature, 0x40))
+                // 读取最后一个byte
+                v := byte(0, mload(add(_signature, 0x60)))
+            }
+
+            // 获取签名消息hash
+            bytes32 digest = keccak256(abi.encodePacked(
+                "\x19\x01",
+                DOMAIN_SEPARATOR,
+                keccak256(abi.encode(STORAGE_TYPEHASH, msg.sender, _num))
+            )); 
+            
+            address signer = digest.recover(v, r, s);                     // 恢复签名者
+            require(signer == owner, "EIP712Storage: Invalid signature"); // 检查签名
+
+            // 修改状态变量
+            number = _num;
+        }
+        function retrieve() public view returns (uint256){
+            return number;
+        }    
+    ```
 - [103-53] ERC-2612 ERC20Permit
-- [103-54] 跨链桥
+    - ERC20的 approve 函数限制了只有代币所有者才能调用，这意味着所有 ERC20 代币的初始操作必须由 EOA 执行。举个例子，用户 A 在去中心化交易所使用 USDT 交换 ETH，必须完成两个交易：第一步用户 A 调用 approve 将 USDT 授权给合约，第二步用户 A 调用合约进行交换。非常麻烦，并且用户必须持有 ETH 用于支付交易的 gas。
+    - EIP-2612 提出了 ERC20Permit，扩展了 ERC20 标准，添加了一个 permit 函数，允许用户通过 EIP-712 签名修改授权，而不是通过 msg.sender。这有两点好处：
+        - 授权这步仅需用户在链下签名，减少一笔交易。
+        - 签名后，用户可以委托第三方进行后续交易，不需要持有 ETH：用户 A 可以将签名发送给 拥有gas的第三方 B，委托 B 来执行后续交易。
+    - IERC20Permit 接口合约
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity ^0.8.0;
 
+    // ERC20 Permit 扩展的接口，允许通过签名进行批准，如 https://eips.ethereum.org/EIPS/eip-2612[EIP-2612]中定义。
+    interface IERC20Permit {
+        /**
+        * @dev 根据owner的签名, 将 `owenr` 的ERC20余额授权给 `spender`，数量为 `value`, 释放 {Approval} 事件。
+        * 要求：
+        * - `spender` 不能是零地址。
+        * - `deadline` 必须是未来的时间戳。
+        * - `v`，`r` 和 `s` 必须是 `owner` 对 EIP712 格式的函数参数的有效 `secp256k1` 签名。
+        * - 签名必须使用 `owner` 当前的 nonce（参见 {nonces}）。
+        */
+        function permit(address owner,address spender,uint256 value,uint256 deadline,uint8 v,bytes32 r,bytes32 s) external;
+
+        /**
+        * @dev 返回 `owner` 的当前 nonce。每次为 {permit} 生成签名时，都必须包括此值。
+        * 每次成功调用 {permit} 都会将 `owner` 的 nonce 增加 1。这防止多次使用签名。
+        */
+        function nonces(address owner) external view returns (uint256);
+
+        /**
+        * @dev 返回用于编码 {permit} 的签名的域分隔符（domain separator），如 {EIP712} 所定义。
+        */
+        // solhint-disable-next-line func-name-mixedcase
+        function DOMAIN_SEPARATOR() external view returns (bytes32);
+    }
+    ```
+    - 前段计算 permit 签名
+    ```js
+    async function signPermit() {
+      // 略。
+
+      const domain = {
+        name: name,
+        version: version,
+        chainId: chainId,
+        verifyingContract: contractAddress,
+      };
+
+      const types = {
+        Permit: [
+          { name: "owner", type: "address" },
+          { name: "spender", type: "address" },
+          { name: "value", type: "uint256" },
+          { name: "nonce", type: "uint256" },
+          { name: "deadline", type: "uint256" },
+        ],
+      };
+
+      const message = {
+        owner: owner,
+        spender: spender,
+        value: value,
+        nonce: nonce,
+        deadline: deadline,
+      };
+
+      try {
+        console.log(message)
+        const signature = await signer.signTypedData(domain, types, message);
+        const sig = ethers.Signature.from(signature);
+        console.log("Signature:", signature);
+        SignatureV.innerHTML = `${sig.v}`;
+        SignatureR.innerHTML = `${sig.r}`;
+        SignatureS.innerHTML = `${sig.s}`;
+        showSignature.innerHTML = `${signature}`;
+      } catch (error) {
+        console.error("Error signing permit:", error);
+      }
+    }
+    ```
+    - ERC20Permit 合约
+    ```solidity
+    contract ERC20Permit is ERC20, IERC20Permit, EIP712 {
+        mapping(address => uint) private _nonces; // Permit 单独维护一套 nonce
+        bytes32 private constant _PERMIT_TYPEHASH = keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+
+        constructor(string memory name, string memory symbol) EIP712(name, "1") ERC20(name, symbol){}
+
+        function permit(address owner,address spender,uint256 value,uint256 deadline,uint8 v,bytes32 r,bytes32 s) public virtual override {
+            require(block.timestamp <= deadline, "ERC20Permit: expired deadline");
+
+            bytes32 structHash = keccak256(abi.encode(_PERMIT_TYPEHASH, owner, spender, value, _useNonce(owner), deadline));
+            bytes32 hash = _hashTypedDataV4(structHash);
+            
+            address signer = ECDSA.recover(hash, v, r, s);
+            require(signer == owner, "ERC20Permit: invalid signature");
+            
+            _approve(owner, spender, value);
+        }
+
+        function nonces(address owner) public view virtual override returns (uint256) {
+            return _nonces[owner];
+        }
+
+        function DOMAIN_SEPARATOR() external view override returns (bytes32) {
+            return _domainSeparatorV4();
+        }
+
+        function _useNonce(address owner) internal virtual returns (uint256 current) {
+            current = _nonces[owner];
+            _nonces[owner] += 1;
+        }
+
+        function mint(uint amount) external {
+            _mint(msg.sender, amount);
+        }
+    }
+    ```
+- [103-54] 跨链桥
+    - 跨链桥是一种区块链协议，它允许在两个或多个区块链之间移动数字资产和信息。跨链桥不是区块链原生支持的，跨链操作需要可信第三方来执行，这也带来了风险。跨链桥主要有以下三种类型：
+        - Burn/Mint：在源链上销毁（burn）代币，然后在目标链上创建（mint）同等数量的代币。此方法好处是代币的总供应量保持不变，但是需要跨链桥拥有代币的铸造权限，适合项目方搭建自己的跨链桥。
+        - Stake/Mint：在源链上锁定（stake）代币，然后在目标链上创建（mint）同等数量的代币（凭证）。源链上的代币被锁定，当代币从目标链移回源链时再解锁。这是一般跨链桥使用的方案，不需要任何权限，但是风险也较大，当源链的资产被黑客攻击时，目标链上的凭证将变为空气。
+        - Stake/Unstake：在源链上锁定（stake）代币，然后在目标链上释放（unstake）同等数量的代币，在目标链上的代币可以随时兑换回源链的代币。这个方法需要跨链桥在两条链都有锁定的代币，门槛较高，一般需要激励用户在跨链桥锁仓。
+    - 这里举例一个简单的跨链桥（没有考虑生产环境中的一些问题，比如交易失败、链的重组等等，不要直接用于生产环境）。
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity ^0.8.20;
+
+    import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+    import "@openzeppelin/contracts/access/Ownable.sol";
+
+    contract CrossChainToken is ERC20, Ownable {
+        event Bridge(address indexed user, uint256 amount);
+        event Mint(address indexed to, uint256 amount);
+
+        constructor(
+            string memory name,
+            string memory symbol,
+            uint256 totalSupply
+        ) payable ERC20(name, symbol) Ownable(msg.sender) {
+            _mint(msg.sender, totalSupply);
+        }
+
+        function bridge(uint256 amount) public {
+            _burn(msg.sender, amount);
+            emit Bridge(msg.sender, amount);
+        }
+        
+        function mint(address to, uint amount) external onlyOwner {
+            _mint(to, amount);
+            emit  Mint(to, amount);
+        }
+    }
+    ```
+    这个合约还需要一个服务来监听链上事件。当事件被触发时，在目标链上创建同样数量的代币。
+    ```solidity
+    import { ethers } from "ethers";
+
+    // 初始化两条链的provider
+    const providerGoerli = new ethers.JsonRpcProvider("Goerli_Provider_URL");
+    const providerSepolia = new ethers.JsonRpcProvider("Sepolia_Provider_URL");
+
+    // 初始化两条链的signer, privateKey填管理者钱包的私钥
+    const privateKey = "Your_Key";
+    const walletGoerli = new ethers.Wallet(privateKey, providerGoerli);
+    const walletSepolia = new ethers.Wallet(privateKey, providerSepolia);
+
+    // 合约地址和ABI
+    const contractAddressGoerli = "0xa2950F56e2Ca63bCdbA422c8d8EF9fC19bcF20DD";
+    const contractAddressSepolia = "0xad20993E1709ed13790b321bbeb0752E50b8Ce69";
+
+    const abi = [
+        "event Bridge(address indexed user, uint256 amount)",
+        "function bridge(uint256 amount) public",
+        "function mint(address to, uint amount) external",
+    ];
+
+    // 初始化合约实例
+    const contractGoerli = new ethers.Contract(contractAddressGoerli, abi, walletGoerli);
+    const contractSepolia = new ethers.Contract(contractAddressSepolia, abi, walletSepolia);
+
+    const main = async () => {
+        try{
+            console.log(`开始监听跨链事件`)
+
+            // 监听chain Sepolia的Bridge事件，然后在Goerli上执行mint操作，完成跨链
+            contractSepolia.on("Bridge", async (user, amount) => {
+                console.log(`Bridge event on Chain Sepolia: User ${user} burned ${amount} tokens`);
+
+                // 在执行burn操作
+                let tx = await contractGoerli.mint(user, amount);
+                await tx.wait();
+
+                console.log(`Minted ${amount} tokens to ${user} on Chain Goerli`);
+            });
+
+            // 监听chain Goerli的Bridge事件，然后在Sepolia上执行mint操作，完成跨链
+            contractGoerli.on("Bridge", async (user, amount) => {
+                console.log(`Bridge event on Chain Goerli: User ${user} burned ${amount} tokens`);
+
+                // 在执行burn操作
+                let tx = await contractSepolia.mint(user, amount);
+                await tx.wait();
+
+                console.log(`Minted ${amount} tokens to ${user} on Chain Sepolia`);
+            });
+        } catch(e) {
+            console.log(e);
+        } 
+    }
+
+    main();
+    ```
 ### 2024.10.11
 
 - [103-55] 多重调用
+    - MultiCall 多重调用合约，它的设计目的在于一次交易中执行多个函数调用，这样可以显著降低交易费用并提高效率。由 [Multicall3](https://github.com/mds1/multicall/blob/main/src/Multicall3.sol) 简化而来。
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity ^0.8.19;
+
+    contract Multicall {
+        struct Call {
+            address target;     // 目标合约
+            bool allowFailure;  // 是否允许调用失败allowFailure
+            bytes callData;     // 调用参数
+        }
+
+        struct Result {
+            bool success;
+            bytes returnData;
+        }
+
+        /// @notice 将多个调用（支持不同合约/不同方法/不同参数）合并到一次调用
+        function multicall(Call[] calldata calls) public returns (Result[] memory returnData) {
+            uint256 length = calls.length;
+            returnData = new Result[](length);
+            Call calldata calli;
+            
+            // 在循环中依次调用
+            for (uint256 i = 0; i < length; i++) {
+                Result memory result = returnData[i];
+                calli = calls[i];
+                (result.success, result.returnData) = calli.target.call(calli.callData);
+                // 如果 calli.allowFailure 和 result.success 均为 false，则 revert
+                if (!(calli.allowFailure || result.success)){
+                    revert("Multicall: call failed");
+                }
+            }
+        }
+    }
+    ```
 - [103-56] 去中心化交易所
+    - 恒定乘积自动做市商（Constant Product Automated Market Maker, CPAMM）是去中心化交易所的核心机制，被 Uniswap，PancakeSwap 等一系列 DEX 采用。教学代码由 [uniswap v2](https://github.com/Uniswap/v2-core) 简化而成，包括了CPAMM最核心的功能。
+    - 自动做市商（Automated Market Maker，简称 AMM）是一种在区块链上运行的智能合约（算法），允许数字资产之间的去中心化交易。AMM 的引入开创了一种全新的交易方式，无需传统的买家和卖家进行订单匹配，而是通过一种预设的数学公式（比如，常数乘积公式）创建一个流动性池，使得用户可以随时进行交易。
+        - 恒定总和自动做市商（Constant Sum Automated Market Maker, CSAMM）： 约束 $k=x+y$ swap 前后交易对总数不变；缺点：有限流动性；
+        - 恒定乘积自动做市商（CPAMM）：约束 $k=x*y$  “无限”流动性：代币的相对价格会随着买卖而变化，越稀缺的代币相对价格会越高，避免流动性被耗尽。
+    - DEX 主要有两类参与者：流动性提供者（Liquidity Provider，LP）和交易者（Trader）。流动性提供者给市场提供流动性，让交易者获得更好的报价和流动性，并收取一定费用。当用户向代币池添加流动性时，合约要记录添加的LP份额。根据 Uniswap V2，LP份额如下计算：
+        - 首次添加：$\Delta{L}=\sqrt{\Delta{x}*\Delta{y}}$。
+        - 非首次添加：$\Delta{L}=L*\min(\frac{\Delta{x}}{x},\frac{\Delta{y}}{y})$
+        - 移除流动性：$\Delta{x}=\frac{\Delta{L}}{L}*x, \Delta{y}=\frac{\Delta{L}}{L}y$
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity ^0.8.19;
+    import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+    contract SimpleSwap is ERC20 {
+        // 代币合约
+        IERC20 public token0;
+        IERC20 public token1;
+
+        // 代币储备量
+        uint public reserve0;
+        uint public reserve1;
+
+        // 事件 
+        event Mint(address indexed sender, uint amount0, uint amount1);
+        event Burn(address indexed sender, uint amount0, uint amount1);
+        event Swap(address indexed sender,uint amountIn,address tokenIn,uint amountOut,address tokenOut);
+
+        // 构造器，初始化代币地址
+        constructor(IERC20 _token0, IERC20 _token1) ERC20("SimpleSwap", "SS") {
+            token0 = _token0;
+            token1 = _token1;
+        }
+
+        function min(uint x, uint y) internal pure returns (uint z) {
+            z = x < y ? x : y;
+        }
+
+        // 计算平方根 babylonian method (https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Babylonian_method)
+        function sqrt(uint y) internal pure returns (uint z) {
+            if (y > 3) {
+                z = y;
+                uint x = y / 2 + 1;
+                while (x < z) {
+                    z = x;
+                    x = (y / x + x) / 2;
+                }
+            } else if (y != 0) {
+                z = 1;
+            }
+        }
+
+        function addLiquidity(uint amount0Desired, uint amount1Desired) public returns(uint liquidity){
+            token0.transferFrom(msg.sender, address(this), amount0Desired);
+            token1.transferFrom(msg.sender, address(this), amount1Desired);
+            uint _totalSupply = totalSupply();
+            if (_totalSupply == 0) {
+                // 如果是第一次添加流动性，铸造 L = sqrt(x * y) 单位的LP（流动性提供者）代币
+                liquidity = sqrt(amount0Desired * amount1Desired);
+            } else {
+                // 如果不是第一次添加流动性，按添加代币的数量比例铸造LP，取两个代币更小的那个比例
+                liquidity = min(amount0Desired * _totalSupply / reserve0, amount1Desired * _totalSupply /reserve1);
+            }
+
+            require(liquidity > 0, 'INSUFFICIENT_LIQUIDITY_MINTED');
+
+            reserve0 = token0.balanceOf(address(this));
+            reserve1 = token1.balanceOf(address(this));
+
+            _mint(msg.sender, liquidity);            
+            emit Mint(msg.sender, amount0Desired, amount1Desired);
+        }
+
+        function removeLiquidity(uint liquidity) external returns (uint amount0, uint amount1) {
+            uint balance0 = token0.balanceOf(address(this));
+            uint balance1 = token1.balanceOf(address(this));
+            uint _totalSupply = totalSupply();
+            amount0 = liquidity * balance0 / _totalSupply;
+            amount1 = liquidity * balance1 / _totalSupply;
+            require(amount0 > 0 && amount1 > 0, 'INSUFFICIENT_LIQUIDITY_BURNED');
+            _burn(msg.sender, liquidity);
+            token0.transfer(msg.sender, amount0);
+            token1.transfer(msg.sender, amount1);
+            reserve0 = token0.balanceOf(address(this));
+            reserve1 = token1.balanceOf(address(this));
+            emit Burn(msg.sender, amount0, amount1);
+        }
+
+        // 给定一个资产的数量和代币对的储备，计算交换另一个代币的数量，由于乘积恒定
+        // 交换前: k = x * y
+        // 交换后: k = (x + delta_x) * (y + delta_y)
+        // 可得 delta_y = - delta_x * y / (x + delta_x)
+        // 正/负号代表转入/转出
+        function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) public pure returns (uint amountOut) {
+            require(amountIn > 0, 'INSUFFICIENT_AMOUNT');
+            require(reserveIn > 0 && reserveOut > 0, 'INSUFFICIENT_LIQUIDITY');
+            amountOut = amountIn * reserveOut / (reserveIn + amountIn);
+        }
+
+        function swap(uint amountIn, IERC20 tokenIn, uint amountOutMin) external returns (uint amountOut, IERC20 tokenOut){
+            require(amountIn > 0, 'INSUFFICIENT_OUTPUT_AMOUNT');
+            require(tokenIn == token0 || tokenIn == token1, 'INVALID_TOKEN');
+            
+            uint balance0 = token0.balanceOf(address(this));
+            uint balance1 = token1.balanceOf(address(this));
+
+            if(tokenIn == token0){
+                tokenOut = token1;
+                amountOut = getAmountOut(amountIn, balance0, balance1);
+                require(amountOut > amountOutMin, 'INSUFFICIENT_OUTPUT_AMOUNT');
+                tokenIn.transferFrom(msg.sender, address(this), amountIn);
+                tokenOut.transfer(msg.sender, amountOut);
+            }else{
+                tokenOut = token0;
+                amountOut = getAmountOut(amountIn, balance1, balance0);
+                require(amountOut > amountOutMin, 'INSUFFICIENT_OUTPUT_AMOUNT');
+                tokenIn.transferFrom(msg.sender, address(this), amountIn);
+                tokenOut.transfer(msg.sender, amountOut);
+            }
+
+            reserve0 = token0.balanceOf(address(this));
+            reserve1 = token1.balanceOf(address(this));
+
+            emit Swap(msg.sender, amountIn, address(tokenIn), amountOut, address(tokenOut));
+        }
+    }
+    ```
 - [103-57] 闪电贷
 
+<!-- Content_END -->
 ### 2024.10.12
 
 - [104-S01] 重入攻击
