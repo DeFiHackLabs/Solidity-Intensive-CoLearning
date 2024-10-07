@@ -1418,9 +1418,31 @@ contract interactBAYC {
     - `balanceOfBAYC(address owner)` 函数使用 `BAYC.balanceOf(owner)`，查询某个地址的 BAYC NFT 数量。
 - **安全转账**：
     - `safeTransferFromBAYC(address from, address to, uint256 tokenId)` 使用 `BAYC.safeTransferFrom(from, to, tokenId)`，将 BAYC NFT 从 `from` 地址转账到 `to` 地址。
+###### 接口应用：标准库继承
+开发者在编写和部署合约时，**不需要手动再次定义`IERC721`接口**，因为这个接口已经是**标准化的**，可以直接通过继承的方式使用。这意味着你可以直接写`contract MyNFT is IERC721`，并通过`override`关键字实现接口中的函数。
+通常来说，开发者可以直接从**已有的标准库**中继承接口。这些标准库（如`OpenZeppelin`提供的库）已经包含了`IERC721`接口的定义和实现，所以开发者可以直接从中继承，而不需要再定义接口。
+例如，使用[OpenZeppelin库](https://github.com/OpenZeppelin/openzeppelin-contracts)，可以直接引入`IERC721`接口，并编写自己的实现：
+    
+    ```solidity
+    // 从OpenZeppelin导入IERC721接口
+    import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+    
+    contract MyNFT is IERC721 {
+        mapping(address => uint256) private _balances;
+    
+        function balanceOf(address owner) external view override returns (uint256) {
+            return _balances[owner];
+        }
+    
+        // 其他函数的实现...
+    }
+    
+    ```
+使用这种方法，开发者不需要重复编写接口部分，只需要关注具体实现。这样代码更加简洁、规范，并且减少了错误的可能。
 ##### 测验结果
 - 57/100
 - 85/100
+- 100/100
 ##### 测验错题
 1. 被标记为`abstract`的合约能否被部署？
     不能。被标记为`abstract`的合约不能被直接部署。抽象合约包含未实现的函数，意味着它不完整，无法在区块链上运行。如果想要部署一个合约，必须确保该合约实现了所有的函数，或者继承它的子合约实现了所有未实现的函数。
@@ -1452,4 +1474,8 @@ contract interactBAYC {
     - `return Azuki.ownerOfAzuki(id);`错误，`ownerOfAzuki`并不是`IERC721`接口中的函数名。
 
     - `return Azuki(ownerOf, id);`错误，`Azuki(ownerOf, id)`是无效的语法，函数调用不应以这种形式进行。
+
+### 2024.10.07
+#### WTF Academy Solidity 101.15
+
 <!-- Content_END -->
