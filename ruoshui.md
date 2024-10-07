@@ -1551,6 +1551,230 @@ contract MKNFT is ERC721 {
     }
 }
 ```
+### 2024.10.07
+1、简单版荷兰拍
 
+```solidity
+
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "./ERC721.sol";
+
+contract DutchAuction is Ownable, ERC721 {
+    uint256 public constant COLLECTION_SIZE = 10000; // NFT总数
+    uint256 public constant AUCTION_START_PRICE = 1 ether; // 起拍价
+    uint256 public constant AUCTION_END_PRICE = 0.1 ether; // 结束价（最低价）
+    uint256 public constant AUCTION_TIME = 10 minutes; // 拍卖时间，为了测试方便设为10分钟
+    uint256 public constant AUCTION_DROP_INTERVAL = 1 minutes; // 每过多久时间，价格衰减一次
+    uint256 public constant AUCTION_DROP_PER_STEP =
+        (AUCTION_START_PRICE - AUCTION_END_PRICE) /
+        (AUCTION_TIME / AUCTION_DROP_INTERVAL); // 每次价格衰减步长
+    
+    uint256 public auctionStartTime; // 拍卖开始时间戳
+    string private _baseTokenURI;   // metadata URI
+    uint256[] private _allTokens; // 记录所有存在的tokenId 
+
+    //设定拍卖起始时间：我们在构造函数中会声明当前区块时间为起始时间，项目方也可以通过`setAuctionStartTime(uint32)`函数来调整
+    constructor() Ownable(msg.sender) ERC721("MK Dutch Auction", "MK Dutch Auction") {
+        auctionStartTime = block.timestamp;
+    }
+
+    /**
+     * ERC721Enumerable中totalSupply函数的实现
+     */
+    function totalSupply() public view virtual returns (uint256) {
+        return _allTokens.length;
+    }
+
+    /**
+     * Private函数，在_allTokens中添加一个新的token
+     */
+    function _addTokenToAllTokensEnumeration(uint256 tokenId) private {
+        _allTokens.push(tokenId);
+    }
+
+    // 拍卖mint函数
+    function auctionMint(uint256 quantity) external payable{
+        uint256 _saleStartTime = uint256(auctionStartTime); // 建立local变量，减少gas花费
+        require(
+        _saleStartTime != 0 && block.timestamp >= _saleStartTime,
+        "sale has not started yet"
+        ); // 检查是否设置起拍时间，拍卖是否开始
+        require(
+        totalSupply() + quantity <= COLLECTION_SIZE,
+        "not enough remaining reserved for auction to support desired mint amount"
+        ); // 检查是否超过NFT上限
+
+        uint256 totalCost = getAuctionPrice() * quantity; // 计算mint成本
+        require(msg.value >= totalCost, "Need to send more ETH."); // 检查用户是否支付足够ETH
+        
+        // Mint NFT
+        for(uint256 i = 0; i < quantity; i++) {
+            uint256 mintIndex = totalSupply();
+            _mint(msg.sender, mintIndex);
+            _addTokenToAllTokensEnumeration(mintIndex);
+        }
+        // 多余ETH退款
+        if (msg.value > totalCost) {
+            payable(msg.sender).transfer(msg.value - totalCost); //注意一下这里是否有重入的风险
+        }
+    }
+
+    // 获取拍卖实时价格
+    function getAuctionPrice()
+        public
+        view
+        returns (uint256)
+    {
+        if (block.timestamp < auctionStartTime) {
+        return AUCTION_START_PRICE;
+        }else if (block.timestamp - auctionStartTime >= AUCTION_TIME) {
+        return AUCTION_END_PRICE;
+        } else {
+        uint256 steps = (block.timestamp - auctionStartTime) /
+            AUCTION_DROP_INTERVAL;
+        return AUCTION_START_PRICE - (steps * AUCTION_DROP_PER_STEP);
+        }
+    }
+
+    // auctionStartTime setter函数，onlyOwner
+    function setAuctionStartTime(uint32 timestamp) external onlyOwner {
+        auctionStartTime = timestamp;
+    }
+
+    // BaseURI
+    function _baseURI() internal view virtual override returns (string memory) {
+        return _baseTokenURI;
+    }
+    // BaseURI setter函数, onlyOwner
+    function setBaseURI(string calldata baseURI) external onlyOwner {
+        _baseTokenURI = baseURI;
+    }
+    // 提款函数，onlyOwner
+    function withdrawMoney() external onlyOwner {
+        (bool success, ) = msg.sender.call{value: address(this).balance}("");
+        require(success, "Transfer failed.");
+    }
+}
+```
+
+2、NFT 白名单实现方式默克尔树，常用 [js库](https://github.com/merkletreejs/merkletreejs)
+
+solidity 代码的 `MerkleProof` [开源库](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/cryptography/MerkleProof.sol)
+``` solidity
+import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+```
+```solidity
+
+import "./ERC721.sol";
+
+/**
+ * 利用Merkle树树验证白名单（生成Merkle树的网页：https://lab.miguelmota.com/merkletreejs/example/）
+ * 选上Keccak-256, hashLeaves和sortPairs选项
+ * 4个叶子地址：
+    [
+    "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4", 
+    "0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2",
+    "0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db",
+    "0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB"
+    ]
+ * 第一个地址对应的merkle proof
+    [
+    "0x999bf57501565dbd2fdcea36efa2b9aef8340a8901e3459f4a4c926275d36cdb",
+    "0x4726e4102af77216b09ccd94f40daa10531c87c4d60bba7f3b3faf5ff9f19b3c"
+    ]
+ * Merkle root: 0xeeefd63003e0e702cb41cd0043015a6e26ddb38073cc6ffeb0ba3e808ba8c097
+ */
+
+/**
+ * @dev 验证Merkle树的合约.
+ *
+ * proof可以用JavaScript库生成：
+ * https://github.com/miguelmota/merkletreejs[merkletreejs].
+ * 注意: hash用keccak256，并且开启pair sorting （排序）.
+ * javascript例子见 `https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/test/utils/cryptography/MerkleProof.test.js`.
+ */
+library MerkleProof {
+    /**
+     * @dev 当通过`proof`和`leaf`重建出的`root`与给定的`root`相等时，返回`true`，数据有效。
+     * 在重建时，叶子节点对和元素对都是排序过的。
+     */
+    function verify(
+        bytes32[] memory proof,
+        bytes32 root,
+        bytes32 leaf
+    ) internal pure returns (bool) {
+        return processProof(proof, leaf) == root;
+    }
+
+    /**
+     * @dev Returns 通过Merkle树用`leaf`和`proof`计算出`root`. 当重建出的`root`和给定的`root`相同时，`proof`才是有效的。
+     * 在重建时，叶子节点对和元素对都是排序过的。
+     */
+    function processProof(bytes32[] memory proof, bytes32 leaf)
+        internal
+        pure
+        returns (bytes32)
+    {
+        bytes32 computedHash = leaf;
+        for (uint256 i = 0; i < proof.length; i++) {
+            computedHash = _hashPair(computedHash, proof[i]);
+        }
+        return computedHash;
+    }
+
+    // Sorted Pair Hash
+    function _hashPair(bytes32 a, bytes32 b) private pure returns (bytes32) {
+        return
+            a < b
+                ? keccak256(abi.encodePacked(a, b))
+                : keccak256(abi.encodePacked(b, a));
+    }
+}
+
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract MerkleTree is Ownable, ERC721 {
+    bytes32 public root; // Merkle书的根
+    mapping(address => bool) public mintedAddress; // 记录已经mint的地址
+
+    // 构造函数，初始化NFT合集的名称、代号、Merkle树的根
+    constructor(string memory name, string memory symbol)
+        Ownable(msg.sender)
+        ERC721(name, symbol)
+    {}
+
+    // setMerkleroot onlyOwner
+    function setMerkleroot(bytes32 merkleroot) external onlyOwner {
+        root = merkleroot;
+    }
+
+    // 利用Merkle书验证地址并mint
+    function mint(
+        address account,
+        uint256 tokenId,
+        bytes32[] calldata proof
+    ) external {
+        require(_verify(_leaf(account), proof), "Invalid merkle proof"); // Merkle检验通过
+        require(!mintedAddress[account], "Already minted!"); // 地址没有mint过
+
+        mintedAddress[account] = true; // 记录mint过的地址
+        _mint(account, tokenId); // mint
+    }
+
+    // 计算Merkle书叶子的哈希值
+    function _leaf(address account) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(account));
+    }
+
+    // Merkle树验证，调用MerkleProof库的verify()函数
+    function _verify(bytes32 leaf, bytes32[] memory proof)
+        internal
+        view
+        returns (bool)
+    {
+        return MerkleProof.verify(proof, root, leaf);
+    }
+}
+```
 
 <!-- Content_END -->

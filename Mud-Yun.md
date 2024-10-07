@@ -409,4 +409,45 @@ OpenZeppelin的Ownable合約是一個標準化的實現，它封裝了基本的�
 在Remix環境中，我們可以通過編譯和部署Ownable合約，並通過傳入初始擁有者地址來測試其功能。你可以使用owner函數來驗證當前的擁有者地址，並嘗試使用changeOwner函數來更改擁有者。只有當前擁有者才能成功執行此操作，任何非擁有者地址的嘗試都會因onlyOwner修飾器而失敗。
 
 如何在Solidity合約中使用構造函數和修飾器進行有效的權限管理，這對於編寫安全且可控的智能合約至關重要。
+
+
+### 2024.10.06
+
+在這篇文章中，我們將探討Solidity中的事件（Event）概念，並以ERC20代幣的轉帳為例來說明如何宣告和釋放事件，以及這些事件如何在以太坊虛擬機（EVM）的日誌中被記錄和運作。
+
+事件是EVM記錄日誌的一種機制，它具有以下特性：
+
+- 響應性：前端應用可以透過RPC接口訂閱和監聽事件，一旦事件被觸發，前端可以進行相應的反應。
+- 經濟性：與直接在區塊鏈上存儲數據相比，事件是一種更為經濟的存儲方式，因為它們的gas消耗相對較低。
+
+宣告事件時，我們使用event關鍵字，後面跟著事件名和需要記錄的變數。例如，在ERC20代幣合約中，Transfer事件的宣告如下：
+
+```solidity
+event Transfer(address indexed from, address indexed to, uint256 value);
+```
+
+這個事件記錄了三個參數：發送者地址（from）、接收者地址（to）和轉帳金額（value）。其中，from和to被標記為indexed，這意味著它們將被存儲在日誌的topics部分，方便之後的檢索。
+
+當合約的某個函數需要觸發事件時，我們使用emit關鍵字來釋放該事件。以下是一個釋放Transfer事件的範例：
+
+```solidity
+// 定義_transfer函數，執行轉帳操作
+function _transfer(
+    address from,
+    address to,
+    uint256 amount
+) external {
+    // 初始化發送者地址的餘額
+    _balances[from] = 10000000;
+    // 從發送者地址扣除轉帳金額
+    _balances[from] -= amount;
+    // 給接收者地址增加轉帳金額
+    _balances[to] += amount;
+
+    // 釋放Transfer事件
+    emit Transfer(from, to, amount);
+}
+```
+
+EVM通過日誌來存儲事件信息，每條日誌由topics和data兩部分組成。今日筆記介紹了Solidity中事件的宣告和釋放過程，以及EVM如何利用日誌記錄這些事件，從而展示了事件在區塊鏈數據存儲和前端互動中的重要作用。透過這些機制，事件不僅提供了一種經濟高效的數據存儲方法，也成為了鏈上與鏈下溝通的關鍵橋樑。
 <!-- Content_END -->

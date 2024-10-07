@@ -554,4 +554,57 @@ contract test_event{
    https://www.youtube.com/watch?v=H4s4Rf3E-EI&list=PL-edkZcvwC5a7qIaHG4Rsj6DkOM3YH3eT&index=12
 ![image](https://github.com/user-attachments/assets/ea335b6b-6e16-4266-bca7-e3295fa47d58)
 
+### 2024.10.06
+1. 学习了继承以及多重继承
+2. 学习了modifier的继承
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+contract inheritance_GrandFather{
+    event Log(string msg);
+
+    //define three functions
+    function hip() public virtual{
+        emit Log("Grandfather");
+    }
+
+    function pop() public virtual {
+        emit Log("Grandfather");
+    }
+
+    function grandfather() public virtual {
+        emit Log("Grandfather");
+    }
+}
+
+contract father is inheritance_GrandFather{
+
+    function hip() public virtual  override {
+        emit Log("father");
+    }
+
+    function pop() public virtual  override {
+        emit Log("father");
+    }
+
+    function grandfather() public virtual  override {
+        emit Log("father");
+    }
+
+}
+
+contract child is inheritance_GrandFather, father{
+    function hip() public virtual  override(inheritance_GrandFather, father) {
+        emit Log("child");
+    }
+
+    function pop() public virtual  override(inheritance_GrandFather, father) {
+        emit Log("child");
+    }
+
+    function grandfather() public virtual  override(inheritance_GrandFather, father) {
+        emit Log("child");
+    }
+}
+![image](https://github.com/user-attachments/assets/c92cff67-40b1-4d9d-9c0b-dcdb79a34914)
+
 <!-- Content_END -->
