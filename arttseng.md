@@ -86,6 +86,23 @@ WTF solidity 102開始
 一種是 using A for B, 將B擴展功能．Kotlin也有這樣的功能．
 另一種是直接使用，例如 String.toHexString()．
 
+### 2024.10.07
+先記錄補充教材
+來自SunSec整理
+DEV - Learning Solidity, Blockchain, DeFi
+https://github.com/Cyfrin/foundry-full-course-f23
+https://www.levelupweb3.xyz/solidity
+https://github.com/ethereumbook/ethereumbook
+https://cryptozombies.io/
+https://solidity-by-example.org/
+https://github.com/OffcierCia/DeFi-Developer-Road-Map 
+https://github.com/LearnWeb3DAO/14-Days-of-Solidity 
+https://github.com/0xronin/30-days-SmartContractProgrammer
+https://github.com/OffcierCia/DeFi-Developer-Road-Map
+https://www.youtube.com/watch?v=hMwdd664_iw&list=PLO5VPQH6OWdULDcret0S0EYQ7YcKzrigz
+https://www.youtube.com/watch?v=M576WGiDBdQ
+https://www.youtube.com/watch?v=wXo3S8k1ueg&list=PLgPmWS2dQHW9u6IXZq5t5GMQTpW7JL33i
+https://www.youtube.com/playlist?list=PLFcDwmPMBkzu5xMbFh3Vi1COI3bAoBaSI
 
 
 
