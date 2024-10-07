@@ -96,4 +96,12 @@ LFG～～～～～ 會完成的
 
 [**WTF Solidity 極簡入門：27. ABI編碼解碼**](<content/Haoder/md/227.md>)
 
+### 2024.10.07
+
+[**WTF Solidity 極簡入門：28. Hash**](<content/Haoder/md/226.md>)
+
+[**WTF Solidity 極簡入門：29. 選擇器**](<content/Haoder/md/226.md>)
+
+[**WTF Solidity 極簡入門：30. Try Catch**](<content/Haoder/md/226.md>)
+
 <!-- Content_END -->
