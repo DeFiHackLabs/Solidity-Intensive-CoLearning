@@ -8,16 +8,18 @@ timezone: Asia/Shanghai
 
 1. 自我介绍: Web3 & AI researcher
 
-2. 你认为你会完成本次残酷学习吗？大概率可以
+2. 你认为你会完成本次残酷学习吗？可以
    
 ## Notes
 
 - WTF Academy Solidity 101 1-15 [✅]
 - WTF Academy Solidity 102 16-30 [✅]
-- WTF Academy Solidity 103 31-50 []
+- WTF Academy Solidity 103 31-50 [✅]
 - 完成取得 Solidity 101、102 链上证书
-    - 完成捐赠 Mint 了 Solidity 101 证书 [✅]
+    - 捐赠 eth 并 Mint 了 Solidity 101 证书 [✅]
     - Solidity 102 链上证书 [TODO] <del>据说之后可以免费 Mint，暂时先不 Mint</del>
+- 其他贡献：
+    - 在17、51、56节分别发现3处typos，已提交[PR](https://github.com/AmazingAng/WTF-Solidity/pull/796),目前 under review；
 
 <!-- Content_START -->
 
@@ -2402,6 +2404,132 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     }
     ```
 - [103-56] 去中心化交易所
+    - 恒定乘积自动做市商（Constant Product Automated Market Maker, CPAMM）是去中心化交易所的核心机制，被 Uniswap，PancakeSwap 等一系列 DEX 采用。教学代码由 [uniswap v2](https://github.com/Uniswap/v2-core) 简化而成，包括了CPAMM最核心的功能。
+    - 自动做市商（Automated Market Maker，简称 AMM）是一种在区块链上运行的智能合约（算法），允许数字资产之间的去中心化交易。AMM 的引入开创了一种全新的交易方式，无需传统的买家和卖家进行订单匹配，而是通过一种预设的数学公式（比如，常数乘积公式）创建一个流动性池，使得用户可以随时进行交易。
+        - 恒定总和自动做市商（Constant Sum Automated Market Maker, CSAMM）： 约束 $k=x+y$ swap 前后交易对总数不变；缺点：有限流动性；
+        - 恒定乘积自动做市商（CPAMM）：约束 $k=x*y$  “无限”流动性：代币的相对价格会随着买卖而变化，越稀缺的代币相对价格会越高，避免流动性被耗尽。
+    - DEX 主要有两类参与者：流动性提供者（Liquidity Provider，LP）和交易者（Trader）。流动性提供者给市场提供流动性，让交易者获得更好的报价和流动性，并收取一定费用。当用户向代币池添加流动性时，合约要记录添加的LP份额。根据 Uniswap V2，LP份额如下计算：
+        - 首次添加：$\Delta{L}=\sqrt{\Delta{x}*\Delta{y}}$。
+        - 非首次添加：$\Delta{L}=L*\min(\frac{\Delta{x}}{x},\frac{\Delta{y}}{y})$
+        - 移除流动性：$\Delta{x}=\frac{\Delta{L}}{L}*x, \Delta{y}=\frac{\Delta{L}}{L}y$
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity ^0.8.19;
+    import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+    contract SimpleSwap is ERC20 {
+        // 代币合约
+        IERC20 public token0;
+        IERC20 public token1;
+
+        // 代币储备量
+        uint public reserve0;
+        uint public reserve1;
+
+        // 事件 
+        event Mint(address indexed sender, uint amount0, uint amount1);
+        event Burn(address indexed sender, uint amount0, uint amount1);
+        event Swap(address indexed sender,uint amountIn,address tokenIn,uint amountOut,address tokenOut);
+
+        // 构造器，初始化代币地址
+        constructor(IERC20 _token0, IERC20 _token1) ERC20("SimpleSwap", "SS") {
+            token0 = _token0;
+            token1 = _token1;
+        }
+
+        function min(uint x, uint y) internal pure returns (uint z) {
+            z = x < y ? x : y;
+        }
+
+        // 计算平方根 babylonian method (https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Babylonian_method)
+        function sqrt(uint y) internal pure returns (uint z) {
+            if (y > 3) {
+                z = y;
+                uint x = y / 2 + 1;
+                while (x < z) {
+                    z = x;
+                    x = (y / x + x) / 2;
+                }
+            } else if (y != 0) {
+                z = 1;
+            }
+        }
+
+        function addLiquidity(uint amount0Desired, uint amount1Desired) public returns(uint liquidity){
+            token0.transferFrom(msg.sender, address(this), amount0Desired);
+            token1.transferFrom(msg.sender, address(this), amount1Desired);
+            uint _totalSupply = totalSupply();
+            if (_totalSupply == 0) {
+                // 如果是第一次添加流动性，铸造 L = sqrt(x * y) 单位的LP（流动性提供者）代币
+                liquidity = sqrt(amount0Desired * amount1Desired);
+            } else {
+                // 如果不是第一次添加流动性，按添加代币的数量比例铸造LP，取两个代币更小的那个比例
+                liquidity = min(amount0Desired * _totalSupply / reserve0, amount1Desired * _totalSupply /reserve1);
+            }
+
+            require(liquidity > 0, 'INSUFFICIENT_LIQUIDITY_MINTED');
+
+            reserve0 = token0.balanceOf(address(this));
+            reserve1 = token1.balanceOf(address(this));
+
+            _mint(msg.sender, liquidity);            
+            emit Mint(msg.sender, amount0Desired, amount1Desired);
+        }
+
+        function removeLiquidity(uint liquidity) external returns (uint amount0, uint amount1) {
+            uint balance0 = token0.balanceOf(address(this));
+            uint balance1 = token1.balanceOf(address(this));
+            uint _totalSupply = totalSupply();
+            amount0 = liquidity * balance0 / _totalSupply;
+            amount1 = liquidity * balance1 / _totalSupply;
+            require(amount0 > 0 && amount1 > 0, 'INSUFFICIENT_LIQUIDITY_BURNED');
+            _burn(msg.sender, liquidity);
+            token0.transfer(msg.sender, amount0);
+            token1.transfer(msg.sender, amount1);
+            reserve0 = token0.balanceOf(address(this));
+            reserve1 = token1.balanceOf(address(this));
+            emit Burn(msg.sender, amount0, amount1);
+        }
+
+        // 给定一个资产的数量和代币对的储备，计算交换另一个代币的数量，由于乘积恒定
+        // 交换前: k = x * y
+        // 交换后: k = (x + delta_x) * (y + delta_y)
+        // 可得 delta_y = - delta_x * y / (x + delta_x)
+        // 正/负号代表转入/转出
+        function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) public pure returns (uint amountOut) {
+            require(amountIn > 0, 'INSUFFICIENT_AMOUNT');
+            require(reserveIn > 0 && reserveOut > 0, 'INSUFFICIENT_LIQUIDITY');
+            amountOut = amountIn * reserveOut / (reserveIn + amountIn);
+        }
+
+        function swap(uint amountIn, IERC20 tokenIn, uint amountOutMin) external returns (uint amountOut, IERC20 tokenOut){
+            require(amountIn > 0, 'INSUFFICIENT_OUTPUT_AMOUNT');
+            require(tokenIn == token0 || tokenIn == token1, 'INVALID_TOKEN');
+            
+            uint balance0 = token0.balanceOf(address(this));
+            uint balance1 = token1.balanceOf(address(this));
+
+            if(tokenIn == token0){
+                tokenOut = token1;
+                amountOut = getAmountOut(amountIn, balance0, balance1);
+                require(amountOut > amountOutMin, 'INSUFFICIENT_OUTPUT_AMOUNT');
+                tokenIn.transferFrom(msg.sender, address(this), amountIn);
+                tokenOut.transfer(msg.sender, amountOut);
+            }else{
+                tokenOut = token0;
+                amountOut = getAmountOut(amountIn, balance1, balance0);
+                require(amountOut > amountOutMin, 'INSUFFICIENT_OUTPUT_AMOUNT');
+                tokenIn.transferFrom(msg.sender, address(this), amountIn);
+                tokenOut.transfer(msg.sender, amountOut);
+            }
+
+            reserve0 = token0.balanceOf(address(this));
+            reserve1 = token1.balanceOf(address(this));
+
+            emit Swap(msg.sender, amountIn, address(tokenIn), amountOut, address(tokenOut));
+        }
+    }
+    ```
 - [103-57] 闪电贷
 
 ### 2024.10.12
