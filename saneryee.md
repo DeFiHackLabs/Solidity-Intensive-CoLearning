@@ -50,6 +50,146 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 ## Notes
 
 <!-- Content_START -->
+### 2024.10.07
+
+Day 12
+
+WTF Academy Solidity 101 38_NFTSwap, 39_Random
+
+**NFT Exchange**
+
+- There are two main contract
+  - NFT contract: `WTFApe.sol`
+  - NFT exchange contract: `NFTSwap.sol`
+- first: The NFT owner need `approve` NFT exchange contract to list the NFT for sale in NFT contract.
+- All trancations recorded in the NFT contract.
+
+**Random**
+
+Migration to Chainlink VRF v0.25
+
+```Solidity
+   // SPDX-License-Identifier: MIT
+   pragma solidity ^0.8.21;
+
+   import "https://github.com/AmazingAng/WTF-Solidity/blob/main/34_ERC721/ERC721.sol";
+   import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
+   import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
+
+   contract Random is ERC721, VRFConsumerBaseV2Plus{
+      // NFT parameters
+      uint256 public totalSupply = 100; // total supply
+      uint256[100] public ids; // used to calculate tokenId that can be mint
+      uint256 public mintCount; // the number of mint, the default value is 0
+
+      // chainlink VRF parameters
+      
+      /**
+      * Network: Sepolia testnet
+      * Chainlink VRF2.5 : 0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B
+      * LINK Token Address: 0x01BE23585060835E02B77ef475b0Cc51aA1e0709
+      * 30 gwei Key Hash: 0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae
+      * Minimum Confirmations  : 3 
+      * callbackGasLimit  : 
+      * Maximum Random Values 一 : Max 500          
+      */
+
+      address vrfCoordinator = 0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B;
+
+      ///// USE NEW KEYHASH FOR VRF 2.5 GAS LANE /////
+      // For a list of available gas lanes on each network,
+      // see https://docs.chain.link/docs/vrf/v2-5/supported-networks
+      bytes32 keyHash = 0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae;
+      
+      uint16 requestConfirmations = 3;
+      uint32 callbackGasLimit = 1_000_000;
+      uint32 numWords = 1;
+      uint256 subId;
+      uint256 public requestId;
+      
+      
+      mapping(uint256 => address) public requestToSender;
+
+      ///// No need to declare a coordinator variable /////
+      ///// Use the `s_vrfCoordinator` from VRFConsumerBaseV2Plus.sol /////
+      constructor(uint256 s_subId) 
+         VRFConsumerBaseV2Plus(vrfCoordinator)
+         ERC721("WTF Random", "WTF"){
+               subId = s_subId;
+      }
+
+      /** 
+      * Input a uint256 number and return a tokenId that can be mint
+      */
+      function pickRandomUniqueId(uint256 random) private returns (uint256 tokenId) {
+         // Calculate the subtraction first, then calculate ++, pay attention to the difference between (a++, ++a)
+         uint256 len = totalSupply - mintCount++; // mint quantity
+         require(len > 0, "mint close"); // all tokenIds are mint finished
+         uint256 randomIndex = random % len; // get the random number on the chain
+
+         // Take the modulus of the random number to get the tokenId as an array subscript, and record the value as len-1 at the same time. If the value obtained by taking the modulus already exists, then tokenId takes the value of the array subscript
+         tokenId = ids[randomIndex] != 0 ? ids[randomIndex] : randomIndex; // get tokenId
+         ids[randomIndex] = ids[len - 1] == 0 ? len - 1 : ids[len - 1]; // update ids list
+         ids[len - 1] = 0; // delete the last element, can return gas
+      }
+
+      /**
+      * On-chain pseudo-random number generation
+      * keccak256(abi.encodePacked() fill in some global variables/custom variables on the chain
+      * Convert to uint256 type when returning
+      */
+      function getRandomOnchain() public view returns(uint256){
+        /*
+         * In this case, randomness on the chain only depends on block hash, caller address, and block time,
+         * If you want to improve the randomness, you can add some attributes such as nonce, etc., but it cannot fundamentally solve the security problem
+         */
+         bytes32 randomBytes = keccak256(abi.encodePacked(blockhash(block.number-1), msg.sender, block.timestamp));
+         return uint256(randomBytes);
+      }
+
+      // Use the pseudo-random number on the chain to cast NFT
+      function mintRandomOnchain() public {
+         uint256 _tokenId = pickRandomUniqueId(getRandomOnchain()); // Use the random number on the chain to generate tokenId
+         _mint(msg.sender, _tokenId);
+      }
+
+      /**
+      * Call VRF to get random number and mintNFT
+      * To call the requestRandomness() function to obtain, the logic of consuming random numbers is written in the VRF callback function fulfillRandomness()
+      * Before calling, transfer LINK tokens to this contract
+      */
+      ///// UPDATE TO NEW V2.5 REQUEST FORMAT /////
+      // To enable payment in native tokens, set nativePayment to true.
+      // Use the `s_vrfCoordinator` from VRFConsumerBaseV2Plus.sol
+      function mintRandomVRF() public {
+         // Check the LINK balance in the contract
+         requestId = s_vrfCoordinator.requestRandomWords(
+               VRFV2PlusClient.RandomWordsRequest({
+                  keyHash: keyHash,
+                  subId: subId,
+                  requestConfirmations: requestConfirmations,
+                  callbackGasLimit: callbackGasLimit,
+                  numWords: numWords,
+                  extraArgs: VRFV2PlusClient._argsToBytes(
+                     VRFV2PlusClient.ExtraArgsV1({nativePayment: false})
+                  )
+               })
+
+         );
+         requestToSender[requestId] = msg.sender;
+      }
+
+      /**
+      * VRF callback function, called by VRF Coordinator
+      * The logic of consuming random numbers is written in this function
+      */
+      function fulfillRandomWords(uint256 requestId, uint256[] calldata s_randomWords) internal override{
+         address sender = requestToSender[requestId]; // Get minter user address from requestToSender
+         uint256 tokenId = pickRandomUniqueId(s_randomWords[0]); // Use the random number returned by VRF to generate tokenId
+         _mint(sender, tokenId);
+      }
+   }
+```
 ### 2024.10.05
 
 Day 11

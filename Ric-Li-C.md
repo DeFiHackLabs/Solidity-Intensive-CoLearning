@@ -162,4 +162,8 @@ Add source codes for 33.Airdrop and its tests
 
 Add source codes for 05.DataStorage and its tests
 
+### 2024.10.07
+
+Update source codes for 05.DataStorage, 35.DutchAuction and 35.DutchAuction's tests
+
 <!-- Content_END -->

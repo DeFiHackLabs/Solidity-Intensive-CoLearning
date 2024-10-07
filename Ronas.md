@@ -557,6 +557,47 @@ timezone: Asia/Shanghai
     - 坎昆升級後, 加入了 [EIP-6780](https://eips.ethereum.org/EIPS/eip-6780), 更改了 `selfdestruct` 功能, 升級後的 `selfdestruct` 只會轉移 ETH, 刪除功能必須在同時發生創建-自毀才會發生
         - 已部署的合約已無法被刪除
 
-- ABI 編碼解碼
+### 2024.10.07
+
+> 進度: Solidity 102 27~30
+
+- ABI (Application Binary Interface)
+    - 編碼
+        - abi.encode
+            ```
+            abi.encode(x, addr, name, array);
+
+            # 預期結果
+            0x000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000043078414100000000000000000000000000000000000000000000000000000000
+            ```
+            - 與合約交互時使用
+            - 每個參數都會填充 0 補滿 32 bytes
+        - abi.encodePacked 
+            ```
+            abi.encodePacked(x, addr, name, array);
+            ```
+            - 會將多餘的 0 壓縮以節省空間, 在不須與合約交互時使用
+        - abi.encodeWithSignature
+            ```
+            abi.encodeWithSignature("foo(uint256,address,string,uint256[2])", x, addr, name, array);
+            ```
+            - 第一個參數為函數簽名 (e.g. `foo(uint256,address,string,uint256[2])`)
+        - abi.encodeWithSelector
+            ```
+            abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array);
+            ```
+            - 第一個參數為函數選擇器 (e.g. `bytes4(keccak256("foo(uint256,address,string,uint256[2])"))`), 結果與 encodeWithSignature 相同
+    - 解碼 
+        - abi.decode
+- Hash
+    - Keccak256
+        - 不等於標準 SHA3
+
+- Calldata & Function Selector
+    - 呼叫智能合約時, 本質上是向目標合約發送一段 `calldata`
+    - `calldata` 前四個 byte 為 selector
+
+- Try Cache
+    - since v6.0
 
 <!-- Content_END -->

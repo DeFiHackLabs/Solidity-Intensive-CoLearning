@@ -831,4 +831,23 @@ contract ContractB{
     }
 }
 ```
+
+### 2024.10.07
+
+學習內容:
+
+- [x] 创建合约
+
+    -  create方式创建合约
+        - 用法：`Contract x = new Contract{value: 1 ether}(params);` 如果构造函数是payable，可以通过value传入eth
+        - 地址计算：`新地址 = hash(创建者地址, nonce)` 因为nonce会随时间改变，所以地址不可预测
+       
+    -  create2方式创建合约
+        - 用法：`Contract x  = new Contract{salt: _salt, value: 1 ether}(params);` 如果构造函数是payable，可以通过value传入eth
+        - 地址计算：
+           - `新地址 = hash("0xFF",创建者地址, salt, initcode)`
+           - `0xFF` 是固定值
+           - `initcode` 新合约的初始字节码（合约的Creation Code和构造函数的参数）
+           - `salt` 一个创建者指定的bytes32类型的值，它的主要目的是用来影响新创建的合约的地址。
+           - 创建者地址：调用 CREATE2 的当前合约（创建合约）地址。
 <!-- Content_END -->

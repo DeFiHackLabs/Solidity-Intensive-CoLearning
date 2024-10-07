@@ -96,5 +96,9 @@ mapping的初步認識與儲存數據之方式，並且了解了其他學員提�
 筆記 : [2024.10.04學習筆記 24單元](https://hackmd.io/@82tWd8u0TI6fMRC9VG6JXw/rJ5lKjpCA)
 
 內容 : 這次學習了 102 的 24單元。
+### 2024.10.07
+#### 學習筆記
+筆記 : [2024.10.04學習筆記 25 ~ 26單元](https://hackmd.io/@82tWd8u0TI6fMRC9VG6JXw/BkalMU-yyl)
 
+了解CREATE2 與 CREATE差別，並且查看[EIP-6049](https://eips.ethereum.org/EIPS/eip-6049)的更改。
 <!-- Content_END -->

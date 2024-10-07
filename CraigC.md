@@ -61,6 +61,9 @@ timezone: Asia/Shanghai
 ### 2024.10.06
 [WTF Academy Solidity 102 16 Note](content/CraigC/16.md)
 
+### 2024.10.07
+[WTF Academy Solidity 102 17 Note](content/CraigC/17.md)
+
 
 
 <!-- Content_END -->
