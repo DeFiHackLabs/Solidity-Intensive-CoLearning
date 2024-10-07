@@ -663,10 +663,78 @@ send有2300 gas限制，而且发送失败不会自动revert交易，几乎没�
              );
          }
 
-### 2024.10.0
+### 2024.10.07
 
-學習內容: WTF 24~
+學習內容: WTF 24
 
 # 24:
+
+1. 以太坊链上，用户（外部账户，EOA）可以创建智能合约，智能合约同样也可以创建新的智能合约。去中心化交易所uniswap就是利用工厂合约（PairFactory）创建了无数个币对合约（Pair）。
+两种方法可以在合约中创建新合约，create和create2(#25)
+
+2. create的用法:
+   Contract x = new Contract{value: _value}(params)
+//Contract:合约名，x:合约对象（地址），如果构造函数是payable，可以创建时转入_value数量的ETH，params:新合约构造函数的参数。
+
+3. Uniswap V2核心合约中包含两个合约：
+- UniswapV2Pair: 币对合约，用于管理币对地址、流动性、买卖。
+- UniswapV2Factory: 工厂合约，用于创建新的币对，并管理币对地址。
+//Pair币对合约负责管理币对地址，PairFactory工厂合约用于创建新的币对，并管理币对地址。
+
+4. Pair合约
+     
+         contract Pair{
+          address public factory; // 工厂合约地址
+          address public token0; // 代币1
+          address public token1; // 代币2
+   
+       constructor() payable {
+           factory = msg.sender;
+       }
+   
+       // called once by the factory at time of deployment
+       function initialize(address _token0, address _token1) external {
+           require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
+           token0 = _token0;
+           token1 = _token1;
+       }
+         }
+
+//3个状态变量：factory，token0和token1。
+//构造函数constructor在部署时将factory赋值为工厂合约地址。initialize函数会初始化代币地址，将token0和token1更新为币对中两种代币的地址。
+   uniswap使用的是create2创建合约，生成的合约地址可以实现预测
+
+5. PairFactory
+
+         contract PairFactory{
+          mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+          address[] public allPairs; // 保存所有Pair地址
+      
+          function createPair(address tokenA, address tokenB) external returns (address pairAddr) {
+              // 创建新合约
+              Pair pair = new Pair(); 
+              // 调用新合约的initialize方法
+              pair.initialize(tokenA, tokenB);
+              // 更新地址map
+              pairAddr = address(pair);
+              allPairs.push(pairAddr);
+              getPair[tokenA][tokenB] = pairAddr;
+              getPair[tokenB][tokenA] = pairAddr;
+          }
+      }
+
+getPair是两个代币地址到币对地址的map，方便根据代币找到币对地址
+allPairs是币对地址的数组，存储了所有代币地址。
+
+PairFactory合约只有一个createPair函数，根据输入的两个代币地址tokenA和tokenB来创建新的Pair合约。其中
+Pair pair = new Pair(); 
+
+### 2024.10.0
+
+學習內容: WTF 25
+
+# 25:
+
+
 
 <!-- Content_END -->
