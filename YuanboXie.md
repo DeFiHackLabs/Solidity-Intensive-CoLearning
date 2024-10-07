@@ -16,6 +16,8 @@ timezone: Asia/Shanghai
 - WTF Academy Solidity 102 16-30 [✅]
 - WTF Academy Solidity 103 31-50 []
 - 完成取得 Solidity 101、102 链上证书
+    - 完成捐赠 Mint 了 Solidity 101 证书 [✅]
+    - Solidity 102 链上证书 [TODO] <del>据说之后可以免费 Mint，暂时先不 Mint</del>
 
 <!-- Content_START -->
 
@@ -2268,7 +2270,100 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     }
     ```
 - [103-54] 跨链桥
+    - 跨链桥是一种区块链协议，它允许在两个或多个区块链之间移动数字资产和信息。跨链桥不是区块链原生支持的，跨链操作需要可信第三方来执行，这也带来了风险。跨链桥主要有以下三种类型：
+        - Burn/Mint：在源链上销毁（burn）代币，然后在目标链上创建（mint）同等数量的代币。此方法好处是代币的总供应量保持不变，但是需要跨链桥拥有代币的铸造权限，适合项目方搭建自己的跨链桥。
+        - Stake/Mint：在源链上锁定（stake）代币，然后在目标链上创建（mint）同等数量的代币（凭证）。源链上的代币被锁定，当代币从目标链移回源链时再解锁。这是一般跨链桥使用的方案，不需要任何权限，但是风险也较大，当源链的资产被黑客攻击时，目标链上的凭证将变为空气。
+        - Stake/Unstake：在源链上锁定（stake）代币，然后在目标链上释放（unstake）同等数量的代币，在目标链上的代币可以随时兑换回源链的代币。这个方法需要跨链桥在两条链都有锁定的代币，门槛较高，一般需要激励用户在跨链桥锁仓。
+    - 这里举例一个简单的跨链桥（没有考虑生产环境中的一些问题，比如交易失败、链的重组等等，不要直接用于生产环境）。
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity ^0.8.20;
 
+    import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+    import "@openzeppelin/contracts/access/Ownable.sol";
+
+    contract CrossChainToken is ERC20, Ownable {
+        event Bridge(address indexed user, uint256 amount);
+        event Mint(address indexed to, uint256 amount);
+
+        constructor(
+            string memory name,
+            string memory symbol,
+            uint256 totalSupply
+        ) payable ERC20(name, symbol) Ownable(msg.sender) {
+            _mint(msg.sender, totalSupply);
+        }
+
+        function bridge(uint256 amount) public {
+            _burn(msg.sender, amount);
+            emit Bridge(msg.sender, amount);
+        }
+        
+        function mint(address to, uint amount) external onlyOwner {
+            _mint(to, amount);
+            emit  Mint(to, amount);
+        }
+    }
+    ```
+    这个合约还需要一个服务来监听链上事件。当事件被触发时，在目标链上创建同样数量的代币。
+    ```solidity
+    import { ethers } from "ethers";
+
+    // 初始化两条链的provider
+    const providerGoerli = new ethers.JsonRpcProvider("Goerli_Provider_URL");
+    const providerSepolia = new ethers.JsonRpcProvider("Sepolia_Provider_URL");
+
+    // 初始化两条链的signer, privateKey填管理者钱包的私钥
+    const privateKey = "Your_Key";
+    const walletGoerli = new ethers.Wallet(privateKey, providerGoerli);
+    const walletSepolia = new ethers.Wallet(privateKey, providerSepolia);
+
+    // 合约地址和ABI
+    const contractAddressGoerli = "0xa2950F56e2Ca63bCdbA422c8d8EF9fC19bcF20DD";
+    const contractAddressSepolia = "0xad20993E1709ed13790b321bbeb0752E50b8Ce69";
+
+    const abi = [
+        "event Bridge(address indexed user, uint256 amount)",
+        "function bridge(uint256 amount) public",
+        "function mint(address to, uint amount) external",
+    ];
+
+    // 初始化合约实例
+    const contractGoerli = new ethers.Contract(contractAddressGoerli, abi, walletGoerli);
+    const contractSepolia = new ethers.Contract(contractAddressSepolia, abi, walletSepolia);
+
+    const main = async () => {
+        try{
+            console.log(`开始监听跨链事件`)
+
+            // 监听chain Sepolia的Bridge事件，然后在Goerli上执行mint操作，完成跨链
+            contractSepolia.on("Bridge", async (user, amount) => {
+                console.log(`Bridge event on Chain Sepolia: User ${user} burned ${amount} tokens`);
+
+                // 在执行burn操作
+                let tx = await contractGoerli.mint(user, amount);
+                await tx.wait();
+
+                console.log(`Minted ${amount} tokens to ${user} on Chain Goerli`);
+            });
+
+            // 监听chain Goerli的Bridge事件，然后在Sepolia上执行mint操作，完成跨链
+            contractGoerli.on("Bridge", async (user, amount) => {
+                console.log(`Bridge event on Chain Goerli: User ${user} burned ${amount} tokens`);
+
+                // 在执行burn操作
+                let tx = await contractSepolia.mint(user, amount);
+                await tx.wait();
+
+                console.log(`Minted ${amount} tokens to ${user} on Chain Sepolia`);
+            });
+        } catch(e) {
+            console.log(e);
+        } 
+    }
+
+    main();
+    ```
 ### 2024.10.11
 
 - [103-55] 多重调用
