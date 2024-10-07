@@ -314,4 +314,51 @@ event和emit：
 
 常见的库合约有`String`、`Address`、`Create2`、`Arrays`
 
+### 2024.10.05
+**学习内容：**<br>
+Hardhat：https://hardhat.org/
+
+配置文件：hardhat.config.js
+
+`npx hardhat compile` 编译合约
+
+单元测试，需要编写js脚本，会用到chai和ethers.js两个库，分别用于测试和链上交互。最好运行测试`npx hardhat test`
+
+部署合约，在remix只需点击`deploy`就可以部署，不过在本地hardhat需要编写部署脚本。hardhat会提供一个默认网络进行部署，`npx hardhat run --network hardhat  scripts/deploy.js`
+
+通过配置hardhat.config.js，也可以部署到非本地测试网
+
+### 2024.10.06
+**学习内容：**<br>
+合约给用户转账的方法：
+
+1、transfer：会自动转送2300gas给接收方，用于执行其fallback函数。如果fallback函数使用超过2300gas，转账将失败，并回滚交易。（安全性比较好）但0.8版本后，gas限额改变
+
+```
+address payable recipient = payable(0xRecipientAddress);
+recipient.transfer(1 ether);
+
+```
+
+2、send：
+
+与transfer类似，不过在失败时不会抛出异常，而是返回false，可让合约处理异常情况。（因为需要手动处理失败情况，所以安全性不如transfer）
+
+```
+address payable recipient = payable(0xRecipientAddress);
+bool success = recipient.send(1 ether);
+require(success, "Send failed");
+```
+
+3、call方法：
+
+call是一个底层函数，用于发起外部函数调用。因为它蕴蓄指定要发送的gas量，因此也算是可以用于转账。交易失败返回false，需要手动处理异常。
+
+```
+(bool success, ) = payable(0xRecipientAddress).call{value: 1 ether}("");
+require(success, "Call failed");
+```
+
+
+
 <!-- Content_END -->

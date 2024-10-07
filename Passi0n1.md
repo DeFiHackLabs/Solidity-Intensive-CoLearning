@@ -775,4 +775,245 @@ contract C is B, A;
 contract C is B;
 ```
 这样合约 C 就会自动继承合约 B 和合约 A 的所有内容。所以，在提供的选项中，最接近正确答案的是 B，但严格来说，它应该是 `contract C is B;`。
+
+
+### 2024.10.05
+#### 学习笔记
+
+
+## 抽象合约
+抽象合约的一般饮用场景是在于：一些场景存在需求，但是具体的解决方案并未明确，所以先挖一个坑占着位置，可以标注为抽象。并且可以在具体的函数关键字部分再加一个 `virtual` 方便后续继承重写。
+
+```soldity
+abstract contract InsertionSort{
+    function insertionSort(uint[] memory a) public pure virtual returns(uint[] memory);
+}
+```
+
+
+
+## 接口
+
+接口的作用是起到一种信息或者物质的传递。
+就拿电池而言，不论是小米电池还是南孚电池都需要满足一正一负、七号规格才能放在空调遥控器里面用。
+
+而对于智能合约而言，对于那写 dapps ，别人根本就没那么多的精力去关心你里面怎么洗的，你就按照大家既成的规范老老实实的把数据怎么传输的，按照接口放出来就好了。
+
+
+比如这个 `ERC721`
+
+```solidity
+interface IERC721 is IERC165 {
+    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+    event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
+    event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
+    
+    function balanceOf(address owner) external view returns (uint256 balance);
+
+    function ownerOf(uint256 tokenId) external view returns (address owner);
+
+    function safeTransferFrom(address from, address to, uint256 tokenId) external;
+
+    function transferFrom(address from, address to, uint256 tokenId) external;
+
+    function approve(address to, uint256 tokenId) external;
+
+    function getApproved(uint256 tokenId) external view returns (address operator);
+
+    function setApprovalForAll(address operator, bool _approved) external;
+
+    function isApprovedForAll(address owner, address operator) external view returns (bool);
+
+    function safeTransferFrom( address from, address to, uint256 tokenId, bytes calldata data) external;
+}
+```
+<img width="1174" alt="image" src="https://github.com/user-attachments/assets/2afce06e-b4b1-4894-9299-592a810e98ee">
+
+
+
+
+这里作者举了两个例子，一个是用过继承来将接口和合约连接起来，另外一个就是直接通过地址连接起来。
+
+例子 1
+<img width="1159" alt="image" src="https://github.com/user-attachments/assets/f873f93e-d63a-4baf-b67c-b4e2f90add5d">
+
+
+例子 2
+
+```soldiity
+contract interactBAYC {
+    // 利用BAYC地址创建接口合约变量（ETH主网）
+    IERC721 BAYC = IERC721(0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D);
+
+    // 通过接口调用BAYC的balanceOf()查询持仓量
+    function balanceOfBAYC(address owner) external view returns (uint256 balance){
+        return BAYC.balanceOf(owner);
+    }
+
+    // 通过接口调用BAYC的safeTransferFrom()安全转账
+    function safeTransferFromBAYC(address from, address to, uint256 tokenId) external{
+        BAYC.safeTransferFrom(from, to, tokenId);
+    }
+}
+```
+
+
+
+这里再详细的整理一下：
+
+
+接口合约在 Solidity 中确实有两种主要的使用方式：**通过继承连接接口与合约**，以及 **通过合约的区块链地址直接交互**。我们可以分别来看这两种方法。
+
+### 1. 通过继承连接接口与合约
+
+这种方式是 Solidity 中最常见的接口使用方式。开发者通过继承接口合约，明确实现接口中定义的所有函数。在这种情况下，接口提供了一种规范，任何实现该接口的合约都必须遵循该规范。
+
+#### 示例：
+
+```solidity
+// 定义接口合约
+interface IMyInterface {
+    function foo() external;
+}
+
+// 实现接口的合约
+contract MyContract is IMyInterface {
+    function foo() external override {
+        // 实现接口中的函数逻辑
+    }
+}
+```
+
+在这里，`MyContract` 通过 `is IMyInterface` 继承了接口，并且实现了接口中定义的 `foo()` 函数。编译器会强制要求 `MyContract` 实现所有接口中的函数。
+
+这种继承方式的优点是强制合约实现标准化接口，尤其在协议设计或模块化开发时非常常见。例如，很多 DeFi 项目中的合约使用了统一的接口规范（如 ERC 20、ERC 721 等）。
+
+### 2. 通过合约的区块链地址直接交互
+
+第二种方式是**通过合约地址**与接口定义的合约直接交互，而不必继承接口。这种方式的典型场景是与已部署在区块链上的合约进行交互。你不需要继承这个合约，只需要知道它的接口，然后通过合约地址来调用它的函数。
+
+#### 示例：
+
+假设有一个已部署的 ERC 20 代币合约，我们可以使用其接口通过地址与其交互：
+
+```solidity
+// 定义 ERC20 接口
+interface IERC20 {
+    function transfer(address recipient, uint256 amount) external returns (bool);
+    function balanceOf(address account) external view returns (uint256);
+}
+
+// 使用合约地址与已部署的合约交互
+contract MyContract {
+    function transferTokens(address tokenAddress, address recipient, uint256 amount) public {
+        IERC20 token = IERC20(tokenAddress);  // 使用接口实例化已部署的合约
+        token.transfer(recipient, amount);    // 调用已部署合约的 transfer 函数
+    }
+}
+```
+
+在这个例子中，`IERC20` 是定义好的接口合约，`MyContract` 并没有继承它，而是通过 `tokenAddress`（已部署 ERC 20 合约的地址）与该合约交互。**这种方式可以在不继承的情况下与任何已知接口的合约进行交互**，并且你只需要合约的 ABI（Application Binary Interface）和区块链上的地址。
+
+### 总结：
+1. **继承方式**：合约通过继承接口合约，必须实现接口中定义的所有函数。这种方式主要用于编写新的合约，确保它们遵循特定的规范或协议。
+   
+2. **通过地址直接交互**：合约通过已部署的合约地址，基于接口与外部合约交互。这种方式用于与已经在区块链上存在的合约进行交互，特别是当你需要与外部合约（如 DeFi 协议或代币合约）进行通信时。
+
+你对接口合约的理解完全正确，这两种方式都很常用，取决于场景需求。
+## 接口和抽象合约的差异
+
+在 Solidity 中，**抽象合约** 和 **接口合约** 是两个不同的概念，但它们有一些关联和相似性。你看到的一些案例没有使用抽象合约就定义接口，可能是因为它们使用了 `interface` 关键字，专门用于定义接口合约。在理解两者的区别和关联之前，先了解各自的定义：
+
+### 1. 抽象合约 (Abstract Contracts)
+抽象合约是指至少有一个没有完整实现的函数的合约。抽象合约无法被直接实例化，必须通过继承和重写其未实现的函数来使用。使用 `abstract` 关键字声明抽象合约：
+
+```solidity
+pragma solidity ^0.8.0;
+
+abstract contract AbstractContract {
+    function foo() public virtual; // 没有实现的函数
+}
+```
+
+在 Solidity 0.6.0 及更高版本中，任何没有实现的函数所在的合约都必须标记为 `abstract`。
+
+### 2. 接口合约 (Interface Contracts)
+接口合约是一个只声明函数签名的合约，没有任何函数的实现。它是合约设计的一种规范，确保所有实现它的合约都必须实现接口中定义的所有函数。接口合约通过 `interface` 关键字声明：
+
+```solidity
+pragma solidity ^0.8.0;
+
+interface MyInterface {
+    function foo() external;
+}
+```
+
+#### 接口合约的规则：
+- 不能包含任何状态变量。
+- 不能实现任何函数。
+- 不能有构造函数。
+- 不能继承自其他合约，但可以继承其他接口。
+
+### 抽象合约与接口的区别和联系
+
+#### 主要区别：
+1. **实现方式**：
+   - **接口合约** 中的所有函数都不能有实现，只能定义函数的签名。
+   - **抽象合约** 可以包含部分或全部函数实现，但至少有一个没有实现的函数。
+
+2. **状态变量**：
+   - **接口合约** 不允许定义状态变量。
+   - **抽象合约** 可以定义状态变量。
+
+3. **构造函数**：
+   - **接口合约** 不允许有构造函数。
+   - **抽象合约** 可以包含构造函数。
+
+4. **函数可见性**：
+   - **接口合约** 中的函数必须声明为 `external`。
+   - **抽象合约** 中的函数可以是 `public`, `internal` 或 `external`。
+
+#### 联系：
+- 抽象合约可以看作是接口合约的一种扩展，因为它们可以定义未实现的函数，同时还允许有实现的函数和状态变量。
+- 如果一个抽象合约中没有任何已实现的函数，它在功能上等同于接口合约。
+
+### 示例
+
+#### 接口合约：
+
+```solidity
+interface IERC20 {
+    function transfer(address recipient, uint256 amount) external returns (bool);
+    function balanceOf(address account) external view returns (uint256);
+}
+```
+
+#### 抽象合约：
+
+```solidity
+abstract contract ERC20 is IERC20 {
+    mapping(address => uint256) private balances;
+
+    function balanceOf(address account) public view override returns (uint256) {
+        return balances[account];
+    }
+    
+    // 未实现的函数
+    function transfer(address recipient, uint256 amount) public virtual override;
+}
+```
+
+#### 总结：
+- **接口合约** 更严格，只能定义规范（函数签名），而不能包含实现。
+- **抽象合约** 则可以包含部分实现，是接口合约的灵活扩展形式。
+- 如果你只需要定义函数的规范，且不需要任何逻辑或状态变量，使用 `interface` 更合适；如果你需要定义部分逻辑或状态，同时允许子合约完成剩余部分的实现，使用抽象合约更合适。
+- 
+
+
+### 2024.10.07
+#### 学习笔记
+
+
+
+   
 <!-- Content_END -->

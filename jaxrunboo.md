@@ -701,4 +701,112 @@ function caculateAddr(address _token0,address _token1) external view returns(add
 
 ###
 
+### 2024.10.05 
+
+#### 合约自毁
+
+selfdestruct
+
+坎昆升级后，这个功能不会销毁当前合约，只会向目的合约转入当前合约所有eth。
+
+除非是合约创建和合约销毁在同一个方法内执行。不过确实想不到有什么应用场景。
+
+不过不建议使用，有安全性问题和信任问题。
+
+不过搜索了一下the dao攻击，倒是蛮有意思。
+
+这是黑客攻击eth链，导致出现大量经济损失。而v神他们选择放弃去中心化，对当时的eth进行分叉。
+
+现在的eth是分叉后的结果，之前的现在叫etc。
+
+确实是违背去中心化的本意，但是没做这件事情，eth还能不能活着都不一定。
+
+###
+
+### 10.06 abi编码解码
+
+Application Binary Interface 
+
+#### ABI编码
+
+编码函数
+
+1. abi.encode 
+
+将每个参数填充为32字节(64位16进制)的数据，所有参数会拼接在一起。
+
+用途：
+
+直接跟合约进行交互
+
+2. abi.encodePacked
+
+根据参数所需的最低空间编码。动作是跟encode相同，但是他会省略对存储来说多余的0。
+
+用途：
+
+不直接跟合约交互，节省空间，计算数据的hash。
+
+3. abi.encodeWithSignature
+
+功能与encode相同，32字节全字节填充，只是限定了第一个参数必须是函数签名。
+
+4. abi.encodeWithSelector
+
+功能与encodeWithSignature相同，但是限定了第一个参数必须是函数选择器。
+
+函数签名：
+
+```solidity
+foo(uint256,address,string)
+```
+
+函数选择器：
+
+```solidity
+//函数选择器为函数签名经过keccak hash加密后的前四个字节 结果例如： 0xe87082f1
+bytes4(keccak256("foo(uint256,address,string)"))
+```
+
+编码函数的返回类型都是： bytes
+
+#### ABI解码
+
+abi.decode
+
+只能用于解码encode生成的二进制编码，把它还原成原本的参数。其他的编码方式无法解码。
+
+#### 用途
+
+1. 合约底层调用
+
+```solidity
+
+    function Test() public returns(address) {
+        DC dc = new DC();
+        //获取函数选择器
+        bytes4 selector = dc.Say.selector;
+        bytes memory data = abi.encodeWithSelector(selector,msg.sender);
+        //合约底层调用
+        (bool success , bytes memory returnData ) = address(dc).staticcall(data);
+        require(success);
+        return abi.decode(returnData, (address));
+    }
+```
+2. ethers.js实现合约调用
+3. 不开源的合约反编译或者不知道合约代码，但是知道函数选择器的4个字节，可以通过1中的方式调用
+
+```solidity
+    function Test1() public returns(address ){
+        DC dc = new DC();//假设一个合约地址
+        bytes memory data = abi.encodeWithSelector(bytes4(0x533ba33a),msg.sender);
+        //静态调用
+        (bool success,bytes memory res) = address(dc).staticcall(data);
+        require(success);
+        return abi.decode(res, (address));
+    }
+```
+
+###
+
 <!-- Content_END -->

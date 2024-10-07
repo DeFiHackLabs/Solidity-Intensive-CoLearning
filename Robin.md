@@ -772,4 +772,63 @@ contract OtherContract{
 
 }
 ```
+
+
+### 2024.10.05
+
+學習內容:
+
+- [x] call调用其他函数
+     - call函数是低级函数，返回值为(bool, bytes memory),其中bool代表调用是否成功，bytes memory代表调用的返回值
+     - call是官方推荐发送以太币，触发fallback和receive函数的方式
+     - 一般来说不建议使用call调用其他函数，推荐采用声明合约变量后的调用方式
+     - call的使用规则：目标函数地址.call(abi.encodeWithSignature("functionName(parameterType[,...])", parameterValue[,...]))
+     - call调用其他函数的时候还可以指定eth和gas: 目标函数地址.call{value: 1 ether, gas: 100000}(abi.encodeWithSignature("functionName(parameterType[,...])", parameterValue[,...]))
+     - 如果call调用的目标函数不存在，则会触发调用fallback函数
+
+### 2024.10.06
+
+學習內容:
+
+- [x] delegatecall调用函数
+   - 和call类似
+   - 区别：只能指定gas不能指定eth。delegateCall是代理调用，实际调用者为用户。call是直接调用，实际调用者为调用发起者。
+   - delegatecall有安全隐患，使用时要保证当前合约和目标合约状态变量的存储结构一致且保证目标合约安全
+   - 使用场景：代理合约、[EIP-2535 Diamonds](https://eip2535diamonds.substack.com/p/introduction-to-the-diamond-standard)
+    
+
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+// call和delegatecall的区别
+
+// 存储合约
+contract ContractA{
+    event ContractAMsgAdd(bool indexed,bytes);
+    event ContractAMsgDelegateAdd(bool indexed,bytes);
+    mapping(address => string) public msgMapping; // 合约A运行后，delegateCall会将状态变量存储到合约A：mapping为：(合约用户地址：message信息)
+
+    function setMapping(address _contractBAddress, string memory messages) external {
+       
+       // 直接调用 状态变量存储在合约B中，address为 合约A的地址
+       (bool success, bytes memory data) = _contractBAddress.call(abi.encodeWithSignature("addMsg(string)", messages));
+        emit ContractAMsgAdd(success, data);
+        // 代理调用 状态变量存储在合约A中，address为  用户的地址
+        (bool success2, bytes memory data2) = _contractBAddress.delegatecall(abi.encodeWithSignature("addMsg(string)", messages));
+        emit ContractAMsgDelegateAdd(success2, data2);
+    }
+}
+
+// 逻辑合约
+contract ContractB{
+    event AddMsgEvent(address indexed,string); 
+    mapping(address => string) public msgMapping; // 合约A运行后，call会将状态变量存储到合约B：mapping为：(合约B地址：message信息)
+    function addMsg(string memory messages) external {
+        msgMapping[msg.sender] = messages;
+        emit AddMsgEvent(msg.sender, messages);
+    }
+}
+```
 <!-- Content_END -->

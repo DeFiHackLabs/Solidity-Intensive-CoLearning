@@ -1058,5 +1058,533 @@ function getString1(uint256 _number) public pure returns(string memory){
 
 總的來說，這種方法展示了 Solidity 中庫使用的靈活性，允許開發者根據自己的偏好和項目需求選擇最合適的使用方式。
 
+### 2024.10.05
+以下是對Solidity中import語句的重述與解釋,以及一些補充思考:
+
+## import語句簡介
+
+在Solidity中,import語句用於在一個合約文件中引用其他文件的內容,提高代碼的可重用性和組織性。這對於大型項目和模塊化開發非常有用。
+
+## import的基本用法
+
+### 1. 通過相對路徑導入
+
+```solidity
+import './Yeye.sol';
+```
+
+這會導入同一目錄下的Yeye.sol文件。
+
+### 2. 通過URL導入
+
+```solidity
+import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+```
+
+這允許直接從網絡上導入合約。
+
+### 3. 通過npm包導入
+
+```solidity
+import '@openzeppelin/contracts/access/Ownable.sol';
+```
+
+這用於導入通過npm安裝的依賴包。
+
+### 4. 導入特定符號
+
+```solidity
+import {Yeye} from './Yeye.sol';
+```
+
+這只導入Yeye.sol文件中的Yeye合約。
+
+## 使用位置
+
+import語句通常放在solidity文件的頂部,在版本聲明之後,其他代碼之前。
+
+## 補充思考
+
+1. **模塊化設計**: import允許將大型合約拆分成多個小文件,提高代碼的可讀性和維護性。
+
+2. **代碼重用**: 可以輕鬆重用自己或他人編寫的合約庫,如OpenZeppelin。
+
+3. **版本控制**: 使用特定URL或npm包版本可以確保導入的代碼版本一致性。
+
+4. **安全性考慮**: 從外部源導入代碼時,需要確保源代碼的安全性和可信度。
+
+5. **gas優化**: 合理使用import可以減少重複代碼,潛在地降低部署成本。
+
+6. **依賴管理**: 在大型項目中,需要仔細管理導入的依賴,避免版本衝突。
+
+7. **編譯時間**: 過多的import可能會增加編譯時間,需要權衡。
+
+通過掌握import的使用,開發者可以更好地組織和構建複雜的智能合約系統,提高開發效率和代碼質量。
+
+Citations:
+[1] https://vocus.cc/article/646d3ab0fd89780001f8cf5b
+[2] https://binschool.org/solidity-basic/solidity-import.html
+[3] https://blog.csdn.net/qq_52708261/article/details/127064930
+[4] https://docs.soliditylang.org/zh/v0.8.16/path-resolution.html
+[5] https://vocus.cc/article/6254ed24fd89780001a38745
+[6] https://wtf.academy/docs/solidity-102/Import/
+[7] https://remix-ide.readthedocs.io/zh-cn/latest/import.html
+[8] https://blog.csdn.net/u013288190/article/details/123807010
+
+### 題目
+以下是對這些題目的回答:
+
+1. Solidity中import的作用是:
+   在一個合約文件中引用其他文件的內容,提高代碼的可重用性和組織性。
+   C. 導入其他合約中的全局符號，解釋如下:
+      import語句的主要作用是在一個合約文件中引用其他文件的內容,提高代碼的可重用性和組織性。
+      通過import,可以導入其他合約文件中定義的全局符號,包括:合約、函數、結構體、枚舉等
+   
+        （a） import不能直接導入其他合約的私有變量或內部變量,這些只能在定義它們的合約內部訪問。
+   
+         (b) 雖然可以導入接口,但這只是全局符號導入的一種特殊情況,而不是import的主要目的。
+   
+         (d) import的作用範圍是全局的,可以導入任何公開的全局符號,而不僅限於某種特定類型。
+
+所以,C選項"導入其他合約中的全局符號"最準確地概括了Solidity中import的主要作用。它允許開發者重用和組織代碼,提高開發效率。
+
+3. 以下import寫法錯誤的是:
+   A. import from "./Yeye.sol";
+
+   這個選項是錯誤的。正確的寫法應該是:
+   import "./Yeye.sol";
+   或者
+   import {Yeye} from "./Yeye.sol";
+
+4. import導入文件中的全局符號可以單獨指定其中的:
+   D. 以上都可以
+
+   Solidity允許導入合約、函數、結構體等多種類型的全局符號。
+
+5. 被導入文件中的全局符號想要被其他合約單獨導入,應該怎麼編寫?
+   C. 與合約並列在文件結構中
+
+   為了使全局符號能被單獨導入,它們應該定義在合約結構之外,與合約並列在文件結構中。這樣可以使這些符號成為真正的全局符號,能夠被其他文件單獨導入使用。
+
+這些答案反映了Solidity中import語句的用法和特性。import提供了模塊化和代碼重用的能力,是Solidity開發中非常重要的一個特性。
+
+Citations:
+[1] https://vocus.cc/article/646d3ab0fd89780001f8cf5b
+[2] https://binschool.org/solidity-basic/solidity-import.html
+[3] https://www.wtf.academy/docs/solidity-102/Import/
+[4] https://remix-ide.readthedocs.io/zh-cn/latest/import.html
+[5] https://blog.csdn.net/qq_52708261/article/details/127064930
+[6] https://blog.csdn.net/u013288190/article/details/123807010
+[7] https://docs.soliditylang.org/zh/v0.8.16/path-resolution.html
+[8] https://vocus.cc/article/6254ed24fd89780001a38745
+
+### 2024.10.06
+
+## 特殊回調函數:receive()和fallback()
+
+Solidity支持兩種特殊的回調函數:receive()和fallback()。這兩個函數主要用於以下兩種情況:
+
+1. 接收ETH
+2. 處理合約中不存在的函數調用(用於代理合約)
+
+**重要注意事項:**
+在Solidity 0.6.x版本之前,只有fallback()函數,用於接收ETH和處理未匹配的函數調用。0.6版本後,Solidity將fallback()拆分為receive()和fallback()兩個函數。
+
+### receive()函數
+
+receive()函數在合約接收ETH時被調用。每個合約最多只能有一個receive()函數,其聲明方式特殊:
+
+```solidity
+receive() external payable { ... }
+```
+
+receive()函數不能有參數,不能返回值,必須是external和payable。
+
+**最佳實踐:**
+receive()函數應保持簡單,因為使用send和transfer方法發送ETH時,gas限制為2300。複雜的receive()可能導致Out of Gas錯誤。
+
+### fallback()函數
+
+fallback()函數在調用不存在的合約函數時觸發。它可用於接收ETH和實現代理合約功能。聲明如下:
+
+```solidity
+fallback() external payable { ... }
+```
+
+### receive()和fallback()的區別
+
+兩者都能用於接收ETH,但觸發規則不同:
+
+1. 如果msg.data為空且存在receive(),則觸發receive()
+2. 如果msg.data不為空或不存在receive(),則觸發fallback()
+
+如果兩者都不存在,直接發送ETH到合約將會失敗。
+
+## 補充見解
+
+1. **安全考慮:** 惡意合約可能在receive()或fallback()中嵌入耗費大量gas或故意失敗的代碼,影響正常的退款和轉賬邏輯。開發包含這些功能的合約時需特別注意。
+
+2. **代理合約應用:** fallback()在代理合約中扮演重要角色,允許合約動態更新邏輯。
+
+3. **事件記錄:** 在這些函數中發送事件是好的做法,有助於跟蹤和調試。
+
+## 延伸思考
+
+1. **合約設計:** 如何設計一個既安全又靈活的合約,能夠處理各種ETH接收情況?
+
+2. **升級策略:** 考慮到Solidity版本的變化,如何設計向後兼容的合約?
+
+3. **gas優化:** 在receive()和fallback()中如何平衡功能實現和gas消耗?
+
+4. **跨鏈應用:** 這些特殊函數在不同區塊鏈平台上的實現有何異同?
+
+5. **智能合約互操作性:** receive()和fallback()如何促進不同合約間的互動?
+
+6. 這是一個很好的問題。讓我來解釋「不存在的合約函數」的概念,以及fallback()函數如何在這種情況下被觸發。
+
+## 「不存在的合約函數」的概念，當我們說「不存在的合約函數」時,我們指的是:
+
+1. 調用者試圖調用一個在合約中沒有定義的函數。
+2. 調用的函數簽名(包括函數名和參數類型)與合約中的任何函數都不匹配。
+
+## 如何觸發「不存在的函數」
+
+雖然這些函數「不存在」,但它們仍然可以被「調用」,主要通過以下方式:
+
+1. **直接調用:** 當外部賬戶或其他合約嘗試調用目標合約中不存在的函數時。
+
+2. **低級調用:** 使用Solidity的低級調用方法(如call、delegatecall等)時,可以發送任意的函數簽名,即使該函數在合約中不存在。
+
+3. **錯誤的接口:** 如果使用了錯誤或過時的合約接口(ABI),可能會導致調用不存在的函數。
+
+4. **代理模式:** 在使用代理合約模式時,如果邏輯合約更新但代理合約的調用沒有相應更新,可能會嘗試調用不存在的函數。
+
+## fallback()函數如何被觸發
+
+當合約收到一個不匹配任何已定義函數的調用時,fallback()函數會自動被觸發。這個機制允許合約優雅地處理意外或錯誤的調用,而不是簡單地拋出錯誤。
+
+例如:
+
+```solidity
+contract MyContract {
+    fallback() external payable {
+        // 處理未知調用
+    }
+}
+```
+
+如果有人嘗試調用MyContract中不存在的函數,fallback()將被執行。
+
+## 實際應用
+
+1. **錯誤處理:** 可以在fallback()中記錄錯誤調用,幫助調試。
+
+2. **默認行為:** 為合約定義一個默認行為,處理所有未預期的交互。
+
+3. **代理模式:** 在代理合約中,fallback()可以將調用轉發到實現合約。
+
+4. **接收以太幣:** 如果合約沒有定義receive()函數,fallback()可以用來接收以太幣轉賬。
+
+Understanding this mechanism is crucial for developing robust and flexible smart contracts. It provides a safety net for unexpected interactions and enables advanced contract patterns like upgradeable contracts.
+
+Citations:
+[1] https://dev.to/shlok2740/fallback-functions-in-solidity-13nb
+[2] https://bitsbyblocks.com/everything-you-need-to-know-about-solidity-fallback-functions/
+[3] https://docs.soliditylang.org/en/latest/contracts.html
+[4] https://solidity-by-example.org/fallback/
+
+### 題目
+讓我們來逐一分析這些問題:
+
+1. 下面哪個選項語法是正確的？
+
+正確答案是 A. receive() external payable { }
+
+解釋:
+- receive()函數必須是external和payable的。
+- 不需要使用function關鍵字。
+- 不能有任何參數。
+- 必須是payable的,因為它用於接收ETH。
+
+2. fallback(or receive)函數能否在合約內部調用？
+
+正確答案是 B. 不能
+
+解釋:
+- fallback和receive函數都必須是external的。
+- external函數只能從合約外部調用,不能在合約內部直接調用。
+- 這些函數的設計目的是處理外部調用,特別是處理未預期的調用或純ETH轉賬。
+
+3. vitalik想部署一個能接收ETH和msg.data的合約，那麼他部署的合約中______________________
+
+正確答案是 B. 必須含有fallback函數
+
+解釋:
+- receive()函數只能處理純ETH轉賬(沒有msg.data)。
+- fallback()函數可以處理帶有msg.data的調用,同時如果聲明為payable,也可以接收ETH。
+- 要同時處理ETH和msg.data,fallback()函數是必需的。
+- 雖然同時包含receive()和fallback()函數可以更精確地處理不同情況,但題目只問最低要求,所以只需fallback()函數就足夠了。
+
+這些問題很好地測試了對Solidity中特殊函數的理解。記住,receive()主要用於純ETH轉賬,而fallback()則更加靈活,可以處理各種未預期的調用情況。
+
+Citations:
+[1] https://docs.soliditylang.org/en/latest/contracts.html
+[2] https://ethereum-blockchain-developer.com/2022-03-deposit-withdrawals/09-sending-ether-to-smart-contracts/
+[3] https://coinsbench.com/fallback-and-receive-function-in-solidity-6e65fe2556f8?gi=3ee523785c67
+[4] https://bitsbyblocks.com/everything-you-need-to-know-about-solidity-fallback-functions/
+
+4. 根據合約的內容和問題描述，正確答案是 C. error：'Fallback' function is not defined，value和msg.data均發送失敗。
+**解釋:**
+- 合約中只有 `receive()` 函數，這個函數會在接收純 ETH 轉賬（即 `msg.data` 為空）時被調用。
+- 當 `msg.data` 不為空（如 `0xaa`），`receive()` 不會被觸發。
+- 由於合約中沒有定義 `fallback()` 函數，因此當帶有 `msg.data` 的交互發生時，合約無法處理這種情況，導致錯誤。
+
+5. 根據提供的合約代碼，正確答案是 A. error：'Fallback' function is not defined，value和msg.data均發送失敗。
+
+**解釋:**
+
+- 合約中只有 `receive()` 函數，這個函數只會在接收純 ETH 轉賬時（即 `msg.data` 為空）被調用。
+- 當 `msg.data` 不為空時（例如包含函數選擇器），`receive()` 不會被觸發。
+- 合約中沒有定義 `fallback()` 函數，因此當帶有 `msg.data` 的交互發生時，合約無法處理這種情況，導致錯誤。
+
+Citations:
+[1] https://pplx-res.cloudinary.com/image/upload/v1728188437/user_uploads/klgmxzjrh/19840b7416712478526285cdcee6e76.jpg
+[2] https://pplx-res.cloudinary.com/image/upload/v1728188294/user_uploads/hytotohit/48778bbd8fd53abdd6c7cbd727881bc.jpg
+
+### 2024.10.07
+
+## 發送 ETH 的三種方法
+
+在 Solidity 中，有三種方法可以向其他合約發送 ETH：
+
+1. transfer()
+2. send()
+3. call()
+
+其中，call() 是目前被鼓勵使用的方法。
+
+## 接收 ETH 合約
+
+首先，我們來看一個接收 ETH 的合約範例：
+
+```solidity
+contract ReceiveETH {
+    event Log(uint amount, uint gas);
+    
+    receive() external payable {
+        emit Log(msg.value, gasleft());
+    }
+    
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+}
+```
+
+這個合約包含：
+- 一個 Log 事件，記錄接收的 ETH 數量和剩餘的 gas
+- 一個 receive() 函數，在接收 ETH 時被觸發
+- 一個 getBalance() 函數，用於查詢合約的 ETH 餘額
+
+## 發送 ETH 合約
+
+接下來，我們實現一個可以發送 ETH 的合約：
+
+```solidity
+contract SendETH {
+    constructor() payable {}
+    receive() external payable {}
+    
+    // 以下將實現三種發送方法
+}
+```
+
+### 1. transfer() 方法
+
+```solidity
+function transferETH(address payable _to, uint256 amount) external payable {
+    _to.transfer(amount);
+}
+```
+
+特點：
+- gas 限制為 2300
+- 轉賬失敗會自動 revert
+
+### 2. send() 方法
+
+```solidity
+error SendFailed();
+
+function sendETH(address payable _to, uint256 amount) external payable {
+    bool success = _to.send(amount);
+    if (!success) {
+        revert SendFailed();
+    }
+}
+```
+
+特點：
+- gas 限制為 2300
+- 轉賬失敗不會自動 revert，需要手動處理
+- 而且發送失敗不會自動revert交易，幾乎沒有人用它
+
+### 3. call() 方法
+
+```solidity
+error CallFailed();
+
+function callETH(address payable _to, uint256 amount) external payable {
+    (bool success,) = _to.call{value: amount}("");
+    if (!success) {
+        revert CallFailed();
+    }
+}
+```
+
+特點：
+- 沒有 gas 限制
+- 最靈活，可支援複雜邏輯
+- 轉賬失敗不會自動 revert，需要手動處理
+
+## 補充見解
+
+1. **安全性考慮**：雖然 call() 是最靈活的方法，但也需要格外小心。因為它沒有 gas 限制，可能會被惡意合約利用來耗盡 gas。
+
+2. **重入攻擊**：使用 call() 時要特別注意重入攻擊（reentrancy attacks）的風險。建議遵循 checks-effects-interactions 模式來編寫代碼。
+
+3. **錯誤處理**：send() 和 call() 方法需要手動處理錯誤，這可以提供更大的靈活性，但也增加了代碼的複雜性。
+
+## 延伸思考
+
+1. **為什麼 call() 成為推薦方法**？隨著以太坊網絡的發展，合約邏輯變得越來越複雜。call() 的靈活性使得它能夠適應各種場景，而 transfer() 和 send() 的 gas 限制可能會在某些情況下造成問題。
+
+2. **gas 優化**：在使用這些方法時，如何平衡安全性和 gas 消耗？是否有辦法在使用 call() 的同時限制 gas 使用量？
+
+3. **跨鏈轉賬**：隨著區塊鏈技術的發展，跨鏈轉賬變得越來越重要。這些方法如何適應跨鏈場景？未來可能會出現什麼新的轉賬方法？
+
+4. **智能合約升級**：考慮到這些方法的限制和優缺點，在設計可升級的智能合約時，應該如何選擇和實現轉賬功能？
+
+## 問題4
+
+Vitalik 寫了一個合約，該合約在被部署時可以轉 ETH 進去。這意味著構造函數需要是 payable 的。讓我們逐一檢視選項：
+
+A. constructor() payable{}
+B. constructor() {}
+C. constructor(uint256 _amount) payable{ (address(this)).transfer(_amount); }
+
+正確答案是 **A. constructor() payable{}**
+
+解釋：
+- 選項 A 是正確的，因為它使用了 payable 關鍵字，允許在部署時接收 ETH。
+- 選項 B 沒有 payable 關鍵字，所以不能在部署時接收 ETH。
+- 選項 C 雖然也是 payable 的，但它多了一個不必要的參數和轉賬操作。在構造函數中，合約已經自動接收了發送的 ETH，不需要額外的轉賬操作。
+
+## 問題5
+5. 
+error SendFailed(); 
+function sendETH(address payable _to, uint256 amount) external payable{
+            ______________________________________
+    }
+   
+在問題 5 中，我們需要選擇一個選項，使得 `sendETH` 函數在執行失敗時自動 revert 交易。
+該函數執行失敗時會自動revert交易，那麼下面哪個選項可以填入橫線處？
+A. bool success = _to.send(amount); if( !success ){ revert SendFailed(); }
+B. bool success = _to.call(amount); if( !success ){ revert SendFailed(); }
+C. _to.send(amount);
+D. bool success = _to.send{value: amount}(" "); if( !success ){ revert SendFailed(); }
+
+### 選項分析
+
+- **A.** `bool success = _to.send(amount); if( !success ){ revert SendFailed(); }`
+  - `send()` 方法返回一個布爾值，表示成功或失敗。這個選項正確地檢查了返回值，並在失敗時使用 `revert` 來回滾交易。
+
+- **B.** `bool success = _to.call(amount); if( !success ){ revert SendFailed(); }`
+  - `call()` 方法的語法不正確。`call` 返回兩個值，不應直接賦值給單個布爾變量。
+
+- **C.** `_to.send(amount);`
+  - 這個選項沒有處理返回值，因此不會自動 revert。
+
+- **D.** `bool success = _to.send{value: amount}(" "); if( !success ){ revert SendFailed(); }`
+  - 語法錯誤，`send` 不接受 `{value: amount}` 語法，這是 `call` 的用法。
+
+### 正確答案
+正確答案是 **A**。這個選項使用了 `send()` 方法，並在失敗時通過檢查返回值來手動 revert 交易。這符合題目要求，即在執行失敗時自動 revert。
+
+## 問題6
+vitalik又寫了一個用call()發送ETH的函數：
+該函數執行失敗時會自動revert交易，那麼下面哪個選項可以填入橫線處？
+A. (bool success,) = _to.call{value: amount}(" "); if( !success ){ revert CallFailed(); }
+B. bool success = _to.call{value: amount}(" "); if( !success ){ revert CallFailed(); }
+C. _to.call(amount);
+D. (bool success,) = _to.call(amount); if( !success ){ revert CallFailed(); }
+error CallFailed();
+function callETH(address payable _to, uint256 amount) external payable{
+            ______________________________________
+    }
+
+首先，我們需要理解 `call()` 方法的特性：
+1. `call()` 不會自動 revert 交易。
+2. `call()` 返回兩個值：一個布爾值（表示成功或失敗）和一個 bytes 類型的數據（通常可以忽略）。
+3. 發送 ETH 時，需要使用 `{value: amount}` 語法。
+
+現在讓我們逐一檢查選項：
+
+A. `(bool success,) = _to.call{value: amount}(" "); if( !success ){ revert CallFailed(); }`
+   這是正確的語法和邏輯。它使用了 `call()` 方法發送 ETH，檢查了返回值，並在失敗時 revert。
+
+B. `bool success = _to.call{value: amount}(" "); if( !success ){ revert CallFailed(); }`
+   這個語法是錯誤的，因為 `call()` 返回兩個值，不能直接賦值給單個變量。
+
+C. `_to.call(amount);`
+   這個語法是錯誤的。它沒有使用 `{value: amount}` 來發送 ETH，也沒有檢查返回值或處理失敗情況。
+
+D. `(bool success,) = _to.call(amount); if( !success ){ revert CallFailed(); }`
+   這個語法也是錯誤的。它沒有使用 `{value: amount}` 來發送 ETH。
+
+因此，正確的答案是 **A**。
+
+完整的函數應該是這樣的：
+
+```solidity
+error CallFailed();
+
+function callETH(address payable _to, uint256 amount) external payable {
+    (bool success,) = _to.call{value: amount}("");
+    if (!success) {
+        revert CallFailed();
+    }
+}
+```
+
+這個實現正確地使用了 `call()` 方法發送 ETH，並在失敗時 revert 交易。雖然 `call()` 本身不會自動 revert，但通過手動檢查返回值並使用 `revert`，我們實現了在失敗時自動 revert 交易的效果。
+
+## 問題7
+
+7. 假設存在如下附件兩個合約(sendETH和ReceiveETH)，兩個合約目前ETH餘額皆為0，現在vitalik想通過SendETH合約的callETH函數往ReceiveETH合約轉入1ETH，他將交易的value設置為2ETH，同時交易成功執行，那麼此時sendETH合約和ReceiveETH的ETH餘額分別為？
+
+A. 1ETH；1ETH
+B. 0ETH；2ETH
+C. 0ETH；1ETH
+D. 2ETH；0ETH
+
+在這個情境中，Vitalik 使用 `SendETH` 合約的 `callETH` 函數來向 `ReceiveETH` 合約轉入 1 ETH。交易的 `value` 設置為 2 ETH。
+
+讓我們分析發生了什麼：
+
+1. **交易開始時**，`SendETH` 合約有 2 ETH 的餘額（因為交易的 `value` 是 2 ETH）。
+2. **執行 `callETH` 函數**：
+   - 該函數從 `SendETH` 合約中提取 1 ETH 並使用 `call()` 發送到 `ReceiveETH` 合約。
+   - 由於交易成功，1 ETH 被轉移到 `ReceiveETH` 合約。
+
+3. **交易結束時**：
+   - `SendETH` 合約剩下的餘額是 1 ETH（2 ETH 初始值 - 1 ETH 發送）。
+   - `ReceiveETH` 合約收到 1 ETH。
+
+因此，答案是：
+
+**A. 1ETH；1ETH**
+
+
 
 <!-- Content_END -->

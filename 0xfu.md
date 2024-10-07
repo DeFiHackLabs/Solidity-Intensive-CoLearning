@@ -608,7 +608,17 @@ contract PaymentSplit{
         emit PayeeAdded(_account, _accountShares);
     }
 }
+```
 
 ###
+
+
+### 2024.10.5
+
+#### 线性释放
+项目方一般会约定代币归属条款（token vesting），在归属期内逐步释放代币，减缓抛压，并防止团队和资本
+方过早躺平, 线性释放指的是代币在归属期内匀速释放。
+
+### 
 
 <!-- Content_END -->

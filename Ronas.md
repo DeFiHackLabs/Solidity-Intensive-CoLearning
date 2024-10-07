@@ -483,4 +483,80 @@ timezone: Asia/Shanghai
     - 不能指定 ETH 數量
     - 狀態變數: 名稱可以不同, 類型及順序必須相同
 
+### 2024.10.05
+
+> 進度: Solidity 102 24~25
+
+- 在合約中建立新合約
+    - create
+        ```
+        Contract x = new Contract{value: _value}(params)
+        ```
+        - 合約地址生成演算法
+            ```
+            新地址 = hash(創建者地址, nonce)
+            ```
+        - Example
+            ```
+            contract PairFactory{
+                mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+                address[] public allPairs; // 保存所有Pair地址
+
+                function createPair(address tokenA, address tokenB) external returns (address pairAddr) {
+                    // 创建新合约
+                    Pair pair = new Pair(); 
+                    // 调用新合约的initialize方法
+                    pair.initialize(tokenA, tokenB);
+                    // 更新地址map
+                    pairAddr = address(pair);
+                    allPairs.push(pairAddr);
+                    getPair[tokenA][tokenB] = pairAddr;
+                    getPair[tokenB][tokenA] = pairAddr;
+                }
+            }
+            ```
+    - create2
+        ```
+        Contract x = new Contract{salt: _salt, value: _value}(params)
+        ```
+        - 合約地址生成演算法
+            ```
+            新地址 = hash("0xFF",創建者地址, salt, initcode)
+            ```
+        - Example
+            ```
+            contract PairFactory2{
+                mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+                address[] public allPairs; // 保存所有Pair地址
+
+                function createPair2(address tokenA, address tokenB) external returns (address pairAddr) {
+                    require(tokenA != tokenB, 'IDENTICAL_ADDRESSES'); //避免tokenA和tokenB相同产生的冲突
+                    // 用tokenA和tokenB地址计算salt
+                    (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); //将tokenA和tokenB按大小排序
+                    bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+                    // 用create2部署新合约
+                    Pair pair = new Pair{salt: salt}(); 
+                    // 调用新合约的initialize方法
+                    pair.initialize(tokenA, tokenB);
+                    // 更新地址map
+                    pairAddr = address(pair);
+                    allPairs.push(pairAddr);
+                    getPair[tokenA][tokenB] = pairAddr;
+                    getPair[tokenB][tokenA] = pairAddr;
+                }
+            }
+            ```
+
+### 2024.10.06
+
+> 進度: Solidity 102 26
+
+- selfdestruct
+    - 觸發 `selfdestruct` 後, 會將合約內的 ETH 發送到指定地址
+    - deprecated since 0.8.18 - [solidity-0.8.18](https://blog.soliditylang.org/2023/02/01/solidity-0.8.18-release-announcement/) [EIP-6049](https://eips.ethereum.org/EIPS/eip-6049)
+    - 坎昆升級後, 加入了 [EIP-6780](https://eips.ethereum.org/EIPS/eip-6780), 更改了 `selfdestruct` 功能, 升級後的 `selfdestruct` 只會轉移 ETH, 刪除功能必須在同時發生創建-自毀才會發生
+        - 已部署的合約已無法被刪除
+
+- ABI 編碼解碼
+
 <!-- Content_END -->

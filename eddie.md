@@ -15,6 +15,42 @@ timezone: Asia/Shanghai
 ## Notes
 <!-- Content_START -->
 
+### 2024.10.06
+
+Solidity 103章节内容：WETH、分账、线性释放、代币锁
+
+- 函数参数的位置指定
+
+  主要针对引用类型：数组、结构体、映射、字符串
+
+  `memory`:表示数据将被存储在内存中，适用于需要修改或者临时存储的数据，允许在函数内容 修改参数内容，但会消耗更多gas；
+
+  `calldata`:calldata为只读，最省gas，直接从调用数据中读取，不需要复制到内存；
+
+- 代码
+    
+    [WETH.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/WETH)
+    
+    [PaymentSplit.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/PaymentSplit)
+    
+    [TokenVesting.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/TokenVesting)
+    
+    [TokenLocker.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/TokenLocker)
+
+### 2024.10.05
+
+Solidity 103章节内容：NFT交易所、ERC1155
+
+- ERC1155
+
+在`ERC721`中，每个代币都有一个`tokenId`作为唯一标识，每个`tokenId`只对应一个代币；而在`ERC1155`中，每一种代币都有一个`id`作为唯一标识，每个`id`对应一种代币。
+
+- 代码
+    
+    [NftSwap.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/NftExchanger)
+    
+    [ERC1155.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/ERC1155)
+
 ### 2024.10.04
 
 Solidity103章节内容：数字签名、链上随机数

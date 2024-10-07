@@ -476,7 +476,115 @@ function transferFrom(
 ) external returns (bool);
 ```
 ### 2024.10.05
+实现ERC20
+```
+mapping(address => uint256) public override balanceOf;
+
+mapping(address => mapping(address => uint256)) public override allowance;
+
+uint256 public override totalSupply;   // 代币总供给
+
+string public name;   // 名称
+string public symbol;  // 代号
+
+uint8 public decimals = 18; // 小数位数
+```
+函数
+构造函数：初始化代币名称、代号。
+```
+constructor(string memory name_, string memory symbol_){
+    name = name_;
+    symbol = symbol_;
+}
+```
+transfer()函数：实现IERC20中的transfer函数，代币转账逻辑。调用方扣除amount数量代币，接收方增加相应代币。土狗币会魔改这个函数，加入税收、分红、抽奖等逻辑。
+```
+function transfer(address recipient, uint amount) public override returns (bool) {
+    balanceOf[msg.sender] -= amount;
+    balanceOf[recipient] += amount;
+    emit Transfer(msg.sender, recipient, amount);
+    return true;
+}
+```
+approve()函数：实现IERC20中的approve函数，代币授权逻辑。被授权方spender可以支配授权方的amount数量的代币。spender可以是EOA账户，也可以是合约账户：当你用uniswap交易代币时，你需要将代币授权给uniswap合约。
+```
+function approve(address spender, uint amount) public override returns (bool) {
+    allowance[msg.sender][spender] = amount;
+    emit Approval(msg.sender, spender, amount);
+    return true;
+}
+```
+transferFrom()函数：实现IERC20中的transferFrom函数，授权转账逻辑。被授权方将授权方sender的amount数量的代币转账给接收方recipient。
+```
+function transferFrom(
+    address sender,
+    address recipient,
+    uint amount
+) public override returns (bool) {
+    allowance[sender][msg.sender] -= amount;
+    balanceOf[sender] -= amount;
+    balanceOf[recipient] += amount;
+    emit Transfer(sender, recipient, amount);
+    return true;
+}
+```
+mint()函数：铸造代币函数，不在IERC20标准中。这里为了教程方便，任何人可以铸造任意数量的代币，实际应用中会加权限管理，只有owner可以铸造代币：
+```
+function mint(uint amount) external {
+    balanceOf[msg.sender] += amount;
+    totalSupply += amount;
+    emit Transfer(address(0), msg.sender, amount);
+}
+```
+burn()函数：销毁代币函数，不在IERC20标准中。
+```
+function burn(uint amount) external {
+    balanceOf[msg.sender] -= amount;
+    totalSupply -= amount;
+    emit Transfer(msg.sender, address(0), amount);
+}
+```
 ### 2024.10.06
+32. 代币水龙头
+我们在水龙头合约中定义3个状态变量
+```
+amountAllowed设定每次能领取代币数量（默认为100，不是一百枚，因为代币有小数位数）。
+tokenContract记录发放的ERC20代币合约地址。
+requestedAddress记录领取过代币的地址。
+uint256 public amountAllowed = 100; // 每次领 100 单位代币
+address public tokenContract;   // token合约地址
+mapping(address => bool) public requestedAddress;  
+```
+事件
+水龙头合约中定义了1个SendToken事件，记录了每次领取代币的地址和数量，在requestTokens()函数被调用时释放。
+```
+// SendToken事件    
+event SendToken(address indexed Receiver, uint256 indexed Amount);
+```
+函数
+合约中只有两个函数：
+
+构造函数：初始化tokenContract状态变量，确定发放的ERC20代币地址。
+```
+// 部署时设定ERC20代币合约
+constructor(address _tokenContract) {
+  tokenContract = _tokenContract; // set token contract
+}
+```
+requestTokens()函数，用户调用它可以领取ERC20代币。
+```
+// 用户领取代币函数
+function requestTokens() external {
+    require(!requestedAddress[msg.sender], "Can't Request Multiple Times!"); // 每个地址只能领一次
+    IERC20 token = IERC20(tokenContract); // 创建IERC20合约对象
+    require(token.balanceOf(address(this)) >= amountAllowed, "Faucet Empty!"); // 水龙头空了
+
+    token.transfer(msg.sender, amountAllowed); // 发送token
+    requestedAddress[msg.sender] = true; // 记录领取地址 
+    
+    emit SendToken(msg.sender, amountAllowed); // 释放SendToken事件
+}
+```
 ### 2024.10.07
 ### 2024.10.08
 ### 2024.10.09

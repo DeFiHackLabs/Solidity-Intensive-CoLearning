@@ -863,5 +863,80 @@ contract ERC20 is IERC20{
         emit Transfer(msg.sender, address(0), amount);  
     }  
 }
+
+### 2024.10.05
+import "./ERC20.sol";
+contract Faucet{
+
+    uint public amountAllowed=100;
+    address public tokenContract;
+    mapping(address=>bool) public requestedAddress;
+
+    event SendToken(address indexed Receiver,uint indexed Amount);
+
+    constructor(address _tokenContract){
+        tokenContract = _tokenContract;
+    }
+    //用户领取代币操作
+    function requestTokens()external {
+        require(!requestedAddress[msg.sender],"only once"); //每个账户只能领取一次
+        IERC20 token = IERC20(tokenContract);
+        require(token.balanceOf(address(this))>amountAllowed,"Faucet empty");
+        token.transfer(msg.sender, amountAllowed); //发送代币
+        requestedAddress[msg.sender] = true;
+        emit SendToken(msg.sender, amountAllowed);
+    }
+}    
+代币水龙头发送代币，需要校验地址是否领取，代币是否已发放完
+
+
+
+### 2024.10.06
+import "./ERC20.sol";
+//批量发送代币
+contract AirDrop{
+    mapping(address=>uint) failTransferList;
+    function multiTransferToken(address _token,address[] calldata _address,uint256[] calldata _amount)external {
+        require(_address.length == _amount.length,"length is not equal");
+        IERC20 token = IERC20(_token);
+        uint _amountSum = getSum(_amount);
+        require(token.allowance(msg.sender, address(this))>_amountSum,"need approve token amount");
+
+        for(uint i=0;i<_address.length;i++){
+            token.transferFrom(msg.sender, _address[i], _amount[i]);
+        }
+    }
+
+    //向多个地址转移ETF
+    function multiTransferETH(address payable[] calldata _address,uint [] calldata _amount) public payable {
+        require(_address.length== _amount.length,"must be equal");//校验长度
+        // for循环，利用transfer函数发送ETH
+        for(uint i=0;i<_address.length;i++){
+           (bool success,) = _address[i].call{value: _amount[i]}("");//call发送ETH
+           if(!success){
+            failTransferList[_address[i]] = _amount[i];
+           }
+        }
+    }
+
+    //失败后重试
+    function withdrawFromFailList(address _to)public{
+        uint failAmount = failTransferList[_to];
+        require(failAmount>0,"the address not fail");
+        failTransferList[_to] = 0;//先将这个地址职位空
+        (bool success,) = _to.call{value:failAmount}("");
+        require(!success,"fail withdraw");
+    }
+
+   
+    function getSum(uint[] calldata _arr) public pure returns(uint sum){
+        for (uint i=0;i<_arr.length;i++){
+            sum = sum+_arr[i];
+        }
+    }
+
+}
     
+
+
 <!-- Content_END -->

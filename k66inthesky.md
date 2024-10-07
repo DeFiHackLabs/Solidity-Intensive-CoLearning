@@ -124,4 +124,40 @@ mapping(uint => address) public i2addr;
       * data不能被直接檢索，但可以存任意大小的數據，一般用來存複雜的數據結構，例如array和string。
    - data消耗的gas比topics少。
 
+### 2024.10.05
+學習內容: `13.Inheritance`
++ 繼承有幾種: `簡單`、`多重`、`Modifier`、`Constructor`、`鑽石(菱形)`
++ 繼承的好處: 減少重複的代碼
++ 規則: `virtual`、`override`
++ 簡單繼承用法: `contract Baba is Yeye`
++ 多重繼承用法: `contract Erziis Yeye, Baba`
++ Modifier繼承用法:
+  ```
+  modifier exactDividedBy2And3(uint _a) virtual {...}
+  contract Identifier is Base1 {...}
+  也可以:
+  modifier exactDividedBy2And3(uint _a) override {...}
+  ```
++ Constructor繼承用法: 
+  ```
+  contract B is A(1)
+  contract C is A {...}
+  function callParent() public{ Yeye.pop(); }
+  function callParentSuper() public{ super.pop(); }
+  ```
++ 鑽石(菱形)繼承用法:
+  ```
+     God
+    /  \
+   Adam Eve
+    \  /
+   people
+   ```
+### 2024.10.06
+學習內容: `14.Interface`
++ `ERC721`的`abstract`和`Interface`
++ 定義: 抽象合約為: 若智能合約內有一位實現的函數，則須將合約標為`abtract`、而未實現的函數需加`virtual`否則會報錯。
++ 什麼時候用接口? 當我們知道一個合約實現了`IERC721`接口，則我們不需它的源碼只需知道它的合約地址，就能用`IERC721`接口與它進行交互。
++ 作者以`IERC721`為例剛好能實作與`無聊猿BAYC`進行交互。
+
 <!-- Content_END -->

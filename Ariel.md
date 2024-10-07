@@ -493,13 +493,180 @@ send有2300 gas限制，而且发送失败不会自动revert交易，几乎没�
              }
          }
 
+### 2024.10.05
+
+學習內容: WTF 21~22
+![image](https://github.com/user-attachments/assets/176d1942-2f85-4dfb-b0e0-7863fb78ea8c)
+
+
+# 21:調用其他合約
+1. 传入合约地址
+         function callSetX(address _Address, uint256 x) external{
+          OtherContract(_Address).setX(x);
+         }
+2. 传入合约变量:调用目标合约的getX()
+          function callGetX(OtherContract _Address) external view returns(uint x){
+             x = _Address.getX();
+         }
+3. 创建合约变量
+         function callGetX2(address _Address) external view returns(uint x){
+             OtherContract oc = OtherContract(_Address);
+             x = oc.getX();
+         }
+   //变量oc存储了OtherContract合约的引用
+   //复制OtherContract合约的地址，填入callGetX2函数的参数中，调用后成功获取x的值
+
+4. 调用合约并发送ETH
+         function setXTransferETH(address otherContract, uint256 x) payable external{
+          OtherContract(otherContract).setX{value: msg.value}(x);
+         }
+   //目标合约的函数是payable的，那么我们可以通过调用它来给合约转账：_Name(_Address).f{value: _Value}()，其中_Name是合约名，_Address是合约地址，f是目标函数名，_Value是要转的ETH数额（以wei为单位)
+
+   兩種都可:
+(1) OtherContract other = OtherContract(0xd9145CCE52D386f254917e481eB44e9943F39138)
+(2) IOtherContract other = IOtherContract(0xd9145CCE52D386f254917e481eB44e9943F39138)
+
+# 22:Call
+
+1. call 是address类型的低级成员函数，它用来与其他合约交互。它的返回值为(bool, bytes memory)，分别对应call是否成功以及目标函数的返回值。
+
+2. call是Solidity官方推荐的通过触发fallback或receive函数发送ETH的方法。不推荐用call来调用另一个合约，因为当你调用不安全合约的函数时，你就把主动权交给了它。推荐的方法仍是声明合约变量后调用函数，见第21讲：调用其他合约。当我们不知道对方合约的源代码或ABI，就没法生成合约变量；这时，我们仍可以通过call调用对方合约的函数。
+
+3. 目标合约地址.call(字节码);
+   字节码利用结构化编码函数abi.encodeWithSignature获得：abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)
+      函数签名为"函数名（逗号分隔的参数类型）"。例如abi.encodeWithSignature("f(uint256,address)", _x, _addr)。
+
+4. 另外call在调用合约时可以指定交易发送的ETH数额和gas数额：目标合约地址.call{value:发送数额, gas:gas数额}(字节码);
+
+5. ```
+       contract OtherContract {
+       uint256 private _x = 0; // 状态变量x
+       // 收到eth的事件，记录amount和gas
+       event Log(uint amount, uint gas);
+       
+       fallback() external payable{}
+   
+       // 返回合约ETH余额
+       function getBalance() view public returns(uint) {
+           return address(this).balance;
+       }
+   
+       // 可以调整状态变量_x的函数，并且可以往合约转ETH (payable)
+       function setX(uint256 x) external payable{
+           _x = x;
+           // 如果转入ETH，则释放Log事件
+           if(msg.value > 0){
+               emit Log(msg.value, gasleft());
+           }
+       }
+   
+       // 读取x
+       function getX() external view returns(uint x){
+           x = _x;
+       }    }
+
+5. 利用call调用目标合约
+   1. Response事件
+      
+      // 定义Response事件，输出call返回的结果success和data
+         event Response(bool success, bytes data);
+
+      
+ 2. 调用setX函数
+    
+    function callSetX(address payable _addr, uint256 x) public payable {
+       // call setX()，同时可以发送ETH
+       (bool success, bytes memory data) = _addr.call{value: msg.value}(
+           abi.encodeWithSignature("setX(uint256)", x)
+       );
+   
+       emit Response(success, data); //释放事件
+      }
+
+    3. 调用getX函数
+       
+      function callGetX(address _addr) external returns(uint256){
+    // call getX()
+    (bool success, bytes memory data) = _addr.call(
+        abi.encodeWithSignature("getX()")
+    );
+
+    emit Response(success, data); //释放事件
+    return abi.decode(data, (uint256));
+   }
+
+   4. 调用不存在的函数:觸發fallback
+      
+      function callNonExist(address _addr) external{
+    // call 不存在的函数
+    (bool success, bytes memory data) = _addr.call(
+        abi.encodeWithSignature("foo(uint256)")
+    );
+
+    emit Response(success, data); //释放事件
+}
+
+
+
+### 2024.10.06
+
+學習內容: WTF 23
+
+# 23:delegatecall与call类似，是Solidity中地址类型的低级成员函数
+
+1. 当用户A通过合约B来call合约C的时候，执行的是合约C的函数，上下文(Context，可以理解为包含变量和状态的环境)也是合约C的：msg.sender是B的地址，并且如果函数改变一些状态变量，产生的效果会作用于合约C的变量上。
+2. 而当用户A通过合约B来delegatecall合约C的时候，执行的是合约C的函数，但是上下文仍是合约B的：msg.sender是A的地址，并且如果函数改变一些状态变量，产生的效果会作用于合约B的变量上。
+   （用户A）把他的资产（B合约的状态变量）都交给一个风险投资代理（C合约）来打理。执行的是风险投资代理的函数，但是改变的是资产的状态。
+
+3. 目标合约地址.delegatecall(二进制编码);
+   二进制编码利用结构化编码函数abi.encodeWithSignature -->abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)
+
+4. delegatecall在调用合约时可以指定交易发送的gas，但不能指定发送的ETH数额
+
+5. delegatecall有安全隐患，使用时要保证当前合约和目标合约的状态变量存储结构相同，并且目标合约安全，不然会造成资产损失。
+
+6. delegatecall主要有两个应用场景：
+      1. 代理合约（Proxy Contract）：将智能合约的存储合约和逻辑合约分开：代理合约（Proxy Contract）存储所有相关的变量，并且保存逻辑合约的地址；所有函数存在逻辑合约（Logic Contract）里，通过delegatecall执行。当升级时，只需要将代理合约指向新的逻辑合约即可。
+      2. EIP-2535 Diamonds（钻石）：钻石是一个支持构建可在生产中扩展的模块化智能合约系统的标准。钻石是具有多个实施合约的代理合约。 更多信息请查看：钻石标准简介。
+
+7. 你（A）通过合约B调用目标合约C
+
+         // 被调用的合约C
+         contract C {
+             uint public num;
+             address public sender;
+         
+             function setVars(uint _num) public payable {
+                 num = _num;
+                 sender = msg.sender;
+             }
+         }
+         
+         contract B {
+             uint public num;
+             address public sender;
+         }
+         
+         // 通过call来调用C的setVars()函数，将改变合约C里的状态变量
+         function callSetVars(address _addr, uint _num) external payable{
+             // call setVars()
+             (bool success, bytes memory data) = _addr.call(
+                 abi.encodeWithSignature("setVars(uint256)", _num)
+             );
+         }
+         
+         // 通过delegatecall来调用C的setVars()函数，将改变合约B里的状态变量
+         function delegatecallSetVars(address _addr, uint _num) external payable{
+             // delegatecall setVars()
+             (bool success, bytes memory data) = _addr.delegatecall(
+                 abi.encodeWithSignature("setVars(uint256)", _num)
+             );
+         }
+
 ### 2024.10.0
 
-學習內容: WTF 21~
+學習內容: WTF 24~
 
-
-# 21: 
-
-
+# 24:
 
 <!-- Content_END -->

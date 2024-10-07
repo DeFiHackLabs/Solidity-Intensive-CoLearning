@@ -91,6 +91,11 @@ contract DutchAuction is Ownable, ERC721 {
         return _baseTokenURI;
     }
 
+    // Added for test purpose only
+    function getBaseURI() external view returns (string memory) {
+        return _baseTokenURI;
+    }
+
     // BaseURI setter函数, onlyOwner
     function setBaseURI(string calldata baseURI) external onlyOwner {
         _baseTokenURI = baseURI;
