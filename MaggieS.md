@@ -472,5 +472,14 @@ Q1:
 Q2:
 
 
+### 2024.10.07
+
+
+I‘m a little busy during the National Day holiday, 
+
+but, I don't want to miss the daily check-in, 
+
+and, I will start to make up my study records.
+
 
 <!-- Content_END -->
