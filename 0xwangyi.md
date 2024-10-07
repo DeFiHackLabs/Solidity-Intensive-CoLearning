@@ -340,3 +340,10 @@ Solidity 103-34 ERC721
 18 在NFT中，JSON文件用于储存和描述每个NFT的元数据（每个NFT都有一份对应的JSON文件，里边包含了该NFT的各种属性）
 19 JSON文件包括：name代币名称，description代币描述，image指向NFT的图片链接URL，attribute代币属性，是数组，包含了代币各类属性，包括trait_type属性类型，value属性值
 <!-- Content_END -->
+<!-- Content_START -->
+### 2024.10.07
+Day15
+Solidity 103-35荷兰拍卖Dutch Auction
+
+Solidity 103-36默克尔树(哈希树)Merkle Tree
+<!-- Content_END -->
