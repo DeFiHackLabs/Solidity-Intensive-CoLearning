@@ -70,4 +70,7 @@ reviewed Solidity 101 ch13-15 and refined the previous note
 [Note for Solidity 102 Ch17-20](https://warp-icecream-5ae.notion.site/Ch17-20-1156892cc8a6807485e5d2b8b416de3b) 
 ### 2024.10.05
 [Note for Solidity 102 Ch21-23](https://warp-icecream-5ae.notion.site/Ch21-23-1176892cc8a6803da07ae62b32926a39) 
+### 2024.10.06
+[Note for Solidity 102 Ch24-26](https://warp-icecream-5ae.notion.site/Ch24-26-1186892cc8a6803faf50f3fe6fe634dd) 
 <!-- Content_END -->
+ 
