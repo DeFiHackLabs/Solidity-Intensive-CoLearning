@@ -694,6 +694,32 @@ function callWithSignature() external{
    (bool success, bytes memory data1) = address(this).call(abi.encodeWithSelector(0x3ec37834, 1, 0));
 }
 ```
+### 2024.10.7      
+學習內容  
+筆記:  
+
+#### try catch
+- 利用 try-catch 處理智能合約的異常
+- 只能被用於 external 函數或創建合約時 constructor 的調用
+
+寫法
+- externalContract.f() 是某個外部合約的函數調用
+```Solidity
+try externalContract.f(){
+   // 成功的情況下, 運行代碼
+}catch{
+   // 失敗的情況下, 運行代碼
+}
+```
+
+- 如果調用的函數有返回值, 必須在 try 之後聲明 returns(returnType val), 並且在 try 的地方可以使用返回的變數
+```Solidity
+try externalContract.f() returns(returnType val){
+   // 成功的情況下, 運行代碼
+}catch{
+   // 失敗的情況下, 運行代碼
+}
+```
 
 
 
