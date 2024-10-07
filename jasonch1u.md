@@ -1137,4 +1137,8 @@ bootcamp作業
 ERC20
 ERC721
 ERC1155
+
+### 2024.10.07
+bootcamp作業+助教課
+完成task1+task2
 <!-- Content_END -->
