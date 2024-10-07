@@ -809,4 +809,47 @@ abi.decode
 
 ###
 
+### 10.07
+
+#### hash
+
+可以认为是一个单向加密，通过 keccak256 来实现。
+
+#### 函数选择器
+
+调用智能合约的本质，就是发送一段calldata。其中前四个字节，也就是0x之后的8位16进制数，即为函数选择器。
+
+告诉智能合约，要调用哪个方法。
+
+bytes4(keccak256("say(address)")) // return bytes
+
+使用场景：
+
+```solidity 
+
+ // 使用selector来调用函数
+function callWithSignature() external{
+    // 调用elementaryParamSelector函数
+    (bool success1, bytes memory data1) = address(this).call(abi.encodeWithSelector(0x3ec37834, 1, 0));
+}
+
+```
+
+#### try catch使用
+
+solidity语言的try catch跟大多数语言不一致。
+
+```solidity
+
+try this.func() returns(uint256) {
+
+}
+catch Error(string memory reason){
+
+}
+
+```
+
+###
+
 <!-- Content_END -->
