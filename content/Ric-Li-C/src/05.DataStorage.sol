@@ -25,11 +25,15 @@ contract DataStorage {
         uint[] memory xMemory = x;
         xMemory[0] = 100;
         xMemory[1] = 200;
+        
+        assert(x[0] == 1);
+        assert(x[1] == 2);
+
         uint[] memory xMemory2 = x;
         xMemory2[0] = 300;
 
-        console.log("xMemory[0] is", xMemory[0]);
-        // assert(xMemory[0] == 300);
+        assert(x[0] == 1);
+        // console.log("x[0] is", x[0]);
     }
 
     function fCalldata(uint[] calldata _x) public pure returns(uint[] calldata){
