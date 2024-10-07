@@ -2151,6 +2151,122 @@ import '@openzeppelin/contracts/access/Ownable.sol';
         }    
     ```
 - [103-53] ERC-2612 ERC20Permit
+    - ERC20的 approve 函数限制了只有代币所有者才能调用，这意味着所有 ERC20 代币的初始操作必须由 EOA 执行。举个例子，用户 A 在去中心化交易所使用 USDT 交换 ETH，必须完成两个交易：第一步用户 A 调用 approve 将 USDT 授权给合约，第二步用户 A 调用合约进行交换。非常麻烦，并且用户必须持有 ETH 用于支付交易的 gas。
+    - EIP-2612 提出了 ERC20Permit，扩展了 ERC20 标准，添加了一个 permit 函数，允许用户通过 EIP-712 签名修改授权，而不是通过 msg.sender。这有两点好处：
+        - 授权这步仅需用户在链下签名，减少一笔交易。
+        - 签名后，用户可以委托第三方进行后续交易，不需要持有 ETH：用户 A 可以将签名发送给 拥有gas的第三方 B，委托 B 来执行后续交易。
+    - IERC20Permit 接口合约
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity ^0.8.0;
+
+    // ERC20 Permit 扩展的接口，允许通过签名进行批准，如 https://eips.ethereum.org/EIPS/eip-2612[EIP-2612]中定义。
+    interface IERC20Permit {
+        /**
+        * @dev 根据owner的签名, 将 `owenr` 的ERC20余额授权给 `spender`，数量为 `value`, 释放 {Approval} 事件。
+        * 要求：
+        * - `spender` 不能是零地址。
+        * - `deadline` 必须是未来的时间戳。
+        * - `v`，`r` 和 `s` 必须是 `owner` 对 EIP712 格式的函数参数的有效 `secp256k1` 签名。
+        * - 签名必须使用 `owner` 当前的 nonce（参见 {nonces}）。
+        */
+        function permit(address owner,address spender,uint256 value,uint256 deadline,uint8 v,bytes32 r,bytes32 s) external;
+
+        /**
+        * @dev 返回 `owner` 的当前 nonce。每次为 {permit} 生成签名时，都必须包括此值。
+        * 每次成功调用 {permit} 都会将 `owner` 的 nonce 增加 1。这防止多次使用签名。
+        */
+        function nonces(address owner) external view returns (uint256);
+
+        /**
+        * @dev 返回用于编码 {permit} 的签名的域分隔符（domain separator），如 {EIP712} 所定义。
+        */
+        // solhint-disable-next-line func-name-mixedcase
+        function DOMAIN_SEPARATOR() external view returns (bytes32);
+    }
+    ```
+    - 前段计算 permit 签名
+    ```js
+    async function signPermit() {
+      // 略。
+
+      const domain = {
+        name: name,
+        version: version,
+        chainId: chainId,
+        verifyingContract: contractAddress,
+      };
+
+      const types = {
+        Permit: [
+          { name: "owner", type: "address" },
+          { name: "spender", type: "address" },
+          { name: "value", type: "uint256" },
+          { name: "nonce", type: "uint256" },
+          { name: "deadline", type: "uint256" },
+        ],
+      };
+
+      const message = {
+        owner: owner,
+        spender: spender,
+        value: value,
+        nonce: nonce,
+        deadline: deadline,
+      };
+
+      try {
+        console.log(message)
+        const signature = await signer.signTypedData(domain, types, message);
+        const sig = ethers.Signature.from(signature);
+        console.log("Signature:", signature);
+        SignatureV.innerHTML = `${sig.v}`;
+        SignatureR.innerHTML = `${sig.r}`;
+        SignatureS.innerHTML = `${sig.s}`;
+        showSignature.innerHTML = `${signature}`;
+      } catch (error) {
+        console.error("Error signing permit:", error);
+      }
+    }
+    ```
+    - ERC20Permit 合约
+    ```solidity
+    contract ERC20Permit is ERC20, IERC20Permit, EIP712 {
+        mapping(address => uint) private _nonces; // Permit 单独维护一套 nonce
+        bytes32 private constant _PERMIT_TYPEHASH = keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+
+        constructor(string memory name, string memory symbol) EIP712(name, "1") ERC20(name, symbol){}
+
+        function permit(address owner,address spender,uint256 value,uint256 deadline,uint8 v,bytes32 r,bytes32 s) public virtual override {
+            require(block.timestamp <= deadline, "ERC20Permit: expired deadline");
+
+            bytes32 structHash = keccak256(abi.encode(_PERMIT_TYPEHASH, owner, spender, value, _useNonce(owner), deadline));
+            bytes32 hash = _hashTypedDataV4(structHash);
+            
+            address signer = ECDSA.recover(hash, v, r, s);
+            require(signer == owner, "ERC20Permit: invalid signature");
+            
+            _approve(owner, spender, value);
+        }
+
+        function nonces(address owner) public view virtual override returns (uint256) {
+            return _nonces[owner];
+        }
+
+        function DOMAIN_SEPARATOR() external view override returns (bytes32) {
+            return _domainSeparatorV4();
+        }
+
+        function _useNonce(address owner) internal virtual returns (uint256 current) {
+            current = _nonces[owner];
+            _nonces[owner] += 1;
+        }
+
+        function mint(uint amount) external {
+            _mint(msg.sender, amount);
+        }
+    }
+    ```
 - [103-54] 跨链桥
 
 ### 2024.10.11
