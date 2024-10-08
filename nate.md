@@ -63,7 +63,7 @@ timezone: Asia/Shanghai
      - 所有函数都必须是external且不能有函数体
      - 继承接口的非抽象合约必须实现接口定义的所有功能
   7. error，require，assert
-     ```js
+     ``` js
      // 自定义error
      error TransferNotOwner()
      // 自定义带参数的error
@@ -101,7 +101,7 @@ timezone: Asia/Shanghai
    ```
    其中Contract是要创建的合约名，x是合约对象，如果构造函数是payable，可以创建时转入_value数量的ETH，_salt为随机的bytes32值，params是新合约构造函数的参数
    - CREATE如何计算地址
-``` text
+   ``` text
    智能合约可以由其他合约和普通账户利用CREATE操作码创建。 在这两种情况下，新合约的地址都以相同的方式计算：创建者的地址(通常为部署的钱
 包地址或者合约地址)和nonce(该地址发送交易的总数,对于合约账户是创建的合约总数,每创建一个合约nonce+1)的哈希。
 
@@ -225,7 +225,7 @@ WTF solidity19-20
 2. call,transfer,send使用
    ``` solidity
    
-   // 2300gas fee限制
+   // 2300 gas fee限制
    function transferEth(address payable _to, uint256 amount) external payable {
        _to.transfer(amount);
     }
@@ -242,6 +242,12 @@ WTF solidity19-20
     }
    ``` 
 ### 2024.10.05
-WTF solifity21-23
+WTF solidity21-23
 
+### 2024.10.06
+WTF solidity26-28
+### 2024.10.07
+WTF solidity29-30
+### 2024.10.08
+WTF solidity31-32
 <!-- Content_END -->
