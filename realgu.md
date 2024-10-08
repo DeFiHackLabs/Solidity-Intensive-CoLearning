@@ -178,4 +178,11 @@ sha3由keccak标准化而来，在很多场合下Keccak和SHA3是同义词，但
 6. 确保回调函数不会影响正常合约运行。
 7. 确保当合约的参与者（例如 owner）永远缺席时，合约的主要业务仍能顺利运行。
 
+### 2024.10.08
+1. IERC165接口合约只声明了一个supportsInterface函数，输入要查询的interfaceId接口id，若合约实现了该接口id，则返回true.当查询的是IERC721或IERC165的接口id时，返回true；反之返回false。
+2. 利用tokenId来表示特定的非同质化代币，授权或转账都要明确tokenId；而ERC20只需要明确转账的数额即可。
+3. 对于有N个叶子结点的Merkle Tree，在已知root根值的情况下，验证某个数据是否有效（属于Merkle Tree叶子结点）只需要ceil(log₂N)个数据（也叫proof），非常高效
+4. 一份拥有800个地址的白名单，更新一次所需的gas fee很容易超过1个ETH。而由于Merkle Tree验证时，leaf和proof可以存在后端，链上仅需存储一个root的值，非常节省gas，项目方经常用它来发放白名单。很多ERC721标准的NFT和ERC20标准代币的白名单/空投都是利用Merkle Tree发出的，比如optimism的空投。
+5. 
+
 <!-- Content_END -->
