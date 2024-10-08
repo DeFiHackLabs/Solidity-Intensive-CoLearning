@@ -15,6 +15,21 @@ timezone: Asia/Shanghai
 ## Notes
 <!-- Content_START -->
 
+### 2024.10.08
+
+Solidity 103章节：多签钱包
+
+- 多签钱包
+
+  通过一个bytes数组来存储签名，之后根据每个签名的长度为65进行分离，挨个验证，当通过数目大于等于threshold后，执行交易；
+    
+  ```solidity
+  currentOwner = ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", dataHash)), v, r, s);
+  ```
+    
+- 代码
+  [MultisigWallet.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/MultisigWallet)
+
 ### 2024.10.07
 
 Solidity 103章节内容：代理合约、可升级合约、透明代理、通用可升级代理
