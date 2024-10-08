@@ -242,8 +242,52 @@ WTF solidity19-20
     }
    ``` 
 ### 2024.10.05
-WTF solidity21-23
+WTF solidity21-23  
+1. 调用其他合约    
+   ``` solidity
+   
+   // SPDX-License-Identifier: MIT
+   pragma solidity ^0.8.23;
+   import {OtherContract} from "./WTF21.sol";
 
+   contract OtherCall{
+    function callSetX(address _Address, uint256 x) external {
+       OtherContract(_Address).setX(x);
+    }
+
+    function callGetX(OtherContract _Address) external view returns(uint) {
+       return _Address.getX();
+    }
+
+    function callGetX2(address _Address) external view returns(uint) {
+       OtherContract oc = OtherContract(_Address);
+       return oc.getX();
+    }
+
+    // 调用合约并发送ETH
+    function callSetXWithETH(address _Address, uint256 x) external payable {
+       OtherContract(_Address).setX{value:msg.value}(x);
+    }
+   // 使用call调用getX()
+    function callGetX3(address _Address) external returns(uint256) {
+        (, bytes memory data) = _Address.call(abi.encodeWithSignature("getX()"));
+        return abi.decode(data, (uint256));
+    }
+
+    // 使用call调用setX()
+    function callSetX3(address _Address, uint x) external payable returns(uint256) {
+        (, bytes memory data) = _Address.call{value:msg.value}(abi.encodeWithSignature("setX(uint256)",x));
+        return abi.decode(data, (uint256));
+    }
+
+    // 使用call调用不存在的方法会报错
+    function callFoo(address _Address, uint x) external payable returns(uint256) {
+        (, bytes memory data) = _Address.call{value:msg.value}(abi.encodeWithSignature("Foo(uint256)",x));
+        return abi.decode(data, (uint256));
+    }
+    }
+   ```
+2.    
 ### 2024.10.06
 WTF solidity26-28
 ### 2024.10.07
