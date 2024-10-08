@@ -1034,6 +1034,88 @@ EVM 日志包含两部分：
      - 通常，对于标准化的协议（如 ERC 标准），使用接口更为常见。
 
 
+### 2024.10.07
+
+學習內容: 
+
+- [solidity-101 第十五课  异常](https://www.wtf.academy/docs/solidity-101/Errors/)
+
+笔记
+
+
+#### Error
+- 引入版本：Solidity 0.8.4
+- 特点：
+  - 高效（省 gas）
+  - 可携带参数
+  - 可在合约外部定义
+- 用法：
+  ```solidity
+  error TransferNotOwner(); // 无参数
+  error TransferNotOwner(address sender); // 带参数
+
+  function transferOwner1(uint256 tokenId, address newOwner) public {
+      if (_owners[tokenId] != msg.sender) {
+          revert TransferNotOwner();
+          // 或 revert TransferNotOwner(msg.sender);
+      }
+      _owners[tokenId] = newOwner;
+  }
+  ```
+
+#### Require
+- 特点：
+  - 常用于条件检查
+  - gas 消耗随错误信息长度增加
+- 用法：
+  ```solidity
+  function transferOwner2(uint256 tokenId, address newOwner) public {
+      require(_owners[tokenId] == msg.sender, "Transfer Not Owner");
+      _owners[tokenId] = newOwner;
+  }
+  ```
+
+#### Assert
+- 特点：
+  - 主要用于内部错误检查和不变量检查
+  - 不提供错误信息
+- 用法：
+  ```solidity
+  function transferOwner3(uint256 tokenId, address newOwner) public {
+      assert(_owners[tokenId] == msg.sender);
+      _owners[tokenId] = newOwner;
+  }
+  ```
+
+#### Gas 消耗比较
+基于 Solidity 0.8.17 版本：
+1. `error` 方法：24457 gas（带参数：24660 gas）
+2. `require` 方法：24755 gas
+3. `assert` 方法：24473 gas
+
+#### 思考与解答
+
+1. 为什么 `error` 是最新引入的异常处理机制？它解决了什么问题？
+   - 解答：`error` 解决了之前异常处理机制的几个问题：
+     - Gas 效率：相比 `require`，`error` 消耗更少的 gas，特别是在错误信息较长时。
+     - 参数传递：允许传递参数，提供更详细的错误信息。
+     - 可读性：可以在合约外定义，使代码结构更清晰。
+     - 标准化：便于创建特定于应用的错误类型。
+
+2. 在什么情况下应该使用 `assert` 而不是 `require` 或 `error`？
+   - 解答：`assert` 主要用于以下情况：
+     - 检查内部错误，即那些在正常情况下绝不应该发生的错误。
+     - 验证不变量，即在合约的整个生命周期中应该始终为真的条件。
+     - 用于测试和调试过程中捕获意外情况。
+   使用 `assert` 表明开发者认为这种情况永远不应该发生，如果发生，就表明合约中存在严重的逻辑错误。
+
+3. 考虑到 gas 消耗，如何在实际开发中选择使用 `error`、`require` 或 `assert`？
+   - 解答：
+     - 对于需要向用户提供详细错误信息的情况，优先使用 `error`，因为它既省 gas 又能提供充分信息。
+     - 对于简单的条件检查，特别是在旧版本的 Solidity 中，可以使用 `require`。
+     - 对于内部一致性检查和不变量验证，使用 `assert`。
+     - 在新项目中，尽可能使用 `error` 替代 `require`，以优化 gas 使用。
+
 
 
 

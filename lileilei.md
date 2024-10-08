@@ -936,7 +936,18 @@ contract AirDrop{
     }
 
 }
-    
+
+### 2024.10.07
+
+ERC165检查了合约是否实现了ERC721,ERC1155的接口
+import "./ierc165.sol";
+contract erc721 is ierc165{
+    function supportsInterface(bytes4 interfaceId)  external pure override  returns(bool){
+        return interfaceId == type(ierc165).interfaceId;
+    }
+}
+
+先直接实现下这个接口，但是会报错需要将erc721设置成abstract，明天待续
 
 
 <!-- Content_END -->

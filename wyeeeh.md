@@ -1418,9 +1418,31 @@ contract interactBAYC {
     - `balanceOfBAYC(address owner)` 函数使用 `BAYC.balanceOf(owner)`，查询某个地址的 BAYC NFT 数量。
 - **安全转账**：
     - `safeTransferFromBAYC(address from, address to, uint256 tokenId)` 使用 `BAYC.safeTransferFrom(from, to, tokenId)`，将 BAYC NFT 从 `from` 地址转账到 `to` 地址。
+###### 接口应用：标准库继承
+开发者在编写和部署合约时，**不需要手动再次定义`IERC721`接口**，因为这个接口已经是**标准化的**，可以直接通过继承的方式使用。这意味着你可以直接写`contract MyNFT is IERC721`，并通过`override`关键字实现接口中的函数。
+通常来说，开发者可以直接从**已有的标准库**中继承接口。这些标准库（如`OpenZeppelin`提供的库）已经包含了`IERC721`接口的定义和实现，所以开发者可以直接从中继承，而不需要再定义接口。
+例如，使用[OpenZeppelin库](https://github.com/OpenZeppelin/openzeppelin-contracts)，可以直接引入`IERC721`接口，并编写自己的实现：
+    
+    ```solidity
+    // 从OpenZeppelin导入IERC721接口
+    import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+    
+    contract MyNFT is IERC721 {
+        mapping(address => uint256) private _balances;
+    
+        function balanceOf(address owner) external view override returns (uint256) {
+            return _balances[owner];
+        }
+    
+        // 其他函数的实现...
+    }
+    
+    ```
+使用这种方法，开发者不需要重复编写接口部分，只需要关注具体实现。这样代码更加简洁、规范，并且减少了错误的可能。
 ##### 测验结果
 - 57/100
 - 85/100
+- 100/100
 ##### 测验错题
 1. 被标记为`abstract`的合约能否被部署？
     不能。被标记为`abstract`的合约不能被直接部署。抽象合约包含未实现的函数，意味着它不完整，无法在区块链上运行。如果想要部署一个合约，必须确保该合约实现了所有的函数，或者继承它的子合约实现了所有未实现的函数。
@@ -1452,4 +1474,189 @@ contract interactBAYC {
     - `return Azuki.ownerOfAzuki(id);`错误，`ownerOfAzuki`并不是`IERC721`接口中的函数名。
 
     - `return Azuki(ownerOf, id);`错误，`Azuki(ownerOf, id)`是无效的语法，函数调用不应以这种形式进行。
+
+### 2024.10.07
+#### WTF Academy Solidity 101.15 异常 `Error`
+
+##### `error` 与 `revert`
+`error` 是在 Solidity 0.8.4 中引入的，用来定义自定义异常。通过 `error`，开发者可以高效地抛出错误并返回相关的错误信息。`error` 通常与 `revert` 搭配使用，当程序遇到错误条件时，`revert`会将状态回滚。
+
+- 节省`gas`：由于不会输出过多的字符串信息，`error`在提供错误信息的同时更节省`gas`。
+- 参数支持：可以向异常携带相关的参数，提供更精确的调试信息。
+
+在同一个合约中，可以同时定义同名的 `error`，一个是没有参数的，另一个是带参数的。 Solidity 允许这种方式，因为它支持函数和错误的重载（overloading），即同名但参数不同的定义是合法的。下面是一个示例：
+###### 代码示例
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.13;
+
+contract Example {
+    // 自定义的无参数错误
+    error TransferNotOwner();
+
+    // 自定义的带参数错误
+    error TransferNotOwner(address sender);
+
+    mapping(uint256 => address) private _owners;
+
+    function transferOwner(uint256 tokenId, address newOwner) public {
+        // 检查是否为代币的拥有者
+        if (_owners[tokenId] != msg.sender) {
+            revert TransferNotOwner(); // 抛出无参数错误
+        }
+        // 更新拥有者
+        _owners[tokenId] = newOwner;
+    }
+
+    function transferOwnerWithDetails(uint256 tokenId, address newOwner) public {
+        // 检查是否为代币的拥有者
+        if (_owners[tokenId] != msg.sender) {
+            revert TransferNotOwner(msg.sender); // 抛出带参数错误
+        }
+        // 更新拥有者
+        _owners[tokenId] = newOwner;
+    }
+}
+```
+- `TransferNotOwner()` 是一个没有参数的错误，适用于不需要提供额外信息的场景。
+- `TransferNotOwner(address sender)` 是一个带参数的错误，可以在抛出错误时提供调用者的地址，方便调试和错误跟踪。
+- 然而，尽管可以在同一个合约中同时定义同名的错误，**在实际开发中，为了代码的可读性和可维护性，建议尽量避免使用相同的名字**。这样可以减少混淆，尤其是在较大的合约中。
+
+**类比 Python**：
+在 Python 中可以使用自定义异常类来模拟 Solidity 中的 `error`。同时，当条件不满足时通过 `raise` 抛出异常并传递参数。
+
+```python
+class TransferNotOwner(Exception):
+    def __init__(self, sender):
+        self.sender = sender
+
+def transfer_owner(token_id, new_owner, owners, sender):
+    if owners[token_id] != sender:
+        raise TransferNotOwner(sender)  # 自定义异常带参数
+    owners[token_id] = new_owner
+```
+
+##### `require`
+`require` 是 Solidity 中用于条件检查的常见方法。它通过验证条件是否为真，若不满足则抛出异常并回滚交易，同时可以带有描述错误原因的字符串。`require` 常用于合约函数的入口检查，比如验证用户权限或合约的输入。
+
+- 友好的用户提示：可以附带字符串信息解释错误。
+- 常用于权限验证和函数前置条件检查。
+
+###### 代码示例
+```solidity
+contract MyToken {
+    mapping(uint256 => address) private _owners;
+
+    function transferOwner(uint256 tokenId, address newOwner) public {
+        require(_owners[tokenId] == msg.sender, "Transfer Not Owner"); // 权限检查
+        _owners[tokenId] = newOwner;
+    }
+}
+```
+
+##### `assert`
+`assert` 主要用于开发者调试过程中检查程序的内部逻辑。它的功能类似于`require`，但通常用于合约的不可变状态或代码内部的逻辑错误。如果条件不成立，合约会回滚并抛出异常。但相比`require`，`assert`不附带（可自定义的）错误提示信息。
+
+- 用于合约内部逻辑的断言，适用于不可变状态。
+- 通常用于表示**不应发生的情况**。
+
+###### 代码示例
+```solidity
+
+contract MyToken {
+    mapping(uint256 => address) private _owners;
+
+    function transferOwner(uint256 tokenId, address newOwner) public {
+        assert(_owners[tokenId] == msg.sender); // 内部逻辑检查，与require比少字符串
+        _owners[tokenId] = newOwner;
+    }
+}
+```
+
+##### `require`和修饰器的区别
+- **使用场景**：
+    - `require` 一般用于简单的条件检查，适合在单一函数中执行，尤其是在处理逻辑简单、并且条件检查不重复的场景。
+    - 修饰器更适合用于多次重复出现的条件检查和代码复用，减少重复代码的写入。
+- **代码复用**：
+    - `require` 只能在函数内直接使用，无法抽象成可重复利用的逻辑。
+    - 修饰器可以被多个函数复用，用于共享检查逻辑，比如权限控制或其他共同的条件。
+- **可读性**：
+    - `require` 通常更直观，因为条件和操作在同一个地方定义，适合短小的逻辑。
+    - 修饰器可以简化函数体，使函数主体更专注于核心逻辑，提升代码的可读性。
+
+可以将 `require` 理解为一种内联的"修饰器"，用于单次条件验证，而修饰器则是一个结构化的工具，用来抽象条件检查并提高代码复用性。它们确实有相似的功能，但应用场景有所不同。
+如果你的条件检查逻辑只在某一个函数中使用，`require` 是更简单直接的选择。如果需要重复检查同样的条件，修饰器则是更高效、优雅的选择。
+
+**修饰器代码**
+```solidity
+modifier onlyOwner(uint256 tokenId) {
+    require(_owners[tokenId] == msg.sender, "Not the owner");
+    _;
+}
+
+function transferOwner(uint256 tokenId, address newOwner) public onlyOwner(tokenId) {
+    _owners[tokenId] = newOwner;
+}
+```
+
+**类比 Python**：
+Python 中可以通过 `assert` 或 `if` 语句检查条件，并使用 `raise` 抛出异常。
+**代码示例**
+```python
+class MyTokenRequire:
+    def __init__(self):
+        self._owners = {}
+
+    def transfer_owner(self, token_id, new_owner, sender):
+        # 使用 if 语句进行检查，类似于 Solidity 中的 require
+        if self._owners.get(token_id) != sender:
+            raise Exception("Transfer Not Owner")  # 抛出异常，类似于 revert 或 require
+        self._owners[token_id] = new_owner
+    # 报错结果：Exception: Transfer Not Owner
+
+class MyTokenAssert:
+    def __init__(self):
+        self._owners = {}
+
+    def transfer_owner(self, token_id, new_owner, sender):
+        # 使用 assert 进行内部逻辑检查
+        assert self._owners.get(token_id) == sender, "Transfer Not Owner"
+        self._owners[token_id] = new_owner
+    # 报错结果：AssertionError: Transfer Not Owner
+```
+
+##### 测验结果
+- 85/100
+- 100/100
+
+##### 测验错题
+`error`必须搭配`revert`使用
+
+### 2024.10.08
+#### WTF Academy Solidity 102.16 函数重载
+
+##### 笔记
+
+##### 测验结果
+
+##### 测验错题
+
+### 2024.10.09
+#### WTF Academy Solidity 102.17 库合约
+
+##### 笔记
+
+##### 测验结果
+
+##### 测验错题
+
+### 2024.10.10
+#### WTF Academy Solidity 102.18 Import
+
+##### 笔记
+
+##### 测验结果
+
+##### 测验错题
+
 <!-- Content_END -->
