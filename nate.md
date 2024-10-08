@@ -157,15 +157,15 @@ initcode: 新合约的初始字节码（合约的Creation Code和构造函数的
    的话，合约地址会随创建账户的状态而变化不好预测
    ```
 ### 2024.09.27
-WTF solidity16
+WTF solidity33-35
 ### 2024.09.29
-WTF solidity21-23
-### 2024.09.30
-WTF solidity26-30
-### 2024.10.01
-WTF solidity31-35
-### 2024.10.02
 WTF solidity36-40
+### 2024.09.30
+WTF solidity41-43
+### 2024.10.01
+WTF solidity43-45
+### 2024.10.02
+WTF solidity46-50
 ### 2024.10.03
 WTF solidity16-18   
 1. 库合约和普通合约区别：  
