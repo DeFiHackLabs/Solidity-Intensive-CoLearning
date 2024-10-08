@@ -157,14 +157,91 @@ initcode: 新合约的初始字节码（合约的Creation Code和构造函数的
    的话，合约地址会随创建账户的状态而变化不好预测
    ```
 ### 2024.09.27
-WTF solidity16-20
+WTF solidity16
 ### 2024.09.29
-WTF solidity21-25
+WTF solidity21-23
 ### 2024.09.30
 WTF solidity26-30
 ### 2024.10.01
 WTF solidity31-35
 ### 2024.10.02
 WTF solidity36-40
+### 2024.10.03
+WTF solidity16-18   
+1. 库合约和普通合约区别：  
+    - 不能存在状态变量
+    - 不能够继承或被继承
+    - 不能接收以太币
+    - 不可以被销毁
+2. library两种使用方法
+   ``` solidity
+   // 使用Strings库
+   contract WTF17{
+   
+    // 1. 使用指令 using A for B, B类型可以直接使用A库内中方法并且该变量作为第一个参数参数 
+    using Strings for uint256;
+
+    function f1(uint256 _in) public pure returns (string memory) {
+        return _in.toHexString();
+    }
+
+   // 2. 直接通过库名调用
+    function f2(uint256 _in) public pure returns (string memory) {
+        return Strings.toHexString(_in);
+    }
+   }
+   ```
+3. import三种引用方式
+   ``` solidity
+   // SPDX-License-Identifier: MIT
+   pragma solidity ^0.8.21;
+
+   // 1. 通过文件相对位置import
+   import './Yeye.sol';
+   // 通过全局符号导入特定的合约
+   import {Yeye} from './Yeye.sol';
+   // 2. 通过网址引用
+   import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+   // 3. 通过npm的目录导入
+   import '@openzeppelin/contracts/access/Ownable.sol';
+
+   contract Import {
+      // 成功导入Address库
+       using Address for address;
+      // 声明yeye变量
+       Yeye yeye = new Yeye();
+
+      // 测试是否能调用yeye的函数
+      function test() external{
+        yeye.hip();
+      }
+   }
+   ```   
+### 2024.10.04
+WTF solidity19-20
+1. receive和fallback
+   两种特殊的回调方法，可用来接收以太（fallback用payable修饰时），当向合约转账未call指定方法（data域为空）则会调用receive(),
+   若data域不为空但其函数未在合约中则调用fallback()
+2. call,transfer,send使用
+   ``` solidity
+   
+   // 2300gas fee限制
+   function transferEth(address payable _to, uint256 amount) external payable {
+       _to.transfer(amount);
+    }
+
+    function sendEth(address payable _to, uint256 amount) external payable {
+       bool success = _to.send(amount);
+       if(!success) revert SendFailed();
+    }
+
+    // call可选择gas fee
+    function callEth(address payable _to, uint256 amount) external payable {
+       (bool success,) = _to.call{value:amount}("");
+       if(!success) revert CallFailed();
+    }
+   ``` 
+### 2024.10.05
+WTF solifity21-23
 
 <!-- Content_END -->
