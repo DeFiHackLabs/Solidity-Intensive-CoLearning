@@ -698,6 +698,16 @@ fallback() external payable {
 - 如果要調用的合約函數是 payable，可以在函數調用時發送 ETH 給目標合約。
 
 ### 2024.10.08
+## 22_Call
+#### 目標合約 OtherContract
+- getBalance()：返回合約的 ETH 餘額。
+- setX(uint256)：設置狀態變量 x，同時允許發送 ETH。
+- getX()：讀取變量 x 的值。
+#### 利用 call 調用目標合約
+- 定義 Response 事件： 用於輸出 call 的結果，顯示 success（成功與否）和 data（返回值）。
+- 調用 setX 函數： 使用 call 調用目標合約的 setX() 函數，並發送 ETH。若成功，會觸發 Response 事件。
+- 調用 getX 函數： 使用 call 調用 getX()，返回變量 x 的值，並用 abi.decode 解碼返回的 data
+- 調用不存在的函數： 如果 call 輸入了一個不存在的函數簽名，那麼目標合約的 fallback 函數會被觸發。
 
 ### 2024.10.09
 
