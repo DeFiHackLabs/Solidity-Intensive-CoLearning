@@ -15,53 +15,64 @@ timezone: Asia/Shanghai
 
 ### 2024.09.23
 #### 01_HelloWeb3
-Solidity 是智能合約語言，主要用於以太坊，能幫助讀懂區塊鏈項目代碼。\
-Remix 是官方推薦的開發工具(https://remix.ethereum.org) ，可在瀏覽器中開發和部署 Solidity 合約。建議可以開啟自動編譯，省步驟。\
-Solidity 程序結構包含：
+* Solidity 是智能合約語言，主要用於以太坊。
+* Remix 是官方推薦的開發工具 (https://remix.ethereum.org) ，可在瀏覽器中開發和部署 Solidity 合約。建議可以開啟自動編譯，省步驟。
 
-License 註釋
+Solidity 程序結構包含：
+1. License 註釋
 ```solidity
 // SPDX-License-Identifier: MIT
 ```
-版本聲明：跟編譯器要一致，在remix輸入"pragma..." 會跳出"License註識"一起寫完，最後記得填入version
+2. 版本聲明：跟編譯器要一致，在Remix輸入"pragma..."會跳出"License註釋"一起寫完，最後記得填入 version
 ```solidity
 pragma solidity 0.8.26;
 ```
-合約內容
+3. 合約內容
 ```solidity
 contract HelloWorld { }
 ```
-* 第一個合約示例：HelloWeb3 合約，定義一個字符串變量，值為 "Hello Web3!"。每行代碼用分號 ；結尾
+* 第一個合約示例：HelloWeb3 合約，定義一個字符串變量，值為 "Hello Web3!"。每行代碼用分號；結尾
 
 #### 02_ValueTypes
+不填寫可見性說明符時
+* 狀態變數(state variables)：預設可見性是 internal。
+* 函數(functions)：預設可見性是 internal。
 
-狀態變數：預設可見性是 internal。函數：預設可見性是 internal。
 值的寫法：
 ```solidity
-<value types> {internal|public|private|不寫?|還不知道為什麼不能寫external?} <_value name> = 數值、字串或判斷式
+<value types> {internal|public|private} <_value name>;
+<value types> {internal|public|private} <_value name> = 數值、字串或判斷式;
 ```
-如果寫public，會自動產生getter函數(這邊應該可以理解成直接產生一個查找對應數值的函數功能)，寫其他或不寫，就不會有字自動生成getter函數，就沒辦法直接看對應數值。
+狀態變量不能使用 external！\
+如果狀態變數是 external，那麼就不能在合約內部被讀取，這違背了狀態變數的基本用途。\
+external 僅用於函數，表示只能從合約外部調用\
+
+如果寫public，會自動產生getter函數(可以理解成自動產生一個查找對應數值的函數功能)，寫其他或不寫可見性說明符，就不會有自動生成getter函數，會需要自己寫getter函數才能查找對應數值。
 
 ex.
 ```solidity
-uint8 public _apple = 255; //會自動產getter函數，部屬後直接點_apple會知道uint8: 255
-uint256 _banana = 20; //不會自動產getter函數，部屬後沒有_banana可以點，要另外自己寫function找_banana
+uint8 public _apple = 255;
+//會自動產生getter函數，部屬後直接點_apple會知道uint8: 255
+
+uint256 _banana = 20;
+//不會自動產生getter函數，部屬後沒有_banana可以點，要另外自己寫function找_banana
 ```
 
 數值類型概述
 * 布爾型 (bool)：只有兩個值，true 和 false。
+   * 基本運算符號：```!``` (不是), ```&&``` (和), ```||``` (或), ```==``` (等於), ```!=``` (不等於)
+   * 短路規則（Short-circuiting）：
+      * &&：如果前者為 false，後者不再執行。f(x) && g(y)，若f(x)為false，g(y)不執行
+      * ||：如果前者為 true，後者不再執行。f(x) || g(y)，若f(x)為true，g(y)不執行
 * 整數型 (uint)：
-    * uint（無符號整數）常用於區塊鏈，因為不需要負數，默認為 uint256。也沒有小數點。位數表達是二進制的位數，即256bits。
-    * 支援基本數學運算（加、減、乘、除、平方、取商、取餘數），以及比較運算（如>, >=, <, <= 等...）。
-    * 操作符：==、!=、&&、|| 用於邏輯比較。
-    * 短路規則（Short-circuiting）：
-        * &&：如果前者為 false，後者不再執行。
-        * ||：如果前者為 true，後者不再執行。
+   * uint（無符號整數）常用於區塊鏈，因為不需要負數，默認為 uint256。也沒有小數點。位數表達是二進制的位數，即256bits。
+   * 數學運算：```+```, ```-```, ```*```, ```/```(取商), ```%```(取餘), ```**```(平方)
+   * 比較判斷：```<=```,```<```, ```==```, ```!=```, ```>=```, ```>```
 * 地址型 (address)：
-    * 特殊的 20 byte 類型，用於儲存 Ethereum 地址。
-    * address：佔用 20 bytes，即 40 個 16 進位字符。
-    * payable address 可用於接收轉帳。
-    * 支援轉帳操作方法：transfer、send 和 call。以後會學
+    * 用於儲存 Ethereum 地址。
+    * 佔用 20 bytes，即 40 個 16 進位字符。
+    * address加上```payable```可用於接收轉帳。
+    * 支援轉帳操作方法：```transfer```、```send``` 和 ```call```。以後會學
 * 字節型 (bytes)：
     * 分為定長（如 bytes32）和不定長版本。
     * 定長字節型聲明長度後不可變；不定長字節數組有機會儲存更多數據。
@@ -69,10 +80,9 @@ uint256 _banana = 20; //不會自動產getter函數，部屬後沒有_banana可�
         * 每個 16 進位字符代表 4 bits。例如：1111 1111（二進位） = FF（16 進位）。
         * bytes32：能存 32 bytes，即 64 個 16 進位字符。
         * 0x只是用來表示16進制，不佔字符數。
-* 枚举 enum：冷門，方便辨識程式碼的寫法。類似自定義X, Y, X = 0, 1, 2的概念
+* 枚舉 enum：冷門，方便辨識程式碼的寫法。類似自定義```X, Y, X = 0, 1, 2```的概念
 
 #### 03_Function
-
 函數的基本結構
 ```solidity
 function <function name>(<parameter types>) {internal|external|public|private} [pure|view|payable] [returns (<return types>)]
@@ -89,24 +99,20 @@ function <function name>(<parameter types>) {internal|external|public|private} [
    * 不寫：可以讀取和修改狀態，改變鍊上數據會消耗 Gas。
 
 ### 2024.09.24
-
 #### 04_Return
 
-returns：跟在函数名后面，用于声明返回的变量类型及变量名。
-
+returns：跟在函數名後面，用於宣告傳回的變數類型及變數名。
 ```solidity
 function returnMultiple() public pure returns(uint256, bool, uint256[3] memory){
 ```
 
-return：用于函数主体中，返回指定的变量
-
+return：用於函數主體中，傳回指定的變數
 ```solidity
 return(1, true, [uint256(1),2,5]);
 }
 ```
 
 命名式返回：returns裡面聲明變數類型及變數名稱，並在函數內部為各個變數賦值
-
 ```solidity
 function returnNamed() public pure returns(uint256 _number, bool _bool, uint256[3] memory _array){
 _number = 2;
@@ -116,13 +122,11 @@ _array = [uint256(3),2,1];
 ```
 
 命名式返回也可以在returns先聲明變數類型及變數名稱，並在下方用return返回值
-
 ```solidity
 function returnNamed2() public pure returns(uint256 _number, bool _bool, uint256[3] memory _array){
     return(1, true, [uint256(1),2,5]);
 }
 ```
-
 解構式賦值：Solidity 中的解構式賦值(Destructuring Assignment)是一種允許你從數組或結構體中提取多個值並同時賦給多個變數的語法特性。這個概念源自於其他現代編程語言，如 JavaScript。 
 
 原講義看不懂，參考小礦工Wade介紹才理解一點，大概是：要先取得變數A跟對應值，然後設定新變數，可以透過解構式賦值的寫法，決定要不要把所有變數A賦值給新變數
@@ -140,7 +144,6 @@ uint256[3] memory _array;
 ```
 
 如果不想要全部變數都賦值，可以直接把那個變數幹掉；不過被幹掉的新變數，原本聲明的地方應該也要幹掉?
-
 ```solidity
 // 读取部分返回值，解构式赋值
 (, _bool2, ) = returnNamed();
@@ -150,8 +153,8 @@ uint256[3] memory _array;
 #### 05_DataStorage
 
 storage: 存在鍊上數據，gas貴
-memory: 存在内存，不上鍊。string, bytes, array和自定义结构需加memory。
-calldata: 存在内存，不上鍊。但是calldata初始化賦值後不得改變變量。
+memory: 用於函數內的臨時變量。存在内存，不上鍊。string, bytes, array和自訂結構需加memory。
+calldata: 用於接收外部調用的數據。存在内存，不上鍊。但是calldata初始化賦值後不得改變變量。更省gas。
 
 這邊要再確認一下calldata的作用，不知道為什麼calldata重新賦值後，點aa就變成新數據了，不過做myMemoery確實沒改變[0]，做myStorage有改變[0]，不能理解為什麼做calldata後會改變aa？ aa不是鍊上數據嗎?
 ```solidity
@@ -175,7 +178,6 @@ function myStorage() external {
 uint[] storage xMemory = aa;
 xMemory[0] = 100;    
 }
-
 }
 ```
 
@@ -187,41 +189,35 @@ xMemory[0] = 100;
 #### 06_ArrayAndStruct
 
 array
-固定长度数组
-
+固定長度數組
 ```solidity
-// 固定长度 Array
+// 固定長度 Array
 uint[8] array1;
 bytes1[5] array2;
 address[100] array3;
-````
+```
 
-可变长度数组
-
+可變長度數組
 ```solidity
-// 可变长度 Array
+// 可變長度 Array
 uint[] array4;
 bytes1[] array5;
 address[] array6;
 bytes array7;
 ````
+在Solidity中，如果一個值沒有指定type的話，會根據上下文推斷出元素的類型，預設就是最小單位的type，這裡預設最小單位類型是uint8\
 
-在Solidity中，如果一个值没有指定type的话，会根据上下文推断出元素的类型，默认就是最小单位的type，这里默认最小单位类型是uint8
-
-对于memory修饰的动态数组，可以用new操作符来创建，但是必须声明长度，并且声明后长度不能改变。
-
-主要是讓memory的變量，聲明一個新變量名稱，讓系統知道這個memory對應的不是鍊上數據，而是另外一個暫存的新值?
-
-這邊提到memory修飾動態數組，可用new創建，這件事應該不只侷限於動態數組，而是有用memory修飾的變量，都有一樣可以用new的概念對吧? 
-new 操作符的使用： 您是對的，new 操作符的使用不僅限於動態數組。在 Solidity 中，new 可以用於創建多種類型的 memory 變量，包括： 
-
+對於memory修飾的動態數組，可以用new運算元來創建，但是必須聲明長度，且聲明後長度不能改變。\
+主要是讓memory的變量，聲明一個新變量名稱，讓系統知道這個memory對應的不是鍊上數據，而是另外一個暫存的新值?\
+這邊提到memory修飾動態數組，可用new創建，這件事應該不只局限於動態數組，而是有用memory修飾的變量，都有一樣可以用new的概念對吧?\
+new 操作符的使用： 您是對的，new 操作符的使用不僅限於動態數組。在 Solidity 中，new 可以用於創建多種類型的 memory 變量，包括：\
 * 動態數組
 * 靜態數組
 * 結構體
 * 合約
 * uint, string這些如果用到memory修飾，直接定義新變量即可，不需要用到new
 
-如果创建的是动态数组，需要一个一个元素的赋值。
+如果建立的是動態數組，則需要一個元素的賦值。
 
 ```solidity
 function getArray() public pure returns (uint[] memory) {
@@ -233,25 +229,24 @@ return result;
 }
 ```
 
-数组成员
-
-* length: 数组有一个包含元素数量的length成员，memory数组的长度在创建后是固定的。
-* push(): 动态数组拥有push()成员，可以在数组最后添加一个0元素，并返回该元素的引用。
-* push(x): 动态数组拥有push(x)成员，可以在数组最后添加一个x元素。
-* pop(): 动态数组拥有pop()成员，可以移除数组最后一个元素。
+數組成員
+* length: 陣列有一個包含元素數量的length成員，memory陣列的長度在建立後是固定的。
+* push(): 動態陣列擁有push()成員，可以在陣列最後加上一個0元素，並傳回該元素的參考。
+* push(x): 動態陣列擁有push(x)成員，可以在陣列最後加上一個x元素。
+* pop(): 動態陣列擁有pop()成員，可以移除陣列最後一個元素。
 
 struct
 ```solidity
-// 结构体
+// 結構體
 struct Student{
     uint256 id;
     uint256 score; 
 }
 
-Student student; // 初始一个student结构体，後面小寫的student可以看做是命名Student這個結構體
+Student student; // 初始一個student結構體，後面小寫的student可以看做是命名Student這個結構體
 ```
 有四種賦值方法
-方法1:在函数中创建一个storage的struct引用
+方法1:在函數中建立一個storage的struct引用
 ```solidity
 //  给结构体赋值
 function initStudent1() external{
@@ -307,10 +302,10 @@ function getPeople() external view returns(People memory){
 ### 2024.09.25
 
 #### 07_Mapping
-* 规则1：映射的_KeyType只能选择Solidity内置的值类型，比如uint，address等，不能用自定义的结构体。而_ValueType可以使用自定义的类型。
-* 规则2：映射的存储位置必须是storage，因此可以用于合约的状态变量，函数中的storage变量和library函数的参数（见例子）。不能用于public函数的参数或返回结果中，因为mapping记录的是一种关系 (key - value pair)。
-* 规则3：如果映射声明为public，那么Solidity会自动给你创建一个getter函数，可以通过Key来查询对应的Value。
-* 规则4：给映射新增的键值对的语法为_Var[_Key] = _Value，其中_Var是映射变量名，_Key和_Value对应新增的键值对。
+* 規則1：映射的_KeyType只能選擇Solidity內建的值類型，例如uint，address等，不能用自訂的結構體。而_ValueType可以使用自訂的類型。
+* 規則2：映射的儲存位置必須是storage，因此可以用於合約的狀態變量，函數中的storage變數和library函數的參數（見例子）。不能用於public函數的參數或傳回結果中，因為mapping記錄的是一種關係 (key - value pair)。
+* 規則3：如果映射宣告為public，那麼Solidity會自動為你建立一個getter函數，可以透過Key來查詢對應的Value。
+* 規則4：新增給映射的鍵值對的語法為_Var[_Key] = _Value，其中_Var是映射變數名，_Key和_Value對應新增的鍵值對。
   
 ```solidity
 // SPDX-License-Identifier: MIT
@@ -330,20 +325,20 @@ contract _7mapping{
     }
 }
 ```
-* 原理1: 映射不储存任何键（Key）的资讯，也没有length的资讯。
-* 原理2: 映射使用keccak256(abi.encodePacked(key, slot))当成offset存取value，其中slot是映射变量定义所在的插槽位置。
-* 原理3: 因为Ethereum会定义所有未使用的空间为0，所以未赋值（Value）的键（Key）初始值都是各个type的默认值，如uint的默认值是0。
+* 原理1: 映射不儲存任何按鍵（Key）的資訊，也沒有length的資訊。
+* 原理2: 映射使用keccak256(abi.encodePacked(key, slot))當成offset訪問value，其中slot是映射變數定義所在的插槽位置。
+* 原理3: 因為Ethereum會定義所有未使用的空間為0，所以未賦值（Value）的鍵（Key）初始值都是各個type的預設值，如uint的預設值是0。
 
 #### 08_InitialValue
 
-值类型初始值
+值類型初始值
 
 delete操作符
-delete a会让变量a的值变为初始值。不是刪除該數值！
+delete a會讓變數a的值變成初始值。不是刪除該數值！
 
 #### 09_Constant
-只有数值变量可以声明constant和immutable；string和bytes可以声明为constant，但不能为immutable。
-constant, immutable 变量声明后再也不能改变。尝试改变的话，编译不通过。
+只有數值變數可以宣告constant和immutable；string和bytes可以宣告為constant，但不能為immutable。
+constant, immutable 變數宣告後再也不能改變。嘗試改變的話，編譯不通過。
 constant：初始化即聲明
 immutable：初始化即聲明 或 在建構子裡面聲明
 
@@ -369,7 +364,7 @@ function a(uint256 _number) public pure returns(bool){
 }
 ```
 * for
-* 另外还有continue（立即进入下一个循环）和break（跳出当前循环）关键字可以使用。
+* 另外還有continue（立即進入下一個循環）和break（跳出目前循環）關鍵字可以使用。
 ```solidity
 function forLoopTest() public pure returns(uint256){
    uint sum = 0; /// 一開始 sum = 0
@@ -428,7 +423,7 @@ function ternaryTest(uint256 x, uint256 y) public pure returns(uint256){
 
 * 插入排序：前後兩位比大小，後面小於前面就對調位置
 ```solidity
-// 插入排序 正确版
+// 插入排序 正確版
 function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
     // note that uint can not take negative value
     for (uint i = 1;i < a.length;i++){ 
@@ -508,7 +503,7 @@ function insertionSort(uint[] memory a) public pure returns(uint[] memory) {
 
 #### 11_Modifier
 
-* Constructor：每个合约可以定义一个，并在部署合约的时候自动运行一次。它可以用来初始化合约的一些参数，例如初始化合约的owner地址，部屬時會要求出入initialOwner
+* Constructor：每個合約可以定義一個，並在部署合約的時候自動執行一次。它可以用來初始化合約的一些參數，例如初始化合約的owner位址，下屬時會要求出入initialOwner
 
 ```solidity
 address owner; // 定义owner变量
@@ -1094,16 +1089,10 @@ contract Import {
 總結：import語句是Solidity中重要的代碼組織工具，能夠有效提高開發效率和代碼質量。開發者應熟練掌握不同的import方法，並在項目中合理使用，以實現代碼的模塊化和重用
 
 ### 2024.10.01
-
-#### ERC20
-#### ERC721
-
+bootcamp預習 ERC20 ERC721 ERC1155
 ### 2024.10.02
-
-#### ERC1155
-
+bootcamp預習 ERC20 ERC721 ERC1155
 ### 2024.10.03
-
 #### 19_Fallback
 * receive()：接收 ETH
 * fallback()：處理不存在的函數調用和接收 ETH
@@ -1132,14 +1121,11 @@ msg.data 不為空或不存在 receive() 則觸發 fallback()
 bootcamp作業
 ### 2024.10.05
 bootcamp作業
-ERC20
-ERC721
-ERC1155
-
 ### 2024.10.07
 bootcamp作業+助教課
 完成task1+task2
 
+錯誤寫法
 ```solidity
 // MagicWallet 的 transferFrom 函數（簡化版）
 function transferFrom(address from, address to, uint256 amount) external {
@@ -1172,6 +1158,7 @@ function transferFrom(address from, address to, uint256 amount) external {
 
 // 結果：Alice 的餘額從 100 增加到了 150
 ```
+正確寫法：遵守openzepplin ERC20
 ```solidity
 function _transfer(address from, address to, uint256 amount) internal virtual {
     require(from != address(0), "ERC20: transfer from the zero address");
@@ -1205,7 +1192,7 @@ function _transfer(address from, address to, uint256 amount) internal virtual {
 
 ### 2024.10.08
 openzepplin ERC20所有函數(AI產生)，建議還要跟講義比對功能正確性
-
+```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
@@ -1374,85 +1361,59 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
         uint256 amount
     ) internal virtual {}
 }
-
-
+```
 
 1. ERC20 標準的起源： 
-
     * ERC20 標準起源於 2015 年 11 月，由 Vitalik Buterin（V神）等人提出的 EIP-20。https://eips.ethereum.org/EIPS/eip-20 
     * ERC20 的核心標準自提出以來基本保持不變。
-
-1. OpenZeppelin 的實現： 
-
+2. OpenZeppelin 的實現： 
     * OpenZeppelin 在保持與原始標準兼容的同時，增加了許多改進： 
         * 增強的安全性
         * 更多的錯誤檢查
         * 優化的 gas 使用
         * 擴展功能（如可升級性）
         * 與新的以太坊改進提案（EIPs）的兼容性
-
-1. 標準vs實現： 
-
+3. 標準vs實現： 
     * ERC20 標準定義了接口，即合約應該實現哪些函數。
     * OpenZeppelin 提供了這個標準的具體實現，並隨著時間的推移不斷改進其實現方式。
-
-1. 社區貢獻： 
-
+4. 社區貢獻： 
     * 儘管核心標準保持不變，但圍繞 ERC20 的最佳實踐和安全考慮不斷發展。
     * OpenZeppelin 的實現反映了這些evolving的最佳實踐。
 
 OpenZeppelin 的實現確實在不斷進化，以適應不斷變化的以太坊生態系統和新發現的安全考慮。這就是為什么在實際開發中，使用像 OpenZeppelin 這樣經過充分測試和不斷更新的庫通常是更好的選擇。
 
-
-
 詳細解釋 EIP 和 ERC 的關係和順序：
-
 1. 順序： 
-
     * EIP（Ethereum Improvement Proposal）先於 ERC（Ethereum Request for Comments）。
-
-1. 流程： 
-
+2. 流程： 
     * 首先，有人提出一個 EIP。
     * 如果這個 EIP 涉及應用層面的標準（特別是代幣標準），它可能會被標記為 ERC。
     * 經過討論和可能的修改後，如果被社區接受，這個 EIP 就會成為一個 ERC 標準。
-
-1. ERC20 的例子： 
-
+3. ERC20 的例子： 
     * 最初以 EIP-20 的形式提出。
     * 經過討論和接受後，成為了 ERC20 標準。
-
-1. 編號一致性： 
-
+4. 編號一致性： 
     * 通常，ERC 的編號會與其源自的 EIP 編號保持一致。
     * 例如：EIP-20 變成了 ERC20。
-
-1. 概念區別： 
-
+5. 概念區別： 
     * EIP 是提案過程。
     * ERC 是最終的標準。
-
-1. 使用習慣： 
-
+6. 使用習慣： 
     * 在日常討論中，人們通常直接使用 ERC 稱呼這些標準，因為它們已經被廣泛採用。
-
-1. 其他例子： 
-
+7. 其他例子： 
     * ERC721（非同質化代幣標準）最初也是作為 EIP-721 提出的。
 
 總結：EIP 是整個過程的起點，它提出了新的想法或標準。如果這個 EIP 與應用層面的標準相關，特別是代幣標準，它可能會被標記為 ERC。一旦被社區接受並實施，我們就通常稱之為 ERC 標準。所以，EIP 在先，ERC 在後，但在最終採用的標準中，我們通常使用 ERC 這個術語。
 
-
 #### 20_sendETF
 
-SendETH 筆記
-接收ETH合約 (ReceiveETH)
+接收ETH合約 (ReceiveETH)\
+包含Log事件：記錄收到的ETH數量和剩餘gas\
+receive()函數：接收ETH時觸發，發送Log事件\
+getBalance()函數：查詢合約ETH餘額\
 
-包含Log事件：記錄收到的ETH數量和剩餘gas
-receive()函數：接收ETH時觸發，發送Log事件
-getBalance()函數：查詢合約ETH餘額
-
-solidityCopycontract ReceiveETH {
+```solidity
+contract ReceiveETH {
     event Log(uint amount, uint gas);
     
     receive() external payable{
@@ -1463,113 +1424,96 @@ solidityCopycontract ReceiveETH {
         return address(this).balance;
     }
 }
+```
 發送ETH合約 (SendETH)
+
 基礎結構：
-solidityCopycontract SendETH {
+```solidity
+contract SendETH {
     constructor() payable{}
     receive() external payable{}
 }
+```
+
 三種發送ETH的方法
-
-transfer
-
-語法：接收方地址.transfer(發送ETH數額)
-gas限制：2300
-失敗時自動revert
-
-solidityCopyfunction transferETH(address payable _to, uint256 amount) external payable{
+transfer\
+語法：接收方地址.transfer(發送ETH數額)\
+gas限制：2300\
+失敗時自動revert\
+```solidity
+function transferETH(address payable _to, uint256 amount) external payable{
     _to.transfer(amount);
 }
-
-send
-
-語法：接收方地址.send(發送ETH數額)
-gas限制：2300
-失敗時不自動revert，返回bool值
-
-solidityCopyfunction sendETH(address payable _to, uint256 amount) external payable{
+```
+send\
+語法：接收方地址.send(發送ETH數額)\
+gas限制：2300\
+失敗時不自動revert，返回bool值\
+```solidity
+function sendETH(address payable _to, uint256 amount) external payable{
     bool success = _to.send(amount);
     if(!success){
         revert SendFailed();
     }
 }
-
+```
 call
 
-語法：接收方地址.call{value: 發送ETH數額}("")
-無gas限制
-失敗時不自動revert，返回(bool, bytes)
-
-solidityCopyfunction callETH(address payable _to, uint256 amount) external payable{
+語法：接收方地址.call{value: 發送ETH數額}("")\
+無gas限制\
+失敗時不自動revert，返回(bool, bytes)\
+```solidity
+function callETH(address payable _to, uint256 amount) external payable{
     (bool success,) = _to.call{value: amount}("");
     if(!success){
         revert CallFailed();
     }
 }
+```
 
+總結\
+call：最靈活，無gas限制，推薦使用\
+transfer：有2300 gas限制，失敗自動revert，次優選擇\
+send：有2300 gas限制，失敗不自動revert，不推薦使用\
+注意：發送ETH時，確保amount <= msg.value，否則交易會失敗。\
 
-總結
-
-call：最靈活，無gas限制，推薦使用
-transfer：有2300 gas限制，失敗自動revert，次優選擇
-send：有2300 gas限制，失敗不自動revert，不推薦使用
-
-注意：發送ETH時，確保amount <= msg.value，否則交易會失敗。
-
-21 callcontract
+####21_callcontract
 
 合約調用方式比較：CallContract vs Interface
 
 1. 相同點
-
-1. 基本原理： 兩種方法都允許一個合約調用另一個已部署的合約的函數。
-2. 調用語法： 基本調用語法相似： 
-
+   1. 基本原理： 兩種方法都允許一個合約調用另一個已部署的合約的函數。
+   2. 調用語法： 基本調用語法相似： 
     * CallContract: OtherContract(_Address).functionName() //要調動的合約名稱(要調動的合約地址).要調動的函數名稱
     * Interface: IERC20(_tokenAddress).transfer() //要調動的合約名稱(要調動的合約地址).要調動的函數名稱
 
-1. 地址轉換： 兩種方法都將地址轉換為特定的合約類型。
-2. 發送 ETH： 兩種方法都支持調用 payable 函數並發送 ETH。
-
-2. 差異點
-
-1. 接口定義： 
-
+2. 地址轉換： 兩種方法都將地址轉換為特定的合約類型。
+3. 發送 ETH： 兩種方法都支持調用 payable 函數並發送 ETH。
+4. 差異點
+   1. 接口定義： 
     * Interface 方法明確定義了接口
     * CallContract 方法可能直接使用合約名稱，不一定需要預先定義接口
-
-1. 代碼可見性： 
-
+   2. 代碼可見性： 
     * Interface 方法只需要知道函數簽名
     * CallContract 方法可能需要完整的合約代碼（但不是必須的）
-
-1. 靈活性： 
-
+   3. 靈活性： 
     * Interface 方法更靈活，特別是在處理未知合約或第三方合約時
     * CallContract 方法可能更直接，但可能受限於已知合約
-
-1. 代碼組織： 
-
+   4. 代碼組織： 
     * Interface 方法通常將接口定義與使用分開
     * CallContract 方法可能將所有邏輯寫在同一個合約中
-
-3. 示例比較
+   5. 示例比較
 
 CallContract 方式：
-
-solidity
-Copy
+```solidity
 function callSetX(address _Address, uint256 x) external {
     OtherContract(_Address).setX(x);
 }
-
-
-
+```
 
 Interface 方式：
 
-solidity
-Copy
+```solidity
 interface IOtherContract {
     function setX(uint256 x) external;
 }
@@ -1577,75 +1521,53 @@ interface IOtherContract {
 function callSetX(address _Address, uint256 x) external {
     IOtherContract(_Address).setX(x);
 }
+```
 
-
-
-
-4. 選擇建議
-
-1. 使用 Interface 當： 
-
+5. 選擇建議
+   1. 使用 Interface 當： 
     * 與未知或第三方合約交互
     * 需要更好的代碼組織和可讀性
     * 處理複雜的合約交互
-
-1. 使用 CallContract 當： 
-
+   2. 使用 CallContract 當： 
     * 與已知合約交互
     * 需要更直接的調用方式
     * 在簡單場景下快速實現功能
-
 實際上，這兩種方法常常結合使用，根據具體情況選擇最適合的方式。
-
-
 
 1. 調用語法： 基本調用語法相似：
 2. CallContract: OtherContract(_Address).functionName() //要調動的合約名稱(要調動的合約地址).要調動的函數名稱
 3. Interface: IERC20(_tokenAddress).transfer() //要調動的合約名稱(要調動的合約地址).要調動的函數名稱 這樣註解正確嗎?
 
-Edit
-您的观察很敏锐，但这里有一些需要澄清和修正的地方。让我为您详细解释一下：
-
 1. CallContract（直接调用已知合约）:
 
-solidity
-Copy
+```solidity
 OtherContract(_Address).functionName()
-
-
-
+```
 这个注释基本正确，但可以更精确： "已知合约类型(合约地址).要调用的函数名称"
 
 1. Interface（通过接口调用）:
 
-solidity
-Copy
+```solidity
 IERC20(_tokenAddress).transfer()
-
-
-
+```
 这个注释也基本正确，但同样可以更精确： "接口名称(实现该接口的合约地址).要调用的函数名称"
 关键区别：
 
-1. CallContract 方式： 
-
+2. CallContract 方式： 
     * 用于调用已知完整合约代码的情况。
     * 编译时需要知道完整的合约代码。
     * 提供完整的类型检查和编译时错误检测。
 
-1. Interface 方式： 
-
+3. Interface 方式： 
     * 用于调用可能只知道部分接口的合约。
     * 只需要知道要调用的函数接口，不需要完整合约代码。
     * 更灵活，可以与任何实现了该接口的合约交互。
 
-1. call 方式（低级调用）：
+4. call 方式（低级调用）：
 
-solidity
-Copy
+```solidity
 address(_Address).call(abi.encodeWithSignature("functionName(uint256)", _value))
-
-
+```
 
 注释：合约地址.call(编码后的函数签名和参数)
 
@@ -1654,43 +1576,36 @@ address(_Address).call(abi.encodeWithSignature("functionName(uint256)", _value))
 * 没有编译时类型检查，更容易出错。
 
 总结：
-
 * CallContract 最安全但最不灵活。
 * Interface 在安全性和灵活性之间取得平衡。
 * call 最灵活但最不安全。
 
 选择哪种方法取决于您的具体需求和对目标合约的了解程度。在大多数情况下，如果可能，应优先使用 CallContract 或 Interface 方法。
 
-您提出了一個非常好的問題！這確實是一個容易混淆的地方。讓我們仔細比較這兩個案例，並解釋為什麼它們的處理方式不同。
 案例 1: 發送 ETH
 
-solidity
-Copy
+```solidity
 _to.call{value: _amount}("");
-
-
+```
 
 案例 2: 調用未知 ABI 的合約函數
-
-solidity
-Copy
+```solidity
 _contract.call(abi.encodeWithSignature(_func, _arg));
-
-
+```
 
 主要區別：
 
-1. 目的不同： 
+目的不同： 
 
     * 案例 1 的目的是純粹發送 ETH，不調用任何具體函數。
     * 案例 2 的目的是調用特定函數，需要提供函數簽名和參數。
 
-1. 調用方式： 
+調用方式： 
 
     * 案例 1 使用 call 的特殊語法 {value: _amount} 來發送 ETH。
     * 案例 2 需要編碼函數調用數據。
 
-1. 數據編碼： 
+數據編碼： 
 
     * 案例 1 不需要調用任何函數，所以傳入空字符串 "" 作為調用數據。
     * 案例 2 需要編碼函數簽名和參數，因此使用 abi.encodeWithSignature。
@@ -1728,15 +1643,13 @@ Copy
 Claude does not have the ability to run the code it generates yet.
 J
 如果我又想送錢，又想調用函數，會發生什麼事?
-Edit
 這是一個非常好的問題！在以太坊中，我們確實可以同時發送 ETH 和調用函數。這種情況在實際應用中相當常見。讓我為您詳細解釋這個過程和可能發生的情況。
 
-1. 同時發送 ETH 和調用函數的語法：
+同時發送 ETH 和調用函數的語法：
 
-solidity
-Copy
+```solidity
 (bool success, bytes memory data) = _to.call{value: _amount}(abi.encodeWithSignature("functionName(uint256)", _someParameter));
-
+```
 
 
 
@@ -1754,8 +1667,8 @@ Copy
 1. 注意事項： a. 接收合約必須是 payable：目標合約必須有能力接收 ETH（即有 payable 函數或 fallback/receive 函數）。 b. 函數存在性：如果調用的函數在目標合約中不存在，將觸發 fallback 函數（如果存在）。 c. Gas 限制：需要確保提供足夠的 gas 來完成 ETH 轉移和函數調用。
 2. 實際例子：
 
-solidity
-Copy
+```solidity
+
 contract Sender {
     function sendEthAndCall(address payable _to, uint256 _amount, uint256 _someValue) public payable {
         (bool success, bytes memory data) = _to.call{value: _amount}(
@@ -1778,7 +1691,7 @@ contract Receiver {
     // 確保合約可以接收 ETH
     receive() external payable {}
 }
-
+```
 
 
 在這個例子中：
@@ -1792,35 +1705,33 @@ contract Receiver {
     * 邏輯錯誤：確保在發送 ETH 和調用函數時的邏輯順序正確。
 
 總結： 同時發送 ETH 和調用函數是完全可行的，而且在某些場景下非常有用。但是，它需要仔細的設計和實現，以確保安全性和正確性。在使用這種模式時，務必考慮所有可能的情況，並進行充分的測試。
- CopyRetry
-Claude does not have the ability to run the code it generates yet.
-J
+
+
 這種做法常用嗎?
-Edit
 這種同時發送 ETH 和調用函數的做法在某些特定場景下確實很常用，但並不是所有智能合約交互都需要這樣做。讓我們來探討一下這種做法的使用情況：
 常見應用場景：
 
-1. 支付型服務： 
+支付型服務： 
 
     * 例如，在購買數字資產時，同時發送支付並調用鑄造或轉移函數。
 
-1. 質押機制： 
+質押機制： 
 
     * 用戶質押 ETH 並同時調用一個函數來記錄他們的質押狀態。
 
-1. 參與眾籌： 
+參與眾籌： 
 
     * 發送資金到眾籌合約的同時，調用一個函數來記錄參與者信息。
 
-1. 遊戲或賭博合約： 
+遊戲或賭博合約： 
 
     * 玩家下注並同時觸發遊戲邏輯。
 
-1. 分潤機制： 
+分潤機制： 
 
     * 發送資金並同時更新分潤比例或觸發分潤計算。
 
-1. 流動性提供： 
+流動性提供： 
 
     * 在 DeFi 協議中，提供流動性並同時調用必要的設置函數。
 
