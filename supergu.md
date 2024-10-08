@@ -223,4 +223,34 @@ delete x; // change x to default value
    - value-typed only
    - can be initialized during declaration or in the constructor
 
+### 2024.10.08
+
+#### Chapter 10: Control Flow
+
+```solidity
+if (a == 0) {
+   ...
+} else {
+   ...
+}
+```
+
+```solidity
+for (uint i = 0; i < 10; i++) {
+   ...
+}
+```
+
+```solidity
+while (i < 10) {
+   ...
+}
+```
+
+```solidity
+do {
+
+} while (i < 10);
+```
+
 <!-- Content_END -->

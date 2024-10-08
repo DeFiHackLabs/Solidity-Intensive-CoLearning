@@ -15,6 +15,101 @@ timezone: Asia/Shanghai
 ## Notes
 <!-- Content_START -->
 
+### 2024.10.07
+
+Solidity 103章节内容：代理合约、可升级合约、透明代理、通用可升级代理
+
+- 代理合约
+
+在fallback()回调函数中基于delegatecall来调用被代理合约；
+    
+	```
+	//需要注意这一段汇编，目的是使得fallback()能够返回值
+	assembly {
+		// 将msg.data拷贝到内存里
+		// calldatacopy操作码的参数: 内存起始位置，calldata起始位置，calldata长度
+		calldatacopy(0, 0, calldatasize())
+	
+		// 利用delegatecall调用implementation合约
+		// delegatecall操作码的参数：gas, 目标合约地址，input mem起始位置，input mem长度，output area mem起始位置，output area mem长度
+		// output area起始位置和长度位置，所以设为0
+		// delegatecall成功返回1，失败返回0
+		let result := delegatecall(gas(), _implementation, 0, calldatasize(), 0, 0)
+	
+		// 将return data拷贝到内存
+		// returndata操作码的参数：内存起始位置，returndata起始位置，returndata长度
+		returndatacopy(0, 0, returndatasize())
+	
+		switch result
+		// 如果delegate call失败，revert
+		case 0 {
+		    revert(0, returndatasize())
+		}
+		// 如果delegate call成功，返回mem起始位置为0，长度为returndatasize()的数据（格式为bytes）
+		default {
+		    return(0, returndatasize())
+		}
+	    }
+	```
+    
+- 选择器冲突
+
+  函数选择器为函数签名的哈希的前4个字节；
+    
+  如”burn(uint256)”和(collate_propagate_storage()”具有相同的选择器；
+    
+- 透明代理
+
+  管理员：调用代理合约的可升级函数对合约升级，不能通过回调函数调用逻辑合约
+
+  其他用户：不能调用可升级函数，但是可以调用逻辑合约的函数。
+
+- 通用可升级代理
+
+  将升级函数放在逻辑合约中，并检查调用者是否为管理员；
+  
+- 相关代码
+
+  [ProxyContract case](https://github.com/eddiehsu66/SolidityCase/tree/main/ProxyContract)
+    
+  [UUProxyContract case](https://github.com/eddiehsu66/SolidityCase/tree/main/UUProxyContract)
+
+### 2024.10.06
+
+Solidity 103章节内容：WETH、分账、线性释放、代币锁
+
+- 函数参数的位置指定
+
+  主要针对引用类型：数组、结构体、映射、字符串
+
+  `memory`:表示数据将被存储在内存中，适用于需要修改或者临时存储的数据，允许在函数内容 修改参数内容，但会消耗更多gas；
+
+  `calldata`:calldata为只读，最省gas，直接从调用数据中读取，不需要复制到内存；
+
+- 代码
+    
+    [WETH.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/WETH)
+    
+    [PaymentSplit.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/PaymentSplit)
+    
+    [TokenVesting.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/TokenVesting)
+    
+    [TokenLocker.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/TokenLocker)
+
+### 2024.10.05
+
+Solidity 103章节内容：NFT交易所、ERC1155
+
+- ERC1155
+
+在`ERC721`中，每个代币都有一个`tokenId`作为唯一标识，每个`tokenId`只对应一个代币；而在`ERC1155`中，每一种代币都有一个`id`作为唯一标识，每个`id`对应一种代币。
+
+- 代码
+    
+    [NftSwap.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/NftExchanger)
+    
+    [ERC1155.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/ERC1155)
+
 ### 2024.10.04
 
 Solidity103章节内容：数字签名、链上随机数

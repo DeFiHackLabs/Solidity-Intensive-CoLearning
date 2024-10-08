@@ -99,7 +99,7 @@ contract DutchAuctionTest is Test {
         auction.setBaseURI(newBaseURI);
 
         // Check that the BaseURI has been set correctly
-        // assertEq(auction._baseURI(), newBaseURI);
+        assertEq(auction.getBaseURI(), newBaseURI);
     }
 
     function testSetAuctionStartTime() public {

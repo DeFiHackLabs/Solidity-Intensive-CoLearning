@@ -158,4 +158,16 @@ Add source codes for 36.MerkleTree_v2 and its tests
 
 Add source codes for 33.Airdrop and its tests
 
+### 2024.10.06
+
+Add source codes for 05.DataStorage and its tests
+
+### 2024.10.07
+
+Update source codes for 05.DataStorage, 35.DutchAuction and 35.DutchAuction's tests
+
+### 2024.10.08
+
+Add source codes for 23.Delegatecall and its tests
+
 <!-- Content_END -->

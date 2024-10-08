@@ -1273,6 +1273,329 @@ contract OtherContract {
 >
 > (2) 通过接口 IOtherContract 实例化：这是一种更灵活的方式，通过接口可以在合约的不同版本之间更轻松地进行交互。只要目标合约实现了 IOtherContract 接口，便可以通过该接口的方式进行调用。这也同样是正确的调用方法。
 
+### 2024.10.06
+#### Call
+`call`是`address`類型的低級成員函數，運行時動態調用其他合約的函數。返回值為`(bool, bytes memory)`，分别對應`call`是否成功以及目標函數的返回值。
+* `Gas`：調用者可以控制調用時提供的 `gas`，多餘的 `gas` 會退還给調用者。
+* `call`是solidity官方推薦的通過觸發`fallback`或`receive`函數發送`ETH`的方法。
+* 不建議用`call`調用另一個合約，因為當調用的是不安全合約的函數時，就等於將主動權交給了它。建議使用先宣告合約變量再調用函數的方式。
+* 當不知道對方合約的源代碼或者ABI時，就沒辦法生成合約變量，此時仍可以通過`call`調用對方合約的函數。
 
+**call使用規則**
+```Solidity
+目标合约地址.call(字节码);
+```
+其中`字節碼`利用結構化編碼函數`abi.encodeWithSignature`獲得：
+
+```Solidity
+// abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)
+
+(bool success, bytes memory data) = targetContract.call(
+    abi.encodeWithSignature("someFunction(uint256)", 123)
+);
+```
+`函數簽名`為`"函數名（逗號分隔的參數類型）"`。例如`abi.encodeWithSignature("f(uint256,address)", _x, _addr)`。
+
+另外`call`在調用合約時可以指定交易發送的`ETH`數額和`gas`數額：
+```Solidity
+目标合约地址.call{value:发送数额, gas:gas数额}(字节码);
+```
+
+**目標合約**
+與上章的`OtherContract`基本相同，但多了`fallback`函數。
+```Solidity
+contract OtherContract {
+    uint256 private _x = 0; // 状态变量x
+    // 收到eth的事件，记录amount和gas
+    event Log(uint amount, uint gas);
+    
+    fallback() external payable{}
+
+    // 返回合约ETH余额
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+
+    // 可以调整状态变量_x的函数，并且可以往合约转ETH (payable)
+    function setX(uint256 x) external payable{
+        _x = x;
+        // 如果转入ETH，则释放Log事件
+        if(msg.value > 0){
+            emit Log(msg.value, gasleft());
+        }
+    }
+
+    // 读取x
+    function getX() external view returns(uint x){
+        x = _x;
+    }
+}
+```
+
+**利用`call`調用目標合約**
+
+1.Response事件
+我們寫一個`call`合約來呼叫目標合約的函數，首先定義一個`Response`事件，輸出`call`返回的`success`和`data`，以觀察返回值。
+
+```solidity
+// 定义Response事件，输出call返回的结果success和data
+event Response(bool success, bytes data);
+```
+
+2.調用setX函數
+定義`callSetX`函數去調用目標合約的`setX()`，轉入`msg.value`數額的`ETH`，並釋放`Response`事件輸出`success`和`data`:
+```solidity
+function callSetX(address payable _addr, uint256 x) public payable {
+    // call setX()，同时可以发送ETH
+    (bool success, bytes memory data) = _addr.call{value: msg.value}(
+        abi.encodeWithSignature("setX(uint256)", x)
+    );
+
+    emit Response(success, data); //释放事件
+}
+```
+接著調用`callSetX`把狀態變量`_x`改為5，參數為`OtherContract`地址和`5`，由於目標函數`setX()`沒有返回值，因此`Response`事件輸出的`data`為`0x`，意即空。  
+<img src="https://github.com/user-attachments/assets/f0942773-38a4-4cd4-b576-c8ca371f6541" height="320px" width="600px" />  
+
+3.調用getX函數
+
+調用`getX`函數，將返回目標合約`_x`的值，類型為`uint256`。可以用`abi.decode`解碼`call`的返回值`data`，並輸出數值。
+
+```Solidity
+function callGetX(address _addr) external returns(uint256){
+    // call getX()
+    (bool success, bytes memory data) = _addr.call(
+        abi.encodeWithSignature("getX()")
+    );
+
+    emit Response(success, data); //释放事件
+    return abi.decode(data, (uint256));
+}
+```  
+<img src="https://github.com/user-attachments/assets/e95459d3-8916-4e39-a701-3ffbd0855874" height="200px" width="600px" /> 
+
+
+4.調用不存在的函數
+如果輸入`call`的目標函數不存在目標合約，那麼目標合約的`fallback`被觸發。
+
+```Solidity
+function callNonExist(address _addr) external{
+    // call 不存在的函数
+    (bool success, bytes memory data) = _addr.call(
+        abi.encodeWithSignature("foo(uint256)")
+    );
+
+    emit Response(success, data); //释放事件
+}
+```
+<img src="https://github.com/user-attachments/assets/f37fc1bf-4da7-4590-824a-1aff8f86d161" height="100px" width="600px" /> 
+
+### 2024.10.07
+
+#### Delegatecall
+`delegatecall`與`call`類似，是 Solidity 中地址類型的低級成員函數。與`cal`的區別是會在調用者合約的上下文中執行被調用合約的程式。`delegate`意即`委託`。  
+
+當用戶`A`通過合約`B`來`call`合約`C`的時候，執行的是合約`C`的函數，上下文(`content`，理解為包含變量和狀態的環境)是合約`c`的。  
+<img src="https://github.com/user-attachments/assets/56b71df3-dc9f-41af-a61c-6797ea0a5c6e" height="230px" width="600px" />  
+當用戶`A`通過合約`B`來`delegatecall`合約`C`的時候，執行的是合約`C`的函數，上下文是合約`b`的，且若函數改變一些狀態變量，產生的效果會作用在合約`B`的變量上。  
+想像成：投資者(A)將資產(B)交給風險投資者(C)。執行者是C，但改變的是B。
+<img src="https://github.com/user-attachments/assets/fce7d048-c081-4b84-951b-87256a7a16b0" height="230px" width="600px" />  
+
+**語法**  
+```Solidity
+目标合约地址.delegatecall(二进制编码);
+```  
+其中二进制编码利用结构化编码函数abi.encodeWithSignature获得：  
+```Solidity
+abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)
+```  
+`函数签名`为`"函数名（逗号分隔的参数类型）"`。例如`abi.encodeWithSignature("f(uint256,address)", _x, _addr)`。  
+與`call`不一樣，`delegatecall`在調用合約時可以指定教意發送的`gas`，但不能指定發送的`ETH`數額。
+
+**※ 注意：**`delegatecall`有安全隱患，使用時要保證當前合約和目標合約的狀態變量存儲結構相同，並且目標合約相同，不然會造成資產損失。
+
+#### 什麼情況下會用到`delegatecall`?
+1. 代理合約(`Proxy Contract`)：將智能合約的儲存合約跟邏輯合約(`Logic Contract`)分開，`Proxy Contract`存儲所有相關變量，並保存邏輯合約的地址；所有函數存在邏輯合約中，藉由`delegatecall`執行。當升級時，只需要將代理合約指向新的邏輯合約。
+2. EIP-2535 Diamonds(鑽石)：鑽石是一個支持構建可在生產中擴展的模塊化智能合約系統的標準。鑽石是具有多個實施合約的代理合約。  
+[鑽石標準簡介](<https://eip2535diamonds.substack.com/p/introduction-to-the-diamond-standard>)
+
+
+#### `delegatecall`例子
+結構：你(A)通過合約B調用目標合約C。  
+* 被調用的合約C  
+先寫一個簡單的目標合約C：  
+兩個`public`變量：`uint num`、`address sender`  
+函數`setVars(uint _num)`，可將`num`設定為傳入的`_num`，並將`sender`設為`msg.sender`。  
+```Solidity
+// 被调用的合约C
+contract C {
+    uint public num;
+    address public sender;
+
+    function setVars(uint _num) public payable {
+        num = _num;
+        sender = msg.sender;
+    }
+}
+```
+* 發起調用的合約B  
+合約`B`與目標合約`C`的變量存儲布局必須相同，兩個變量順序需要相同(先`num`後`sender`，變量名稱可以不同)。  
+```Solidity
+contract B {
+    uint public num;
+    address public sender;
+}
+```  
+
+
+```Solidity
+// 通过call来调用C的setVars()函数，将改变合约C里的状态变量
+// _addr 對應合約c的地址
+// _num 對應合約c的參數
+function callSetVars(address _addr, uint _num) external payable{
+    // call setVars()
+    (bool success, bytes memory data) = _addr.call(
+        abi.encodeWithSignature("setVars(uint256)", _num)
+    );
+}
+```
+
+```Solidity
+// 通过delegatecall来调用C的setVars()函数，将改变合约B里的状态变量
+function delegatecallSetVars(address _addr, uint _num) external payable{
+    // delegatecall setVars()
+    (bool success, bytes memory data) = _addr.delegatecall(
+        abi.encodeWithSignature("setVars(uint256)", _num)
+    );
+}
+```
+
+#### call vs delegatecall 的主要區別
+
+| 特性 | call | delegatecall |
+| :-- | :-- | :-- |
+| 狀態變量上下文 | 目標合約(C)的狀態變量 | 調用者合約(B)的狀態變量 | 
+| `msg.sender` | 目標合約的 `msg.sender` | 調用者合約的 `msg.sender` | 
+| `msg.value` | 目標合約接收到的 `msg.value` | 調用者合約接收到的 `msg.value` | 
+| 存儲修改 | 修改目標合約的存储 | 修改調用者合約的存储 | 
+| 適用場景 | 常規的合約調用、發送 ETH | 代理合約模式、庫合約復用 | 
+| 函數執行上下文 | 在目標合約中執行 | 在調用者合約的上下文中執行 | 
+
+
+> 2.当用户A通过合约B来delegatecall合约C时，执行了__的函数，语境是__，msg.sender和msg.value来自__， 并且如果函数改变一些状态变量，产生的效果会作用于__的变量上。  
+> A. C;B;A;B  
+> B. C;C;B;C  
+> C. B;B;A;B  
+> D. C;B;A;C  
+> 
+> Ans:A  
+> * 執行了合約 C 的函數，因為 delegatecall 是調用合約 C 的函數代碼。  
+> * 語境 是合約 B，這是因為 delegatecall 繼承了合約 B 的上下文，即使用合約 B 的存儲空間和狀態變量。  
+> * msg.sender 和 msg.value 來自用戶 A，這些參數在 delegatecall 中保持不變。  
+> * 如果函數改變了一些狀態變量，這些改變會作用於合約 B 的變量上，因為 delegatecall 使用了合約 B 的存儲。  
+
+> 3.delegatecall在调用合约时__________________________  
+
+> A. 可以指定交易发送的gas，也可以指定发送的ETH数额  
+> B. 可以指定交易发送的gas，但不可以指定发送的ETH数额  
+> C. 不可以指定交易发送的gas，也不可以指定发送的ETH数额  
+> D. 不可以指定交易发送的gas，但可以指定发送的ETH数额  
+> 
+> Ans:B  
+> * 它可以指定交易發送的 gas，因為 delegatecall 的語法允許透過 {gas: xxx} 來設定 gas 限制。
+> * 但 delegatecall 不能 發送 ETH，因為它僅傳遞執行上下文，不會攜帶任何資金轉移。
+
+
+> 6.在代理合约中，存储所有相关的变量的是___，存储所有函数的是___，同时____________  
+
+> A. 代理合约; 逻辑合约; 代理合约delegatecall逻辑合约  
+> B. 代理合约; 逻辑合约; 逻辑合约delegatecall代理合约  
+> C. 逻辑合约; 代理合约; 代理合约delegatecall逻辑合约  
+> D. 逻辑合约; 代理合约; 逻辑合约delegatecall代理合约  
+> 
+> Ans:A  
+> * 代理合約（Proxy Contract）存儲所有相關的狀態變量，因為所有狀態的變更都會發生在代理合約的存儲空間。
+> * 邏輯合約（Logic Contract）存儲所有函數，實際的邏輯運行是在邏輯合約中定義的函數中完成的。
+> * 代理合約使用 delegatecall 呼叫邏輯合約來執行函數，這樣變更會影響代理合約的存儲。
+
+### 2024.10.08
+
+#### 在合約中創建新合約
+在乙太坊鏈上，用戶(外部帳戶，EOA)和智能合約都具備創建新的智能合約的能力。這種功能的實現使的合約之間可以互相交互、組合，並實現更複雜的去中心化應用(DApps)。  
+中心化交易所`uniswap`就是利用工廠合約(`PairFactory`)創建和管理無數個交易對合約(`Pair Contract`)，每個交易對合約代表一個特定的代幣對（如 ETH/DAI）。  
+
+**`create`**  
+有兩種方法可以在合約中創建新合約，`create`和`create2`。  
+`create`的用法很簡單，就是`new`一個合約，並傳入新合約構造函數所需的參數：  
+`Contract`是要創建的合約名，`x`是合約對象(地址)，如果構造函數是`payable`，可以創建時傳入`_value`數量的`ETH`，`params`是新合約構造函數的參數。  
+```Solidity
+Contract x = new Contract{value: _value}(params)
+```  
+
+#### 極簡Uniswap
+`Uniswap V2`核心合約中包含兩個合約：  
+1. UniswapV2Pair: 幣對合約，用於管理幣對地址、流動性、買賣。  
+2. UniswapV2Factory: 工廠合約，用於創建新幣對，並管理幣對地址。  
+
+以下用`create`方法實現簡易版的`Uniswap`。  
+
+**`Pair`合約**  
+```Solidity
+contract Pair{
+    address public factory; // 工厂合约地址
+    address public token0; // 代币1
+    address public token1; // 代币2
+
+    constructor() payable {
+        factory = msg.sender;
+    }
+
+    // called once by the factory at time of deployment
+    function initialize(address _token0, address _token1) external {
+        require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
+        token0 = _token0;
+        token1 = _token1;
+    }
+}
+```  
+`Pair`合約很簡單，包含3個狀態變量：`factory`, `token0`和`token1`。  
+構造函數`construct`在部署時將`factory`賦值為工廠合約的地址。`initialize`函數會由工廠合約在部署完成後手動調用已初始化代幣地址，將`token`和`token1`更新為幣對中兩種代幣的地址。  
+
+> 为什么uniswap不在constructor中将token0和token1地址更新好？
+> 
+> 因为uniswap使用的是create2创建合约，生成的合约地址可以实现预测，更多详情请阅读第25讲。
+
+**`PairFactory`**  
+```Solidity
+contract PairFactory{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair(address tokenA, address tokenB) external returns (address pairAddr) {
+        // 创建新合约
+        Pair pair = new Pair(); 
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+}
+```  
+
+工廠合約(PairFactory)有兩個狀態變量`getPair`是兩個代幣地址到幣對地址的map，方便根據代幣找到幣對地址。  
+
+`PairFactory`合約只有一個`createPair`函數，根據輸入的兩個代幣地址`tokenA`、`TokenB`來創建新的`Pair`合約。  
+以下為創建合約的程式：  
+```Solidity
+Pair pair = new Pair(); 
+```  
+
+```
+WBNB地址: 0x2c44b726ADF1963cA47Af88B284C06f30380fC78
+BSC链上的PEOPLE地址: 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c
+```  
 
 <!-- Content_END -->

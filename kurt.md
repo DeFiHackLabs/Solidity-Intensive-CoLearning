@@ -545,8 +545,174 @@ function burn(uint amount) external {
 }
 ```
 ### 2024.10.06
+32. 代币水龙头
+我们在水龙头合约中定义3个状态变量
+```
+amountAllowed设定每次能领取代币数量（默认为100，不是一百枚，因为代币有小数位数）。
+tokenContract记录发放的ERC20代币合约地址。
+requestedAddress记录领取过代币的地址。
+uint256 public amountAllowed = 100; // 每次领 100 单位代币
+address public tokenContract;   // token合约地址
+mapping(address => bool) public requestedAddress;  
+```
+事件
+水龙头合约中定义了1个SendToken事件，记录了每次领取代币的地址和数量，在requestTokens()函数被调用时释放。
+```
+// SendToken事件    
+event SendToken(address indexed Receiver, uint256 indexed Amount);
+```
+函数
+合约中只有两个函数：
+
+构造函数：初始化tokenContract状态变量，确定发放的ERC20代币地址。
+```
+// 部署时设定ERC20代币合约
+constructor(address _tokenContract) {
+  tokenContract = _tokenContract; // set token contract
+}
+```
+requestTokens()函数，用户调用它可以领取ERC20代币。
+```
+// 用户领取代币函数
+function requestTokens() external {
+    require(!requestedAddress[msg.sender], "Can't Request Multiple Times!"); // 每个地址只能领一次
+    IERC20 token = IERC20(tokenContract); // 创建IERC20合约对象
+    require(token.balanceOf(address(this)) >= amountAllowed, "Faucet Empty!"); // 水龙头空了
+
+    token.transfer(msg.sender, amountAllowed); // 发送token
+    requestedAddress[msg.sender] = true; // 记录领取地址 
+    
+    emit SendToken(msg.sender, amountAllowed); // 释放SendToken事件
+}
+```
 ### 2024.10.07
+33. 空投合约
+
+投代币合约
+Airdrop空投合约逻辑非常简单：利用循环，一笔交易将ERC20代币发送给多个地址。合约中包含两个函数
+
+getSum()函数：返回uint数组的和。
+```
+// 数组求和函数
+function getSum(uint256[] calldata _arr) public pure returns(uint sum){
+    for(uint i = 0; i < _arr.length; i++)
+        sum = sum + _arr[i];
+}
+```
+
+multiTransferToken()函数：发送ERC20代币空投，包含3个参数：
+
+_token：代币合约地址（address类型）
+_addresses：接收空投的用户地址数组（address[]类型）
+_amounts：空投数量数组，对应_addresses里每个地址的数量（uint[]类型）
+该函数有两个检查：第一个require检查了_addresses和_amounts两个数组长度是否相等；第二个require检查了空投合约的授权额度大于要空投的代币数量总和。
+```
+/// @notice 向多个地址转账ERC20代币，使用前需要先授权
+///
+/// @param _token 转账的ERC20代币地址
+/// @param _addresses 空投地址数组
+/// @param _amounts 代币数量数组（每个地址的空投数量）
+function multiTransferToken(
+    address _token,
+    address[] calldata _addresses,
+    uint256[] calldata _amounts
+    ) external {
+    // 检查：_addresses和_amounts数组的长度相等
+    require(_addresses.length == _amounts.length, "Lengths of Addresses and Amounts NOT EQUAL");
+    IERC20 token = IERC20(_token); // 声明IERC合约变量
+    uint _amountSum = getSum(_amounts); // 计算空投代币总量
+    // 检查：授权代币数量 >= 空投代币总量
+    require(token.allowance(msg.sender, address(this)) >= _amountSum, "Need Approve ERC20 token");
+
+    // for循环，利用transferFrom函数发送空投
+    for (uint8 i; i < _addresses.length; i++) {
+        token.transferFrom(msg.sender, _addresses[i], _amounts[i]);
+    }
+}
+
+```
+multiTransferETH()函数：发送ETH空投，包含2个参数：
+
+_addresses：接收空投的用户地址数组（address[]类型）
+_amounts：空投数量数组，对应_addresses里每个地址的数量（uint[]类型）
+```
+/// 向多个地址转账ETH
+function multiTransferETH(
+    address payable[] calldata _addresses,
+    uint256[] calldata _amounts
+) public payable {
+    // 检查：_addresses和_amounts数组的长度相等
+    require(_addresses.length == _amounts.length, "Lengths of Addresses and Amounts NOT EQUAL");
+    uint _amountSum = getSum(_amounts); // 计算空投ETH总量
+    // 检查转入ETH等于空投总量
+    require(msg.value == _amountSum, "Transfer amount error");
+    // for循环，利用transfer函数发送ETH
+    for (uint256 i = 0; i < _addresses.length; i++) {
+        // 注释代码有Dos攻击风险, 并且transfer 也是不推荐写法
+        // Dos攻击 具体参考 https://github.com/AmazingAng/WTF-Solidity/blob/main/S09_DoS/readme.md
+        // _addresses[i].transfer(_amounts[i]);
+        (bool success, ) = _addresses[i].call{value: _amounts[i]}("");
+        if (!success) {
+            failTransferList[_addresses[i]] = _amounts[i];
+        }
+    }
+}
+```
 ### 2024.10.08
+34. ERC721(目前卡在ERC721编写)
+```
+    /**
+ * @dev ERC165标准接口, 详见
+ * https://eips.ethereum.org/EIPS/eip-165[EIP].
+ *
+ * 合约可以声明支持的接口，供其他合约检查
+ *
+ */
+interface IERC165 {
+    /**
+     * @dev 如果合约实现了查询的`interfaceId`，则返回true
+     * 规则详见：https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[EIP section]
+     *
+     */
+    function supportsInterface(bytes4 interfaceId) external view returns (bool);
+}
+```
+```
+interface IERC721Metadata {
+    function name() external view returns (string memory);
+
+    function symbol() external view returns (string memory);
+
+    function tokenURI(uint256 tokenId) external view returns (string memory);
+}
+```
+```
+// ERC721接收者接口：合约必须实现这个接口来通过安全转账接收ERC721
+interface IERC721Receiver {
+    function onERC721Received(
+        address operator,
+        address from,
+        uint tokenId,
+        bytes calldata data
+    ) external returns (bytes4);
+}
+```
+```
+interface IERC721 is IERC165{
+    event Transfer(address indexed from,address indexed to,uint256 indexed tokenId);
+    event Approval(address indexed owner,address indexed approved,uint256 indexed tokenId);
+    event ApprovalForAll(address indexed owner,address indexed operator,bool approved);
+    function ownerOf(uint256 tokenId) external view returns (address owner);
+    function balanceOf(address owner) external view returns (uint256 tokenId);
+    function transferFrom(address from,address to,uint256 tokenId) external ;
+    function safeTransferFrom(address from,address to,uint256 tokenId)external ;
+    function safeTransferFrom(address from,address to,uint256 tokenId,bytes calldata data) external ;
+    function approve(address operator,uint256 tokenId) external ;
+    function setApprovalForAll(address operator,bool approved) external ;
+    function getApproved(uint256 tokenId) external view returns (address owner);
+    function isApprovedForAll(address owner,address operator) external view returns (bool);
+}
+```
 ### 2024.10.09
 ### 2024.10.10
     

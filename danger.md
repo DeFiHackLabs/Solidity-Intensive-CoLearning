@@ -482,6 +482,126 @@ onstant（常量）和immutable（不变量），让不应该变的变量保持�
 
 ###  2024.10.05
 
+控制流
+
+Solidity的控制流与其他语言类似，主要包含以下几种：
+
+if-else
+
+for循环
+
+while循环
+
+do-while循环
+
+三元运算符
+
+三元运算符是Solidity中唯一一个接受三个操作数的运算符，规则条件? 条件为真的表达式:条件为假的表达式。此运算符经常用作if语句的快捷方式
+
+另外还有continue（立即进入下一个循环）和break（跳出当前循环）关键字可以使用。
+
+用Solidity实现插入排序
+
+写在前面：90%以上的人用Solidity写插入算法都会出错。
+
+插入排序
+
+排序算法解决的问题是将无序的一组数字，例如[2, 5, 3, 1]，从小到大依次排列好。插入排序（InsertionSort）是最简单的一种排序算法，也是很多人学习的第一个算法。它的思路很简单，从前往后，依次将每一个数和排在他前面的数字比大小，如果比前面的数字小，就互换位置。
+
+这一讲，我们介绍了Solidity中控制流，并且用Solidity写了插入排序。看起来很简单，但实际很难。这就是Solidity，坑很多，每个月都有项目因为这些小bug损失几千万甚至上亿美元。掌握好基础，不断练习，才能写出更好的Solidity代码。
+
+
+###  2024.10.06
+
+这一讲，我们将用合约权限控制（Ownable）的例子介绍Solidity语言中构造函数（constructor）和独有的修饰器（modifier）。
+
+构造函数（constructor）是一种特殊的函数，每个合约可以定义一个，并在部署合约的时候自动运行一次。它可以用来初始化合约的一些参数，
+
+注意：构造函数在不同的Solidity版本中的语法并不一致，在Solidity 0.4.22之前，构造函数不使用 constructor 而是使用与合约名同名的函数作为构造函数而使用，由于这种旧写法容易使开发者在书写时发生疏漏（例如合约名叫 Parents，构造函数名写成 parents），使得构造函数变成普通函数，引发漏洞，所以0.4.22版本及之后，采用了全新的 constructor 写法。
+
+修饰器（modifier）是Solidity特有的语法，类似于面向对象编程中的装饰器（decorator），声明函数拥有的特性，并减少代码冗余。它就像钢铁侠的智能盔甲，穿上它的函数会带有某些特定的行为。modifier的主要使用场景是运行函数前的检查，例如地址，变量，余额等。
+
+
+
+
+###  2024.10.08
+
+事件
+
+Solidity中的事件（event）是EVM上日志的抽象，它具有两个特点：
+
+响应：应用程序（ethers.js）可以通过RPC接口订阅和监听这些事件，并在前端做响应。
+
+经济：事件是EVM上比较经济的存储数据的方式，每个大概消耗2,000 gas；相比之下，链上存储一个新变量至少需要20,000 gas。
+
+声明事件
+
+事件的声明由event关键字开头，接着是事件名称，括号里面写好事件需要记录的变量类型和变量名。以ERC20代币合约的Transfer事件为例：
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+我们可以看到，Transfer事件共记录了3个变量from，to和value，分别对应代币的转账地址，接收地址和转账数量，其中from和to前面带有indexed关键字，他们会保存在以太坊虚拟机日志的topics中，方便之后检索。
+
+释放事件
+
+我们可以在函数里释放事件。在下面的例子中，每次用_transfer()函数进行转账操作的时候，都会释放Transfer事件，并记录相应的变量。
+
+// 定义_transfer函数，执行转账逻辑
+function _transfer(
+    address from,
+    address to,
+    uint256 amount
+) external {
+
+    _balances[from] = 10000000; // 给转账地址一些初始代币
+
+    _balances[from] -=  amount; // from地址减去转账数量
+    _balances[to] += amount; // to地址加上转账数量
+
+    // 释放事件
+    emit Transfer(from, to, amount);
+}
+
+EVM日志 Log
+以太坊虚拟机（EVM）用日志Log来存储Solidity事件，每条日志记录都包含主题topics和数据data两部分。 
+
+![image](https://github.com/user-attachments/assets/c8c13ed5-e92f-46fa-9260-5fde3ea53d56)
+
+
+主题 topics
+日志的第一部分是主题数组，用于描述事件，长度不能超过4。它的第一个元素是事件的签名（哈希）。对于上面的Transfer事件，它的事件哈希就是：
+
+keccak256("Transfer(address,address,uint256)")
+
+//0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+
+除了事件哈希，主题还可以包含至多3个indexed参数，也就是Transfer事件中的from和to。
+
+indexed标记的参数可以理解为检索事件的索引“键”，方便之后搜索。每个 indexed 参数的大小为固定的256比特，如果参数太大了（比如字符串），就会自动计算哈希存储在主题中。
+
+数据 data
+
+事件中不带 indexed的参数会被存储在 data 部分中，可以理解为事件的“值”。data 部分的变量不能被直接检索，但可以存储任意大小的数据。因此一般 data 部分可以用来存储复
+
+杂的数据结构，例如数组和字符串等等，因为这些数据超过了256比特，即使存储在事件的 topics 部分中，也是以哈希的方式存储。另外，data 部分的变量在存储上消耗的gas相比
+
+于 topics 更少。
+
+在Etherscan上查询事件
+
+我们尝试用_transfer()函数在Sepolia测试网络上转账100代币，可以在Etherscan上查询到相应的tx：网址。
+
+点击Logs按钮，就能看到事件明细：
+
+![image](https://github.com/user-attachments/assets/7415fea8-4dd8-4aa9-9395-8ce33975e347)
+
+Topics里面有三个元素，[0]是这个事件的哈希，[1]和[2]是我们定义的两个indexed变量的信息，即转账的转出地址和接收地址。Data里面是剩下的不带indexed的变量，也就是转账数量。
+
+
+
+
+###  2024.10.09
+
 
 
 <!-- Content_END -->

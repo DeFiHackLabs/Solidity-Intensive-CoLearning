@@ -246,4 +246,88 @@ contract MyTokenTest is IERC20 {
 - 学习了ERC721相关知识
 ### 2024.10.04
 - 学习了荷兰拍卖和空投合约相关知识
+
+### 2024.10.07
+- 学习了openzeppelin的ERC721代码，在remix上进行了实验
+- _tokenApprovals(mapping(uint256 tokenId => address))记录某个代币的approval, _operatorApprovals记录了某个地址对于某个地址的授权。
+```solidity
+    function _update(address to, uint256 tokenId, address auth) internal virtual returns (address) {
+        address from = _ownerOf(tokenId);
+
+        // Perform (optional) operator check
+        if (auth != address(0)) {
+            _checkAuthorized(from, auth, tokenId);
+        }
+
+        // Execute the update
+        if (from != address(0)) {
+            // Clear approval. No need to re-authorize or emit the Approval event
+            _approve(address(0), tokenId, address(0), false);
+
+            unchecked {
+                _balances[from] -= 1;
+            }
+        }
+
+        if (to != address(0)) {
+            unchecked {
+                _balances[to] += 1;
+            }
+        }
+
+        _owners[tokenId] = to;
+
+        emit Transfer(from, to, tokenId);
+
+        return from;//返回上一个owner
+    }
+```
+- update函数更新了token的owner，并且更新了token的balance，并且更新了token的approval。需要**_approve(address(0), tokenId, address(0), false);**来清除approval。当代币approve给address(0)，就相当于burn。
+- _mint需要检查上一个owner，如果不是address(0)，说明token已经存在，进行revert。
+- safe会进行ERC721Utils.checkOnERC721Received(_msgSender(), address(0), to, tokenId, data);判断目标合约是否支持ERC721Receiver，如果支持，则调用onERC721Received，否则revert。
+```solidity
+function _checkOnERC721Received(
+    address operator,
+    address from,
+    address to,
+    uint256 tokenId,
+    bytes memory data
+) internal {
+    if (to.code.length > 0) {
+        try IERC721Receiver(to).onERC721Received(operator, from, tokenId, data) returns (bytes4 retval) {
+            if (retval != IERC721Receiver.onERC721Received.selector) {
+                // Token rejected
+                revert IERC721Errors.ERC721InvalidReceiver(to);
+            }
+        } catch (bytes memory reason) {
+            if (reason.length == 0) {
+                // non-IERC721Receiver implementer
+                revert IERC721Errors.ERC721InvalidReceiver(to);
+            } else {
+                /// @solidity memory-safe-assembly
+                assembly {
+                    revert(add(32, reason), mload(reason))
+                }
+            }
+        }
+    }
+}
+```
+
+```solidity
+// ERC721接收者接口：合约必须实现这个接口来通过安全转账接收ERC721
+interface IERC721Receiver {
+    function onERC721Received(
+        address operator,
+        address from,
+        uint tokenId,
+        bytes calldata data
+    ) external returns (bytes4);
+}
+```
+- 目标合约需要实现接口完善处理逻辑
+  
+### 2024.10.08
+学习了DutchAuction和MerkleTree,并且研究了源码，在remix进行验证
+**value选项框中可以指定传入给payable函数的eth，我之前竟然不知道，想了好久该如何调用函数的同时传入eth:(**
 <!-- Content_END -->

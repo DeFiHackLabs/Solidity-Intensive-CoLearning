@@ -712,5 +712,79 @@ contract people is Adam, Eve {
 - 调用合约people中的super.bar()会依次调用Eve、Adam，最后是God合约。
 
 
-### 
+###
+### 2024.10.07
+# 一、抽象合约
+- 包含至少一个未实现函数的合约被称为抽象合约。
+- 抽象合约不能被实例化，只能作为其他合约的基类被继承。
+- 用于定义一组函数的规范，让继承它的合约来具体实现这些函数。
+- 可以实现代码的复用和模块化设计。
+- 使用** abstract 关键字**声明抽象合约。
+- 未实现的函数通常使用 **virtual **关键字标记，并在继承的合约中使用 override 关键字实现。
+```soliidty
+   abstract contract BaseContract {
+       function someFunction() public virtual returns (uint);
+   }
+
+   contract DerivedContract is BaseContract {
+       function someFunction() public override returns (uint) {
+           return 42;
+       }
+   }
+```
+# 二、接口
+
+- 接口是一种特殊的抽象合约，只包含函数声明，不能有函数实现、状态变量或构造函数。
+- 接口用于定义合约之间的交互规范。
+
+- 确保不同的合约之间有一致的函数调用方式，便于合约之间的交互和集成。
+- 可以作为一种设计约束，保证实现接口的合约满足特定的功能要求。
+
+- 使用 interface 关键字声明接口。
+- 接口中的函数只能是外部函数（external）或公共函数（public）。
+```solidity
+   interface IToken {
+       function transfer(address to, uint amount) external returns (bool);
+   }
+
+   contract MyContract {
+       function sendTokens(IToken token, address to, uint amount) public {
+           token.transfer(to, amount);
+       }
+   }
+```
+# 三、IERC721 事件
+- Transfer 事件：在转账时被释放，记录代币的发出地址from，接收地址to和tokenId。
+- Approval 事件：在授权时被释放，记录授权地址owner，被授权地址approved和tokenId。
+- ApprovalForAll 事件：在批量授权时被释放，记录批量授权的发出地址owner，被授权地址operator和授权与否的approved。
+# 四、IERC721 函数
+- balanceOf：返回某地址的 NFT 持有量balance。
+- ownerOf：返回某tokenId的主人owner。
+- transferFrom：普通转账，参数为转出地址from，接收地址to和tokenId。
+- safeTransferFrom：安全转账（如果接收方是合约地址，会要求实现ERC721Receiver接口）。参数为转出地址from，接收地址to和tokenId。
+- approve：授权另一个地址使用你的 NFT。参数为被授权地址approve和tokenId。
+- getApproved：查询tokenId被批准给了哪个地址。
+- setApprovalForAll：将自己持有的该系列 NFT 批量授权给某个地址operator。
+- isApprovedForAll：查询某地址的 NFT 是否批量授权给了另一个operator地址。
+- safeTransferFrom：安全转账的重载函数，参数里面包含了data。
+# 五、什么时候使用接口
+如果知道一个合约实现了IERC721接口，不需要知道它具体代码实现，就可以与它交互。例如，无聊猿 BAYC 属于 ERC721 代币，实现了IERC721接口的功能。只需知道它的合约地址，用IERC721接口就可以与它交互，比如用balanceOf()来查询某个地址的 BAYC 余额，用safeTransferFrom()来转账 BAYC。
+```solidity
+
+contract interactBAYC {
+    // 利用 BAYC 地址创建接口合约变量（ETH 主网）
+    IERC721 BAYC = IERC721(0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D);
+
+    // 通过接口调用 BAYC 的 balanceOf() 查询持仓量
+    function balanceOfBAYC(address owner) external view returns (uint256 balance){
+        return BAYC.balanceOf(owner);
+    }
+
+    // 通过接口调用 BAYC 的 safeTransferFrom() 安全转账
+    function safeTransferFromBAYC(address from, address to, uint256 tokenId) external{
+        BAYC.safeTransferFrom(from, to, tokenId);
+    }
+}
+```
+###
 <!-- Content_END -->

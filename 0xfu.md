@@ -608,7 +608,219 @@ contract PaymentSplit{
         emit PayeeAdded(_account, _accountShares);
     }
 }
+```
 
 ###
+
+
+### 2024.10.5
+
+#### 线性释放
+项目方一般会约定代币归属条款（token vesting），在归属期内逐步释放代币，减缓抛压，并防止团队和资本
+方过早躺平, 线性释放指的是代币在归属期内匀速释放。
+
+### 
+
+### 2024.10.6
+
+#### 代币锁
+
+代币锁(Token Locker)是一种简单的时间锁合约，它可以把合约中的代币锁仓一段时间，受益人在
+锁仓期满后可以取走代币。
+代币锁一般是用来锁仓流动性提供者LP代币的。
+
+#### 代币锁合约
+
+锁仓ERC20代币的合约TokenLocker:
+- 在部署合约时规定锁仓的时间，受益人地址，以及代币合约
+- 将代币转入TokenLocker合约
+- 在锁仓期满，受益人可以取走合约里的代币
+
+
+```Solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+contract TokenLocker {
+
+    // 事件
+    event TokenLockStart(address indexed beneficiary, address indexed token, uint256 startTime, uint256 lockTime);
+    event Release(address indexed beneficiary, address indexed token, uint256 releaseTime, uint256 amount);
+
+    // 被锁仓的ERC20代币合约
+    IERC20 public immutable token;
+    // 受益人地址
+    address public immutable beneficiary;
+    // 锁仓时间(秒)
+    uint256 public immutable lockTime;
+    // 锁仓起始时间戳(秒)
+    uint256 public immutable startTime;
+
+    constructor(IERC20 token_, address beneficiary_, uint256 lockTime_) {
+        require(lockTime_ > 0, "TokenLock: lock time should greater than 0");
+
+        token = token_;
+        beneficiary = beneficiary_;
+        lockTime = lockTime_;
+        startTime = block.timestamp;
+
+        emit TokenLockStart(beneficiary_, address(token_), block.timestamp, lockTime_);
+    }
+
+    // 在锁仓时间过后，将代币释放给受益人。
+    function release() public {
+        require(block.timestamp >= startTime+lockTime, "TokenLock: current time is before release time");
+
+        uint256 amount = token.balanceOf(address(this));
+        require(amount > 0, "TokenLock: no tokens to release");
+
+        token.transfer(beneficiary, amount);
+
+        emit Release(msg.sender, address(token), block.timestamp, amount);
+    }
+}
+```
+
+
+###
+
+
+### 2024.10.7
+
+#### 时间锁
+
+可以将智能合约的某些功能锁定一段时间，大大改善智能合约的安全性。
+
+#### Timelock
+
+在创建Timelock合约时可以设定锁定期，并把合约的管理员设为自己。
+
+时间锁主要有三个功能：
+- 创建交易，并加入到时间锁队列
+- 在交易的锁定期满后，执行交易
+- 取消时间锁队列中的某些交易
+
+项目方一般会把时间锁合约设为重要合约的管理员，例如金库合约，再通过时间锁操作。 时间锁合约的管
+理员一般为项目的多签钱包，保证去中心化。
+
+Timelock合约中共有2个modifier:
+- onlyOwner()：被修饰的函数只能被管理员执行
+- onlyTimelock()：被修饰的函数只能被时间锁合约执行
+
+
+```Solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract Timelock{
+    event CancelTransaction(bytes32 indexed txHash, address indexed target, uint value, string signature,  bytes data, uint executeTime);
+    event ExecuteTransaction(bytes32 indexed txHash, address indexed target, uint value, string signature,  bytes data, uint executeTime);
+    event QueueTransaction(bytes32 indexed txHash, address indexed target, uint value, string signature, bytes data, uint executeTime);
+    event NewAdmin(address indexed newAdmin);
+
+    address public admin; // 管理员地址
+    uint public constant GRACE_PERIOD = 7 days; // 交易有效期，过期的交易作废
+    uint public delay; // 交易锁定时间 （秒）
+    mapping (bytes32 => bool) public queuedTransactions; // txHash到bool，记录所有在时间锁队列中的交易
+
+    // onlyOwner modifier
+    modifier onlyOwner() {
+        require(msg.sender == admin, "Timelock: Caller not admin");
+        _;
+    }
+
+    // onlyTimelock modifier
+    modifier onlyTimelock() {
+        require(msg.sender == address(this), "Timelock: Caller not Timelock");
+        _;
+    }
+
+    constructor(uint delay_) {
+        delay = delay_;
+        admin = msg.sender;
+    }
+
+	// 即使使用了 onlyTimelock 也可以将函数的可见性设置为 public, 提高接口的清晰性
+	// TODO: 是不是设置为 private 更合适?
+	// changeAdmin  的调用是在本合约内利用 ExecuteTransaction 执行
+    function changeAdmin(address newAdmin) public onlyTimelock {
+        admin = newAdmin;
+
+        emit NewAdmin(newAdmin);
+    }
+
+    function queueTransaction(address target, uint256 value, string memory signature, bytes memory data, uint256 executeTime) public onlyOwner returns (bytes32) {
+        // 检查：交易执行时间满足锁定时间
+        require(executeTime >= getBlockTimestamp() + delay, "Timelock::queueTransaction: Estimated execution block must satisfy delay.");
+        // 计算交易的唯一识别符：一堆东西的hash
+        bytes32 txHash = getTxHash(target, value, signature, data, executeTime);
+        // 将交易添加到队列
+        queuedTransactions[txHash] = true;
+
+        emit QueueTransaction(txHash, target, value, signature, data, executeTime);
+        return txHash;
+    }
+
+    function cancelTransaction(address target, uint256 value, string memory signature, bytes memory data, uint256 executeTime) public onlyOwner{
+        // 计算交易的唯一识别符：一堆东西的hash
+        bytes32 txHash = getTxHash(target, value, signature, data, executeTime);
+        // 检查：交易在时间锁队列中
+        require(queuedTransactions[txHash], "Timelock::cancelTransaction: Transaction hasn't been queued.");
+        // 将交易移出队列
+        queuedTransactions[txHash] = false;
+
+        emit CancelTransaction(txHash, target, value, signature, data, executeTime);
+    }
+
+    function executeTransaction(address target, uint256 value, string memory signature, bytes memory data, uint256 executeTime) public payable onlyOwner returns (bytes memory) {
+        bytes32 txHash = getTxHash(target, value, signature, data, executeTime);
+        // 检查：交易是否在时间锁队列中
+        require(queuedTransactions[txHash], "Timelock::executeTransaction: Transaction hasn't been queued.");
+        // 检查：达到交易的执行时间
+        require(getBlockTimestamp() >= executeTime, "Timelock::executeTransaction: Transaction hasn't surpassed time lock.");
+        // 检查：交易没过期
+       require(getBlockTimestamp() <= executeTime + GRACE_PERIOD, "Timelock::executeTransaction: Transaction is stale.");
+        // 将交易移出队列
+        queuedTransactions[txHash] = false;
+
+        // 获取call data
+        bytes memory callData;
+        if (bytes(signature).length == 0) {
+            callData = data;
+        } else {
+			// 这里如果采用encodeWithSignature的编码方式来实现调用管理员的函数，请将参数data的类型改为address。
+			// 不然会导致管理员的值变为类似"0x0000000000000000000000000000000000000020"的值。
+			// 其中的0x20是代表字节数组长度的意思.
+            callData = abi.encodePacked(bytes4(keccak256(bytes(signature))), data);
+        }
+        // 利用call执行交易
+        (bool success, bytes memory returnData) = target.call{value: value}(callData);
+        require(success, "Timelock::executeTransaction: Transaction execution reverted.");
+
+        emit ExecuteTransaction(txHash, target, value, signature, data, executeTime);
+
+        return returnData;
+    }
+
+    function getBlockTimestamp() public view returns (uint) {
+        return block.timestamp;
+    }
+
+    function getTxHash(address target, uint value, string memory signature, bytes memory data, uint executeTime) public pure returns (bytes32) {
+        return keccak256(abi.encode(target, value, signature, data, executeTime));
+    }
+}
+```
+
+### 
+
+### 2024.10.8
+
+#### [代理合约](./content/0xfu/ProxyContract.md)
+
+### 
 
 <!-- Content_END -->

