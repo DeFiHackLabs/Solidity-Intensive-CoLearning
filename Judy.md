@@ -2086,4 +2086,255 @@ contract ExampleContract {
         1. **多重繼承**：`D` 合約同時繼承了 `B` 和 `C`，而 `B` 和 `C` 都繼承了 `A`。這形成了鑽石繼承結構。
         2. **函數衝突解決**：`B` 和 `C` 都覆寫了 `A` 的 `foo()` 函數，因此在 `D` 中必須明確指出要覆寫哪個父合約的 `foo()` 函數。這裡使用了 `override(B, C)` 語法來解決衝突，並且可以用 `super.foo()` 來控制繼承順序。
         3. **線性化順序**：Solidity 根據 C3 線性化決定繼承順序。在這個範例中，`D` 合約覆寫了 `foo()`，然後 `super.foo()` 會按照順序調用最近的父合約 `C` 中的 `foo()` 函數。
+
+### 2024.10.07
+#### - **抽象（abstract）合約**和接口（interface）都是用來定義合約的結構和行為的概念
+- 抽象合約
+    
+    ```solidity
+    // 定義一個抽象合約
+    abstract contract Animal {
+    	// 抽象函數，沒有實現
+    	function speak() public virtual returns (string memory);
+    	
+    	// 具體函數，已經實現
+    	function eat() public pure returns (string memory) {
+    	    return "Eating";
+    	}
+    }
+    
+    // 繼承的合約只需要實現未實現的函數
+    contract Dog is Animal {
+    	function speak() public override returns (string memory) {
+    	return "Woof!";
+    	}
+    }
+    ```
+    
+    - **可包含具體函數實現**：抽象合約可以包含已經實現的函數，也可以包含未實現的函數。
+    - **不能實例化**：由於存在未實現的函數，抽象合約本身不能被部署。
+    - **繼承使用**：其他合約可以繼承抽象合約，並實現其中未實現的函數。
+    - **用途**：用來作為其他合約的基礎模板，提供部分通用邏輯，但需要子合約來實現特定功能。
+- 接口
+    
+    ```solidity
+    // 定義一個接口
+    interface IAnimal {
+    	function speak() external view returns (string memory);
+    	function eat() external view returns (string memory);
+    }
+    
+    // 繼承接口的合約必須實現接口中的所有函數
+    contract Cat is IAnimal {
+    	function speak() public pure override returns (string memory) {
+    		return "Meow!";
+    	}
+    
+    	function eat() public pure override returns (string memory) {
+    	    return "Cat is eating";
+    	}
+    }
+    ```
+    
+    - **只允許未實現函數**：接口中的所有函數都是純虛函數，沒有具體的實現。（也無法部署）
+    - **無狀態變量和修飾符**：接口中不能有狀態變量、構造函數或其他修飾符（如 `public`、`private` 等），只能有函數簽名。
+    - **必須實現所有函數**：繼承接口的合約必須實現接口中的所有函數。
+    - **用途**：用來定義標準的合約行為，使得不同的合約能夠依照相同的接口進行交互。
+
+### 抽象合約與接口的主要區別
+
+| 特點 | 抽象合約 (Abstract Contract) | 接口 (Interface) |
+| --- | --- | --- |
+| **函數實現** | 可以包含具體實現的函數 | 所有函數都是未實現的（抽象）函數 |
+| **狀態變量** | 可以定義狀態變量 | 不允許狀態變量 |
+| **構造函數** | 可以有構造函數 | 不能有構造函數 |
+| **繼承** | 可以繼承其他合約並實現具體邏輯 | 只能聲明函數，不繼承具體邏輯 |
+| **適用場合** | 用作其他合約的基礎模板，可以包含部分邏輯 | 用來定義標準化的合約接口 |
+| **靈活性** | 更靈活，可以提供部分功能的具體實現 | 嚴格的結構，僅用於定義協議 |
+
+### 使用時機
+
+- **抽象合約**：
+    - 當希望為一組合約提供一個公共的基礎模板，其中可以包括一些共享的邏輯或行為，但有些行為可能需要在具體的合約中實現時
+    - 例如，當有多個合約共享某些邏輯，但具體實現細節不同時，抽象合約會很有用。
+- **接口**：
+    - 當需要強制不同合約遵守相同的規範或協議時
+    - 常用於定義標準（如 ERC-20、ERC-721 等代幣標準），使得各個實現合約能夠互操作，並保證實現合約都具有相同的函數接口。
+
+- 補充 - 為何不直接繼承 ERC-20，而要繼承IERC20?
+    - IERC20 用來做什麼的?
+        - `IERC20` 是一個用來定義 **ERC-20代幣標準接口** 的接口。
+        - ERC-20 是以太坊上最常用的代幣標準之一，幾乎所有的代幣（如穩定幣 USDT、DeFi 代幣等）都遵循這個標準。
+        - 開發者可以輕鬆地與不同的代幣進行交互，而無需為每個代幣單獨編寫不同的代碼。
+        - 以下是 `IERC20` 接口中定義的主要函數：
+            
+            ```solidity
+            interface IERC20 {
+            
+            	// 返回代幣總供應量
+            	function totalSupply() external view returns (uint256);
+            	
+            	// 返回指定地址的代幣餘額
+            	function balanceOf(address account) external view returns (uint256);
+            	
+            	// 將 `amount` 代幣從調用者地址轉到 `recipient`
+            	function transfer(address recipient, uint256 amount) external returns (bool);
+            	
+            	// 返回某個地址能從 `owner` 地址提取的代幣餘額
+            	function allowance(address owner, address spender) external view returns (uint256);
+            	
+            	// 授權 `spender` 可以從調用者賬戶中提取最多 `amount` 代幣
+            	function approve(address spender, uint256 amount) external returns (bool);
+            	
+            	// 代幣轉移操作，從 `sender` 地址將 `amount` 轉移給 `recipient`
+            	function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+            	
+            	// 事件：當代幣轉移時觸發
+            	event Transfer(address indexed from, address indexed to, uint256 value);
+            	
+            	// 事件：當授權發生變化時觸發
+            	event Approval(address indexed owner, address indexed spender, uint256 value);
+            }
+            ```
+            
+            ### 各個函數的作用：
+            
+            1. **`totalSupply()`**：返回合約中代幣的總供應量。這表示了該代幣的最大數量。
+            2. **`balanceOf(address account)`**：查詢指定地址 `account` 的代幣餘額。這通常用來查詢用戶的代幣持有量。
+            3. **`transfer(address recipient, uint256 amount)`**：從調用者的地址轉移 `amount` 數量的代幣到 `recipient` 地址。這是代幣轉賬功能，允許用戶之間進行代幣的直接轉移。
+            4. **`allowance(address owner, address spender)`**：返回 `spender` 被授權能從 `owner` 地址提取的代幣數量。這個函數通常與 `approve()` 和 `transferFrom()` 一起使用，用於允許第三方（如合約）代表某個用戶進行代幣操作。
+            5. **`approve(address spender, uint256 amount)`**：授權 `spender` 可以從調用者的賬戶中提取最多 `amount` 數量的代幣。這通常用於授權智能合約或其他地址從用戶賬戶中扣除代幣。
+            6. **`transferFrom(address sender, address recipient, uint256 amount)`**：從 `sender` 地址轉移 `amount` 代幣到 `recipient`，前提是 `sender` 已經授權調用者（通常是智能合約或第三方）可以提取這些代幣。
+            7. **事件 `Transfer`**：當代幣轉移時（例如 `transfer` 或 `transferFrom` 函數被調用），這個事件會被觸發，用來通知外部應用代幣的轉移。
+            8. **事件 `Approval`**：當代幣持有人授權某個 `spender` 提取代幣時，這個事件會被觸發。
+        - 簡單的 ERC-20 代幣合約示例：
+            
+            ```solidity
+            pragma solidity ^0.8.0;
+            
+            import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+            
+            contract MyToken is IERC20 {
+            	string public name = "MyToken";
+            	string public symbol = "MTK";
+            	uint8 public decimals = 18;
+            	uint256 private _totalSupply;
+            	
+            	mapping(address => uint256) private balances;
+            	mapping(address => mapping(address => uint256)) private allowances;
+            	
+            	constructor(uint256 initialSupply) {
+            	    _totalSupply = initialSupply;
+            	    balances[msg.sender] = initialSupply;
+            	}
+            	
+            	function totalSupply() public view override returns (uint256) {
+            	    return _totalSupply;
+            	}
+            	
+            	function balanceOf(address account) public view override returns (uint256) {
+            	    return balances[account];
+            	}
+            	
+            	function transfer(address recipient, uint256 amount) public override returns (bool) {
+            	    require(balances[msg.sender] >= amount, "Insufficient balance");
+            	    balances[msg.sender] -= amount;
+            	    balances[recipient] += amount;
+            	    emit Transfer(msg.sender, recipient, amount);
+            	    return true;
+            	}
+            	
+            	function allowance(address owner, address spender) public view override returns (uint256) {
+            	    return allowances[owner][spender];
+            	}
+            	
+            	function approve(address spender, uint256 amount) public override returns (bool) {
+            	    allowances[msg.sender][spender] = amount;
+            	    emit Approval(msg.sender, spender, amount);
+            	    return true;
+            	}
+            	
+            	function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
+            	    require(balances[sender] >= amount, "Insufficient balance");
+            	    require(allowances[sender][msg.sender] >= amount, "Allowance exceeded");
+            	    balances[sender] -= amount;
+            	    balances[recipient] += amount;
+            	    allowances[sender][msg.sender] -= amount;
+            	    emit Transfer(sender, recipient, amount);
+            	    return true;
+            	}
+            }
+            ```
+            
+            - transfer 和 transferFrom 差別？
+                - `transfer` 函數
+                    - 用來將代幣從**調用者的地址**轉移到另一個地址。
+                    - 只有代幣持有者自己才能調用這個函數
+                    - 並將他們的代幣轉移給其他人
+                    - 使用場景：
+                        - 當用戶希望直接從自己的地址將代幣轉移到另一個地址時，使用 `transfer` 函數。
+                    - 語法：
+                        
+                        ```solidity
+                        // recipient：接收代幣的地址
+                        // amount：要轉移的代幣數量
+                        function transfer(address recipient, uint256 amount) public returns (bool)
+                        ```
+                        
+                    - 範例：
+                        
+                        假設 Alice 有 100 個代幣，她希望轉 50 個代幣給 Bob，她可以使用 `transfer` 函數：
+                        
+                        ```solidity
+                        myToken.transfer(bobAddress, 50);
+                        ```
+                        
+                - `transferFrom` 函數
+                    - 當用戶希望授權某個第三方（如智能合約或另一個地址）來管理和轉移他們的代幣時，使用 `transferFrom` 函數。
+                    - 這在需要自動轉賬或合約進行代幣管理時非常有用。
+                    - 語法：
+                        
+                        ```solidity
+                        // sender：代幣持有者的地址，代幣將從這個地址轉出
+                        // recipient：接收代幣的地址
+                        // amount：要轉移的代幣數量
+                        function transferFrom(address sender, address recipient, uint256 amount) public returns (bool)
+                        ```
+                        
+                    - 需要提前使用 `approve` 函數進行授權。
+                        - 因為只有在代幣持有者通過 `approve` 授權某個地址可以花費他的代幣後，這個地址才能使用 `transferFrom` 來轉移代幣。
+                    - 要檢查某個地址（如智能合約）還剩多少授權可以花費的代幣，可以使用 `allowance` 函數
+                    - 範例：
+                        
+                        ```solidity
+                        // 授權智能合約可以花費 100 個代幣
+                        myToken.approve(contractAddress, 100); 
+                        
+                        // 合約將 50 個代幣從 Alice 轉移到 Bob
+                        myToken.transferFrom(aliceAddress, bobAddress, 50);
+                        
+                        // Alice 的授權限額會減少 50（因為已經轉移了 50 個代幣）
+                        myToken.allowance(aliceAddress, contractAddress); // 返回 50
+                        ```
+                        
+                
+- 所以為何要用繼承IERC20的方式？
+    
+    ### 1. **接口（`IERC20`）的用途**
+    
+    `IERC20` 是 ERC-20 代幣標準的接口，定義了代幣合約必須具備的函數和事件，但不提供具體實現。繼承 `IERC20` 表示合約符合 ERC-20 標準，必須實現接口中所有的方法，如 `transfer`、`approve` 等。
+    
+    ### 優點：
+    
+    - **靈活性**：繼承 `IERC20` 允許你根據項目需求自定義 ERC-20 標準的實現。可以在實現函數時加入自己的邏輯，比如手續費、治理等功能。
+    - **標準化**：`IERC20` 是 ERC-20 的標準接口，繼承它意味著你的合約將遵守這一標準，可以與任何遵循 ERC-20 標準的應用（如去中心化交易所、錢包等）無縫互操作。
+    
+    ### 2. **直接繼承已實現的 ERC-20 合約（如 OpenZeppelin 的 `ERC20` 合約）**
+    
+    很多情況下，開發者會使用現有的 ERC-20 合約實現來節省時間和減少錯誤。OpenZeppelin 的 `ERC20` 合約就是一個常用的模板，它已經實現了 ERC-20 標準的所有功能。可以直接繼承 `ERC20`，然後再進行擴展。
+    
+    ### 優點：
+    
+    - **安全性和可靠性**：像 OpenZeppelin 這樣的庫經過了廣泛的審計和測試，確保了代幣合約的安全性和可靠性。使用這些庫可以減少代幣合約出錯的風險。
+    - **快速開發**：由於所有標準的 ERC-20 函數都已經實現，你只需要關注代幣的額外功能（如總供應量、代幣鑄造等），不需要重新實現所有標準函數。
 <!-- Content_END -->

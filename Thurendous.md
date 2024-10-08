@@ -1622,7 +1622,134 @@ Demo-同笔交易内实现合约创建-自毁
 当合约中有selfdestruct功能时常常会带来安全问题和信任问题，合约中的selfdestruct功能会为攻击者打开攻击向量(例如使用selfdestruct向一个合约频繁转入token进行攻击，这将大大节省了GAS的费用，虽然很少人这么做)，此外，此功能还会降低用户对合约的信心。
 不推荐使用这个代码命令。
 
+### 2024.10.8
 
+(Day 13)
+
+学习笔记
+
+#### ABI编码解码
+
+ABI是Application Binary Interface的缩写，是智能合约与外界交互的接口。ABI编码解码是智能合约与外界交互的重要方式。
+
+Solidity中，ABI编码有4个函数：abi.encode, abi.encodePacked, abi.encodeWithSignature, abi.encodeWithSelector。而ABI解码有1个函数：abi.decode，用于解码abi.encode的数据。这一讲，我们将学习如何使用这些函数。
+
+- 编码
+
+```solidity
+abi.encode(参数1, 参数2, 参数3, 参数4, 参数5);
+```
+
+`abi.encode`可以编码一些变量，这个函数可以编码然后让这个编码后的内容有很多的0。这是因为他会把一个变量编程一个bytes32的单位。
+
+`abi.encodePacked`可以编码一些变量，这个函数可以编码然后让这个编码后的内容没有很多的0。他是直接把这部分编码后的内容给连接起来。
+将给定参数根据其所需最低空间编码。它类似 abi.encode，但是会把其中填充的很多0省略。比如，只用1字节来编码uint8类型。当你想省空间，并且不与合约交互的时候，可以使用abi.encodePacked，例如算一些数据的hash时。
+
+
+将给定参数利用ABI规则编码。ABI被设计出来跟智能合约交互，他将每个参数填充为32字节的数据，并拼接在一起。如果你要和合约交互，你要用的就是abi.encode。
+
+
+abi.encodeWithSignature
+与abi.encode功能类似，只不过第一个参数为函数签名，比如"foo(uint256,address,string,uint256[2])"。当调用其他合约的时候可以使用。
+
+function encodeWithSignature() public view returns(bytes memory result) {
+    result = abi.encodeWithSignature("foo(uint256,address,string,uint256[2])", x, addr, name, array);
+}
+
+等同于在abi.encode编码结果前加上了4字节的函数选择器说明。 说明: 函数选择器就是通过函数名和参数进行签名处理(Keccak–Sha3)来标识函数，可以用于不同合约之间的函数调用
+
+abi.encodeWithSelector
+与abi.encodeWithSignature功能类似，只不过第一个参数为函数选择器，为函数签名Keccak哈希的前4个字节。
+
+```solidity
+function encodeWithSelector() public view returns(bytes memory result) {
+    result = abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array);
+}
+```
+
+abi.decode
+abi.decode用于解码abi.encode生成的二进制编码，将它还原成原本的参数。
+
+```solidity
+function decode(bytes memory data) public pure returns(uint dx, address daddr, string memory dname, uint[2] memory darray) {
+    (dx, daddr, dname, darray) = abi.decode(data, (uint, address, string, uint[2]));
+}
+```
+
+ethers.js中常用ABI实现合约的导入和函数调用。
+
+```javascript
+const wavePortalContract = new ethers.Contract(contractAddress, contractABI, signer);
+/*
+* Call the getAllWaves method from your Smart Contract
+*/
+const waves = await wavePortalContract.getAllWaves();
+```
+
+当我们不知道某个函数的签名的时候，反编译出来的是一对乱码的签名。
+我们也可以使用这个乱码的签名，对函数进行呼叫。
+
+e.g.我们的函数反编译的签名是这个的话：`0x533ba33a`
+
+```solidity
+bytes memory data = abi.encodeWithSelector(bytes4(0x533ba33a));
+
+(bool success, bytes memory returnedData) = address(contract).staticcall(data);
+require(success);
+
+return abi.decode(returnedData, (uint256));
+```
+
+#### 哈希
+
+Hash的性质
+一个好的哈希函数应该具有以下几个特性：
+
+- 单向性：从输入的消息到它的哈希的正向运算简单且唯一确定，而反过来非常难，只能靠暴力枚举。
+- 灵敏性：输入的消息改变一点对它的哈希改变很大。
+- 高效性：从输入的消息到哈希的运算高效。
+- 均一性：每个哈希值被取到的概率应该基本相等。
+- 抗碰撞性：
+  - 弱抗碰撞性：给定一个消息x，找到另一个消息x'，使得hash(x) = hash(x')是困难的。
+  - 强抗碰撞性：找到任意x和x'，使得hash(x) = hash(x')是困难的。
+
+强弱抗碰撞性指的是，如果一个哈希函数是强抗碰撞的，那么它也是弱抗碰撞的。
+
+原因是：强抗碰撞性的要求更高的。弱抗碰撞性的要求比较低，因为自由度低一些。
+
+Hash的应用
+生成数据唯一标识
+
+```solidity
+function hash(
+    uint _num,
+    string memory _string,
+    address _addr
+    ) public pure returns (bytes32) {
+    return keccak256(abi.encodePacked(_num, _string, _addr));
+}
+```
+加密签名
+
+```solidity
+// 弱抗碰撞性
+function weak(
+    string memory string1
+    )public view returns (bool){
+    return keccak256(abi.encodePacked(string1)) == _msg;
+}
+```
+
+```solidity
+// 强抗碰撞性
+function strong(
+        string memory string1,
+        string memory string2
+    )public pure returns (bool){
+    return keccak256(abi.encodePacked(string1)) == keccak256(abi.encodePacked(string2));
+}
+```
+安全加密
 
 
 <!-- Content_END -->

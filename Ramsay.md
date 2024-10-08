@@ -1148,4 +1148,78 @@ Hash 这个概念在编程中就非常常见了，在Java和C++中就有不同�
 不过按照已知技术（2024）年，想要碰撞出相同值的 hash 也是非常难的.
 
 另外一个关于 keccak hash function 的趣事是, keccak hash function 是赢得了美国国家标准与技术研究院(National Institute of Standards and Technology)的 hash function 大赛，然后被选为SHA3的标准.
+
+### 2024.10.09
+#### Selector
+
+要理解什么是 selector, 就要先了解 `method_id` 与函数签名。
+
+所谓的函数签名，是指函数的名称和参数类型的组合，用来唯一标识一个函数，不包含返回类型。例如有函数：
+
+```
+function transfer(address recipient, uint256 amount) public returns (bool)
+```
+
+那么它的函数签名就是 `transfer(address,uint256)`，而 `method id` 就是函数签名的 keccak256 hash 之后的前4个字节, 如 `transfer` 函数的 `method id` 就是: 
+
+```
+bytes4(keccak256("transfer(address,uint256)"))
+```
+
+当我们调用智能合约时，本质是向目标合约发送一段 `calldata`, 发送的 `calldata` 的前4个字节就是 `selector`，当 `selector` 和 `method id` 相匹配时，即表示调用对应的函数.
+
+讲 abi encode/decode 的时候提到的第4个函数就是， `abi.encodeWithSelector`，知道目标合约函数的 `selector` 和地址，就可以直接调用目标函数了.
+
+```
+address targetAddress = ''
+targetAddress.call(abi.encodeWithSelector(0x3ec37834, 1, 0));
+```
+
+所谓知其然知其所以然，为什么Solidity会使用 `selector` 和 `method id` 这样的机制呢，而不是像C++那样搞编译期解析呢？
+
+追根溯源，还是要回到EVM的Blockchain架构上，使用 `selector`和 `method id`比直接使用函数签约最大的好处就是可以节省 gas fee. 
+
+因为无法预测开发者可能会给一个函数定义多长的名字，或者定义多少个参数，如果传递函数签名的话，那么gas fee就会随着函数名的变长或者参数数量的变多而线性增加。
+
+使用 `method_id` 就能把函数签名的结果固定在4个字节，既可以节省gas，也避免了gas fee会随函数签名的长度增加而增加.
+
+#### Try/Catch
+
+说起 try/catch, 也不是所有的现代语言都会有，像 Rust/Golang 都选择了不使用 `try/catch`, 一个是判断返回值，一个是处理 `Result`。
+
+我在前面讲异常处理的笔记中，也预先提到了 `try/catch` 的内容.
+
+在 Solidity 中， `try/catch` 只能被用于 `external` 函数或创建合约时的 `constructor`(被视为 `external` 函数调用)
+
+```solidity
+try externalContract.f() {
+    // call成功的情况下 运行一些代码
+} catch {
+    // call失败的情况下 运行一些代码
+}
+```
+
+如果调用的函数有返回值，那么必须在try之后声明 `returns(returnType val)，`并且在try模块中可以使用返回的变量（这个时候, 命名式返回就派上用场了）；如果是创建合约，那么返回值是新创建的合约变量。
+
+
+```solidity
+try externalContract.f() returns(returnType){
+    // call成功的情况下 运行一些代码
+} catch Error(string memory /*reason*/) {
+    // 捕获revert("reasonString") 和 require(false, "reasonString")
+} catch Panic(uint /*errorCode*/) {
+    // 捕获Panic导致的错误 例如assert失败 溢出 除零 数组访问越界
+} catch (bytes memory /*lowLevelData*/) {
+    // 如果发生了revert且上面2个异常类型匹配都失败了 会进入该分支
+    // 例如revert() require(false) revert自定义类型的error
+}
+```
+
+如果想要确保能 `catch` 到异常， `catch` 最后的分支要不是 `catch (bytes memory)`, 要不是 `catch {}`
+
+问题就来了，为什么只支持 `external` function呢? 个人猜测是因为:
+
+external 调用不确定性更高，可能出来 gas 不够，或者是其他异常，所以需要引入 try/catch 来作异常处理。而对于合约内的调用，因为 Solidity 的异常模型是 `state-revert` exception, 所以当内部调用出现问题了(`require` 或者 `assert`)，状态就自动回滚了，无须 `try/catch` 处理
+
+WTF Solidity 102 is done, I should pat myself on the back for completing this project.
 <!-- Content_END -->
