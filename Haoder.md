@@ -104,4 +104,8 @@ LFG～～～～～ 會完成的
 
 [**WTF Solidity 極簡入門：30. Try Catch**](<content/Haoder/md/226.md>)
 
+### 2024.10.08
+
+[**WTF Solidity 極簡入門：31. ERC20**](<content/Haoder/md/331.md>)
+
 <!-- Content_END -->
