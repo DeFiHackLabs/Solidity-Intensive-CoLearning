@@ -326,4 +326,8 @@ interface IERC721Receiver {
 }
 ```
 - 目标合约需要实现接口完善处理逻辑
+  
+### 2024.10.08
+学习了DutchAuction和MerkleTree,并且研究了源码，在remix进行验证
+**value选项框中可以指定传入给payable函数的eth，我之前竟然不知道，想了好久该如何调用函数的同时传入eth:(**
 <!-- Content_END -->
