@@ -14,12 +14,10 @@ timezone: Asia/Shanghai
 因為從未接觸過Solidity，這週提前開始課程，大概了解自學難度、個人目標、及殘酷共學的願景。
 
 ### 2024.09.23
-
 #### 01_HelloWeb3
-
-* Solidity 是智能合約語言，主要用於以太坊，能幫助讀懂區塊鏈項目代碼。
-* Remix 是官方推薦的開發工具(https://remix.ethereum.org)，可在瀏覽器中開發和部署 Solidity 合約。建議可以開啟自動編譯，省步驟。
-* Solidity 程序結構包含：
+Solidity 是智能合約語言，主要用於以太坊，能幫助讀懂區塊鏈項目代碼。\
+Remix 是官方推薦的開發工具(https://remix.ethereum.org) ，可在瀏覽器中開發和部署 Solidity 合約。建議可以開啟自動編譯，省步驟。\
+Solidity 程序結構包含：
 
 License 註釋
 ```solidity
