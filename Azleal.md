@@ -322,5 +322,103 @@ receive()   fallback()
    - method id定义为函数签名的`Keccak`哈希后的前4个字节，当`selector`与method id相匹配时，即表示调用该函数
    - `bytes4(keccak256("mint(address)"));` 其中`"mint(address)"`为方法签名
 
+### 2024.10.08
+
+```solidity
+contract Pair {
+    address public factory;
+    address public token0;
+    address public token1;
+```
+
+- contract named `pair` is defined.
+- 3 address variables that named `factory`, `token0`, `token1`.
+
+```solidity
+    constructor() payable {
+        factory = msg.sender;
+    }
+```
+
+- `constructor` runs once when the contract is deployed.
+- The `factory` variable above is set to `msg.sender` , the address of the entity that deployed this `pair` contract.
+- What’s a `msg.sender`?
+    
+    **If an external user** (like you, using MetaMask) calls a function, `msg.sender` will be **your Ethereum address**.
+    
+
+```solidity
+function initialize(address _token0, address _token1) external {
+    require(msg.sender == factory, 'UniswapV2: FORBIDDEN');
+    token0 = _token0;
+    token1 = _token1;
+}
+```
+
+- `require(msg.sender == factory` ensures that only the factory contract can call this function.
+
+By restricting access to the factory contract, this prevents unauthorized parties from initializing the pair with their own tokens. It maintains control over the system and ensures the integrity of the token pairs created.
+
+- 1. How to Identify if a Function is Called at or After Deployment?
+    
+    **Constructor**: called at deployment
+    
+    **Regular funtions**: called after deployment (either public, external, internal, or private) that require explicit invoation by someone. 
+    
+- 2. Why Does a Function Parameter Have a Name Like `_token0`?
+    - Distinguishing Between Function Parameters and State Variables
+    - Naming Convention and Clarity
+- 3. What Does Initializing Mean? Where Does This Command Appear in the `initialize` Function?
+    
+    **In the `initialize` function**, initializing refers to assigning values to the state variables `token0` and `token1` after the contract has been deployed. This is necessary because, at deployment, these variables don't have the token addresses set yet. By calling `initialize`, you "initialize" the contract with the token pair addresses.
+    
+
+```solidity
+mapping(address => mapping(address => address)) public getPair;
+address[] public allPairs;
+```
+
+- State Variables:
+    - `getPair`: helps you look up the `pair`contract for a given pair of tokens.
+    - The double mapping `mapping(address => mapping(address => address))` means:
+        - Given `tokenA` and `tokenB`, you can retrieve the corresponding `Pair` contract address that manages that token pair.
+        - Example: `getPair[tokenA][tokenB]` would return the `Pair` contract address for swapping between `tokenA` and `tokenB`.
+    - **`allPairs`:**
+        - This is an array that stores the addresses of **all created `Pair` contracts**.
+        - It keeps track of all the liquidity pools that have been created through this factory.
+- The **`createPair`** function is the core of the `PairFactory` contract. It handles the creation of new `Pair` contracts (for token pairs like ETH/DAI) and keeps track of them. Let’s go through the steps:
+    1. **Create a New `Pair` Contract**:
+    
+    ```solidity
+    Pair pair = new Pair();
+    ```
+    
+    - This line deploys a new instance of the `Pair` contract. It creates a new smart contract on the blockchain specifically for managing the liquidity pool between `tokenA` and `tokenB`.
+    - The `Pair` contract is deployed using its default constructor.
+    1. **Call the `initialize` Method on the New `Pair` Contract**:
+    
+    ```solidity
+    pair.initialize(tokenA, tokenB);
+    ```
+    
+    - After creating the `Pair` contract, the factory contract calls the `initialize` function of the newly created `Pair`.
+    - It passes `tokenA` and `tokenB` as arguments, which will set the two tokens (like ETH and DAI) in the `Pair` contract.
+    - This ensures that the `Pair` contract is now ready to handle swaps between `tokenA` and `tokenB`.
+    1. **Update the `Pair` Address Mapping**:
+    
+    ```solidity
+    pairAddr = address(pair);
+    allPairs.push(pairAddr);
+    getPair[tokenA][tokenB] = pairAddr;
+    getPair[tokenB][tokenA] = pairAddr;
+    ```
+    
+    - The `pairAddr` variable is set to the address of the newly created `Pair` contract using `address(pair)`.
+    - This address is added to the `allPairs` array to keep track of all the liquidity pools created.
+    - The `getPair` mapping is updated twice:
+        - `getPair[tokenA][tokenB] = pairAddr`: This lets you query the `Pair` contract for the token pair `tokenA` and `tokenB`.
+        - `getPair[tokenB][tokenA] = pairAddr`: This ensures you can also query the pair using the tokens in reverse order (i.e., from `tokenB` to `tokenA`).
+    
+    This double mapping makes it easy to look up the `Pair` contract regardless of the order of the token addresses.
 
 <!-- Content_END -->
