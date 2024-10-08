@@ -947,6 +947,38 @@ timezone: Asia/Shanghai
 
 ---
 
+### 2024.10.08
+
+#### 学习内容 22. Call
+
+1. Call
+    - `call` 是`address`类型的低级成员函数，它用来与其他合约交互;
+    - 返回值为`(bool, bytes memory)`，分别对应`call`是否成功以及目标函数的返回值;
+    - `call`是`Solidity`官方推荐的通过触发`fallback`或`receive`函数发送`ETH`的方法
+    - 不推荐用`call`来调用另一个合约;
+        - 因为当你调用不安全合约的函数时，你就把主动权交给了它;
+        - 推荐的方法仍是声明合约变量后调用函数;
+
+    - 当我们不知道对方合约的源代码或`ABI`，就没法生成合约变量；这时，我们仍可以通过`call`调用对方合约的函数;(很有用)
+
+2. 使用规则
+    - `目标合约地址.call(字节码);`
+    - 字节码
+        - `abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)`
+        - abi.encodeWithSignature("f(uint256,address)", _x, _addr);
+
+    - 可以指定交易发送的`ETH`数额和`gas`数额
+        - `目标合约地址.call{value:发送数额, gas:gas数额}(字节码)`
+
+3. 合约部署
+    - ![image-20241008110325357](content/Aris/image-20241008110325357.png)
+    - ![image-20241008110737517](content/Aris/image-20241008110737517.png)
+    - ![image-20241008110915276](content/Aris/image-20241008110915276.png)
+
+4. 第 22 节测验得分: 100, 答案: ABACAC
+
+---
+
 
 
 

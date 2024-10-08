@@ -817,4 +817,10 @@ contract Timelock{
 
 ### 
 
+### 2024.10.8
+
+#### [代理合约](./content/0xfu/ProxyContract.md)
+
+### 
+
 <!-- Content_END -->

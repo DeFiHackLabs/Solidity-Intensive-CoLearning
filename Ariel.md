@@ -729,11 +729,61 @@ allPairs是币对地址的数组，存储了所有代币地址。
 PairFactory合约只有一个createPair函数，根据输入的两个代币地址tokenA和tokenB来创建新的Pair合约。其中
 Pair pair = new Pair(); 
 
+### 2024.10.08
+
+學習內容: WTF 25~26
+![螢幕擷取畫面 2024-10-08 145448](https://github.com/user-attachments/assets/ef23cb9b-38f2-4c32-b5be-67abfe6b6a7c)
+
+# 25:create2
+1. CREATE2 操作码使我们在智能合约部署在以太坊网络之前就能预测合约的地址。Uniswap创建Pair合约用的就是CREATE2而不是CREATE
+
+2. create:新地址 = hash(创建者地址, nonce)
+//nonce:该地址发送交易的总数,对于合约账户是创建的合约总数,每创建一个合约nonce+1
+//创建者地址不会变，但nonce可能会随时间而改变，因此用CREATE创建的合约地址不好预测
+
+3. CREATE2的目的是为了让合约地址独立于未来的事件
+新地址 = hash("0xFF",创建者地址, salt, initcode)
+//0xFF：一个常数，避免和CREATE冲突
+//CreatorAddress: 调用 CREATE2 的当前合约（创建合约）地址。
+////salt（盐）：一个创建者指定的bytes32类型的值，它的主要目的是用来影响新创建的合约的地址。
+initcode: 新合约的初始字节码（合约的Creation Code和构造函数的参数）。
+
+4. CREATE2 确保，如果创建者使用 CREATE2 和提供的 salt 部署给定的合约initcode，它将存储在 新地址 中。
+
+   Contract x = new Contract{salt: _salt, value: _value}(params)
+   
+5. calculateAddr函数来事先计算tokenA和tokenB将会生成的Pair地址。通过它，我们可以验证我们事先计算的地址和实际地址是否相同。
+
+6. 如果部署合约构造函数中存在参数，计算时，需要将参数和initcode一起进行打包：keccak256(abi.encodePacked(type(Pair).creationCode, abi.encode(address(this))))
+
+7.实际应用场景:交易所为新用户预留创建钱包合约地址。
+由 CREATE2 驱动的 factory 合约，在Uniswap V2中交易对的创建是在 Factory中调用CREATE2完成。这样做的好处是: 它可以得到一个确定的pair地址, 使得 Router中就可以通过 (tokenA, tokenB) 计算出pair地址, 不再需要执行一次 Factory.getPair(tokenA, tokenB) 的跨合约调用。
+
+# 26:刪除合約
+
+1. selfdestruct命令可以用来删除智能合约，并将该合约剩余ETH转到指定地址。selfdestruct是为了应对合约出错的极端情况而设计的。在 v0.8.18 版本中，selfdestruct 关键字被标记为「不再建议使用」，在一些情况下它会导致预期之外的合约语义
+
+2. EIP-6780被纳入升级以实现对Verkle Tree更好的支持。EIP-6780减少了SELFDESTRUCT操作码的功能。根据提案描述，当前SELFDESTRUCT仅会被用来将合约中的ETH转移到指定地址，而原先的删除功能只有在合约创建-自毁这两个操作处在同一笔交易时才能生效。所以目前来说：
+   1. 已经部署的合约无法被SELFDESTRUCT了。
+   2. 如果要使用原先的SELFDESTRUCT功能，必须在同一笔交易中创建并SELFDESTRUCT
+
+3. selfdestruct(_addr)；
+//_addr是接收合约中剩余ETH的地址。_addr 地址不需要有receive()或fallback()也能接收ETH。
+
+function deleteContract() external {
+        // 调用selfdestruct销毁合约，并把剩余的ETH转给msg.sender
+        selfdestruct(payable(msg.sender));
+    }
+
+4. 对外提供合约销毁接口时，最好设置为只有合约所有者可以调用，可以使用函数修饰符onlyOwner进行函数声明。
+5. 当合约中有selfdestruct功能时常常会带来安全问题和信任问题，合约中的selfdestruct功能会为攻击者打开攻击向量(例如使用selfdestruct向一个合约频繁转入token进行攻击，这将大大节省了GAS的费用，虽然很少人这么做)，此外，此功能还会降低用户对合约的信心。
+
+
 ### 2024.10.0
 
-學習內容: WTF 25
+學習內容: WTF 27
 
-# 25:
+# 27:
 
 
 
