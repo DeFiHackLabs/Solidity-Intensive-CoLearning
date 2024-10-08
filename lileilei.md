@@ -936,7 +936,44 @@ contract AirDrop{
     }
 
 }
-    
 
+### 2024.10.07
+
+ERC165检查了合约是否实现了ERC721,ERC1155的接口
+import "./ierc165.sol";
+contract erc721 is ierc165{
+    function supportsInterface(bytes4 interfaceId)  external pure override  returns(bool){
+        return interfaceId == type(ierc165).interfaceId;
+    }
+}
+
+先直接实现下这个接口，但是会报错需要将erc721设置成abstract，明天待续
+
+### 2024.10.08
+
+ERC721用tokenId表示非同质化的代币，所以转账和授权都需要携带tokenId
+学习精准授权
+    function _approve(address owner,address to,uint tokenId) private{
+        _tokenApprovals[tokenId] =to;
+        emit Approval(owner,to,tokenId);
+    }
+
+    function approve(address to ,uint tokenId)external override {
+        address owner = _owners[tokenId];
+        require(msg.sender==owner || _operatorApprovals[msg.sender][to],"not owner nor approval all");
+        _approve(owner, to, tokenId);
+    }
+ 批量授权
+    function setApprovalForAll(address operator, bool approved) external override {
+        _operatorApprovals[msg.sender][operator] = approved;
+        emit ApprovalForAll(msg.sender, operator, approved);
+    }
+查询授权地址
+    function getApproved(uint tokenId) external view override returns(address){
+        require(_owners[tokenId] != address(0),"token not exist");
+        return _tokenApprovals[tokenId];
+    }
+
+    
 
 <!-- Content_END -->

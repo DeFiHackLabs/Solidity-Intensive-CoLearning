@@ -312,6 +312,7 @@ receive()   fallback()
    - 解码: ABI解码有1个函数：`abi.decode`，用于解码`abi.encode`的数据。
 
 ### 2024.10.07
+
 1. `Hash`
    - 概念: 它可以将任意长度的消息转换为一个固定长度的值，这个值也称作哈希（hash）
    - 性质: 单向性; 灵敏性; 高效性; 均一性; 抗碰撞性(弱抗碰撞性, 强抗碰撞性);
@@ -321,6 +322,5 @@ receive()   fallback()
 2. 选择器`selector`
    - method id定义为函数签名的`Keccak`哈希后的前4个字节，当`selector`与method id相匹配时，即表示调用该函数
    - `bytes4(keccak256("mint(address)"));` 其中`"mint(address)"`为方法签名
-
 
 <!-- Content_END -->

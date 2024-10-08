@@ -1667,4 +1667,60 @@ contract Call{
 ### 4. 呼叫不存在的函數
 如果我們給 `call` 輸入的函數不存在於目標合約，那麼目標合約的 `fallback` 函數會被觸發。我們 call 了不存在的 `foo` 函數。 call 仍能執行成功，並回傳 `success`，但其實呼叫的目標合約 `fallback` 函數。
 
+### 2024.10.07
+# Delegatecall
+`delegatecall` 與 `call` 類似，是 Solidity 中位址類型的低階成員函數。 delegate 是委託/代表的意思，那麼 delegatecall 委託了什麼？
+## Call
+當使用者 A 透過合約 B 來 call 合約 C 的時候，執行的是合約 C 的函數，上下文(Context，可以理解為包含變數和狀態的環境)也是合約 C 的：`msg.sender` 是 B 的位址，如果函數改變一些狀態變量，產生的效果會作用在合約 C 的變數上。
+![](https://i.imgur.com/j3BMCsC.png)
+## delegatecall
+當使用者 A 透過合約 B 來 delegatecall 合約 C 的時候，執行的是合約 C 的函數，但是上下文仍是合約 B 的：msg.sender是 A 的位址，並且如果函數改變一些狀態變量，產生的效果會作用於合約 B 的變數上。
+![](https://i.imgur.com/pdY13St.png)
+可以理解為：一個投資人（使用者 A）把他的資產（B 合約的狀態變數）都交給一個創業投資代理（C 合約）來打理。執行的是創業投資代理的函數，但是改變的是資產的狀態。
+### 語法
+```
+<目標合約位址>.delegatecall(<二進位編碼>);
+```
+其中二進位編碼利用結構化編碼函數 `abi.encodeWithSignature` 取得：`abi.encodeWithSignature("函數簽章", 逗號分隔的特定參數)`，例如`abi.encodeWithSignature("f(uint256,address)", _x, _addr)`。
+與 call 不同，delegatecall 在呼叫合約時可以指定交易發送的 gas，但不能指定發送的 ETH 金額。delegatecall 有安全隱患，使用時要確保當前合約和目標合約的狀態變數儲存結構相同，且目標合約安全，不然會造成資產損失。
+### 使用場景
+1. 代理合約（Proxy Contract）：將智能合約的儲存合約和邏輯合約分開：代理合約（Proxy Contract）儲存所有相關的變數，並且保存邏輯合約的位址；所有函數存在邏輯合約（Logic Contract）裡，透過 delegatecall 執行。當升級時，只需要將代理合約指向新的邏輯合約即可。
+2. EIP-2535 Diamonds（鑽石）：鑽石是一個支持建構可在生產中擴展的模組化智能合約系統的標準。鑽石是具有多個實施合約的代理合約。
+### 例子
+你（A）透過合約 B 調用目標合約 C。
+合約 B 必須和目標合約 C 的變數儲存佈局必須相同，兩個變量，且順序為 `num` 和 `sender`。
+```
+// 被呼叫的合約 C
+contract C {
+    uint public num;
+    address public sender;
+
+    function setVars(uint _num) public payable {
+        num = _num;
+        sender = msg.sender;
+    }
+}
+
+// 發起呼叫的合約B
+contract B {
+    uint public num;
+    address public sender;
+    
+    // 透過 call 來呼叫 C 的 setVars() 函數，將改變合約 C 裡的狀態變數
+    // 兩個參數 _addr 和 _num，分別對應合約 C 的位址和 setVars 的參數
+    function callSetVars(address _addr, uint _num) external payable{
+        // call setVars()
+        (bool success, bytes memory data) = _addr.call(
+            abi.encodeWithSignature("setVars(uint256)", _num)
+        );
+    }
+    // 透過 delegatecall 來呼叫 C 的 setVars() 函數，將改變合約 B 裡的狀態變數
+    function delegatecallSetVars(address _addr, uint _num) external payable{
+        // delegatecall setVars()
+        (bool success, bytes memory data) = _addr.delegatecall(
+            abi.encodeWithSignature("setVars(uint256)", _num)
+        );
+    }
+}
+```
 <!-- Content_END -->

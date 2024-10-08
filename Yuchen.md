@@ -1518,4 +1518,84 @@ function delegatecallSetVars(address _addr, uint _num) external payable{
 > * 邏輯合約（Logic Contract）存儲所有函數，實際的邏輯運行是在邏輯合約中定義的函數中完成的。
 > * 代理合約使用 delegatecall 呼叫邏輯合約來執行函數，這樣變更會影響代理合約的存儲。
 
+### 2024.10.08
+
+#### 在合約中創建新合約
+在乙太坊鏈上，用戶(外部帳戶，EOA)和智能合約都具備創建新的智能合約的能力。這種功能的實現使的合約之間可以互相交互、組合，並實現更複雜的去中心化應用(DApps)。  
+中心化交易所`uniswap`就是利用工廠合約(`PairFactory`)創建和管理無數個交易對合約(`Pair Contract`)，每個交易對合約代表一個特定的代幣對（如 ETH/DAI）。  
+
+**`create`**  
+有兩種方法可以在合約中創建新合約，`create`和`create2`。  
+`create`的用法很簡單，就是`new`一個合約，並傳入新合約構造函數所需的參數：  
+`Contract`是要創建的合約名，`x`是合約對象(地址)，如果構造函數是`payable`，可以創建時傳入`_value`數量的`ETH`，`params`是新合約構造函數的參數。  
+```Solidity
+Contract x = new Contract{value: _value}(params)
+```  
+
+#### 極簡Uniswap
+`Uniswap V2`核心合約中包含兩個合約：  
+1. UniswapV2Pair: 幣對合約，用於管理幣對地址、流動性、買賣。  
+2. UniswapV2Factory: 工廠合約，用於創建新幣對，並管理幣對地址。  
+
+以下用`create`方法實現簡易版的`Uniswap`。  
+
+**`Pair`合約**  
+```Solidity
+contract Pair{
+    address public factory; // 工厂合约地址
+    address public token0; // 代币1
+    address public token1; // 代币2
+
+    constructor() payable {
+        factory = msg.sender;
+    }
+
+    // called once by the factory at time of deployment
+    function initialize(address _token0, address _token1) external {
+        require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
+        token0 = _token0;
+        token1 = _token1;
+    }
+}
+```  
+`Pair`合約很簡單，包含3個狀態變量：`factory`, `token0`和`token1`。  
+構造函數`construct`在部署時將`factory`賦值為工廠合約的地址。`initialize`函數會由工廠合約在部署完成後手動調用已初始化代幣地址，將`token`和`token1`更新為幣對中兩種代幣的地址。  
+
+> 为什么uniswap不在constructor中将token0和token1地址更新好？
+> 
+> 因为uniswap使用的是create2创建合约，生成的合约地址可以实现预测，更多详情请阅读第25讲。
+
+**`PairFactory`**  
+```Solidity
+contract PairFactory{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair(address tokenA, address tokenB) external returns (address pairAddr) {
+        // 创建新合约
+        Pair pair = new Pair(); 
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+}
+```  
+
+工廠合約(PairFactory)有兩個狀態變量`getPair`是兩個代幣地址到幣對地址的map，方便根據代幣找到幣對地址。  
+
+`PairFactory`合約只有一個`createPair`函數，根據輸入的兩個代幣地址`tokenA`、`TokenB`來創建新的`Pair`合約。  
+以下為創建合約的程式：  
+```Solidity
+Pair pair = new Pair(); 
+```  
+
+```
+WBNB地址: 0x2c44b726ADF1963cA47Af88B284C06f30380fC78
+BSC链上的PEOPLE地址: 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c
+```  
+
 <!-- Content_END -->

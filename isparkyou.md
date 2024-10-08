@@ -5625,5 +5625,76 @@ contract UniswapV2FlashloanTest is Test {
 }
 ```
 
+### 2024.10.7
+### ethers.js
+是一个完整而紧凑的开源库，用于与以太坊区块链及其生态系统进行交互。如果你要写Dapp的前端，你就需要用到ethers.js。
+与更早出现的web3.js相比，它有以下优点：
+1. 代码更加紧凑：ethers.js大小为116.5 kB，而web3.js为590.6 kB。
+2. 更加安全：Web3.js认为用户会在本地部署以太坊节点，私钥和网络连接状态由这个节点管理（实际并不是这样）；ethers.js中，Provider提供器类管理网络连接状态，Wallet钱包类管理密钥，安全且灵活。
+3. 原生支持ENS。
 
+```
+import { ethers } from "ethers";
+const provider = ethers.getDefaultProvider();
+const main = async () => {
+    const balance = await provider.getBalance(`vitalik.eth`);
+    console.log(`ETH Balance of vitalik: ${ethers.formatEther(balance)} ETH`);
+}
+main()
+```
+
+### Provider提供器
+Provider类是对以太坊网络连接的抽象，为标准以太坊节点功能提供简洁、一致的接口。在ethers中，Provider不接触用户私钥，只能读取链上信息，不能写入，这一点比web3.js要安全。
+ethers中最常用的是jsonRpcProvider，可以让用户连接到特定节点服务商的节点。
+```
+// 利用公共rpc节点连接以太坊网络
+// 可以在 https://chainlist.org 上找到
+const ALCHEMY_MAINNET_URL = 'https://rpc.ankr.com/eth';
+const ALCHEMY_SEPOLIA_URL = 'https://rpc.sepolia.org';
+// 连接以太坊主网
+const providerETH = new ethers.JsonRpcProvider(ALCHEMY_MAINNET_URL)
+// 连接Sepolia测试网
+const providerSepolia = new ethers.JsonRpcProvider(ALCHEMY_SEPOLIA_URL)
+    // 1. 查询vitalik在主网和Sepolia测试网的ETH余额
+    console.log("1. 查询vitalik在主网和Sepolia测试网的ETH余额");
+    const balance = await providerETH.getBalance(`vitalik.eth`);
+    const balanceSepolia = await providerSepolia.getBalance(`0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045`);
+    // 将余额输出在console（主网）
+    console.log(`ETH Balance of vitalik: ${ethers.formatEther(balance)} ETH`);
+    // 输出Sepolia测试网ETH余额
+    console.log(`Sepolia ETH Balance of vitalik: ${ethers.formatEther(balanceSepolia)} ETH`);
+
+    // 2. 查询provider连接到了哪条链
+    console.log("\n2. 查询provider连接到了哪条链")
+    const network = await providerETH.getNetwork();
+    console.log(network.toJSON());
+
+    // 3. 查询区块高度
+    console.log("\n3. 查询区块高度")
+    const blockNumber = await providerETH.getBlockNumber();
+    console.log(blockNumber);
+    // 4. 查询 vitalik 钱包历史交易次数
+    console.log("\n4. 查询 vitalik 钱包历史交易次数")
+    const txCount = await providerETH.getTransactionCount("vitalik.eth");
+    console.log(txCount);
+
+    // 5. 查询当前建议的gas设置
+    console.log("\n5. 查询当前建议的gas设置")
+    const feeData = await providerETH.getFeeData();
+    console.log(feeData);
+    // 6. 查询区块信息
+    console.log("\n6. 查询区块信息")
+    const block = await providerETH.getBlock(0);
+    console.log(block);
+    // 7. 给定合约地址查询合约bytecode，例子用的WETH地址
+    console.log("\n7. 给定合约地址查询合约bytecode，例子用的WETH地址")
+    const code = await providerETH.getCode("0xc778417e063141139fce010982780140aa0cd5ab");
+    console.log(code);
+```
+
+### 读取合约信息
+
+
+
+    
 <!-- Content_END -->

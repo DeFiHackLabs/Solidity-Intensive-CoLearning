@@ -607,4 +607,78 @@ contract child is inheritance_GrandFather, father{
 }
 ![image](https://github.com/user-attachments/assets/c92cff67-40b1-4d9d-9c0b-dcdb79a34914)
 
+### 2024.10.07
+1. 学习了构造函数继承
+2. 学习了钻石继承
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+abstract contract A {
+    uint256 public  a;
+    uint256 public  b;
+
+    constructor(uint256 _a,uint256 _b) {
+        a = _a ;
+        b = _b;
+    }
+}
+
+    contract B is A{
+        constructor(uint256 a, uint256 b) A(a * a, b * b){
+            
+        }
+    }
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+contract God{
+    event Log(string message);
+
+    function foo() public virtual   {
+        emit Log("God. foo called");
+    }
+
+    function bar() public virtual {
+        emit Log("God. bar called");
+    }
+}
+
+contract Adam is God{
+    function foo() public virtual override {
+        emit Log("Adam.foo called");
+        super.foo();
+    }
+
+    function bar() public virtual override {
+        emit Log("Adam.bar called");
+        super.bar();
+    }
+}
+
+contract Eve is God {
+
+    function foo() public virtual override {
+        emit Log("Eve. foo called");
+        super.foo();
+    }
+
+    function bar() public virtual override {
+        emit Log("Eve. bar called");
+        super.bar();
+    }
+}
+
+contract People is Adam, Eve{
+
+    function foo() public  override(Adam, Eve) {
+        super.foo();
+    }
+
+    function bar() public override (Adam, Eve) {
+        super.bar();
+    }
+}
+
+![image](https://github.com/user-attachments/assets/5fb3747f-e28e-49b7-bb14-2c033167b1ed)
+
+
 <!-- Content_END -->

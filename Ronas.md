@@ -600,4 +600,49 @@ timezone: Asia/Shanghai
 - Try Cache
     - since v6.0
 
+### 2024.10.08
+
+> 進度: Solidity 103 31~32
+
+- ERC20
+    - `IERC20` 為對外接口 `ERC20` 為邏輯實現
+    - 事件
+        - `Transfer`
+        - `Approval`
+    - 函數
+        - `totalSupply()` 代幣總供應量
+        - `balanceOf()` 取得餘額
+        - `transfer()` 移轉代幣
+        - `allowance()` 查詢授權額度
+        - `approve()` 授權
+        - `transferFrom()` 授權移轉代幣
+
+- ERC20 Token Faucet
+    - 狀態變數
+        - `amountAllowed`: 每次能領取數量
+        - `tokenContract`: 代幣地址
+        - `requestedAddress`: 領取過的地址
+    - 事件 
+        - `SendToken`: 於 `requestToken()` 中 emit
+    - 函數
+        - 建構函數設定代幣地址
+            ```
+            constructor(address _tokenContract) {
+                tokenContract = _tokenContract; // set token contract
+            }
+            ```
+        - `requestToken()`
+            ```
+            function requestTokens() external {
+                require(!requestedAddress[msg.sender], "Can't Request Multiple Times!"); // 每个地址只能领一次
+                IERC20 token = IERC20(tokenContract); // 创建IERC20合约对象
+                require(token.balanceOf(address(this)) >= amountAllowed, "Faucet Empty!"); // 水龙头空了
+
+                token.transfer(msg.sender, amountAllowed); // 发送token
+                requestedAddress[msg.sender] = true; // 记录领取地址 
+                
+                emit SendToken(msg.sender, amountAllowed); // 释放SendToken事件
+            }
+            ```
+
 <!-- Content_END -->

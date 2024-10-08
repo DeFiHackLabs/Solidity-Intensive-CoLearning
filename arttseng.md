@@ -104,6 +104,8 @@ https://www.youtube.com/watch?v=M576WGiDBdQ
 https://www.youtube.com/watch?v=wXo3S8k1ueg&list=PLgPmWS2dQHW9u6IXZq5t5GMQTpW7JL33i
 https://www.youtube.com/playlist?list=PLFcDwmPMBkzu5xMbFh3Vi1COI3bAoBaSI
 
+### 2024.10.08
+import和 receive
 
 
 <!-- Content_END -->
