@@ -97,4 +97,11 @@ timezone: Asia/Taipei
   day15:
 
   [WTF Academy Solidity 103 34-35 NFT,荷蘭拍賣 Note](/content/0xRory/115-ERC721/115-ERC721.md)
+
+### 2024.10.08
+  day16:
+
+  [WTF Academy Solidity 103 36 MerkleTree Note](/content/0xRory/115-MerkleTree/115-MerkleTree.md)
+  [WTF Academy Solidity 103 37 數位簽章 Note](/content/0xRory/115-數位簽章/signature.md)
+  [WTF Academy Solidity 103 38 NFTSwap Note](/content/0xRory/115-NFTSwap/NFTSwap.md)
 <!-- Content_END -->
