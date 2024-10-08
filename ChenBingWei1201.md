@@ -1206,7 +1206,7 @@ B. No
 
 ### 2024.10.08
 <details>
-<summary> 15. Error</summary>
+<summary>15. Errors</summary>
 
 #### Errors
 Solidity has many functions for error handling. Errors can occur at compile time or runtime.
