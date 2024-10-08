@@ -400,7 +400,25 @@ npm install --save-dev @nomicfoundation/hardhat-toolbox  // 安装
 require("@nomicfoundation/hardhat-toolbox");
 ```
 
+### 2024.10.08
+**学习内容：**<br>
+配置环境变量：
 
+```
+npx hardhat vars set TEST_API_KEY // 设置环境变量
+npx hardhat vars get TEST_API_KEY  // 获取
+npx hardhat vars list   // 列出所有变量
+npx hardhat vars deletes TEST_API_KEY  // 删除
+npx hardhat vars setup  // 列出所有
+```
+
+
+
+创建智能合约：
+
+新建`contracts`目录，用于存放.sol合约文件。
+
+在项目根目录执行：`npx hardhat compile`进行编译。
 
 
 <!-- Content_END -->
