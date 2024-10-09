@@ -1724,6 +1724,7 @@ MyTokenTest 仍可訪問 MyToken 功能，因為:
     * Solidity 的 internal 成員在繼承的合約中可見
     * 修飾器（如 checkChallengeSolved）可以在測試前後執行額外檢查
 
+---
 #### 您提出了一個非常好的問題，這確實看起來有些矛盾。讓我解釋一下為什麼這兩種情況會有不同的結果。
 兩種情況的關鍵區別：
 1. MyToken 情況：
