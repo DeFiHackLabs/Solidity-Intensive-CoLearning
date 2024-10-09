@@ -253,4 +253,26 @@ do {
 } while (i < 10);
 ```
 
+### 2024.10.09
+
+#### Chapter 11: Constructor & Modifier
+
+- constructor
+   ```solidity
+   constructor() {
+      owner = msg.sender;
+   }
+   ```
+
+- modifier
+   ```solidity
+   modifier onlyOwner {
+      require(msg.sender == owner); // check whether caller is address of owner
+      _; // execute the function body
+   }
+
+   function changeOwner(address _newOwner) external onlyOwner{
+      owner = _newOwner; // only owner address can run this function and change owner
+   }
+   ```
 <!-- Content_END -->
