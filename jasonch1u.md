@@ -1486,27 +1486,25 @@ IERC20(_tokenAddress).transfer() //要調動的合約名稱(要調動的合約�
 2. 地址轉換： 兩種方法都將地址轉換為特定的合約類型。
 3. 發送 ETH： 兩種方法都支持調用 payable 函數並發送 ETH。
 4. 差異點
-   1. 接口定義： 
+   a. 接口定義： 
       * Interface 方法明確定義了接口
       * CallContract 方法可能直接使用合約名稱，不一定需要預先定義接口
-   2. 代碼可見性： 
+   b. 代碼可見性： 
       * Interface 方法只需要知道函數簽名
       * CallContract 方法可能需要完整的合約代碼（但不是必須的）
-   3. 靈活性： 
+   c. 靈活性： 
       * Interface 方法更靈活，特別是在處理未知合約或第三方合約時
       * CallContract 方法可能更直接，但可能受限於已知合約
-   4. 代碼組織： 
+   d. 代碼組織： 
       * Interface 方法通常將接口定義與使用分開
       * CallContract 方法可能將所有邏輯寫在同一個合約中
-   5. 示例比較
-
+   e. 示例比較
 CallContract 方式：
 ```solidity
 function callSetX(address _Address, uint256 x) external {
     OtherContract(_Address).setX(x);
 }
 ```
-
 Interface 方式：
 ```solidity
 interface IOtherContract {
@@ -1584,17 +1582,17 @@ _contract.call(abi.encodeWithSignature(_func, _arg));
 ```solidity
 (bool success, bytes memory data) = _to.call{value: _amount}(abi.encodeWithSignature("functionName(uint256)", _someParameter));
 ```
-* 發生的過程： 
-    a. ETH 轉移：首先，指定數量的 ETH 會從調用合約轉移到目標地址。 
-    b. 函數調用：然後，指定的函數會在目標合約中被調用。
+* 發生的過程：  
+    a. ETH 轉移：首先，指定數量的 ETH 會從調用合約轉移到目標地址。  
+    b. 函數調用：然後，指定的函數會在目標合約中被調用。  
 
 * 可能的情況： 
-    a. 成功案例： 
-        * ETH 成功轉移，函數也成功執行。
-        * success 將返回 true，data 包含函數的返回值（如果有）。
-     b. 失敗案例： 
-        * 如果 ETH 轉移或函數調用中的任何一步失敗，整個交易都會回滾。
-        * success 將返回 false，交易被回滾，ETH 不會被轉移。
+    a. 成功案例：   
+        * ETH 成功轉移，函數也成功執行。  
+        * success 將返回 true，data 包含函數的返回值（如果有）。  
+     b. 失敗案例：   
+        * 如果 ETH 轉移或函數調用中的任何一步失敗，整個交易都會回滾。  
+        * success 將返回 false，交易被回滾，ETH 不會被轉移。  
 
 * 注意事項：
     a. 接收合約必須是 payable：目標合約必須有能力接收 ETH（即有 payable 函數或 fallback/receive 函數）。
