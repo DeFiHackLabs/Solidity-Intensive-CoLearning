@@ -46,4 +46,9 @@ completed lessons 31-33；
 Todo:
 - design fintness token by using ERC20
 
+### 2024.10.09
+Completed all tasks of Solidity 101 with a score of 100 for each task.
+
+
+
 <!-- Content_END -->
