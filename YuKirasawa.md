@@ -216,4 +216,8 @@ contract SendEther {
 
 今天学习了 103 的 40. ERC1155
 
+### 2024.10.08
+
+今天学习了 103 的 41. WETH
+
 <!-- Content_END -->

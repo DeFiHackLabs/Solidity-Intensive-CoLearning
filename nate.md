@@ -63,7 +63,7 @@ timezone: Asia/Shanghai
      - 所有函数都必须是external且不能有函数体
      - 继承接口的非抽象合约必须实现接口定义的所有功能
   7. error，require，assert
-     ```js
+     ``` js
      // 自定义error
      error TransferNotOwner()
      // 自定义带参数的error
@@ -101,7 +101,7 @@ timezone: Asia/Shanghai
    ```
    其中Contract是要创建的合约名，x是合约对象，如果构造函数是payable，可以创建时转入_value数量的ETH，_salt为随机的bytes32值，params是新合约构造函数的参数
    - CREATE如何计算地址
-``` text
+   ``` text
    智能合约可以由其他合约和普通账户利用CREATE操作码创建。 在这两种情况下，新合约的地址都以相同的方式计算：创建者的地址(通常为部署的钱
 包地址或者合约地址)和nonce(该地址发送交易的总数,对于合约账户是创建的合约总数,每创建一个合约nonce+1)的哈希。
 
@@ -157,14 +157,174 @@ initcode: 新合约的初始字节码（合约的Creation Code和构造函数的
    的话，合约地址会随创建账户的状态而变化不好预测
    ```
 ### 2024.09.27
-WTF solidity16-20
+WTF solidity33-35
 ### 2024.09.29
-WTF solidity21-25
-### 2024.09.30
-WTF solidity26-30
-### 2024.10.01
-WTF solidity31-35
-### 2024.10.02
 WTF solidity36-40
+### 2024.09.30
+WTF solidity41-43
+### 2024.10.01
+WTF solidity43-45
+### 2024.10.02
+WTF solidity46-50
+### 2024.10.03
+WTF solidity16-18   
+1. 库合约和普通合约区别：  
+    - 不能存在状态变量
+    - 不能够继承或被继承
+    - 不能接收以太币
+    - 不可以被销毁
+2. library两种使用方法
+   ``` solidity
+   // 使用Strings库
+   contract WTF17{
+   
+    // 1. 使用指令 using A for B, B类型可以直接使用A库内中方法并且该变量作为第一个参数参数 
+    using Strings for uint256;
 
+    function f1(uint256 _in) public pure returns (string memory) {
+        return _in.toHexString();
+    }
+
+   // 2. 直接通过库名调用
+    function f2(uint256 _in) public pure returns (string memory) {
+        return Strings.toHexString(_in);
+    }
+   }
+   ```
+3. import三种引用方式
+   ``` solidity
+   // SPDX-License-Identifier: MIT
+   pragma solidity ^0.8.21;
+
+   // 1. 通过文件相对位置import
+   import './Yeye.sol';
+   // 通过全局符号导入特定的合约
+   import {Yeye} from './Yeye.sol';
+   // 2. 通过网址引用
+   import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+   // 3. 通过npm的目录导入
+   import '@openzeppelin/contracts/access/Ownable.sol';
+
+   contract Import {
+      // 成功导入Address库
+       using Address for address;
+      // 声明yeye变量
+       Yeye yeye = new Yeye();
+
+      // 测试是否能调用yeye的函数
+      function test() external{
+        yeye.hip();
+      }
+   }
+   ```   
+### 2024.10.04
+WTF solidity19-20
+1. receive和fallback
+   两种特殊的回调方法，可用来接收以太（fallback用payable修饰时），当向合约转账未call指定方法（data域为空）则会调用receive(),
+   若data域不为空但其函数未在合约中则调用fallback()
+2. call,transfer,send使用
+   ``` solidity
+   
+   // 2300 gas fee限制
+   function transferEth(address payable _to, uint256 amount) external payable {
+       _to.transfer(amount);
+    }
+
+    function sendEth(address payable _to, uint256 amount) external payable {
+       bool success = _to.send(amount);
+       if(!success) revert SendFailed();
+    }
+
+    // call可选择gas fee
+    function callEth(address payable _to, uint256 amount) external payable {
+       (bool success,) = _to.call{value:amount}("");
+       if(!success) revert CallFailed();
+    }
+   ``` 
+### 2024.10.05
+WTF solidity21-23  
+1. 调用其他合约    
+   ``` solidity
+   
+   // SPDX-License-Identifier: MIT
+   pragma solidity ^0.8.23;
+   import {OtherContract} from "./WTF21.sol";
+
+   contract OtherCall{
+    function callSetX(address _Address, uint256 x) external {
+       OtherContract(_Address).setX(x);
+    }
+
+    function callGetX(OtherContract _Address) external view returns(uint) {
+       return _Address.getX();
+    }
+
+    function callGetX2(address _Address) external view returns(uint) {
+       OtherContract oc = OtherContract(_Address);
+       return oc.getX();
+    }
+
+    // 调用合约并发送ETH
+    function callSetXWithETH(address _Address, uint256 x) external payable {
+       OtherContract(_Address).setX{value:msg.value}(x);
+    }
+   // 使用call调用getX()
+    function callGetX3(address _Address) external returns(uint256) {
+        (, bytes memory data) = _Address.call(abi.encodeWithSignature("getX()"));
+        return abi.decode(data, (uint256));
+    }
+
+    // 使用call调用setX()
+    function callSetX3(address _Address, uint x) external payable returns(uint256) {
+        (, bytes memory data) = _Address.call{value:msg.value}(abi.encodeWithSignature("setX(uint256)",x));
+        return abi.decode(data, (uint256));
+    }
+
+    // 使用call调用不存在的方法会报错
+    function callFoo(address _Address, uint x) external payable returns(uint256) {
+        (, bytes memory data) = _Address.call{value:msg.value}(abi.encodeWithSignature("Foo(uint256)",x));
+        return abi.decode(data, (uint256));
+    }
+    }
+   ```
+2.  delegatecall  
+    当B call C，上下文是C，当B delegetecall C，上下文为B  
+### 2024.10.06
+WTF solidity26-28  
+1. selfdestruct  
+   使用`selfdestruct(_target)`可进行合约自毁并将剩余以太转移到_target地址。
+   `SELFDESTRUCT will recover all funds to the target but not delete the account, except when called in the same transaction as creation` 在Cancun硬分叉之后，只有合约创建和自毁在一个交易中才会删除合约
+2. abi编码en
+   abi提供四种编码方式`encode/encodePacked/encodeWithSignature/encodeWithSelector`，`encodePacked`是`encode`的压缩版，
+   `encodeWithSignature/encodeWithSelector`和函数有关生成的编码开头带有四字节的函数选择器，`encodeWithSignature`第一个参数为函数签名，`encodeWithSelector`第一个参数为函数选择器
+   ``` solidity
+   contract abi{
+    uint x = 10;
+    address addr = 0x7A58c0Be72BE218B41C608b7Fe7C5bB630736C71;
+    string name = "0xAA";
+    uint[2] array = [5, 6]; 
+
+    function encode() view external returns(bytes memory){
+        return abi.encode(x,addr,name,array);
+    } 
+
+    function encodePacked() view external returns(bytes memory){
+        return abi.encodePacked(x,addr,name,array);
+    } 
+
+    function encodeWithSignature() public view returns(bytes memory result) {
+        result = abi.encodeWithSignature("foo(uint256,address,string,uint256[2])", x, addr, name, array);
+    }
+
+    function encodeWithSelector() public view returns(bytes memory result) {
+        result = abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")),
+    x, addr, name, array);
+    }
+    }
+   ```
+3. solidity最常用的哈希函数keccak256     
+### 2024.10.07
+WTF solidity29-30
+### 2024.10.08
+WTF solidity31-32
 <!-- Content_END -->

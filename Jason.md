@@ -1585,6 +1585,109 @@ D. 2ETH；0ETH
 
 **A. 1ETH；1ETH**
 
+### 2024.10.08
+
+## 調用已部署合約
+
+在 Solidity 中，合約之間的互動是構建複雜去中心化應用（DApps）的關鍵。本章節將深入探討如何在已知合約代碼（或接口）和地址的情況下，調用已部署的合約。
+
+### 目標合約
+
+首先，讓我們來看一個名為 `OtherContract` 的簡單合約，它將作為我們調用的目標：
+
+```solidity
+contract OtherContract {
+    uint256 private _x = 0;
+    event Log(uint amount, uint gas);
+    
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+
+    function setX(uint256 x) external payable {
+        _x = x;
+        if(msg.value > 0){
+            emit Log(msg.value, gasleft());
+        }
+    }
+
+    function getX() external view returns(uint x){
+        x = _x;
+    }
+}
+```
+
+這個合約包含：
+- 一個私有狀態變量 `_x`
+- 一個 `Log` 事件，在收到 ETH 時觸發
+- 三個函數：`getBalance()`、`setX()`、和 `getX()`
+
+### 調用 OtherContract 合約的方法
+
+有幾種方法可以調用已部署的合約：
+
+1. **傳入合約地址**
+
+   ```solidity
+   function callSetX(address _Address, uint256 x) external {
+       OtherContract(_Address).setX(x);
+   }
+   ```
+
+2. **傳入合約變量**
+
+   ```solidity
+   function callGetX(OtherContract _Address) external view returns(uint x) {
+       x = _Address.getX();
+   }
+   ```
+
+3. **創建合約變量**
+
+   ```solidity
+   function callGetX2(address _Address) external view returns(uint x) {
+       OtherContract oc = OtherContract(_Address);
+       x = oc.getX();
+   }
+   ```
+
+4. **調用合約並發送 ETH**
+
+   ```solidity
+   function setXTransferETH(address otherContract, uint256 x) payable external {
+       OtherContract(otherContract).setX{value: msg.value}(x);
+   }
+   ```
+
+### 重要概念
+
+1. **合約引用**: 使用 `_Name(_Address)` 格式創建合約引用，其中 `_Name` 是合約名稱，`_Address` 是合約地址。
+
+2. **函數調用**: 使用 `_Name(_Address).f()` 格式調用合約函數，其中 `f()` 是要調用的函數。
+
+3. **發送 ETH**: 使用 `_Name(_Address).f{value: _Value}()` 格式在調用函數時發送 ETH。
+
+4. **接口重要性**: 雖然本例中我們使用了完整的合約代碼，但在實際應用中，只需要知道合約的接口就足夠了。
+
+### 實踐步驟
+
+1. 在 Remix 中部署 `OtherContract`。
+2. 部署包含調用函數的合約（如 `CallContract`）。
+3. 複製 `OtherContract` 的地址。
+4. 使用 `CallContract` 的函數，傳入 `OtherContract` 的地址進行調用。
+5. 驗證調用結果，例如檢查 `x` 的值或合約的 ETH 餘額。
+
+### 注意事項
+
+- 確保您有正確的合約地址和接口。
+- 在發送 ETH 時，確保目標函數是 `payable` 的。
+- 使用 `view` 和 `pure` 函數不會改變區塊鏈狀態，不需要支付 gas。
+
+### 總結
+
+通過這些方法，開發者可以實現合約間的互動，這對於構建模塊化和可擴展的 DApps 至關重要。理解並掌握這些技術可以大大提高智能合約的功能性和靈活性.
+
+Sources
 
 
 <!-- Content_END -->

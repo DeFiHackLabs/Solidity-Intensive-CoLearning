@@ -730,7 +730,23 @@ try externalContract.f() returns(returnType){
 }
 
 ```
+### 2024.10.8        
+學習內容  
+筆記:  
 
+#### ERC20
+- 以太坊上的代幣標準, 用來實現代幣轉帳的基本邏輯
+- 帳戶餘額, balanceOf()
+- 轉帳, transfer()
+- 授權轉帳, transferFrom()
+- 授權, approve()
+- 代幣總供給量, totalSupply()
+- 授權轉帳額度, allowance()
+- 代幣信息, 可選, name(), symbol(), 小數位數 decimals()
+
+IERC20  
+- IERC20 是 ERC20 代幣標準的合約接口, 用來規定 ERC20 代幣需要實現的函數和事件, 內含 ERC20 要使用的函數名稱, 輸入輸出參數
+- IERC20 定義 2 個事件, 6 個函數
 
 
 <!-- Content_END -->

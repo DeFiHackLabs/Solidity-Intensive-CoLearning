@@ -659,6 +659,60 @@ function multiTransferETH(
 }
 ```
 ### 2024.10.08
+34. ERC721(目前卡在ERC721编写)
+```
+    /**
+ * @dev ERC165标准接口, 详见
+ * https://eips.ethereum.org/EIPS/eip-165[EIP].
+ *
+ * 合约可以声明支持的接口，供其他合约检查
+ *
+ */
+interface IERC165 {
+    /**
+     * @dev 如果合约实现了查询的`interfaceId`，则返回true
+     * 规则详见：https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[EIP section]
+     *
+     */
+    function supportsInterface(bytes4 interfaceId) external view returns (bool);
+}
+```
+```
+interface IERC721Metadata {
+    function name() external view returns (string memory);
+
+    function symbol() external view returns (string memory);
+
+    function tokenURI(uint256 tokenId) external view returns (string memory);
+}
+```
+```
+// ERC721接收者接口：合约必须实现这个接口来通过安全转账接收ERC721
+interface IERC721Receiver {
+    function onERC721Received(
+        address operator,
+        address from,
+        uint tokenId,
+        bytes calldata data
+    ) external returns (bytes4);
+}
+```
+```
+interface IERC721 is IERC165{
+    event Transfer(address indexed from,address indexed to,uint256 indexed tokenId);
+    event Approval(address indexed owner,address indexed approved,uint256 indexed tokenId);
+    event ApprovalForAll(address indexed owner,address indexed operator,bool approved);
+    function ownerOf(uint256 tokenId) external view returns (address owner);
+    function balanceOf(address owner) external view returns (uint256 tokenId);
+    function transferFrom(address from,address to,uint256 tokenId) external ;
+    function safeTransferFrom(address from,address to,uint256 tokenId)external ;
+    function safeTransferFrom(address from,address to,uint256 tokenId,bytes calldata data) external ;
+    function approve(address operator,uint256 tokenId) external ;
+    function setApprovalForAll(address operator,bool approved) external ;
+    function getApproved(uint256 tokenId) external view returns (address owner);
+    function isApprovedForAll(address owner,address operator) external view returns (bool);
+}
+```
 ### 2024.10.09
 ### 2024.10.10
     

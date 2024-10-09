@@ -850,4 +850,19 @@ contract ContractB{
            - `initcode` 新合约的初始字节码（合约的Creation Code和构造函数的参数）
            - `salt` 一个创建者指定的bytes32类型的值，它的主要目的是用来影响新创建的合约的地址。
            - 创建者地址：调用 CREATE2 的当前合约（创建合约）地址。
+
+
+### 2024.10.08
+
+學習內容:
+
+- [x] 销毁合约
+
+    - 关键字selfdestruct
+    - 作用：销毁合约，将合约余额发送到指定地址
+    - 用法：`selfdestruct(_address);`, 其中_address为接收合约余额的地址
+    - 坎昆升级前：合约被销毁，合约余额会被转移到指定地址；坎昆升级后：同一笔交易内创建的合约可以被销毁，余额会被转到指定地址。已经部署的合约不会被销毁，但是余额会被转到指定账户。
+    - 调用selfdestruct时，指定的address没有fallback和receive函数，也能接收ETH
+    - 应用场景：selfdestruct时智能合约的紧急按钮，发生THE DAO攻击时，可以通过selfdestruct销毁合约，将合约余额转移到指定账户。
+
 <!-- Content_END -->

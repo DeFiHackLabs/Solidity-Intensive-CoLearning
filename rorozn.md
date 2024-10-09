@@ -1236,7 +1236,7 @@ contract MyContract {
 
 ```solidity
 contract MyERC20{ //代币合约
-    ...
+    ... //参照31节代币合约，此处省略
 }
 
 contract MyFauct{ //领水合约
@@ -1269,6 +1269,76 @@ contract MyFauct{ //领水合约
 ### 2024.10.07
 
 ### 2024.10.08
+
+33. 空投合约
+
+- 实现代币合约
+
+```solidity
+contract MyErc20 is IERC20{
+    ... //参照前边代码
+}
+```
+
+- 铸造代币  
+  调用 mint 函数  
+  ？mint 权限怎么控制，**有没有办法既能保证公平发射，又能防止通胀**
+
+- 批量空投合约
+
+```solidty
+contract Airdrop{
+    /// @notice 向多个地址转账ERC20代币，使用前需要先授权
+    /// @param _token 转账的ERC20代币地址
+    /// @param _addresses 空投地址数组
+    /// @param _amounts 代币数量数组（每个地址的空投数量）
+    function multiTransferToken(
+        address _token,
+        address[] calldata _addresses,
+        uint256[] calldata _amounts
+        ) external {
+        // 检查：_addresses和_amounts数组的长度相等
+        require(_addresses.length == _amounts.length, "Lengths of Addresses and Amounts NOT EQUAL");
+        IERC20 token = IERC20(_token); // 声明IERC合约变量
+        uint _amountSum = getSum(_amounts); // 计算空投代币总量
+        // 检查：授权代币数量 >= 空投代币总量
+        require(token.allowance(msg.sender, address(this)) >= _amountSum, "Need Approve ERC20 token");
+
+        // for循环，利用transferFrom函数发送空投
+        for (uint8 i; i < _addresses.length; i++) {
+            token.transferFrom(msg.sender, _addresses[i], _amounts[i]);
+        }
+    }
+
+    /// 向多个地址转账ETH
+    function multiTransferETH(
+        address payable[] calldata _addresses,
+        uint256[] calldata _amounts
+    ) public payable {
+        // 检查：_addresses和_amounts数组的长度相等
+        require(_addresses.length == _amounts.length, "Lengths of Addresses and Amounts NOT EQUAL");
+        uint _amountSum = getSum(_amounts); // 计算空投ETH总量
+        // 检查转入ETH等于空投总量
+        require(msg.value == _amountSum, "Transfer amount error");
+        // for循环，利用transfer函数发送ETH
+        for (uint256 i = 0; i < _addresses.length; i++) {
+            // 注释代码有Dos攻击风险, 并且transfer 也是不推荐写法
+            // Dos攻击 具体参考 https://github.com/AmazingAng/WTF-Solidity/blob/main/S09_DoS/readme.md
+            // _addresses[i].transfer(_amounts[i]);
+            (bool success, ) = _addresses[i].call{value: _amounts[i]}("");
+            if (!success) {
+                failTransferList[_addresses[i]] = _amounts[i];
+            }
+        }
+    }
+}
+```
+
+- 调用 MyErc20 的 approve()授权给 Airdrop 空投合约，amount 为空投总量
+- 执行 Airdrop 合约的 multiTransferToken()，进行空投；参数分别是地址数组，空投数量数组。
+- 用户可以通过 MyErc20 的 balanceof()查询代币余额
+
+- **？有没有一种方法，可以自动的检验链上交互数据，来判断女巫并自动进行空投？**
 
 ### 2024.10.09
 
