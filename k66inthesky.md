@@ -213,20 +213,30 @@ receive()   fallback()
 
 學習內容: `20.send ETH`
 + Solidity有3種方法向其他合約發送ETH，分別為: `transfer()`、`send()`、`call()`
-```
-contract ReceiveETH {
-    // 收到eth event，記錄amount和gas
-    event Log(uint amount, uint gas);
-    
-    // receive方法，接收eth时被觸發
-    receive() external payable{
-        emit Log(msg.value, gasleft());
-    }
-    
-    // 返回合约ETH餘額
-    function getBalance() view public returns(uint) {
-        return address(this).balance;
-    }
-}
-```
+   ```
+   contract ReceiveETH {
+       // 收到eth event，記錄amount和gas
+       event Log(uint amount, uint gas);
+       
+       // receive方法，接收eth时被觸發
+       receive() external payable{
+           emit Log(msg.value, gasleft());
+       }
+       
+       // 返回合约ETH餘額
+       function getBalance() view public returns(uint) {
+           return address(this).balance;
+       }
+   }
+   ```
+學習內容: `21.Call Contact`
++ 合約呼叫合約
++ 例子
+   ```
+   contract OtherContract{...}
+   function callSetX(address _Address, uint256 x) external {
+      OtherContract(_Address).setX(x);
+   }
+   ```
+
 <!-- Content_END -->
