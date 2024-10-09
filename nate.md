@@ -287,9 +287,42 @@ WTF solidity21-23
     }
     }
    ```
-2.    
+2.  delegatecall  
+    当B call C，上下文是C，当B delegetecall C，上下文为B  
 ### 2024.10.06
-WTF solidity26-28
+WTF solidity26-28  
+1. selfdestruct  
+   使用`selfdestruct(_target)`可进行合约自毁并将剩余以太转移到_target地址。
+   `SELFDESTRUCT will recover all funds to the target but not delete the account, except when called in the same transaction as creation` 在Cancun硬分叉之后，只有合约创建和自毁在一个交易中才会删除合约
+2. abi编码en
+   abi提供四种编码方式`encode/encodePacked/encodeWithSignature/encodeWithSelector`，`encodePacked`是`encode`的压缩版，
+   `encodeWithSignature/encodeWithSelector`和函数有关生成的编码开头带有四字节的函数选择器，`encodeWithSignature`第一个参数为函数签名，`encodeWithSelector`第一个参数为函数选择器
+   ``` solidity
+   contract abi{
+    uint x = 10;
+    address addr = 0x7A58c0Be72BE218B41C608b7Fe7C5bB630736C71;
+    string name = "0xAA";
+    uint[2] array = [5, 6]; 
+
+    function encode() view external returns(bytes memory){
+        return abi.encode(x,addr,name,array);
+    } 
+
+    function encodePacked() view external returns(bytes memory){
+        return abi.encodePacked(x,addr,name,array);
+    } 
+
+    function encodeWithSignature() public view returns(bytes memory result) {
+        result = abi.encodeWithSignature("foo(uint256,address,string,uint256[2])", x, addr, name, array);
+    }
+
+    function encodeWithSelector() public view returns(bytes memory result) {
+        result = abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")),
+    x, addr, name, array);
+    }
+    }
+   ```
+3. solidity最常用的哈希函数keccak256     
 ### 2024.10.07
 WTF solidity29-30
 ### 2024.10.08
