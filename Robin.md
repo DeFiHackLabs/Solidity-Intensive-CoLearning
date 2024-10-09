@@ -865,4 +865,22 @@ contract ContractB{
     - 调用selfdestruct时，指定的address没有fallback和receive函数，也能接收ETH
     - 应用场景：selfdestruct时智能合约的紧急按钮，发生THE DAO攻击时，可以通过selfdestruct销毁合约，将合约余额转移到指定账户。
 
+
+### 2024.10.09
+
+學習內容:
+
+- [x] ABI的编码解码
+   - abi.encode
+       - 用法：`abi.encode(param1, param2, ...)`，将每个参数填充为32个字节的数据，并拼合在一起
+   - abi.encodePacked
+       - 用法：`abi.encodePacked(param1, param2, ...)`，与abi.encode类似， 但是会压缩空间。当想省空间且不与合约交互的时候可以使用，比如算一些数据的hash时
+   - abi.decode
+       - 用法：`(type1 var1, type2 var2, ...) = abi.decode(data, (type1, type2, ...))`，将abi.encode编码的数据解码为指定的数据类型
+   - abi.encodeWithSignature
+       - 用法：`abi.encodeWithSignature("functionName(parameterType[,...])", parameterValue[,...])`，第一个参数为函数签名，后面为函数参数，返回编码后的数据。当调用其他合约的时候可用  
+    - abi.encodeWithSelector
+       - 用法：`abi.encodeWithSelector(bytes4(keccak256("functionName(parameterType[,...])")), parameterValue[,...])`，与abi.encodeWithSignature功能类似，只不过第一个参数为函数选择器，为函数签名Keccak哈希的前4个字节。
+
+
 <!-- Content_END -->
