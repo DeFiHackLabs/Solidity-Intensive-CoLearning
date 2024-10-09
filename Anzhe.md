@@ -1894,5 +1894,155 @@ function calculateAddr(address tokenA, address tokenB) public view returns(addre
 
 部署 `PairFactory2` 合約後，可以查看呼叫 `createPair2` 對幣地址是否與事先計算的地址相同。
 
+### 2024.10.09
+# 刪除合約
+## selfdestruct
+`selfdestruct` 指令可以用來刪除智能合約，並將合約剩餘的 ETH 轉到指定的地址。 
+`selfdestruct` 是為了回應合約出錯的極端情況而設計的。它最早被命名為 `suicide`（自殺），但這個詞太敏感。為了保護憂鬱的程式設計師（XD），改名為 `selfdestruct`，在v0.8.18 版本中，`selfdestruct` 關鍵字被標記為「不再建議使用」，在某些情況下它會導致預期之外的合約語義，但由於目前還沒有取代方案，目前只是對開發者做了編譯階段的警告，相關內容可以查 看EIP-6049。
+### 用法
+```
+selfdestruct(_addr);
+```
+其中 `_addr` 是接收合約中剩餘 ETH 的地址。`_addr` 地址不需要有 `receive()` 或`fallback()` 也能接收 ETH。
+### 轉移ETH功能範例
+```
+contract DeleteContract {
+    uint public value = 10;
+    constructor() payable {}
+    receive() external payable {}
+    function deleteContract() external {
+        // 呼叫 selfdestruct 銷毀合約，並把剩餘的 ETH 轉給 msg.sender
+        selfdestruct(payable(msg.sender));
+    }
+    function getBalance() external view returns(uint balance){
+        balance = address(this).balance;
+    }
+}
+```
+部署好合約後，可向 `DeleteContract` 合約轉入 1 ETH。這時，`getBalance()` 會回傳 1 ETH，`value` 變數是 10。
+當我們呼叫 `deleteContract()` 函數，合約將觸發 `selfdestruct` 操作。在坎昆升級前，合約會被自毀。但升級後，合約依然存在，只是將合約包含的 ETH 轉移到指定地址，而合約依然能夠呼叫。
+### 同筆交易內實現合約創建-自毀範例
+```
+contract DeployContract {
 
+    struct DemoResult {
+        address addr;
+        uint balance;
+        uint value;
+    }
+
+    constructor() payable {}
+
+    function getBalance() external view returns(uint balance){
+        balance = address(this).balance;
+    }
+
+    function demo() public payable returns (DemoResult memory){
+        DeleteContract del = new DeleteContract{value:msg.value}();
+        DemoResult memory res = DemoResult({
+            addr: address(del),
+            balance: del.getBalance(),
+            value: del.value()
+        });
+        del.deleteContract();
+        return res;
+    }
+}
+```
+
+# ABI 編碼解碼
+ABI (Application Binary Interface，應用二進位介面)是與以太坊智能合約互動的標準。資料基於他們的類型編碼；並且由於編碼後不包含類型訊息，解碼時需要註明它們的類型。
+Solidity 中，ABI 編碼有 4 個函數：`abi.encode`、`abi.encodePacked`、 `abi.encodeWithSignature`、`abi.encodeWithSelector`。而 ABI 解碼有 1 個函數：`abi.decode`，用於解碼 `abi.encode` 的資料。
+
+# Hash
+雜湊函數（hash function）是密碼學概念，它可以將任意長度的訊息轉換成固定長度的值，這個值也稱為雜湊（hash）。
+## 性質
+* 單向：從輸入的訊息到它的雜湊的正向運算簡單且唯一確定，但反過來運算非常困難，只能靠暴力枚舉，需要花費非常多算力與時間成本。
+* 靈敏：Input 的訊息改變一點對哈希的結果改變很大。
+* 高效：從輸入的訊息到哈希的運算效率高。
+* 均一：每個雜湊值被取到的機率應該基本上相等。
+* 抗碰撞性：
+    * 弱抗碰撞性：給定一個訊息 `x`，找出另一個訊息 `x'`，使得 `hash(x) = hash(x')` 是困難的。
+        * 
+    * 強抗碰撞性：找出任意 `x` 和`x'`，使得 `hash(x) = hash(x')` 是困難的。
+## Keccak256
+Keccak256 函數是 Solidity 中最常用的雜湊函數，用法：
+```
+<哈希值> = keccak256(<資料>);
+```
+## SHA3
+sha3 由 keccak 標準化而來，在許多場景下 Keccak 和 SHA3 是同義詞，但在 2015 年 8 月 SHA3 最終完成標準化時，NIST 調整了填充演算法。所以 SHA3 就和 keccak 計算的結果不一樣，所以在實際開發上要注意。
+以太坊在開發的時候 sha3 還在標準化中，所以採用了 keccak，所以 Ethereum 和 Solidity 智能合約程式碼中的 SHA3 是指 Keccak256，而不是標準的 NIST-SHA3，為了避免混淆，直接在合約程式碼中寫成 Keccak256 是最清楚的。
+## 應用
+* 加密簽名
+* 安全加密
+* 產生資料唯一標識
+    利用 keccak256 來產生一些資料的唯一識別。例如我們有幾個不同類型的資料：`uint`、`string`、`address`，我們可以先用 abi.encodePacked 方法將他們打包編碼，然後再用 keccak256 來產生唯一識別：
+    ```
+    function hash(
+        uint _num,
+        string memory _string,
+        address _addr
+    ) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(_num, _string, _addr));
+    }
+    ```
+# 函數選擇器
+當我們呼叫智能合約時，本質上是向目標合約發送了一段 calldata，在 remix 中發送一次交易後，可以在詳細資訊中看見 input 即為此次交易的 calldata。發送的calldata中前4個位元組是selector（函數選擇器）。
+## msg.data
+msg.data 是 Solidity 中的全域變數，值為完整的 calldata（呼叫函數時傳入的資料）。
+我們可以透過 Log 事件來輸出呼叫 mint 函數的 calldata：
+```
+// event 回傳 msg.data
+event Log(bytes data);
+
+function mint(address to) external{
+    emit Log(msg.data);
+}
+```
+當參數為 `0x2c44b726ADF1963cA47Af88B284C06f30380fC78` 時，輸出的 calldata 為： 0x6a6278420000000000000000000000002c44b726adf1963ca47af88b284c06f30380fc78
+這段位元組碼可以分成
+1. 前 4 個位元組為函數選擇器 selector：0x6a627842
+2. 後面 32 個位元組為輸入的參數：0x0000000000000000000000002c44b726adf1963ca47af88b284c06f30380fc78
+calldata 就是告訴智能合約，我要呼叫哪個函數，以及參數是什麼。
+### method id、selector
+method id 定義為函數簽署的 Keccak 雜湊後的前 4 個位元組，當 selector（calldata 的前 4 個位元組）與 method id 相符時，即表示呼叫函數。
+由於計算 method id 時，需要透過函數名稱和函數的參數類型來計算。Solidity 中函數的參數類型主要分為：基礎類型參數，固定長度類型參數，可變長度類型參數和映射類型參數。
+### 函數簽章
+`mint` 的函式簽章為 `"mint(address)"`。在同一個智能合約中，不同的函數有不同的函數簽章，因此我們可以透過函數簽章來確定要呼叫哪個函數。
+註：在函數簽章中，`uint` 和 `int` 要寫為 `uint256` 和 `int256`。
+
+## Selector 的使用
+可以利用 selector 來呼叫目標函數。例如我想呼叫 `elementaryParamSelector` 函數，我只需要利用 abi.encodeWithSelector 將 `elementaryParamSelector` 函數的method id 作為 selector 和參數打包編碼，傳給 call 函數：
+```
+// 使用selector來呼叫函數
+function callWithSignature() external{
+...
+    // 呼叫 elementaryParamSelector 函數
+    (bool success1, bytes memory data1) = address(this).call(abi.encodeWithSelector(0x3ec37834, 1, 0));
+...
+}
+```
+# Try Catch
+Solidity 中，try-catch 只能用於 `external` 函數或創建合約時 `constructor`（被視為 `external` 函數）的呼叫。基本語法如下：
+```
+try externalContract.f() {
+    // call 成功的情況下 運行一些程式碼
+} catch {
+    // call 失敗的情況下 運行一些程式碼
+}
+```
+catch模組支援捕捉特殊的異常原因：
+```
+try externalContract.f() returns(returnType){
+    // call 成功的情況下 運行一些程式碼
+} catch Error(string memory /*reason*/) {
+    // 捕獲revert("reasonString") 和 require(false, "reasonString")
+} catch Panic(uint /*errorCode*/) {
+    // 捕獲Panic導致的錯誤 例如assert失敗 溢位 除零 陣列存取越界
+} catch (bytes memory /*lowLevelData*/) {
+    // 如果發生了revert且上面2個異常類型匹配都失敗了 會進入該分支
+    // 例如revert() require(false) revert自訂類型的error
+}
+```
 <!-- Content_END -->
