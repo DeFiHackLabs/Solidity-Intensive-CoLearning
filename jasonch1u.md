@@ -1678,55 +1678,48 @@ contract Receiver {
 
 ### 2024.10.09
 #### Solidity 測試合約執行順序與繼承筆記 `bootcamp`
-## 1. 測試合約執行順序
-
-- `setUp()`: 在每個測試函數前執行，用於初始化測試環境。
-- `test` 開頭的函數: 自動執行，被視為測試函數。
-- 其他函數: 只在被測試函數調用時執行。
-
+1. 測試合約執行順序
+  - `setUp()`: 在每個測試函數前執行，用於初始化測試環境。
+  - `test` 開頭的函數: 自動執行，被視為測試函數。
+  - 其他函數: 只在被測試函數調用時執行。
 執行順序: `setUp()` + `testA()`, 然後 `setUp()` + `testB()`, 以此類推。
+* 好處
+  - 測試隔離
+  - 獨立性
+  - 可重複性
+  - 調試便利
+  - 允許並行執行
 
-### 好處
-- 測試隔離
-- 獨立性
-- 可重複性
-- 調試便利
-- 允許並行執行
-
-## 2. 測試合約繼承
-
-### 結構
+2. 測試合約繼承
+* 結構
 - `MyTokenTest` 繼承 `MyTokenBaseTest`
 - `MyTokenBaseTest` 繼承 Forge `Test` 合約
 
-### 執行流程
-1. 執行 `MyTokenBaseTest.setUp()`
-2. 查找並執行 `MyTokenTest` 中的 `test` 函數
-3. 對每個測試函數:
-   - 再次執行 `setUp()`
-   - 執行測試函數
-   - 應用修飾器（如 `checkChallengeSolved`）
+* 執行流程
+  1. 執行 `MyTokenBaseTest.setUp()`
+  2. 查找並執行 `MyTokenTest` 中的 `test` 函數
+  3. 對每個測試函數:
+     - 再次執行 `setUp()`
+     - 執行測試函數
+     - 應用修飾器（如 `checkChallengeSolved`）
 
-## 3. 合約導入與訪問
-
-- `MyTokenBaseTest` 導入 `MyToken`
-- `MyTokenTest` 只導入 `MyTokenBaseTest`
-
+3. 合約導入與訪問
+  - `MyTokenBaseTest` 導入 `MyToken`
+  - `MyTokenTest` 只導入 `MyTokenBaseTest`
 `MyTokenTest` 仍可訪問 `MyToken` 功能，因為:
-- 繼承了 `MyTokenBaseTest` 的所有公共和內部成員
-- `MyTokenBaseTest` 中的 `internal token` 變量在繼承的 `MyTokenTest` 中可見
+  - 繼承了 `MyTokenBaseTest` 的所有公共和內部成員
+  - `MyTokenBaseTest` 中的 `internal token` 變量在繼承的 `MyTokenTest` 中可見
 
-### 優點
-- 代碼模組化
-- 減少重複導入
-- 集中管理共享設置和變量
+* 優點
+  - 代碼模組化
+  - 減少重複導入
+  - 集中管理共享設置和變量
 
-## 4. 關鍵概念
-
-- 測試隔離確保每個測試在乾淨環境中運行
-- 繼承允許代碼重用和結構化
-- Solidity 的 `internal` 成員在繼承的合約中可見
-- 修飾器（如 `checkChallengeSolved`）可以在測試前後執行額外檢查
+4. 關鍵概念
+  - 測試隔離確保每個測試在乾淨環境中運行
+  - 繼承允許代碼重用和結構化
+  - Solidity 的 `internal` 成員在繼承的合約中可見
+  - 修飾器（如 `checkChallengeSolved`）可以在測試前後執行額外檢查
 
 ---
 #### 您提出了一個非常好的問題，這確實看起來有些矛盾。讓我解釋一下為什麼這兩種情況會有不同的結果。
