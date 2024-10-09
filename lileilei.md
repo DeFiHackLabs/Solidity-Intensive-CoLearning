@@ -974,6 +974,28 @@ ERC721用tokenId表示非同质化的代币，所以转账和授权都需要携�
         return _tokenApprovals[tokenId];
     }
 
-    
-
+### 2024.10.09
+function _checkOnERC721Received(address from,address to,uint tokenId,bytes memory data) private{
+        if(to.code.length>0){
+            try IERC721Receiver(to).onERC721Received(msg.sender,from,tokenId,data) returns(bytes4 retval){
+                if(IERC721Receiver.onERC721Received.selector != retval){
+                    revert ERC721InvalidReceiver(to);
+                }
+            }catch (bytes memory reason){
+                if(reason.length == 0){
+                    revert ERC721InvalidReceiver(to);
+                }else{
+                    assembly{
+                        revert(add(32,reason),mload(reason))
+                    }
+                }
+            }
+        }
+    }
+  检测是否实现了IERC721Receiver这个接口，只有实现了这个接口才能进行转账  
+ function _safeTransfer(address owner,address from,address to,uint tokenId,bytes memory _data) private {
+        _transfer(owner,from,to,tokenId);
+        _checkOnERC721Received(from,to,tokenId,_data);
+    }
+  上边校验通过后，进行transfer操作  
 <!-- Content_END -->
