@@ -5983,6 +5983,204 @@ console.log(`Vitalik钱包中的代币余额: ${await contractERC20.balanceOf("v
 ```
 
 ### 检索事件
+#### 事件Event
+智能合约释放出的事件存储于以太坊虚拟机的日志中。日志分为两个主题topics和数据data部分，其中事件哈希和indexed变量存储在topics中，作为索引方便以后搜索；没有indexed变量存储在data中，不能被直接检索，但可以存储更复杂的数据结构。
+```
+event Transfer(address indexed from, address indexed to, uint256 amount);
+```
+可以利用Ethers中合约类型的queryFilter()函数读取合约释放的事件。
+```
+const transferEvents = await contract.queryFilter('事件名', 起始区块, 结束区块)
+
+#### 例子：检索WETH合约中的Transfer事件
+```
+import { ethers } from "ethers";
+// 利用Alchemy的rpc节点连接以太坊网络
+// 准备 alchemy API 可以参考https://github.com/AmazingAng/WTFSolidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md 
+const ALCHEMY_GOERLI_URL = 'https://eth-goerli.alchemyapi.io/v2/GlaeWuylnNM3uuOo-SAwJxuwTdqHaY5l';
+const provider = new ethers.JsonRpcProvider(ALCHEMY_GOERLI_URL);
+
+// WETH ABI，只包含我们关心的Transfer事件
+const abiWETH = [
+    "event Transfer(address indexed from, address indexed to, uint amount)"
+];
+
+// 测试网WETH地址
+const addressWETH = '0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6'
+// 声明合约实例
+const contract = new ethers.Contract(addressWETH, abiWETH, provider)
+
+// 得到当前block
+const block = await provider.getBlockNumber()
+console.log(`当前区块高度: ${block}`);
+console.log(`打印事件详情:`);
+const transferEvents = await contract.queryFilter('Transfer', block - 10, block)
+// 打印第1个Transfer事件
+console.log(transferEvents[0])
+// 解析Transfer事件的数据（变量在args中）
+console.log("\n2. 解析事件：")
+const amount = ethers.formatUnits(ethers.getBigInt(transferEvents[0].args["amount"]), "ether");
+console.log(`地址 ${transferEvents[0].args["from"]} 转账${amount} WETH 到地址 ${transferEvents[0].args["to"]}`)
+```
+
+### 监听合约事件
+```
+contract.on("eventName", function)
+contract.once("eventName", function)
+```
+
+#### 监听USDT合约
+```
+import { ethers } from "ethers";
+// 准备 alchemy API  
+// 可以参考https://github.com/AmazingAng/WTFSolidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md 
+const ALCHEMY_MAINNET_URL = 'https://eth-mainnet.g.alchemy.com/v2/oKmOQKbneVkxgHZfibs-iFhIlIAl6HDN';
+// 连接主网 provider
+const provider = new ethers.JsonRpcProvider(ALCHEMY_MAINNET_URL);
+
+// USDT的合约地址
+const contractAddress = '0xdac17f958d2ee523a2206206994597c13d831ec7'
+// 构建USDT的Transfer的ABI
+const abi = [
+  "event Transfer(address indexed from, address indexed to, uint value)"
+];
+// 生成USDT合约对象
+const contractUSDT = new ethers.Contract(contractAddress, abi, provider);
+  // 只监听一次
+  console.log("\n1. 利用contract.once()，监听一次Transfer事件");
+  contractUSDT.once('Transfer', (from, to, value)=>{
+    // 打印结果
+    console.log(
+      `${from} -> ${to} ${ethers.formatUnits(ethers.getBigInt(value),6)}`
+    )
+  })
+  // 持续监听USDT合约
+  console.log("\n2. 利用contract.on()，持续监听Transfer事件");
+  contractUSDT.on('Transfer', (from, to, value)=>{
+    console.log(
+     // 打印结果
+     `${from} -> ${to} ${ethers.formatUnits(ethers.getBigInt(value),6)}`
+    )
+  })
+```
+
+### 事件过滤
+#### 过滤器
+当合约创建日志（释放事件）时，它最多可以包含[4]条数据作为索引（indexed）。索引数据经过哈希处理并包含在布隆过滤器中，这是一种允许有效过滤的数据结构。因此，一个事件过滤器最多包含4个主题集，每个主题集是个条件，用于筛选目标事件。规则：
+- 如果一个主题集为null，则该位置的日志主题不会被过滤，任何值都匹配。
+- 如果主题集是单个值，则该位置的日志主题必须与该值匹配。
+- 如果主题集是数组，则该位置的日志主题至少与数组中其中一个匹配。
+![image](https://github.com/user-attachments/assets/e02ecda0-3fe8-445a-b45f-785cbc2d3b84)
+
+#### 构建过滤器
+```
+const filter = contract.filters.EVENT_NAME( ...args ) 
+contract.filters.Transfer(myAddress)
+contract.filters.Transfer(null, myAddress)
+contract.filters.Transfer(myAddress, otherAddress)
+contract.filters.Transfer(null, [ myAddress, otherAddress ])
+```
+
+#### 监听交易所的USDT转账
+```
+const provider = new ethers.JsonRpcProvider(ALCHEMY_MAINNET_URL);
+// 合约地址
+const addressUSDT = '0xdac17f958d2ee523a2206206994597c13d831ec7'
+// 交易所地址
+const accountBinance = '0x28C6c06298d514Db089934071355E5743bf21d60'
+// 构建ABI
+const abi = [
+  "event Transfer(address indexed from, address indexed to, uint value)",
+  "function balanceOf(address) public view returns(uint)",
+];
+// 构建合约对象
+const contractUSDT = new ethers.Contract(addressUSDT, abi, provider);
+const balanceUSDT = await contractUSDT.balanceOf(accountBinance)
+console.log(`USDT余额: ${ethers.formatUnits(balanceUSDT,6)}\n`)
+// 2. 创建过滤器，监听转移USDT进交易所
+console.log("\n2. 创建过滤器，监听USDT转进交易所")
+let filterBinanceIn = contractUSDT.filters.Transfer(null, accountBinance);
+console.log("过滤器详情：")
+console.log(filterBinanceIn);
+contractUSDT.on(filterBinanceIn, (res) => {
+  console.log('---------监听USDT进入交易所--------');
+  console.log(
+    `${res.args[0]} -> ${res.args[1]} ${ethers.formatUnits(res.args[2],6)}`
+  )
+})
+
+  // 3. 创建过滤器，监听交易所转出USDT
+  let filterToBinanceOut = contractUSDT.filters.Transfer(accountBinance);
+  console.log("\n3. 创建过滤器，监听USDT转出交易所")
+  console.log("过滤器详情：")
+  console.log(filterToBinanceOut);
+  contractUSDT.on(filterToBinanceOut, (res) => {
+    console.log('---------监听USDT转出交易所--------');
+    console.log(
+      `${res.args[0]} -> ${res.args[1]} ${ethers.formatUnits(res.args[2],6)}`
+    )
+  }
+  );
+```
+
+### BigInt和单位转换
+以太坊中，许多计算都对超出JavaScript整数的安全值（js中最大安全整数为9007199254740991）。因此，ethers.js使用 JavaScript ES2020 版本原生的 BigInt 类 安全地对任何数量级的数字进行数学运算。在ethers.js中，大多数需要返回值的操作将返回 BigInt，而接受值的参数也会接受它们。
+
+#### 创建BigInt
+```
+const oneGwei = ethers.getBigInt("1000000000"); // 从十进制字符串生成
+console.log(oneGwei)
+console.log(ethers.getBigInt("0x3b9aca00")) // 从hex字符串生成
+console.log(ethers.getBigInt(1000000000)) // 从数字生成
+// 不能从js最大的安全整数之外的数字生成BigNumber，下面代码会报错
+// ethers.getBigInt(Number.MAX_SAFE_INTEGER);
+console.log("js中最大安全整数：", Number.MAX_SAFE_INTEGER)
+
+// 运算
+console.log("加法：", oneGwei + 1n)
+console.log("减法：", oneGwei - 1n)
+console.log("乘法：", oneGwei * 2n)
+console.log("除法：", oneGwei / 2n)
+// 比较
+console.log("是否相等：", oneGwei == 1000000000n)
+![image](https://github.com/user-attachments/assets/a565abca-8fbe-4ff1-8fbf-83bdf50537d8)
+//代码参考：https://docs.ethers.org/v6/api/utils/#about-units
+console.group('\n2. 格式化：小单位转大单位，formatUnits');
+console.log(ethers.formatUnits(oneGwei, 0));
+// '1000000000'
+console.log(ethers.formatUnits(oneGwei, "gwei"));
+// '1.0'
+console.log(ethers.formatUnits(oneGwei, 9));
+// '1.0'
+console.log(ethers.formatUnits(oneGwei, "ether"));
+// `0.000000001`
+console.log(ethers.formatUnits(1000000000, "gwei"));
+// '1.0'
+console.log(ethers.formatEther(oneGwei));
+// `0.000000001` 等同于formatUnits(value, "ether")
+console.groupEnd();
+
+// 3. 解析：大单位转小单位
+// 例如将ether转换为wei：parseUnits(变量, 单位),parseUnits默认单位是 ether
+// 代码参考：https://docs.ethers.org/v6/api/utils/#about-units
+console.group('\n3. 解析：大单位转小单位，parseUnits');
+console.log(ethers.parseUnits("1.0").toString());
+// { BigNumber: "1000000000000000000" }
+console.log(ethers.parseUnits("1.0", "ether").toString());
+// { BigNumber: "1000000000000000000" }
+console.log(ethers.parseUnits("1.0", 18).toString());
+// { BigNumber: "1000000000000000000" }
+console.log(ethers.parseUnits("1.0", "gwei").toString());
+// { BigNumber: "1000000000" }
+console.log(ethers.parseUnits("1.0", 9).toString());
+// { BigNumber: "1000000000" }
+console.log(ethers.parseEther("1.0").toString());
+// { BigNumber: "1000000000000000000" } 等同于parseUnits(value, "ether")
+console.groupEnd();
+```
+
+### 
+
 
 
 
