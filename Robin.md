@@ -882,5 +882,22 @@ contract ContractB{
     - abi.encodeWithSelector
        - 用法：`abi.encodeWithSelector(bytes4(keccak256("functionName(parameterType[,...])")), parameterValue[,...])`，与abi.encodeWithSignature功能类似，只不过第一个参数为函数选择器，为函数签名Keccak哈希的前4个字节。
 
+- [x] hash函数
+    - keccak256
+        - 用法：`keccak256(abi.encodePacked(param1, param2, ...))`，计算参数的keccak256哈希值
+        - 和sha3区别：sha3由keccak标准化而来，SHA3就和keccak计算的结果不一样
+        - Ethereum和Solidity智能合约代码中的SHA3是指Keccak256，而不是标准的NIST-SHA3
+    - hash的性质
+        - 单向性：从输入的消息到它的哈希的正向运算简单且唯一确定，而反过来非常难，只能靠暴力枚举
+        - 灵敏性：输入的消息改变一点对它的哈希改变很大
+        - 高效性：从输入的消息到哈希的运算高效
+        - 均一性：每个哈希值被取到的概率应该基本相等
+        - 弱抗碰撞性：给定一个消息x，找到另一个消息x'，使得hash(x) = hash(x')是困难的。
+        - 强抗碰撞性：找到任意x和x'，使得hash(x) = hash(x')是困难的
+    - hash的应用
+        - 生成数据唯一标识
+        - 加密签名
+        - 安全加密
+      
 
 <!-- Content_END -->
