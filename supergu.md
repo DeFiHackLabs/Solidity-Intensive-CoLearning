@@ -275,4 +275,43 @@ do {
       owner = _newOwner; // only owner address can run this function and change owner
    }
    ```
+
+### 2024.10.10
+
+#### Chapter 12: Constructor & Modifier
+
+```solidity
+contract Events {
+   // define _balances mapping variable to record number of tokens held at each address
+   mapping(address => uint256) public _balances;
+
+   // define Transfer event to record transfer address, receiving address and transfer number of a transfer transaction
+   event Transfer(address indexed from, address indexed to, uint256 value);
+
+   // define _transfer function, execute transfer logic
+   function _transfer(
+      address from,
+      address to,
+      uint256 amount
+   ) external {
+      _balances[from] = 1000000; // give some initial tokens to transfer address
+      _balances[from] -= amount; // "from" address minus the number of transfer
+      _balances[to] += amount; // "to" address adds the number of transfer
+      emit Transfer(from, to, amount); // trigger the event
+   }
+}
+```
+
+- topic (`indexed`)
+   - at most 4
+   - for easy queries
+   - first index is hash of function name `keccak256("Transfer(addrses,address,uint256)")`
+   - each index 32 bytes, hash of that variable stored if its size > 32 bytes
+   - structs can't be indexed
+- data
+   - can store larger size
+   - consume less gas than topic
+
+
+
 <!-- Content_END -->
