@@ -108,4 +108,8 @@ LFG～～～～～ 會完成的
 
 [**WTF Solidity 極簡入門：31. ERC20**](<content/Haoder/md/331.md>)
 
+### 2024.10.09
+
+[**WTF Solidity 極簡入門：32. 代幣水龍頭**](<content/Haoder/md/331.md>)
+
 <!-- Content_END -->
