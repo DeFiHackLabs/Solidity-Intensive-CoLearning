@@ -111,6 +111,8 @@ import和 receive
 調用其他合約和詳解call
 一個合約錢包預設即有 receive和send功能
 
+### 2024.10.10
+在合約中創建合約
 
 
 <!-- Content_END -->
