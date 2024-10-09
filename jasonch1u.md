@@ -1762,6 +1762,70 @@ MyTokenTest 仍可訪問 MyToken 功能，因為:
 
 這就是為什麼在一種情況下可以工作，而在另一種情況下會出現錯誤。理解這種區別對於編寫和調試 Solidity 合約非常重要。
 
+---
+您的觀察非常敏銳。讓我詳細解釋一下 Solidity 中結構體（struct）的可見性規則。
+
+
+
+您的理解基本上是正確的，但讓我們更深入地探討一下：
+
+1. 結構體的可見性規則：
+   - 在 Solidity 中，結構體本身不能直接用 public、private、internal 或 external 等關鍵字修飾。
+   - 結構體的可見性實際上是由它被聲明的位置決定的。
+
+2. 結構體的默認可見性：
+   - 如果結構體定義在合約內部，它默認是 internal 的。
+   - 這意味著它可以被定義它的合約及其派生的合約訪問。
+
+3. 結構體的作用域：
+   - 合約內部定義的結構體：只能在該合約及其派生合約中使用。
+   - 合約外部定義的結構體：可以被多個合約使用（類似於 "public"，但不完全相同）。
+
+4. 示例：
+
+   ```solidity
+   // 這個結構體可以被多個合約使用
+   struct ExternalStruct {
+       uint256 value;
+   }
+
+   contract MyContract {
+       // 這個結構體只能在 MyContract 及其派生合約中使用
+       struct InternalStruct {
+           string name;
+       }
+
+       // 使用結構體
+       ExternalStruct public exStruct;
+       InternalStruct internal inStruct;
+   }
+
+   contract DerivedContract is MyContract {
+       // 可以使用 InternalStruct，因為它是從 MyContract 繼承的
+       InternalStruct internal anotherInStruct;
+   }
+
+   contract UnrelatedContract {
+       // 可以使用 ExternalStruct，因為它在合約外部定義
+       ExternalStruct public someStruct;
+
+       // 不能使用 InternalStruct，因為它定義在 MyContract 內部
+       // InternalStruct internal cannotUseThis; // 這行會導致編譯錯誤
+   }
+   ```
+
+5. 訪問控制：
+   - 雖然結構體本身沒有 public 或 external 修飾符，但可以通過公共函數來暴露結構體的數據。
+   - 這種方法允許你控制對結構體數據的訪問和修改。
+
+6. 最佳實踐：
+   - 在合約內部定義只在該合約中使用的結構體。
+   - 如果多個合約需要使用同一個結構體，考慮將其定義在合約外部。
+   - 使用公共函數來控制對結構體數據的訪問和修改。
+
+總結：
+結構體本身indeed沒有 public 或 external 修飾符。它們默認是 internal 的（當定義在合約內部時），或者可以被多個合約訪問（當定義在合約外部時）。這種設計允許靈活地控制數據結構的可見性和訪問性，同時保持代碼的模塊化和安全性。
+
 ### 2024.10.10
 複習、整理前面筆記
 #### 23_Delegatecall
