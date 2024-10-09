@@ -159,7 +159,7 @@ initcode: 新合约的初始字节码（合约的Creation Code和构造函数的
 ### 2024.09.27
 WTF solidity33-35
 ### 2024.09.29
-WTF solidity36-40
+WTF solidity38-40
 ### 2024.09.30
 WTF solidity41-43
 ### 2024.10.01
@@ -287,11 +287,57 @@ WTF solidity21-23
     }
     }
    ```
-2.    
+2.  delegatecall  
+    当B call C，上下文是C，当B delegetecall C，上下文为B  
 ### 2024.10.06
-WTF solidity26-28
+WTF solidity26-28  
+1. selfdestruct  
+   使用`selfdestruct(_target)`可进行合约自毁并将剩余以太转移到_target地址。
+   `SELFDESTRUCT will recover all funds to the target but not delete the account, except when called in the same transaction as creation` 在Cancun硬分叉之后，只有合约创建和自毁在一个交易中才会删除合约
+2. abi编码en
+   abi提供四种编码方式`encode/encodePacked/encodeWithSignature/encodeWithSelector`，`encodePacked`是`encode`的压缩版，
+   `encodeWithSignature/encodeWithSelector`和函数有关生成的编码开头带有四字节的函数选择器，`encodeWithSignature`第一个参数为函数签名，`encodeWithSelector`第一个参数为函数选择器
+   ``` solidity
+   contract abi{
+    uint x = 10;
+    address addr = 0x7A58c0Be72BE218B41C608b7Fe7C5bB630736C71;
+    string name = "0xAA";
+    uint[2] array = [5, 6]; 
+
+    function encode() view external returns(bytes memory){
+        return abi.encode(x,addr,name,array);
+    } 
+
+    function encodePacked() view external returns(bytes memory){
+        return abi.encodePacked(x,addr,name,array);
+    } 
+
+    function encodeWithSignature() public view returns(bytes memory result) {
+        result = abi.encodeWithSignature("foo(uint256,address,string,uint256[2])", x, addr, name, array);
+    }
+
+    function encodeWithSelector() public view returns(bytes memory result) {
+        result = abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")),
+    x, addr, name, array);
+    }
+    }
+   ```
+3. solidity最常用的哈希函数keccak256     
 ### 2024.10.07
 WTF solidity29-30
+1. 函数选择器   
+   发送给合约的calldata其实为合约中函数的method id和参数abi编码组成的16进制字节码，其中method id为函数签名`函数名（逗号分隔的参数类型)`
+   后通过 keccak256 hash后的前四个字节
+2. 计算method id -> `bytes4(keccak256("函数名(参数类型1,参数类型2,...)"))`
+   - 基础类型参数中uint需写成uint256，int为int256
+   - 固定长度类型参数 如uint8[3]写为uint[8]
+   - 可变长度类型参数 如address[]写为address[]
+   - 映射类型参数 合约对象需转成address，结构体为(成员类型1,成员类型2,...)，枚举为uint8
+3. try/catch     
 ### 2024.10.08
 WTF solidity31-32
+1. ERC-20
+   
+### 2024.10.09
+WTF solidity36-37
 <!-- Content_END -->

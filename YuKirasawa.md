@@ -220,4 +220,8 @@ contract SendEther {
 
 今天学习了 103 的 41. WETH
 
+### 2024.10.09
+
+今天学习了 103 的 46. 代理合约
+
 <!-- Content_END -->

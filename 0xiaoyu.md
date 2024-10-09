@@ -1118,5 +1118,194 @@ EVM 日志包含两部分：
 
 
 
+### 2024.10.08
+
+學習內容: 
+
+- [solidity-102 第十六课  函数重载](https://www.wtf.academy/docs/solidity-102/Overloading/)
+- [solidity-102 第十七课  库](https://www.wtf.academy/docs/solidity-102/Library/)
+
+笔记
+
+
+#### 函数重载
+
+Solidity 允许函数重载，即同名但参数不同的函数可以共存。重载函数在编译后会有不同的函数选择器。
+
+##### 示例
+```solidity
+function saySomething() public pure returns(string memory){
+    return("Nothing");
+}
+
+function saySomething(string memory something) public pure returns(string memory){
+    return(something);
+}
+```
+
+##### 实参匹配
+调用重载函数时，编译器会尝试匹配参数类型。如果多个函数匹配，会报错。
+
+```solidity
+function f(uint8 _in) public pure returns (uint8 out) {
+    out = _in;
+}
+
+function f(uint256 _in) public pure returns (uint256 out) {
+    out = _in;
+}
+```
+
+调用 `f(50)` 会报错，因为 50 既可以是 uint8 也可以是 uint256。
+
+#### 库合约
+
+库合约是特殊的合约，用于提高代码复用性和减少 gas 消耗。它们与普通合约的主要区别：
+1. 不能存在状态变量
+2. 不能继承或被继承
+3. 不能接收以太币
+4. 不可被销毁
+
+##### Strings 库合约示例
+```solidity
+library Strings {
+    function toString(uint256 value) public pure returns (string memory) {
+        // 实现细节...
+    }
+
+    function toHexString(uint256 value) public pure returns (string memory) {
+        // 实现细节...
+    }
+}
+```
+
+##### 使用库合约的方法
+1. 使用 `using for` 指令：
+   ```solidity
+   using Strings for uint256;
+   function getString1(uint256 _number) public pure returns(string memory){
+       return _number.toHexString();
+   }
+   ```
+
+2. 直接通过库合约名调用：
+   ```solidity
+   function getString2(uint256 _number) public pure returns(string memory){
+       return Strings.toHexString(_number);
+   }
+   ```
+
+#### 思考与解答
+
+1. 函数重载的优势和潜在风险是什么？
+   - 优势：
+     - 提高代码可读性，允许使用相同的函数名处理不同类型的输入。
+     - 增加代码的灵活性，可以为不同情况提供专门的实现。
+   - 潜在风险：
+     - 可能导致函数调用的歧义，特别是在参数类型相近时。
+     - 增加代码复杂性，可能使调试变得困难。
+
+2. 为什么库合约不能有状态变量？这种限制带来了什么好处？
+   - 解答：库合约不能有状态变量是为了保持其无状态性和可重用性。这种限制带来的好处包括：
+     - 降低 gas 消耗，因为不需要存储状态。
+     - 提高代码的可移植性和复用性，因为库函数不依赖于特定的状态。
+     - 简化了库的使用和维护，因为不需要考虑状态管理的问题。
+
+3. 在实际开发中，如何选择使用普通函数、重载函数或库函数？
+   - 解答：选择取决于具体需求：
+     - 普通函数：用于一般的功能实现，适合大多数情况。
+     - 重载函数：当需要处理不同类型的输入，但逻辑相似时使用。
+     - 库函数：对于常用的、通用的功能，特别是那些不需要访问合约状态的功能，使用库函数可以提高代码复用性和 gas 效率。
+
+
+### 2024.10.09
+
+學習內容: 
+
+- [solidity-102 第十八课  Import](https://www.wtf.academy/docs/solidity-102/Import/)
+- [solidity-102 第十九课  接收ETH receive和fallback](https://www.wtf.academy/docs/solidity-102/Fallback/)
+
+笔记
+
+
+#### Import
+
+##### 导入方法
+1. 通过源文件相对位置导入
+   ```solidity
+   import './Yeye.sol';
+   ```
+
+2. 通过源文件网址导入
+   ```solidity
+   import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+   ```
+
+3. 通过 npm 目录导入
+   ```solidity
+   import '@openzeppelin/contracts/access/Ownable.sol';
+   ```
+
+4. 导入特定的全局符号
+   ```solidity
+   import {Yeye} from './Yeye.sol';
+   ```
+
+##### 注意事项
+- import 语句应放在版本声明之后，其他代码之前。
+
+#### Receive 和 Fallback 函数
+
+##### Receive 函数
+- 用于接收 ETH
+- 声明方式：`receive() external payable { ... }`
+- 不能有参数和返回值
+- 每个合约最多有一个 receive 函数
+
+##### Fallback 函数
+- 在调用不存在的函数时触发
+- 也可用于接收 ETH
+- 声明方式：`fallback() external payable { ... }`
+- 可以没有 payable 修饰符
+
+##### 触发规则
+```
+接收ETH
+   |
+msg.data是空？
+ /        \
+是         否
+ |          |
+receive()存在？ fallback()
+ /       \
+是        否
+ |         |
+receive()  fallback()
+```
+
+#### 思考与解答
+
+1. Import 的不同方式有什么优缺点？
+   - 解答：
+     - 相对路径导入：简单直接，但可能导致路径问题。
+     - 网址导入：方便引用公共库，但依赖网络连接。
+     - npm 导入：适合使用包管理，但需要设置项目环境。
+     - 特定符号导入：可以减少命名冲突，但可能降低代码可读性。
+
+2. 为什么 receive 函数不能有参数和返回值？
+   - 解答：receive 函数设计用于简单接收 ETH。无参数和返回值可以：
+     - 简化函数调用过程
+     - 减少 gas 消耗
+     - 避免与其他函数签名冲突
+     - 确保兼容性，因为发送 ETH 的交易可能没有额外数据
+
+3. 在什么情况下应该使用 fallback 而不是 receive？
+   - 解答：应在以下情况使用 fallback：
+     - 需要处理带有数据的 ETH 转账
+     - 实现代理合约功能
+     - 需要在调用不存在的函数时执行特定逻辑
+     - 不想区分纯 ETH 转账和带数据的调用时
+
+
 
 <!-- Content_END -->

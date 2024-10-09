@@ -15,6 +15,60 @@ timezone: Asia/Shanghai
 ## Notes
 <!-- Content_START -->
 
+### 2024.10.09
+
+Solidity 103章节：ERC4626代币化金库标准、EIP712类型化数据签名
+
+- ERC4626
+
+  用vault这个名称不太好理解到底在干嘛，应该换为shareToken，这个名称会好理解一些，可以视作veToken的前身；
+  
+- EIP712
+
+  钱包会展示签名消息的原始数据，用户可以在验证数据符合预期之后签名；
+    
+  ```solidity
+  //EIP712Domain,它包含了合约的 name，version（一般约定为 “1”），chainId，和 verifyingContract（验证签名的合约地址）
+  bytes32 private constant EIP712DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+  //使用场景自定义一个签名的数据类型,如果需要修改number，那么需要指定；
+  bytes32 private constant STORAGE_TYPEHASH = keccak256("Storage(address spender,uint256 number)");
+  bytes32 private DOMAIN_SEPARATOR;
+  uint256 number;
+  address owner;
+
+  constructor(){
+      DOMAIN_SEPARATOR = keccak256(abi.encode(
+	  EIP712DOMAIN_TYPEHASH, // type hash
+	  keccak256(bytes("EIP712Storage")), // name
+	  keccak256(bytes("1")), // version
+	  block.chainid, // chain id
+	  address(this) // contract address
+      ));
+      owner = msg.sender;
+  }
+  ```
+    
+- 相关代码
+    
+    [sharedToken.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/ERC4626)
+    
+    [EIP712Storage.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/EIP712Storage)
+
+### 2024.10.08
+
+Solidity 103章节：多签钱包
+
+- 多签钱包
+
+  通过一个bytes数组来存储签名，之后根据每个签名的长度为65进行分离，挨个验证，当通过数目大于等于threshold后，执行交易；
+    
+  ```solidity
+  currentOwner = ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", dataHash)), v, r, s);
+  ```
+    
+- 代码
+  [MultisigWallet.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/MultisigWallet)
+
 ### 2024.10.07
 
 Solidity 103章节内容：代理合约、可升级合约、透明代理、通用可升级代理
@@ -23,34 +77,34 @@ Solidity 103章节内容：代理合约、可升级合约、透明代理、通�
 
 在fallback()回调函数中基于delegatecall来调用被代理合约；
     
-	```
-	//需要注意这一段汇编，目的是使得fallback()能够返回值
-	assembly {
-		// 将msg.data拷贝到内存里
-		// calldatacopy操作码的参数: 内存起始位置，calldata起始位置，calldata长度
-		calldatacopy(0, 0, calldatasize())
-	
-		// 利用delegatecall调用implementation合约
-		// delegatecall操作码的参数：gas, 目标合约地址，input mem起始位置，input mem长度，output area mem起始位置，output area mem长度
-		// output area起始位置和长度位置，所以设为0
-		// delegatecall成功返回1，失败返回0
-		let result := delegatecall(gas(), _implementation, 0, calldatasize(), 0, 0)
-	
-		// 将return data拷贝到内存
-		// returndata操作码的参数：内存起始位置，returndata起始位置，returndata长度
-		returndatacopy(0, 0, returndatasize())
-	
-		switch result
-		// 如果delegate call失败，revert
-		case 0 {
-		    revert(0, returndatasize())
-		}
-		// 如果delegate call成功，返回mem起始位置为0，长度为returndatasize()的数据（格式为bytes）
-		default {
-		    return(0, returndatasize())
-		}
-	    }
-	```
+```solidity
+//需要注意这一段汇编，目的是使得fallback()能够返回值
+assembly {
+	// 将msg.data拷贝到内存里
+	// calldatacopy操作码的参数: 内存起始位置，calldata起始位置，calldata长度
+	calldatacopy(0, 0, calldatasize())
+
+	// 利用delegatecall调用implementation合约
+	// delegatecall操作码的参数：gas, 目标合约地址，input mem起始位置，input mem长度，output area mem起始位置，output area mem长度
+	// output area起始位置和长度位置，所以设为0
+	// delegatecall成功返回1，失败返回0
+	let result := delegatecall(gas(), _implementation, 0, calldatasize(), 0, 0)
+
+	// 将return data拷贝到内存
+	// returndata操作码的参数：内存起始位置，returndata起始位置，returndata长度
+	returndatacopy(0, 0, returndatasize())
+
+	switch result
+	// 如果delegate call失败，revert
+	case 0 {
+	    revert(0, returndatasize())
+	}
+	// 如果delegate call成功，返回mem起始位置为0，长度为returndatasize()的数据（格式为bytes）
+	default {
+	    return(0, returndatasize())
+	}
+    }
+```
     
 - 选择器冲突
 

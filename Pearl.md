@@ -1218,5 +1218,65 @@ contract structType{
               revert CallFailed();
           }
       }
-      ``` 
+      ```
+###  2024.10.08
+**调用已部署合约**
+   * 先写一个简单的合约OtherContract，用于被其他合约调用。
+   ```Solidity
+   contract OtherContract {
+       uint256 private _x = 0; // 状态变量_x
+       // 收到eth的事件，记录amount和gas
+       event Log(uint amount, uint gas);
+       
+       // 返回合约ETH余额
+       function getBalance() view public returns(uint) {
+           return address(this).balance;
+       }
+   
+       // 可以调整状态变量_x的函数，并且可以往合约转ETH (payable)
+       function setX(uint256 x) external payable{
+           _x = x;
+           // 如果转入ETH，则释放Log事件
+           if(msg.value > 0){
+               emit Log(msg.value, gasleft());
+           }
+       }
+   
+       // 读取_x
+       function getX() external view returns(uint x){
+           x = _x;
+       }
+   }
+   ```
+   * 调用OtherContract合约
+      * 可以利用合约的地址和合约代码（或接口）来创建合约的引用: `_Name(_Address)`
+      * 用合约的引用来调用它的函数: `_Name(_Address).f()`
+   * 4个调用合约的例子
+      1. 传入合约地址: 可以在函数里传入目标合约地址，生成目标合约的引用，然后调用目标函数。
+         ```Solidity
+         function callSetX(address _Address, uint256 x) external{
+             OtherContract(_Address).setX(x);
+         }
+         ```
+      2. 传入合约变量: 可以直接在函数里传入合约的引用
+         ```Solidity
+         function callGetX(OtherContract _Address) external view returns(uint x){
+             x = _Address.getX();
+         }
+         ```
+      3. 创建合约变量: 可以创建合约变量，通过它来调用目标函数。
+         ```Solidity
+         function callGetX2(address _Address) external view returns(uint x){
+             OtherContract oc = OtherContract(_Address);
+             x = oc.getX();
+         }
+         ```
+      4.  调用合约并发送ETH: 如果目标合约的函数是payable的，那么我们可以通过调用它来给合约转账。
+          * e.g. `_Name(_Address).f{value: _Value}()`
+          ```Solidity
+          function setXTransferETH(address otherContract, uint256 x) payable external{
+             OtherContract(otherContract).setX{value: msg.value}(x);
+          }
+          ```
+     
 <!-- Content_END -->

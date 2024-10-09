@@ -130,6 +130,10 @@ timezone: Asia/Shanghai
 2. Solidity中允許函數進行重載（overloading），名字相同但輸入參數類型不同的函數可以並存，被視為不同函數。但Solidity不允許修飾器（modifier）重載。
 3. 實参匹配（Argument Matching）：在調用重載函數時，會把輸入的實際參數和函數參數的變量類型做匹配。出現多個匹配的重載函數，就報錯。
 
+### 2024.10.08
+1. 庫合約：提升Solidity代碼的複用性和减少gas
+2. 庫合約和普通合約的差別：不能存在狀態變量、不能夠繼承或被繼承、不能接收以太幣、不可以被銷毀
+3. 庫合約重的函数可見性，如果被設成public或external，調用函數時會觸發一次delegatecall；被設成internal，則不會
 
 
 <!-- Content_END -->

@@ -59,5 +59,9 @@ timezone: Asia/Shanghai
 - 天氣:晴
 - [學習紀錄Day11](https://github.com/SpC242/Solidity-CoLearning/blob/main/Day11.md)
 
+### 2024.10.08
+- 天氣:晴
+- [學習紀錄Day12](https://github.com/SpC242/Solidity-CoLearning/blob/main/Day12.md)
+
 
 <!-- Content_END -->
