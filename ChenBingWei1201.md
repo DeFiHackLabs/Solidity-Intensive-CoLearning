@@ -1274,5 +1274,49 @@ In this chapter, I learned 3 statements to handle errors in Solidity: `error`, `
 
 </details>
 
+### 2024.10.09
+<details>
+<summary>16. Overloading</summary>
+
+#### Overloading
+Solidity allows function overloading, that is, functions with the same name but different input parameter types can exist at the same time, and they are considered different functions. Note that Solidity does not allow `modifier` overloading.
+
+##### function overloading
+
+For example, we can define two functions, both called `saySomething()`, one that takes no parameters and outputs `"Nothing"`, and the other that takes a `string` parameter and outputs the `string`.
+```solidity
+function saySomething() public pure returns(string memory){
+    return("Nothing");
+}
+
+function saySomething(string memory something) public pure returns(string memory){
+    return(something);
+}
+```
+
+After compiling, all overloading functions become different function selectors due to different parameter types. For specific information on function selectors, please refer to [ WTF Solidity Tutorial: 29. Function Selector](https://github.com/AmazingAng/WTF-Solidity/tree/main/29_Selector).
+
+Take the `Overloading.sol` contract as an example. After compiling and deploying on Remix, the overloaded functions `saySomething()` and `saySomething(string memory something)` are called respectively. You can see that they return different results and are divided into different functions.
+
+##### Argument Matching
+When calling an overloaded function, the input parameters will be matched with the variable types of the function parameters. If there are multiple matching overloaded functions, an error will be reported. The following example has two functions called `f()`, the type of one parameter is `uint8` and that of the other is `uint256`:
+```solidity
+function f(uint8 _in) public pure returns (uint8 out) {
+    out = _in;
+}
+
+function f(uint256 _in) public pure returns (uint256 out) {
+    out = _in;
+}
+```
+
+We call `f(50)`. Because `50` can be converted to either `uint8` or `uint256`, so an error will be reported.
+
+#### Summary
+In this chapter, I learned the basic usage of function overloading in Solidity: functions with the same name but **different input parameter types** can exist at the same time, and they are regarded as **different functions**.
+
+</details>
+
+
 ### 
 <!-- Content_END -->

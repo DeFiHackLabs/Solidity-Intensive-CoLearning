@@ -1723,4 +1723,176 @@ contract B {
     }
 }
 ```
+
+### 2024.10.08
+# 在合約中創建新合約
+在以太坊鏈上，使用者（外部帳戶，EOA）可以創造智能合約，智能合約也可以創造新的智能合約。去中心化交易所 uniswap 就是利用工廠合約（PairFactory）創建了無數個幣對合約（Pair）。今天會用簡化版的 uniswap 介紹如何透過合約創建合約。
+有兩種方法 `CREATE` 和 `CREATE2` 可以在合約中創建合約。
+## CREATE
+### 用法：
+new 一個合約，並傳入新合約建構子所需的參數：
+```
+Contract x = new Contract{Value: _value}(params)
+```
+其中 `Contract` 是要建立的合約名，x 是合約物件（地址），如果建構子是 `payable`，可以建立時轉入 `_value` 數量的 ETH，`params` 是新合約建構子的參數。
+
+### 用 `CREATE` 實作極簡版的 `Uniswap`
+`Uniswap V2` 核心合約中包括兩個合約：
+1. UniswapV2Pair：幣對合約，用於管理幣對地址、流動性、買賣。
+2. UniswapV2Factory：工廠合約，用於創建新的幣對，並管理幣對地址。
+
+#### Pair 合約
+* `Pair` **幣對合約**負責管理幣對地址，包含 3 個狀態變數：`factory`、`token0`和 `token1`。
+* 建構函式 `constructor` 在部署時將 `factory` 賦值為工廠合約地址。
+* `initialize` 函數會由工廠合約在部署完成後手動呼叫以初始化代幣地址，將 `token0` 和 `token1` 更新為幣對中兩種代幣的地址。
+    ```
+    contract Pair{
+        address public factory; // 工廠合約地址
+        address public token0; // 代幣 1
+        address public token1; // 代幣 2
+        
+        constructor() payable {
+            factory = msg.sender;
+        }
+        
+        // 工廠部署時分配一次
+        function initialize(address _token0, address _token1) external {
+            require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // 充分檢查
+            token0 = _token0;
+            token1 = _token1;
+        }
+    }
+    ```
+> Q：為什麼 uniswap 不在 constructor 中將 token0 和 token1 地址更新？
+> A：因為 uniswap 使用的是 `CREATE2` 建立合約，產生的合約位址可以實現預測。
+
+#### PairFactory 合約
+* `PairFactory` **工廠合約**用於創建新的幣對，並管理幣對地址。
+* 工廠合約（PairFactory）有兩個狀態變數
+    * `getPair` 是兩個代幣地址到幣對地址的 map，方便根據代幣找到幣對地址
+    * `allPairs` 是幣對地址的陣列，儲存了所有代幣地址。
+* `PairFactory` 合約只有一個 `createPair` 函數，根據輸入的兩個代幣地址 `tokenA` 和 `tokenB` 來創建新的 `Pair` 合約。
+    ``` 
+    contract PairFactory{
+       mapping(address => mapping(address => address)) public getPair; // 通過兩個代幣地址查 Pair 地址
+       address[] public allPairs; // 保存所有 Pair 地址
+       
+       function createPair(address tokenA, address tokenB) external returns (address pairAddr) {
+           // 創建新合約
+           Pair pair = new Pair();
+           
+           // 呼叫新合約的 initialize 方法
+           pair.initialize(tokenA, tokenB);
+           
+           // 更新地址 map
+           pairAddr = address(pair);
+           allPairs.push(pairAddr);
+           getPair[toeknA][tokenB] = pairAddr;
+           getPair[tokenB][tokenA] = pairAddr;
+       }
+    }
+    ```
+## CREATE2
+CREATE2 操作碼讓我們在智能合約部署在以太坊網路之前，就能預測合約的位址。 Uniswap 創建 Pair 合約用的是 CREATE2 而不是 CREATE。
+### CREATE 如何計算地址
+智能合約可以由**其他合約**和**普通帳戶**利用 CREATE 操作碼建立。這兩種情況下，新合約的地址都以相同的方式計算：創建者的地址(通常為部署的錢包地址或合約地址)和`nonce` (該地址發送交易的總數，對於合約帳戶是創建的合約總數，每創建一個合約`nonce+1`)的 Hash。
+```
+新地址 = hash(創建者地址, nonce)
+```
+創建者地址不會改變，但 `nonce` 可能會隨時間而改變，因此用 CREATE 創建的合約地址不好預測。
+### CREATE2 如何計算地址
+CREATE2 的目的是為了讓合約地址獨立於未來的事件。不管未來區塊鏈上發生了什麼，你都可以把合約部署在事先計算好的地址上。用 CREATE2 建立的合約地址由 4 個部分決定：
+* `0xFF`：一個常數，避免和 CREATE 衝突
+* `CreatorAddress`：呼叫 CREATE2 的目前合約（建立合約）地址。
+* `salt`（鹽）：一個創建者指定的 `bytes32` 類型的值，它的主要目的是用來影響新創建的合約的地址。
+* `initcode`：新合約的初始 Bytecode（合約的 Creation Code 和建構子的參數）。
+```
+地址 = hash("0xFF",創建者地址, salt, initcode)
+```
+#### CREATE2 使用
+CREATE2 的用法和 CREATE 類似，同樣是 new 一個合約，並傳入新合約建構子所需的參數，只不過要多傳一個 `salt` 參數。
+```
+Contract x = new Contract{salt: _salt, value: _value}(params)
+```
+其中 Contract 是要建立的合約名，`x` 是合約物件（地址），`_salt` 是指定的鹽；如果建構子是 `payable`，可以建立時轉入 `_value` 數量的 ETH，`params` 是新合約建構子的參數。
+
+### 用 `CREATE2` 實作極簡版的 `Uniswap`
+#### Pair 合約
+* `Pair` **幣對合約**負責管理幣對地址，包含 3 個狀態變數：`factory`、`token0`和 `token1`。
+* 建構函式 `constructor` 在部署時將 `factory` 賦值為工廠合約地址。
+* `initialize` 函數會由工廠合約在部署完成後手動呼叫以初始化代幣地址，將 `token0` 和 `token1` 更新為幣對中兩種代幣的地址。
+    ```
+    contract Pair{
+        address public factory; // 工廠合約地址
+        address public token0; // 代幣 1
+        address public token1; // 代幣 2
+        
+        constructor() payable {
+            factory = msg.sender;
+        }
+        
+        // 工廠部署時分配一次
+        function initialize(address _token0, address _token1) external {
+            require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // 充分檢查
+            token0 = _token0;
+            token1 = _token1;
+        }
+    }
+    ```
+#### PairFactory2 合約
+* `PairFactory` **工廠合約**用於創建新的幣對，並管理幣對地址。
+* 工廠合約（PairFactory）有兩個狀態變數
+    * `getPair` 是兩個代幣地址到幣對地址的 map，方便根據代幣找到幣對地址
+    * `allPairs` 是幣對地址的陣列，儲存了所有代幣地址。
+* `PairFactory` 合約只有一個 `createPair` 函數，根據輸入的兩個代幣地址 `tokenA` 和 `tokenB` 來創建新的 `Pair` 合約。
+* `salt` 為 `token1` 和 `token2` 的 hash
+    ``` 
+    contract PairFactory{
+       mapping(address => mapping(address => address)) public getPair; // 通過兩個代幣地址查 Pair 地址
+       address[] public allPairs; // 保存所有 Pair 地址
+       
+       function createPair2(address tokenA, address tokenB) external returns (address pairAddr) {
+           require(tokenA != tokenB, 'IDENTICAL_ADDRESSES'); // 避免 tokenA 和 tokenB 產生相同的衝突
+           
+           // 用 tokenA 和 tokenB 地址計算 salt
+           // 將 tokenA 和 tokenB 按大小順序排列
+           (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
+           bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+           
+           // 用 CREATE2 創建新合約
+           Pair pair = new Pair{salt: salt}();
+           
+           // 呼叫新合約的 initialize 方法
+           pair.initialize(tokenA, tokenB);
+           
+           // 更新地址 map
+           pairAddr = address(pair);
+           allPairs.push(pairAddr);
+           getPair[toeknA][tokenB] = pairAddr;
+           getPair[tokenB][tokenA] = pairAddr;
+       }
+    }
+    ```
+    
+#### 事先計算 Pair 地址
+用 `calculateAddr` 函數來事先計算 `tokenA` 和 `tokenB` 將會產生的 Pair 位址。透過它，我們可以驗證我們事先計算的地址和實際地址是否相同。
+```
+function calculateAddr(address tokenA, address tokenB) public view returns(address predictedAddress) {
+    require(tokenA != tokenB, 'IDENTICAL_ADDRESSES');
+    (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); // 將 tokenA 和 tokenB 按大小順序排列
+    bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+    // 計算合約位址方法 hash()
+    predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+        bytes(0xff),
+        addrss(this),
+        salt,
+        keccack256(type(Pair).creationCode)
+    )))))
+    
+}
+```
+
+部署 `PairFactory2` 合約後，可以查看呼叫 `createPair2` 對幣地址是否與事先計算的地址相同。
+
+
 <!-- Content_END -->

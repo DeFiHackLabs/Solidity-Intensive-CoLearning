@@ -2917,4 +2917,67 @@ timezone: Asia/Shanghai
         }
         ```
 ###
+
+### 2024.10.09
+
+学习内容:
+1. 第四十三讲
+
+    - 线性释放 - 即分阶段释放代币的机制，通常用于激励长期参与项目的利益相关者。   
+
+    - 在Solidity中如何编写，逻辑来控制代币的分发。
+
+        - 受益人 (Beneficiary)：可以接收代币的地址。
+
+        - 开始时间 (Start Time)：开始释放代币的时间点。
+
+        - 持续时间 (Duration)：整个代币释放过程的总时长。
+
+        - Token Contract Address：被锁定的代币的合约地址。
+
+    - 核心函数
+
+        - 构造函数：用于初始化合约时，设置受益人、开始时间、持续时间和代币地址。
+	    - release()函数：释放可用代币的函数。包括：
+            - 计算当前已解锁的代币数。
+            - 检查已释放的数量是否有剩余代币可释放。
+            - 实现代币转账给受益人。
+        - 可释放的代币计算：如何通过时间比例计算当前可释放的代币。
+
+    - 代码分析
+        - 在实际开发中`release()`函数在发起转账之前，可以先检查合约中的token余额是否满足此次转账的金额。
+
+            ```Solidity
+
+            /**
+            * @dev 受益人提取已释放的代币。
+            * 调用 vestedAmount() 函数计算可提取的代币数量，然后 transfer 给受益人。
+            * 释放 {ERC20Released} 事件。
+            */
+            function release(address token) public {
+                // 调用 vestedAmount() 函数计算可提取的代币数量
+                uint256 releasable = vestedAmount(token, uint256(block.timestamp)) - erc20Released[token];
+
+                // 防止提前调用：没有可释放的代币则禁止调用
+                require(releasable > 0, "No tokens available for release");
+
+                // 检查合约是否有足够的余额
+                uint256 contractBalance = IERC20(token).balanceOf(address(this));
+                require(contractBalance >= releasable, "Insufficient contract balance for release");
+
+                // 更新已释放代币数量   
+                erc20Released[token] += releasable; 
+
+                // 触发事件
+                emit ERC20Released(token, releasable);
+
+                // 转代币给受益人
+                IERC20(token).transfer(beneficiary, releasable);
+            }
+           ```
+    - 学习总结
+
+        - 对于线性规则的编写，在实际开发中需要做好黑盒测试。
+
+###
 <!-- Content_END -->

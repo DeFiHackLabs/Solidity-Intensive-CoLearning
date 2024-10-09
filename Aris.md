@@ -977,6 +977,183 @@ timezone: Asia/Shanghai
 
 4. 第 22 节测验得分: 100, 答案: ABACAC
 
+#### 学习内容 23. Delegatecall
+
+1. Delegatecall
+    - `Solidity`中**地址类型**的低级成员函数;
+    - 当用户`A`通过合约`B`来`call`合约`C`的时候，执行的是合约`C`的函数，`上下文`(`Context`，可以理解为包含变量和状态的环境)也是合约`C`的：`msg.sender`是`B`的地址，并且如果函数改变一些状态变量，产生的效果会作用于合约`C`的变量上。
+        - ![image-20241008114054054](content/Aris/image-20241008114054054.png)
+    - 而当用户`A`通过合约`B`来`delegatecall`合约`C`的时候，执行的是合约`C`的函数，但是`上下文`仍是合约`B`的：`msg.sender`是`A`的地址，并且如果函数改变一些状态变量，产生的效果会作用于合约`B`的变量上。
+        - ![image-20241008114106345](content/Aris/image-20241008114106345.png)
+    - 语法: `目标合约地址.delegatecall(二进制编码);`
+        - 二进制编码: `abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)`
+    - 注意点:
+        - `delegatecall`在调用合约时可以指定交易发送的`gas`，但不能指定发送的`ETH`数额!
+        - `delegatecall`有安全隐患!!!
+            - 使用时要保证当前合约和目标合约的状态变量存储结构相同!!!
+            - 目标合约安全，不然会造成资产损失!!!
+2. 应用场景
+    - 代理合约（`Proxy Contract`）:将智能合约的存储合约和逻辑合约分开
+        - 代理合约（`Proxy Contract`）存储所有相关的变量，并且保存逻辑合约的地址;
+        - 所有函数存在逻辑合约（`Logic Contract`）里，通过`delegatecall`执行;
+        - 升级时，只需要将代理合约指向新的逻辑合约即可;
+    - EIP-2535 Diamonds（钻石）
+        - 一个支持构建可在生产中扩展的模块化智能合约系统的标准;
+        - 具有多个实施合约的代理合约;
+3. 合约部署
+    - ![image-20241008135635309](content/Aris/image-20241008135635309.png)
+    - ![image-20241008135843904](content/Aris/image-20241008135843904.png)
+4. 第 23 节测验得分: 100, 答案:AABBAA
+    - ![image-20241008141157764](content/Aris/image-20241008141157764.png)
+
+---
+
+### 2024.10.09
+
+#### 学习内容 24. 在合约中创建新合约
+
+1. create
+
+    - 语法: `Contract x = new Contract{value: _value}(params)`
+        - `Contract`是要创建的合约名，`x`是合约对象（地址）
+        - 如果构造函数是`payable`，可以创建时转入`_value`数量的`ETH`(**当前合约发送给新创建的合约的 ETH**)
+        - `params`是新合约构造函数的参数
+
+2. code
+
+    - ```solidity
+        // SPDX-License-Identifier: MIT
+        pragma solidity ^0.8.22;
+        
+        contract Pair {
+            address public factory;
+            address public token0;
+            address public token1;
+        
+            constructor() payable {
+                factory = msg.sender; // 调用该构造函数的账户或合约地址!!!
+            }
+        
+            function init(address _token0, address _token1) external {
+                require(msg.sender == factory, "forbidden");
+                token0 = _token0;
+                token1 = _token1;
+            }
+        }
+        contract PairFactory {
+            mapping(address => mapping(address => address)) public getPair;
+            address[] public allPairs;
+        
+            function createPair(
+                address tokenA,
+                address tokenB
+            ) external returns (address pairAddr) {
+                Pair pair = new Pair(); // 创建币对合约(对象)
+                pair.init(tokenA, tokenB); // 调用初始化方法
+                pairAddr = address(pair); // 获得合约(对象)地址
+                allPairs.push(pairAddr);
+                getPair[tokenA][tokenB] = pairAddr;
+                getPair[tokenB][tokenA] = pairAddr;
+            }
+        }
+        ```
+
+        
+
+3. 合约部署
+
+    - ![image-20241008143151620](content/Aris/image-20241008143151620.png)
+
+4. 第 24 节测验得分: 100, 答案:DACCB
+
+---
+
+#### 学习内容 25. CREATE2
+
+1. CREATE2
+
+    - 在智能合约部署在以太坊网络之前就能预测合约的地址
+    - 让合约地址独立于未来的事件
+
+2. `CREATE`如何计算地址
+
+    - **新地址 = hash(创建者地址, nonce)**
+    - 创建者地址:通常为部署的钱包地址或者合约地址
+    - nonce:
+        - 钱包地址:发送交易的总数
+        - 合约地址:创建的合约总数(新创建一个则 nonce++)
+    - `nonce`可能会随时间而改变，因此用`CREATE`创建的合约地址不好预测
+
+3. `CREATE2`如何计算地址
+
+    - **新地址 = hash("0xFF",创建者地址, salt, initcode)**
+    - `0xFF`：一个常数，避免和`CREATE`冲突
+    - `CreatorAddress`: 调用 CREATE2 的当前合约（创建合约）地址。
+    - `salt`（盐）：一个创建者指定的`bytes32`类型的值，它的主要目的是用来影响新创建的合约的地址。
+    - `initcode`: 新合约的初始字节码（合约的Creation Code和构造函数的参数）。
+
+4. CREATE2使用
+
+    - ```solidity
+        Contract x = new Contract{salt: _salt, value: _value}(params)
+        ```
+
+    - `Contract`是要创建的合约名
+
+    - `x`是合约对象（地址）
+
+    - `_salt`是指定的盐
+
+        - ```solidity
+            bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+            ```
+
+        - 
+
+    - 如果构造函数是`payable`，可以创建时转入`_value`数量的`ETH`(**当前合约发送给新创建的合约的 ETH**)
+
+    - `params`是新合约构造函数的参数
+
+    - ```solidity
+        function calculateAddr(
+                address tokenA,
+                address tokenB
+            ) public view returns (address predicatedAddress) {
+                require(tokenA != tokenB, "identical address");
+                // 排序
+                (address token0, address token1) = tokenA < tokenB
+                    ? (tokenA, tokenB)
+                    : (tokenB, tokenA);
+                // salt
+                bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+                predicatedAddress = address(
+                    uint160(
+                        uint(
+                            keccak256(
+                                abi.encodePacked(
+                                    bytes1(0xff),
+                                    address(this),
+                                    salt,
+                                    keccak256(type(Pair).creationCode)
+                                )
+                            )
+                        )
+                    )
+                );
+            }
+        ```
+
+5. 应用场景
+
+    - 交易所为新用户预留创建钱包合约地址
+    - 减少跨合约调用
+
+6. 合约部署
+
+    - ![image-20241008160730388](content/Aris/image-20241008160730388.png)
+
+7. 第 25 节测验得分: 100, 答案:ABCE
+
 ---
 
 

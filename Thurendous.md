@@ -1749,7 +1749,137 @@ function strong(
     return keccak256(abi.encodePacked(string1)) == keccak256(abi.encodePacked(string2));
 }
 ```
-安全加密
 
+
+### 2024.10.9
+
+(Day 14)
+
+学习笔记
+
+#### 函数选择器
+
+当呼叫一个合约的时候，会发送一个calldata。本质上合约的交互就是这样进行的。
+
+calldata的前四个字节是函数的签名的selector（函数选择器）。
+
+msg.data的前四个字节是函数选择器。
+
+```solidity
+// event 返回msg.data
+event Log(bytes data);
+
+function mint(address to) external{
+    emit Log(msg.data);
+}
+```
+
+当参数为0x2c44b726ADF1963cA47Af88B284C06f30380fC78的时候，输出calldata就是：
+
+```text
+0x6a6278420000000000000000000000002c44b726adf1963ca47af88b284c06f30380fc78
+```
+
+这段字节码可以这么理解：
+
+```text
+前4个字节为函数选择器selector：
+0x6a627842
+
+后面32个字节为输入的参数：
+0x0000000000000000000000002c44b726adf1963ca47af88b284c06f30380fc78
+```
+
+其实calldata就是告诉智能合约，我要调用哪个函数，以及参数是什么。
+
+```solidity
+// elementary（基础）类型参数selector
+// 输入：param1: 1，param2: 0
+// elementaryParamSelector(uint256,bool) : 0x3ec37834
+function elementaryParamSelector(uint256 param1, bool param2) external returns(bytes4 selectorWithElementaryParam){
+  emit SelectorEvent(this.elementaryParamSelector.selector);
+  return bytes4(keccak256("elementaryParamSelector(uint256,bool)"));
+}
+
+// fixed size（固定长度）类型参数selector
+// 输入： param1: [1,2,3]
+// fixedSizeParamSelector(uint256[3]) : 0xead6b8bd
+function fixedSizeParamSelector(uint256[3] memory param1) external returns(bytes4 selectorWithFixedSizeParam){
+    emit SelectorEvent(this.fixedSizeParamSelector.selector);
+    return bytes4(keccak256("fixedSizeParamSelector(uint256[3])"));
+}
+
+// non-fixed size（可变长度）类型参数selector
+// 输入： param1: [1,2,3]， param2: "abc"
+// nonFixedSizeParamSelector(uint256[],string) : 0xf0ca01de
+function nonFixedSizeParamSelector(uint256[] memory param1,string memory param2) external returns(bytes4 selectorWithNonFixedSizeParam){
+    emit SelectorEvent(this.nonFixedSizeParamSelector.selector);
+    return bytes4(keccak256("nonFixedSizeParamSelector(uint256[],string)"));
+}
+
+contract DemoContract {
+    // empty contract
+}
+
+contract Selector{
+    // Struct User
+    struct User {
+        uint256 uid;
+        bytes name;
+    }
+    // Enum School
+    enum School { SCHOOL1, SCHOOL2, SCHOOL3 }
+    ...
+    // mapping（映射）类型参数selector
+    // 输入：demo: 0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99， user: [1, "0xa0b1"], count: [1,2,3], mySchool: 1
+    // mappingParamSelector(address,(uint256,bytes),uint256[],uint8) : 0xe355b0ce
+    function mappingParamSelector(DemoContract demo, User memory user, uint256[] memory count, School mySchool) external returns(bytes4 selectorWithMappingParam){
+        emit SelectorEvent(this.mappingParamSelector.selector);
+        return bytes4(keccak256("mappingParamSelector(address,(uint256,bytes),uint256[],uint8)"));
+    }
+    ...
+}
+```
+
+- 使用selector来调用函数
+
+```solidity
+    // 使用selector来调用函数
+    function callWithSignature() external{
+    ...
+        // 调用elementaryParamSelector函数
+        (bool success1, bytes memory data1) = address(this).call(abi.encodeWithSelector(0x3ec37834, 1, 0));
+    ...
+    }
+```
+
+#### try catch
+
+在Solidity中，try-catch只能被用于external函数或创建合约时constructor（被视为external函数）的调用。基本语法如下：
+
+```solidity
+try {
+    // 尝试执行的代码
+} catch {
+    // 捕获异常后的处理代码
+}
+```
+
+其中externalContract.f()是某个外部合约的函数调用，try模块在调用成功的情况下运行，而catch模块则在调用失败时运行。
+
+catch还支持部或特殊的异常的原因：
+
+```solidity
+try externalContract.f() returns(returnType){
+    // call成功的情况下 运行一些代码
+} catch Error(string memory /*reason*/) {
+    // 捕获revert("reasonString") 和 require(false, "reasonString")
+} catch Panic(uint /*errorCode*/) {
+    // 捕获Panic导致的错误 例如assert失败 溢出 除零 数组访问越界
+} catch (bytes memory /*lowLevelData*/) {
+    // 如果发生了revert且上面2个异常类型匹配都失败了 会进入该分支
+    // 例如revert() require(false) revert自定义类型的error
+}
+```
 
 <!-- Content_END -->

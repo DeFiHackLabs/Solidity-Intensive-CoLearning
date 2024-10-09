@@ -124,6 +124,12 @@ day16:
 [WTF Academy Solidity 103 31-32 Note](/content/Eric/116.md)
 
 
+### 2024.10.09
+
+day17:
+
+[WTF Academy Solidity 103 33-34 Note](/content/Eric/117.md)
+
 
 
 
