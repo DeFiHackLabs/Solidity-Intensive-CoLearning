@@ -1724,6 +1724,43 @@ MyTokenTest 仍可訪問 MyToken 功能，因為:
     * Solidity 的 internal 成員在繼承的合約中可見
     * 修飾器（如 checkChallengeSolved）可以在測試前後執行額外檢查
 
+#### 您提出了一個非常好的問題，這確實看起來有些矛盾。讓我解釋一下為什麼這兩種情況會有不同的結果。
+兩種情況的關鍵區別：
+1. MyToken 情況：
+   - `MyTokenBaseTest` 導入並實例化了 `MyToken`
+   - `MyTokenBaseTest` 聲明了一個 `MyToken` 類型的內部變量
+   - `MyTokenTest` 繼承了 `MyTokenBaseTest`，因此可以訪問這個變量
+
+2. DeFiHackLabsVault 情況：
+   - `DeFiHackLabsVaultBaseTest` 導入了 `DeFiHackLabsVault`
+   - `DeFiHackLabsVaultTest` 試圖使用 `DeFiHackLabsVault.Proposal` 類型
+   - 這裡使用的是類型，而不是變量
+
+解釋：
+1. 變量的繼承：
+   - 當一個合約繼承另一個合約時，它可以訪問父合約的內部和公共變量
+   - 在 MyToken 的例子中，`MyTokenTest` 可以訪問 `MyTokenBaseTest` 中定義的 `token` 變量
+
+2. 類型的可見性：
+   - 然而，僅僅繼承一個合約並不會自動使該合約導入的所有類型對子合約可見
+   - 在 DeFiHackLabsVault 的例子中，`DeFiHackLabsVaultTest` 試圖使用 `DeFiHackLabsVault.Proposal` 類型，而不是一個變量
+
+3. 使用方式的區別：
+   - `MyTokenTest` 使用的是 `token` 變量（這個變量在父合約中定義）
+   - `DeFiHackLabsVaultTest` 試圖直接使用 `DeFiHackLabsVault.Proposal` 類型
+
+解決方案：
+對於 DeFiHackLabsVault 的情況，您需要：
+1. 在 `DeFiHackLabsVaultTest` 中直接導入 `DeFiHackLabsVault`
+2. 或者在 `DeFiHackLabsVaultBaseTest` 中重新導出 `DeFiHackLabsVault` 類型
+
+總結：
+- 繼承允許訪問父合約的變量和函數
+- 但不會自動使父合約導入的類型對子合約可見
+- 使用變量（如 `MyToken` 的例子）和直接使用類型（如 `DeFiHackLabsVault.Proposal`）在 Solidity 中的行為是不同的
+
+這就是為什麼在一種情況下可以工作，而在另一種情況下會出現錯誤。理解這種區別對於編寫和調試 Solidity 合約非常重要。
+
 ### 2024.10.10
 複習、整理前面筆記
 #### 23_Delegatecall
