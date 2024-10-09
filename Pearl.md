@@ -1,4 +1,4 @@
----
+～～---
 timezone: Asia/Shanghai
 ---
 
@@ -1165,7 +1165,7 @@ contract structType{
        }
        ```
 **发送ETH合约**
-   * 先在发送ETH合约SendETH中实现payable的构造函数和receive()，让我们能够在部署时和部署后向合约转账。
+   * 先在发送ETH合约SendETH中实现payable的构造函数和`receive()`，让我们能够在部署时和部署后向合约转账。
       ```Solidity
       contract SendETH {
           // 构造函数，payable使得部署的时候可以转eth进去
@@ -1176,8 +1176,8 @@ contract structType{
       ```
    * transfer
       * 用法是`接收方地址.transfer(发送ETH数额)`。
-      * transfer()的gas限制是2300，足够用于转账，但对方合约的fallback()或receive()函数不能实现太复杂的逻辑。
-      * transfer()如果转账失败，会自动revert（回滚交易）。
+      * `transfer()`的gas限制是2300，足够用于转账，但对方合约的`fallback()`或`receive()`函数不能实现太复杂的逻辑。
+      * `transfer()`如果转账失败，会自动revert（回滚交易）。
       * 注意里面的_to填ReceiveETH合约的地址，amount是ETH转账金额
       ```Solidity
       // 用transfer()发送ETH
@@ -1187,9 +1187,9 @@ contract structType{
       ```
    * send
       * 用法是`接收方地址.send(发送ETH数额)`。
-      * send()的gas限制是2300，足够用于转账，但对方合约的fallback()或receive()函数不能实现太复杂的逻辑。
-      * send()如果转账失败，不会revert。
-      * send()的返回值是bool，代表着转账成功或失败，需要额外代码处理一下。
+      * `send()`的gas限制是2300，足够用于转账，但对方合约的`fallback()`或`receive()`函数不能实现太复杂的逻辑。
+      * `send()`如果转账失败，不会revert。
+      * `send()`的返回值是bool，代表着转账成功或失败，需要额外代码处理一下。
       ```Solidity
       error SendFailed(); // 用send发送ETH失败error
       
@@ -1204,9 +1204,9 @@ contract structType{
       ```
    * call
       * 用法是`接收方地址.call{value: 发送ETH数额}("")`。
-      * call()没有gas限制，可以支持对方合约fallback()或receive()函数实现复杂逻辑。
-      * call()如果转账失败，不会revert。
-      * call()的返回值是(bool, bytes)，其中bool代表着转账成功或失败，需要额外代码处理一下。
+      * `call()`没有gas限制，可以支持对方合约fallback()或receive()函数实现复杂逻辑。
+      * `call()`如果转账失败，不会revert。
+      * `call()`的返回值是`(bool, bytes)`，其中bool代表着转账成功或失败，需要额外代码处理一下。
       ```Solidity
       error CallFailed(); // 用call发送ETH失败error
 
@@ -1218,5 +1218,159 @@ contract structType{
               revert CallFailed();
           }
       }
-      ``` 
+      ```
+###  2024.10.08
+**调用已部署合约**
+   * 先写一个简单的合约OtherContract，用于被其他合约调用。
+   ```Solidity
+   contract OtherContract {
+       uint256 private _x = 0; // 状态变量_x
+       // 收到eth的事件，记录amount和gas
+       event Log(uint amount, uint gas);
+       
+       // 返回合约ETH余额
+       function getBalance() view public returns(uint) {
+           return address(this).balance;
+       }
+   
+       // 可以调整状态变量_x的函数，并且可以往合约转ETH (payable)
+       function setX(uint256 x) external payable{
+           _x = x;
+           // 如果转入ETH，则释放Log事件
+           if(msg.value > 0){
+               emit Log(msg.value, gasleft());
+           }
+       }
+   
+       // 读取_x
+       function getX() external view returns(uint x){
+           x = _x;
+       }
+   }
+   ```
+   * 调用OtherContract合约
+      * 可以利用合约的地址和合约代码（或接口）来创建合约的引用: `_Name(_Address)`
+      * 用合约的引用来调用它的函数: `_Name(_Address).f()`
+   * 4个调用合约的例子
+      1. 传入合约地址: 可以在函数里传入目标合约地址，生成目标合约的引用，然后调用目标函数。
+         ```Solidity
+         function callSetX(address _Address, uint256 x) external{
+             OtherContract(_Address).setX(x);
+         }
+         ```
+      2. 传入合约变量: 可以直接在函数里传入合约的引用
+         ```Solidity
+         function callGetX(OtherContract _Address) external view returns(uint x){
+             x = _Address.getX();
+         }
+         ```
+      3. 创建合约变量: 可以创建合约变量，通过它来调用目标函数。
+         ```Solidity
+         function callGetX2(address _Address) external view returns(uint x){
+             OtherContract oc = OtherContract(_Address);
+             x = oc.getX();
+         }
+         ```
+      4.  调用合约并发送ETH: 如果目标合约的函数是payable的，那么我们可以通过调用它来给合约转账。
+          * e.g. `_Name(_Address).f{value: _Value}()`
+          ```Solidity
+          function setXTransferETH(address otherContract, uint256 x) payable external{
+             OtherContract(otherContract).setX{value: msg.value}(x);
+          }
+          ```
+
+###  2024.10.09
+**Call**
+   * `address`类型的低级成员函数
+   * 用来与其他合约交互
+   * 返回值为`(bool, bytes memory)`
+   * 是Solidity官方推荐的通过触发`fallback`或`receive`函数发送ETH的方法
+   * 不推荐用`call`来调用另一个合约，因为当你调用不安全合约的函数时，你就把主动权交给了它。
+   * 当我们不知道对方合约的源代码或`ABI`，就没法生成合约变量；这时，我们仍可以通过`call`调用对方合约的函数。
+   * 使用规则:
+     1. `目标合约地址.call(字节码);`
+     2. 字节码利用结构化编码函数获得: `abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)`
+     3. `函数签名`为`"函数名（逗号分隔的参数类型）"` e.g. `abi.encodeWithSignature("f(uint256,address)", _x, _addr)`
+     4. call在调用合约时可以指定交易发送的ETH数额和gas数额: `目标合约地址.call{value:发送数额, gas:gas数额}(字节码);`
+    
+**目标合约**
+   * 先写一个简单的目标合约`OtherContract`并部署
+   ```Solidity
+   contract OtherContract {
+       uint256 private _x = 0; // 状态变量x
+       // 收到eth的事件，记录amount和gas
+       event Log(uint amount, uint gas);
+       
+       fallback() external payable{}
+   
+       // 返回合约ETH余额
+       function getBalance() view public returns(uint) {
+           return address(this).balance;
+       }
+   
+       // 可以调整状态变量_x的函数，并且可以往合约转ETH (payable)
+       function setX(uint256 x) external payable{
+           _x = x;
+           // 如果转入ETH，则释放Log事件
+           if(msg.value > 0){
+               emit Log(msg.value, gasleft());
+           }
+       }
+   
+       // 读取x
+       function getX() external view returns(uint x){
+           x = _x;
+       }
+   }
+   ```
+   * 利用call调用目标合约
+      1.  Response事件
+         ```Solidity
+         // 定义Response事件，输出call返回的结果success和data
+         event Response(bool success, bytes data);
+         ```
+         * 写一个`Call`合约来调用目标合约函数。
+         
+      2. 调用setX函数
+         ```Solidity
+         function callSetX(address payable _addr, uint256 x) public payable {
+             // call setX()，同时可以发送ETH
+             (bool success, bytes memory data) = _addr.call{value: msg.value}(
+                 abi.encodeWithSignature("setX(uint256)", x)
+             );
+         
+             emit Response(success, data); //释放事件
+         }
+         ```
+         * 定义`callSetX`函数来调用目标合约的`setX()`，转入`msg.value`数额的ETH，并释放`Response`事件输出`success`和`data`
+      ![image](https://github.com/user-attachments/assets/ceb3d81a-0073-4458-8021-9cd52dbc0025)
+      
+      3. 调用getX函数
+         ```Solidity
+         function callGetX(address _addr) external returns(uint256){
+             // call getX()
+             (bool success, bytes memory data) = _addr.call(
+                 abi.encodeWithSignature("getX()")
+             );
+         
+             emit Response(success, data); //释放事件
+             return abi.decode(data, (uint256));
+         }
+         ```
+         * 调用`getX()`函数返回目标合约_x的值，可以利用`abi.decode`来解码`call`的返回值`data`，并读出数值。
+         
+      4. 调用不存在的函数
+         ```Solidity
+         function callNonExist(address _addr) external{
+             // call 不存在的函数
+             (bool success, bytes memory data) = _addr.call(
+                 abi.encodeWithSignature("foo(uint256)")
+             );
+         
+             emit Response(success, data); //释放事件
+         }
+         ```
+         * 如果我们给call输入的函数不存在于目标合约，那么目标合约的fallback函数会被触发。
+
+
 <!-- Content_END -->

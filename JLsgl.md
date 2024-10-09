@@ -85,5 +85,12 @@ Solidity的控制流是能實現插入排序，
 12章節中，
 Solidity中的事件（event），是EVM上比較不消耗gas的數據存儲方式。
 EVM用日誌Log來儲存Solidity的事件，每個日誌都包含主題topics和資料data。
+### 2024.10.08
+13課程內，
+Solidity的繼承（inheritance），有簡單繼承，多重繼承，
+以及修飾器（Modifier）和構造函數（Constructor）的繼承等多個種類，
+主要目的是減少寫重複的代碼。
+不同繼承的內容有些複雜，後續需要再回看消化。
+
 
 <!-- Content_END -->

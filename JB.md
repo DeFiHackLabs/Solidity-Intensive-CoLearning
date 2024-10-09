@@ -680,5 +680,31 @@ contract People is Adam, Eve{
 
 ![image](https://github.com/user-attachments/assets/5fb3747f-e28e-49b7-bb14-2c033167b1ed)
 
+### 2024.10.08
+1. 学习了什么抽象合约，这个有点类似与java的模板类。并做了练习。
+   // SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+abstract contract abstract_pratice{
+
+    event message(string message);
+    
+    function ab_1() public virtual {
+        emit message("message");
+    }
+}
+
+contract normal is abstract_pratice{
+   
+   function ab_2() public {
+    emit message("ab_2");
+   }
+
+   function ab_1() public virtual override  {
+    emit message("override ab_1");
+   }
+    
+}
+   
 
 <!-- Content_END -->

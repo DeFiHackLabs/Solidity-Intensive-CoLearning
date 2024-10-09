@@ -1383,7 +1383,6 @@ interface IERC721 {
     function ownerOf(uint256 tokenId) external view returns (address owner);
     function safeTransferFrom(address from, address to, uint256 tokenId) external;
 }
-
 ```
 
 - **事件**：`Transfer` 事件记录 NFT 的转账操作，`from` 是发送方，`to` 是接收方，`tokenId` 是 NFT 的 ID。
@@ -1635,14 +1634,74 @@ class MyTokenAssert:
 ### 2024.10.08
 #### WTF Academy Solidity 102.16 函数重载
 
-##### 笔记
+##### 函数重载`overloading`
+Solidity允许函数重载（Overloading），即定义多个同名函数，但具有不同参数类型或参数数量。
+需要注意的是，Solidity 不允许修饰器进行重载。修饰器与函数的语法不同，它们在逻辑上更像是对函数的封装，而不是不同的实现。因此，当使用修饰器时，函数的名称必须是唯一的。
+
+**不同参数类型**
+
+```solidity
+pragma solidity ^0.8.0;
+
+contract OverloadExample {
+    function saySomething() public pure returns (string memory) {
+        return "Nothing"; // 没有参数的函数
+    }
+
+    function saySomething(string memory something) public pure returns (string memory) {
+        return something; // 带一个字符串参数的函数
+    }
+}
+```
+
+**不同参数数量**
+
+```solidity
+pragma solidity ^0.8.0;
+
+contract OverloadExample {
+    function add(uint a, uint b) public pure returns (uint) {
+        return a + b; // 两个参数的加法
+    }
+
+    function add(uint a, uint b, uint c) public pure returns (uint) {
+        return a + b + c; // 三个参数的加法
+    }
+}
+```
+###### 函数选择
+在 Solidity 中，重载函数的名称相同，但由于参数类型的不同，它们被编译成不同的函数选择器。函数选择器是根据函数的签名生成的前四个字节，签名包括函数名称及其参数类型。例如：
+
+- `saySomething()` 的选择器是根据函数签名 `"saySomething()"` 生成的。
+- `saySomething(string memory)` 的选择器是根据签名 `"saySomething(string)"` 生成的。
+
+##### 实参匹配（Argument Matching）
+当调用重载函数时，Solidity 会尝试根据提供的实参（实际参数）来匹配最适合的重载函数，。如果传入的参数能够匹配多个重载函数，将会导致编译错误，因此必须确保传入的实参能明确匹配某一个重载函数。
+```solidity
+pragma solidity ^0.8.0;
+
+contract Example {
+    function f(uint8 _in) public pure returns (uint8) {
+        return _in; // uint8 的 f 函数
+    }
+
+    function f(uint256 _in) public pure returns (uint256) {
+        return _in; // uint256 的 f 函数
+    }
+}
+
+// 当调用 f(50) 时，会报错：
+// TypeError: Function call argument type mismatch.
+```
+
+在这个例子中，如果调用 `f(50)`，编译器会发现 `50` 同时可以被视为 `uint8` 和 `uint256`，因为它可以在这两种类型之间进行转换。这时，编译器无法确定调用哪个版本的 `f()` 函数，因此会报错。
 
 ##### 测验结果
-
-##### 测验错题
+- 100/100
 
 ### 2024.10.09
 #### WTF Academy Solidity 102.17 库合约
+
 
 ##### 笔记
 
