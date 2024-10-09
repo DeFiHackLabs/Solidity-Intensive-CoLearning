@@ -1218,6 +1218,93 @@ library Strings {
      - 库函数：对于常用的、通用的功能，特别是那些不需要访问合约状态的功能，使用库函数可以提高代码复用性和 gas 效率。
 
 
+### 2024.10.09
+
+學習內容: 
+
+- [solidity-102 第十八课  Import](https://www.wtf.academy/docs/solidity-102/Import/)
+- [solidity-102 第十九课  接收ETH receive和fallback](https://www.wtf.academy/docs/solidity-102/Fallback/)
+
+笔记
+
+
+#### Import
+
+##### 导入方法
+1. 通过源文件相对位置导入
+   ```solidity
+   import './Yeye.sol';
+   ```
+
+2. 通过源文件网址导入
+   ```solidity
+   import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+   ```
+
+3. 通过 npm 目录导入
+   ```solidity
+   import '@openzeppelin/contracts/access/Ownable.sol';
+   ```
+
+4. 导入特定的全局符号
+   ```solidity
+   import {Yeye} from './Yeye.sol';
+   ```
+
+##### 注意事项
+- import 语句应放在版本声明之后，其他代码之前。
+
+#### Receive 和 Fallback 函数
+
+##### Receive 函数
+- 用于接收 ETH
+- 声明方式：`receive() external payable { ... }`
+- 不能有参数和返回值
+- 每个合约最多有一个 receive 函数
+
+##### Fallback 函数
+- 在调用不存在的函数时触发
+- 也可用于接收 ETH
+- 声明方式：`fallback() external payable { ... }`
+- 可以没有 payable 修饰符
+
+##### 触发规则
+```
+接收ETH
+   |
+msg.data是空？
+ /        \
+是         否
+ |          |
+receive()存在？ fallback()
+ /       \
+是        否
+ |         |
+receive()  fallback()
+```
+
+#### 思考与解答
+
+1. Import 的不同方式有什么优缺点？
+   - 解答：
+     - 相对路径导入：简单直接，但可能导致路径问题。
+     - 网址导入：方便引用公共库，但依赖网络连接。
+     - npm 导入：适合使用包管理，但需要设置项目环境。
+     - 特定符号导入：可以减少命名冲突，但可能降低代码可读性。
+
+2. 为什么 receive 函数不能有参数和返回值？
+   - 解答：receive 函数设计用于简单接收 ETH。无参数和返回值可以：
+     - 简化函数调用过程
+     - 减少 gas 消耗
+     - 避免与其他函数签名冲突
+     - 确保兼容性，因为发送 ETH 的交易可能没有额外数据
+
+3. 在什么情况下应该使用 fallback 而不是 receive？
+   - 解答：应在以下情况使用 fallback：
+     - 需要处理带有数据的 ETH 转账
+     - 实现代理合约功能
+     - 需要在调用不存在的函数时执行特定逻辑
+     - 不想区分纯 ETH 转账和带数据的调用时
 
 
 
