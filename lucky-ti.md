@@ -576,7 +576,7 @@ receive()   fallback()
 transfer（接收方地址.transfer(发送ETH数额)）、send（接收方地址.send(发送ETH数额)）、call（接收方地址.call{value: 发送ETH数额}("")）都可用于发送ETH，三者的区别：
 
 1.transfer、send的gas限制都在2300，足够用于转账，但对方合约的fallback()或receive()函数不能实现太复杂的逻辑。区别在于，交易失败transfer会自动revert，send不会（send只会返回成功与否的bool值，需要额外代码处理一下）。
-2.call()没有gas限制，可以支持对方合约fallback()或receive()函数实现复杂逻辑，不会revert，call()的返回值是(bool, bytes)，其中bool代表着转账成功或失败，需要额外代码处理一下。
+2.call()没有gas限制，可以支持对方合约fallback()或receive()函数实现复杂逻辑，不会revert，call()的返回值是(bool, bytes memory)，其中bool代表着转账成功或失败，需要额外代码处理一下。
 ```
 error SendFailed(); // 用send发送ETH失败error
 
@@ -651,10 +651,90 @@ contract CallContract{
     }
 }
 ```
+call 是address类型的低级成员函数。
+call是Solidity官方推荐的通过触发fallback或receive函数发送ETH的方法。
+不推荐用call来调用另一个合约，因为当你调用不安全合约的函数时，你就把主动权交给了它。推荐的方法仍是声明合约变量后调用函数。
+当不知道对方合约的源代码或ABI，就没法生成合约变量；这时，我们仍可以通过call调用对方合约的函数。
+
+call的使用规则如下：
+```
+目标合约地址.call(字节码);
+```
+```
+其中字节码利用结构化编码函数abi.encodeWithSignature获得：
+```
+abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)
+```
+(函数签名为"函数名（逗号分隔的参数类型）",如：abi.encodeWithSignature("f(uint256,address)", _x, _addr))
+在调用合约时可以指定交易发送的ETH数额和gas数额：
+```
+目标合约地址.call{value:发送数额, gas:gas数额}(字节码);
+```
+输出call来完成sucesscall的具体的完成情况。
+call不存在的函数。call仍能执行成功，并返回success，但其实调用的目标合约fallback函数。
+
+答案：
+
+PART 21
+1.	下列关于智能合约调用其他智能合约的说法，正确的一项是：智能合约调用其他智能合约这一功能，主要起到了方便代码复用的作用
+2.	假设我们部署了合约 OtherContract （合约内容见下）下列说法正确的是：
+(1)(2)均是调用其他合约的正确写法
+3.	假设我们新写了一个合约。下列说法正确的是：MyContract的函数call_setx可以实现，这意味着OtherContract中setX的权限没有门槛，存在安全隐患
+4.	在第2题的合约中，我们尝试依次进行如下操作：(2)(4)的返回结果分别是10,20
+5.	在第2题的合约中，OtherContract 中 setX 函数是 payable 的。如果我们想在已部署的合约 0xd9145CCE52D386f254917e481eB44e9943F39138 中调用 setX 的时候向合约转账 50 wei，那么正确的写法是：
+OtherContract(0xd9145CCE52D386f254917e481eB44e9943F39138).setX{value:50}(x)
+
+PART 22
+1.	call是什么类型的成员函数？address
+2.	call被推荐用来干什么？发送ETH
+3.	call的返回类型为:bool和bytes memory
+4.	下面哪种使用方式不正确? address.call{gas:1000000,value:1 ether}
+5.	如果我们给call输入的函数不存在于目标合约，那么目标合约的什么函数会被触发？fallback
+6.	call在什么情况下会调用失败？当调用不存在的函数时，被调用合约没有实现fallback
+
 ### 2024.10.03
 
-在外面完成，笔记后续补充
 章节23-28
+
+笔记：
+
+delegatecall与call类似，是Solidity中地址类型的低级成员函数。delegate中是委托/代表的意思。
+当用户A通过合约B来call合约C的时候，执行的是合约C的函数，上下文(Context，可以理解为包含变量和状态的环境)也是合约C的：msg.sender是B的地址，并且如果函数改变一些状态变量，产生的效果会作用于合约C的变量上。
+而当用户A通过合约B来delegatecall合约C的时候，执行的是合约C的函数，但是上下文仍是合约B的：msg.sender是A的地址，并且如果函数改变一些状态变量，产生的效果会作用于合约B的变量上。
+```
+总结：二级用call还是用delegatecall主要的区别：call的msg.sender是中间者，且改变状态变量会作用到二级的合约的变量上。delegatecal的msg.sender会指向本合约，并且改变状态变量会作用的中间者上。
+```
+delegatecall语法和call类似：
+```
+目标合约地址.delegatecall(二进制编码);
+```
+其中二进制编码利用结构化编码函数abi.encodeWithSignature获得：
+```
+abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)
+```
+和call不一样，delegatecall在调用合约时可以指定交易发送的gas，但不能指定发送的ETH数额。delegatecall有安全隐患，使用时要保证当前合约和目标合约的状态变量存储结构相同，并且目标合约安全，不然会造成资产损失。
+
+目前delegatecall主要有两个应用场景：
+
+1.代理合约（Proxy Contract）：将智能合约的存储合约和逻辑合约分开：代理合约（Proxy Contract）存储所有相关的变量，并且保存逻辑合约的地址；所有函数存在逻辑合约（Logic Contract）里，通过delegatecall执行。当升级时，只需要将代理合约指向新的逻辑合约即可。
+
+2.EIP-2535 Diamonds（钻石）：钻石是一个支持构建可在生产中扩展的模块化智能合约系统的标准。钻石是具有多个实施合约的代理合约。 更多信息请查看：钻石标准简介（https://eip2535diamonds.substack.com/p/introduction-to-the-diamond-standard）。
+
+
+答案：
+
+PART 23
+1.	delegatecall是哪个类型的成员函数？address
+2.	当用户A通过合约B来delegatecall合约C时，执行了__的函数，语境是__，msg.sender和msg.value来自__， 并且如果函数改变一些状态变量，产生的效果会作用于__的变量上。C;B;A;B
+3.	delegatecall在调用合约时: 可以指定交易发送的gās,但不可以指定发送的ETH数额
+4.	使用delegatecall对当前合约和目标合约的状态变量有什么要求？变量名可以不同，变量类型、声明顺序必须相同 
+5.	假设存在如下函数，那么下面选项中可以填在横线上的是？
+(bool success,bytes memory data) = _addr.delegatecall(abi.encodeWithSignature("mint(uint256)",_num));
+6.	在代理合约中，存储所有相关的变量的是___，存储所有函数的是___，同时____________
+代理合约；逻辑合约；代理合约delegatecalli逻辑合约
+
+
+
 
 ### 2024.10.04
 
@@ -665,6 +745,20 @@ contract CallContract{
 完成章节32-35
 
 ### 2024.10.06
+
+完成章节35-37
+
+### 2024.10.07
+
+完成章节37-38
+
+### 2024.10.08
+
+完成章节39-40
+
+### 2024.10.09
+
+完成章节41-42
 
 
 

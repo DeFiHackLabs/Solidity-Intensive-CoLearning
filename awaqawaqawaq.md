@@ -326,4 +326,15 @@ interface IERC721Receiver {
 }
 ```
 - 目标合约需要实现接口完善处理逻辑
+  
+### 2024.10.08
+学习了DutchAuction和MerkleTree,并且研究了源码，在remix进行验证
+**value选项框中可以指定传入给payable函数的eth，我之前竟然不知道，想了好久该如何调用函数的同时传入eth:(**
+
+### 2024.10.09
+学习了数字签名 和 NFT交易所 源码，并在remix上进行了验证
+- 数字签名
+- 签名的内容利用abi.encodePacked()函数打包，然后用keccak256()计算哈希，作为消息的摘要，然后利用私钥对摘要进行签名，得到r,s,v三个参数，v是0或1，代表使用的曲线类型，r,s是签名结果，然后利用公钥验证签名。
+- 消息可以是能被执行的交易，也可以是其他任何形式。为了避免用户误签了恶意交易，EIP191提倡在消息前加上"\x19Ethereum Signed Message:\n32"字符，并再做一次keccak256哈希，作为以太坊签名消息。经过toEthSignedMessageHash()函数处理后的消息，不能被用于执行交易
+- 利用签名发放白名单 (https://github.com/AmazingAng/WTF-Solidity/blob/main/37_Signature/Signature.sol)
 <!-- Content_END -->

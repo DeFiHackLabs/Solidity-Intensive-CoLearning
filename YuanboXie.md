@@ -2530,7 +2530,170 @@ import '@openzeppelin/contracts/access/Ownable.sol';
         }
     }
     ```
+    - 进阶阅读：
+        - [Programming DeFi: Uniswap V2](https://jeiwan.net/posts/programming-defi-uniswapv2-1/)
+        - [Uniswap v3 book](https://y1cunhui.github.io/uniswapV3-book-zh-cn/)
 - [103-57] 闪电贷
+    - 闪电贷（Flashloan）是DeFi的一种创新，它允许用户在一个交易中借出并迅速归还资金，而无需提供任何抵押。在Web3，你可以在DeFI平台（Uniswap，AAVE，Dodo）中进行闪电贷获取资金，就可以在无担保的情况下借100万u的代币，执行链上套利，最后再归还贷款和利息。
+    - [Uniswap V2 Pair](https://github.com/Uniswap/v2-core/blob/master/contracts/UniswapV2Pair.sol#L159) 合约的 `swap()` 函数支持闪电贷。Uniswap V2闪电贷的利息为每笔0.3%。
+        ```solidity
+        function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external lock {
+            // 其他逻辑...
+
+            // 乐观的发送代币到to地址
+            if (amount0Out > 0) _safeTransfer(_token0, to, amount0Out);
+            if (amount1Out > 0) _safeTransfer(_token1, to, amount1Out);
+
+            // 调用to地址的回调函数uniswapV2Call
+            if (data.length > 0) IUniswapV2Callee(to).uniswapV2Call(msg.sender, amount0Out, amount1Out, data); // 执行闪电贷逻辑
+
+            // 其他逻辑...
+
+            // 通过k=x*y公式，检查闪电贷是否归还成功
+            require(balance0Adjusted.mul(balance1Adjusted) >= uint(_reserve0).mul(_reserve1).mul(1000**2), 'UniswapV2: K');
+        }
+        ```
+        ```solidity
+        // SPDX-License-Identifier: MIT
+        pragma solidity ^0.8.20;
+
+        import "./Lib.sol";
+
+        // UniswapV2闪电贷回调接口
+        interface IUniswapV2Callee {
+            function uniswapV2Call(address sender, uint amount0, uint amount1, bytes calldata data) external;
+        }
+
+        // UniswapV2闪电贷合约
+        contract UniswapV2Flashloan is IUniswapV2Callee {
+            address private constant UNISWAP_V2_FACTORY =
+                0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
+
+            address private constant DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+            address private constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+            IUniswapV2Factory private constant factory = IUniswapV2Factory(UNISWAP_V2_FACTORY);
+
+            IERC20 private constant weth = IERC20(WETH);
+
+            IUniswapV2Pair private immutable pair;
+
+            constructor() {
+                pair = IUniswapV2Pair(factory.getPair(DAI, WETH));
+            }
+
+            // 闪电贷函数
+            function flashloan(uint wethAmount) external {
+                // calldata长度大于1才能触发闪电贷回调函数
+                bytes memory data = abi.encode(WETH, wethAmount);
+
+                // amount0Out是要借的DAI, amount1Out是要借的WETH
+                pair.swap(0, wethAmount, address(this), data);
+            }
+
+            // 闪电贷回调函数，只能被 DAI/WETH pair 合约调用
+            function uniswapV2Call(
+                address sender,
+                uint amount0,
+                uint amount1,
+                bytes calldata data
+            ) external {
+                // 确认调用的是 DAI/WETH pair 合约
+                address token0 = IUniswapV2Pair(msg.sender).token0(); // 获取token0地址
+                address token1 = IUniswapV2Pair(msg.sender).token1(); // 获取token1地址
+                assert(msg.sender == factory.getPair(token0, token1)); // ensure that msg.sender is a V2 pair
+
+                // 解码calldata
+                (address tokenBorrow, uint256 wethAmount) = abi.decode(data, (address, uint256));
+
+                // flashloan 逻辑，这里省略
+                require(tokenBorrow == WETH, "token borrow != WETH");
+
+                // 计算flashloan费用
+                // fee / (amount + fee) = 3/1000
+                // 向上取整
+                uint fee = (amount1 * 3) / 997 + 1;
+                uint amountToRepay = amount1 + fee;
+
+                // 归还闪电贷
+                weth.transfer(address(pair), amountToRepay);
+            }
+        }
+        ```
+        - Forge Test [code](https://github.com/AmazingAng/WTF-Solidity/blob/main/57_Flashloan/test/UniswapV2Flashloan.t.sol)
+        -  注意：回调函数一定要做好权限控制，确保只有Uniswap的Pair合约可以调用。
+    - Uniswap V3：Uniswap V3在Pool池合约中加入了[flash()](https://github.com/Uniswap/v3-core/blob/main/contracts/UniswapV3Pool.sol#L791C1-L835C1)函数直接支持闪电贷，（Uniswap V3每笔闪电贷的手续费与交易手续费一致）核心代码如下：
+    ```solidity
+    function flash(
+        address recipient,
+        uint256 amount0,
+        uint256 amount1,
+        bytes calldata data
+    ) external override lock noDelegateCall {
+        // 其他逻辑...
+
+        // 乐观的发送代币到to地址
+        if (amount0 > 0) TransferHelper.safeTransfer(token0, recipient, amount0);
+        if (amount1 > 0) TransferHelper.safeTransfer(token1, recipient, amount1);
+
+        // 调用to地址的回调函数uniswapV3FlashCallback
+        IUniswapV3FlashCallback(msg.sender).uniswapV3FlashCallback(fee0, fee1, data);
+
+        // 检查闪电贷是否归还成功
+        uint256 balance0After = balance0();
+        uint256 balance1After = balance1();
+        require(balance0Before.add(fee0) <= balance0After, 'F0');
+        require(balance1Before.add(fee1) <= balance1After, 'F1');
+
+        // sub is safe because we know balanceAfter is gt balanceBefore by at least fee
+        uint256 paid0 = balance0After - balance0Before;
+        uint256 paid1 = balance1After - balance1Before;
+
+        // 其他逻辑...
+    }
+    ```
+    ```solidity
+    // UniswapV3闪电贷合约
+    contract UniswapV3Flashloan is IUniswapV3FlashCallback {
+        address private constant UNISWAP_V3_FACTORY = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
+
+        address private constant DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+        address private constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        uint24 private constant poolFee = 3000;
+
+        IERC20 private constant weth = IERC20(WETH);
+        IUniswapV3Pool private immutable pool;
+
+        constructor() {
+            pool = IUniswapV3Pool(getPool(DAI, WETH, poolFee));
+        }
+
+        function getPool(address _token0,address _token1,uint24 _fee) public pure returns (address) {
+            PoolAddress.PoolKey memory poolKey = PoolAddress.getPoolKey(_token0, _token1, _fee);
+            return PoolAddress.computeAddress(UNISWAP_V3_FACTORY, poolKey);
+        }
+
+        function flashloan(uint wethAmount) external {
+            bytes memory data = abi.encode(WETH, wethAmount);
+            IUniswapV3Pool(pool).flash(address(this), 0, wethAmount, data);
+        }
+
+        // 闪电贷回调函数，只能被 DAI/WETH pair 合约调用
+        function uniswapV3FlashCallback(uint fee0,uint fee1,bytes calldata data) external {
+            // 确认调用的是 DAI/WETH pair 合约
+            require(msg.sender == address(pool), "not authorized");            
+            (address tokenBorrow, uint256 wethAmount) = abi.decode(data, (address, uint256));
+
+            // flashloan 逻辑，这里省略
+
+            require(tokenBorrow == WETH, "token borrow != WETH");
+
+            // 归还闪电贷
+            weth.transfer(address(pool), wethAmount + fee1);
+        }
+    }
+    ```
+    - AAVE 也差不多。AAVE V3闪电贷的手续费默认为每笔0.05%，比Uniswap的要低。
 
 <!-- Content_END -->
 ### 2024.10.12
