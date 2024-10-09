@@ -2776,7 +2776,26 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     }
     ```
     - OpenZeppelin 也提倡遵循 PullPayment(拉取支付)模式以避免潜在的重入攻击。其原理是通过引入第三方(escrow)，将原先的“主动转账”分解为“转账者发起转账”加上“接受者主动拉取”。当想要发起一笔转账时，会通过_asyncTransfer(address dest, uint256 amount)将待转账金额存储到第三方合约中，从而避免因重入导致的自身资产损失。而当接受者想要接受转账时，需要主动调用withdrawPayments(address payable payee)进行资产的主动获取。
-- [104-S02] 选择器碰撞
+- [104-S02] 选择器碰撞 [case: poly network](https://rekt.news/zh/polynetwork-rekt/)
+    - 当用户调用合约的函数时，calldata的前4字节就是目标函数的选择器。下面这俩网站可以查选择器对应的不同函数:
+        - https://www.4byte.directory/
+        - https://sig.eth.samczsun.com/
+    - 或者使用 PowerClash: https://github.com/AmazingAng/power-clash 暴力破解【因为只有4字节】；
+    - 漏洞例子：
+    ```solidity
+    contract SelectorClash {
+    bool public solved; // 攻击是否成功
+        function putCurEpochConPubKeyBytes(bytes memory _bytes) public { // 攻击者需要调用这个函数，但是调用者 msg.sender 必须是本合约。
+            require(msg.sender == address(this), "Not Owner");
+            solved = true;
+        }
+        // 有漏洞，攻击者可以通过改变 _method 变量碰撞函数选择器，调用目标函数并完成攻击。
+        function executeCrossChainTx(bytes memory _method, bytes memory _bytes, bytes memory _bytes1, uint64 _num) public returns(bool success){
+            (success, ) = address(this).call(abi.encodePacked(bytes4(keccak256(abi.encodePacked(_method, "(bytes,bytes,uint64)"))), abi.encode(_bytes, _bytes1, _num)));
+        }
+    }
+    ```
+    - 目标是利用executeCrossChainTx()函数调用合约中的putCurEpochConPubKeyBytes()，目标函数的选择器为：0x41973cd9。观察到executeCrossChainTx()中是利用_method参数和"(bytes,bytes,uint64)"作为函数签名计算的选择器。因此，我们只需要选择恰当的_method，让这里算出的选择器等于0x41973cd9，通过选择器碰撞调用目标函数。Poly Network黑客事件中，黑客碰撞出的_method为 f1121318093，即f1121318093(bytes,bytes,uint64)的哈希前4位也是0x41973cd9，可以成功的调用函数。接下来我们要做的就是将f1121318093转换为bytes类型：0x6631313231333138303933，然后作为参数输入到executeCrossChainTx()中。executeCrossChainTx()函数另3个参数不重要，填 0x, 0x, 0 就可以。
 - [104-S03] 中心化风险
 
 ### 2024.10.13
