@@ -1724,7 +1724,7 @@ MyTokenTest 仍可訪問 MyToken 功能，因為:
     * Solidity 的 internal 成員在繼承的合約中可見
     * 修飾器（如 checkChallengeSolved）可以在測試前後執行額外檢查
 
-2024.10.09
+### 2024.10.10
 複習、整理前面筆記
 #### 23_Delegatecall
 #### 24_Create
