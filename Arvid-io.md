@@ -1290,7 +1290,222 @@ call contract6 in remix
 总结
 这一讲，我们介绍了如何通过目标合约代码（或接口）和地址来创建合约的引用，从而调用目标合约的函数。
 
+### 2024.10.06
+
+週日複習前面的內容。
+Delegatecall
+delegatecall与call类似，是Solidity中地址类型的低级成员函数。delegate中是委托/代表的意思，那么delegatecall委托了什么？
+
+当用户A通过合约B来call合约C的时候，执行的是合约C的函数，上下文(Context，可以理解为包含变量和状态的环境)也是合约C的：msg.sender是B的地址，并且如果函数改变一些状态变量，产生的效果会作用于合约C的变量上。
+
+call的上下文
+
+而当用户A通过合约B来delegatecall合约C的时候，执行的是合约C的函数，但是上下文仍是合约B的：msg.sender是A的地址，并且如果函数改变一些状态变量，产生的效果会作用于合约B的变量上。
+
+delegatecall的上下文
+
+大家可以这样理解：一个投资者（用户A）把他的资产（B合约的状态变量）都交给一个风险投资代理（C合约）来打理。执行的是风险投资代理的函数，但是改变的是资产的状态。
+
+delegatecall语法和call类似，也是：
+
+目标合约地址.delegatecall(二进制编码);
+
+Copy
+其中二进制编码利用结构化编码函数abi.encodeWithSignature获得：
+
+abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)
+
+Copy
+函数签名为"函数名（逗号分隔的参数类型）"。例如abi.encodeWithSignature("f(uint256,address)", _x, _addr)。
+
+和call不一样，delegatecall在调用合约时可以指定交易发送的gas，但不能指定发送的ETH数额
+
+注意：delegatecall有安全隐患，使用时要保证当前合约和目标合约的状态变量存储结构相同，并且目标合约安全，不然会造成资产损失。
+
+什么情况下会用到delegatecall?
+目前delegatecall主要有两个应用场景：
+
+代理合约（Proxy Contract）：将智能合约的存储合约和逻辑合约分开：代理合约（Proxy Contract）存储所有相关的变量，并且保存逻辑合约的地址；所有函数存在逻辑合约（Logic Contract）里，通过delegatecall执行。当升级时，只需要将代理合约指向新的逻辑合约即可。
+
+EIP-2535 Diamonds（钻石）：钻石是一个支持构建可在生产中扩展的模块化智能合约系统的标准。钻石是具有多个实施合约的代理合约。 更多信息请查看：钻石标准简介。
+
+delegatecall例子
+调用结构：你（A）通过合约B调用目标合约C。
+
+被调用的合约C
+我们先写一个简单的目标合约C：有两个public变量：num和sender，分别是uint256和address类型；有一个函数，可以将num设定为传入的_num，并且将sender设为msg.sender。
+
+// 被调用的合约C
+contract C {
+    uint public num;
+    address public sender;
+
+    function setVars(uint _num) public payable {
+        num = _num;
+        sender = msg.sender;
+    }
+}
+
+Copy
+发起调用的合约B
+首先，合约B必须和目标合约C的变量存储布局必须相同，两个变量，并且顺序为num和sender
+
+contract B {
+    uint public num;
+    address public sender;
+}
+
+Copy
+接下来，我们分别用call和delegatecall来调用合约C的setVars函数，更好的理解它们的区别。
+
+callSetVars函数通过call来调用setVars。它有两个参数_addr和_num，分别对应合约C的地址和setVars的参数。
+
+// 通过call来调用C的setVars()函数，将改变合约C里的状态变量
+function callSetVars(address _addr, uint _num) external payable{
+    // call setVars()
+    (bool success, bytes memory data) = _addr.call(
+        abi.encodeWithSignature("setVars(uint256)", _num)
+    );
+}
+
+Copy
+而delegatecallSetVars函数通过delegatecall来调用setVars。与上面的callSetVars函数相同，有两个参数_addr和_num，分别对应合约C的地址和setVars的参数。
+
+// 通过delegatecall来调用C的setVars()函数，将改变合约B里的状态变量
+function delegatecallSetVars(address _addr, uint _num) external payable{
+    // delegatecall setVars()
+    (bool success, bytes memory data) = _addr.delegatecall(
+        abi.encodeWithSignature("setVars(uint256)", _num)
+    );
+}
+
+Copy
+在remix上验证
+首先，我们把合约B和C都部署好
+
+deploy.png
+
+部署之后，查看C合约状态变量的初始值，B合约的状态变量也是一样。
+
+initialstate.png
+
+此时，调用合约B中的callSetVars，传入参数为合约C地址和10
+
+call.png
+
+运行后，合约C中的状态变量将被修改：num被改为10，sender变为合约B的地址
+
+resultcall.png
+
+接下来，我们调用合约B中的delegatecallSetVars，传入参数为合约C地址和100
+
+delegatecall.png
+
+由于是delegatecall，上下文为合约B。在运行后，合约B中的状态变量将被修改：num被改为100，sender变为你的钱包地址。合约C中的状态变量不会被修改。
+
+resultdelegatecall.png
+
+总结
+这一讲我们介绍了Solidity中的另一个低级函数delegatecall。与call类似，它可以用来调用其他合约；不同点在于运行的上下文，B call C，上下文为C；而B delegatecall C，上下文为B。目前delegatecall最大的应用是代理合约和EIP-2535 Diamonds（钻石）。
 
 
+### 2024.10.08
+
+```solidity
+contract Pair {
+    address public factory;
+    address public token0;
+    address public token1;
+```
+
+- contract named `pair` is defined.
+- 3 address variables that named `factory`, `token0`, `token1`.
+
+```solidity
+    constructor() payable {
+        factory = msg.sender;
+    }
+```
+
+- `constructor` runs once when the contract is deployed.
+- The `factory` variable above is set to `msg.sender` , the address of the entity that deployed this `pair` contract.
+- What’s a `msg.sender`?
+    
+    **If an external user** (like you, using MetaMask) calls a function, `msg.sender` will be **your Ethereum address**.
+    
+
+```solidity
+function initialize(address _token0, address _token1) external {
+    require(msg.sender == factory, 'UniswapV2: FORBIDDEN');
+    token0 = _token0;
+    token1 = _token1;
+}
+```
+
+- `require(msg.sender == factory` ensures that only the factory contract can call this function.
+
+By restricting access to the factory contract, this prevents unauthorized parties from initializing the pair with their own tokens. It maintains control over the system and ensures the integrity of the token pairs created.
+
+- 1. How to Identify if a Function is Called at or After Deployment?
+    
+    **Constructor**: called at deployment
+    
+    **Regular funtions**: called after deployment (either public, external, internal, or private) that require explicit invoation by someone. 
+    
+- 2. Why Does a Function Parameter Have a Name Like `_token0`?
+    - Distinguishing Between Function Parameters and State Variables
+    - Naming Convention and Clarity
+- 3. What Does Initializing Mean? Where Does This Command Appear in the `initialize` Function?
+    
+    **In the `initialize` function**, initializing refers to assigning values to the state variables `token0` and `token1` after the contract has been deployed. This is necessary because, at deployment, these variables don't have the token addresses set yet. By calling `initialize`, you "initialize" the contract with the token pair addresses.
+    
+
+```solidity
+mapping(address => mapping(address => address)) public getPair;
+address[] public allPairs;
+```
+
+- State Variables:
+    - `getPair`: helps you look up the `pair`contract for a given pair of tokens.
+    - The double mapping `mapping(address => mapping(address => address))` means:
+        - Given `tokenA` and `tokenB`, you can retrieve the corresponding `Pair` contract address that manages that token pair.
+        - Example: `getPair[tokenA][tokenB]` would return the `Pair` contract address for swapping between `tokenA` and `tokenB`.
+    - **`allPairs`:**
+        - This is an array that stores the addresses of **all created `Pair` contracts**.
+        - It keeps track of all the liquidity pools that have been created through this factory.
+- The **`createPair`** function is the core of the `PairFactory` contract. It handles the creation of new `Pair` contracts (for token pairs like ETH/DAI) and keeps track of them. Let’s go through the steps:
+    1. **Create a New `Pair` Contract**:
+    
+    ```solidity
+    Pair pair = new Pair();
+    ```
+    
+    - This line deploys a new instance of the `Pair` contract. It creates a new smart contract on the blockchain specifically for managing the liquidity pool between `tokenA` and `tokenB`.
+    - The `Pair` contract is deployed using its default constructor.
+    1. **Call the `initialize` Method on the New `Pair` Contract**:
+    
+    ```solidity
+    pair.initialize(tokenA, tokenB);
+    ```
+    
+    - After creating the `Pair` contract, the factory contract calls the `initialize` function of the newly created `Pair`.
+    - It passes `tokenA` and `tokenB` as arguments, which will set the two tokens (like ETH and DAI) in the `Pair` contract.
+    - This ensures that the `Pair` contract is now ready to handle swaps between `tokenA` and `tokenB`.
+    1. **Update the `Pair` Address Mapping**:
+    
+    ```solidity
+    pairAddr = address(pair);
+    allPairs.push(pairAddr);
+    getPair[tokenA][tokenB] = pairAddr;
+    getPair[tokenB][tokenA] = pairAddr;
+    ```
+    
+    - The `pairAddr` variable is set to the address of the newly created `Pair` contract using `address(pair)`.
+    - This address is added to the `allPairs` array to keep track of all the liquidity pools created.
+    - The `getPair` mapping is updated twice:
+        - `getPair[tokenA][tokenB] = pairAddr`: This lets you query the `Pair` contract for the token pair `tokenA` and `tokenB`.
+        - `getPair[tokenB][tokenA] = pairAddr`: This ensures you can also query the pair using the tokens in reverse order (i.e., from `tokenB` to `tokenA`).
+    
+    This double mapping makes it easy to look up the `Pair` contract regardless of the order of the token addresses.
 
 <!-- Content_END -->

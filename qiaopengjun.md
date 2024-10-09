@@ -635,19 +635,113 @@ ERC165是一种对外表明自己实现了哪些接口的技术标准。
 
 ### 2024.10.06
 
-笔记内容
+Merkle Tree，也叫默克尔树或哈希树，是区块链的底层加密技术，被比特币和以太坊区块链广泛采用。Merkle Tree是一种自下而上构建的加密树，每个叶子是对应数据的哈希，而每个非叶子为它的2个子节点的哈希。
+Merkle Tree允许对大型数据结构的内容进行有效和安全的验证（Merkle Proof）。对于有N个叶子结点的Merkle Tree，在已知root根值的情况下，验证某个数据是否有效（属于Merkle Tree叶子结点）只需要ceil(log₂N)个数据（也叫proof），非常高效。如果数据有误，或者给的proof错误，则无法还原出root根植。
 
 ### 2024.10.07
 
-笔记内容
+EIP全称 Ethereum Improvement Proposals(以太坊改进建议), 是以太坊开发者社区提出的改进建议, 是一系列以编号排定的文件, 类似互联网上IETF的RFC。
+
+EIP可以是 Ethereum 生态中任意领域的改进, 比如新特性、ERC、协议改进、编程工具等等。
+
+ERC全称 Ethereum Request For Comment (以太坊意见征求稿), 用以记录以太坊上应用级的各种开发标准和协议。如典型的Token标准(ERC20, ERC721)、名字注册(ERC26, ERC13), URI范式(ERC67), Library/Package格式(EIP82), 钱包格式(EIP75,EIP85)。
+
+ERC协议标准是影响以太坊发展的重要因素, 像ERC20, ERC223, ERC721, ERC777等, 都是对以太坊生态产生了很大影响。
+
+所以最终结论：EIP包含ERC。
+通过ERC165标准，智能合约可以声明它支持的接口，供其他合约检查。
+简单的说，ERC165就是检查一个智能合约是不是支持了ERC721，ERC1155的接口。
+荷兰拍卖（Dutch Auction）是一种特殊的拍卖形式。
+亦称“减价拍卖”，它是指拍卖标的的竞价由高到低依次递减直到第一个竞买人应价（达到或超过底价）时击槌成交的一种拍卖。
+
+Merkle Tree，也叫默克尔树或哈希树，是区块链的底层加密技术，被比特币和以太坊区块链广泛采用。
+Merkle Tree是一种自下而上构建的加密树，每个叶子是对应数据的哈希，而每个非叶子为它的2个子节点的哈希。
+我们可以利用网页或者Javascript库merkletreejs来生成Merkle Tree。
 
 ### 2024.10.08
 
-笔记内容
+金库合约是 DeFi 乐高中的基础，它允许你把基础资产（代币）质押到合约中，换取一定收益，包括以下应用场景:
+
+收益农场: 在 Yearn Finance 中，你可以质押 USDT 获取利息。
+借贷: 在 AAVE 中，你可以出借 ETH 获取存款利息和贷款。
+质押: 在 Lido 中，你可以质押 ETH 参与 ETH 2.0 质押，得到可以生息的 stETH。
+
+ERC4626 代币化金库标准（Tokenized Vault Standard）横空出世，使得 DeFi 能够轻松扩展。它具有以下优点:
+
+代币化: ERC4626 继承了 ERC20，向金库存款时，将得到同样符合 ERC20 标准的金库份额，比如质押 ETH，自动获得 stETH。
+
+更好的流通性: 由于代币化，你可以在不取回基础资产的情况下，利用金库份额做其他事情。拿 Lido 的 stETH 为例，你可以用它在 Uniswap 上提供流动性或交易，而不需要取出其中的 ETH。
+
+更好的可组合性: 有了标准之后，用一套接口可以和所有 ERC4626 金库交互，让基于金库的应用、插件、工具开发更容易。
+
+ERC4626 为 DeFi 提升流动性和可组合性
 
 ### 2024.10.09
 
-笔记内容
+代币锁(Token Locker)是一种简单的时间锁合约，它可以把合约中的代币锁仓一段时间，受益人在锁仓期满后可以取走代币。
+代币锁一般是用来锁仓流动性提供者LP代币的。
+
+区块链中，用户在去中心化交易所DEX上交易代币，例如Uniswap交易所。
+DEX和中心化交易所(CEX)不同，去中心化交易所使用自动做市商(AMM)机制，需要用户或项目方提供资金池，以使得其他用户能够即时买卖。
+简单来说，用户/项目方需要质押相应的币对（比如ETH/DAI）到资金池中，
+作为补偿，DEX会给他们铸造相应的流动性提供者LP代币凭证，证明他们质押了相应的份额，供他们收取手续费。
+
+如果项目方毫无征兆的撤出流动性池中的LP代币，那么投资者手中的代币就无法变现，直接归零了。这种行为也叫rug-pull，仅2021年，各种rug-pull骗局从投资者那里骗取了价值超过28亿美元的加密货币。
+
+但是如果LP代币是锁仓在代币锁合约中，在锁仓期结束以前，项目方无法撤出流动性池，也没办法rug pull。因此代币锁可以防止项目方过早跑路（要小心锁仓期满跑路的情况）。
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "./IERC20.sol";
+
+contract TokenLocker {
+    // 被锁仓的ERC20代币合约
+    IERC20 public immutable token;
+    // 受益人地址
+    address public immutable beneficiary;
+    // 锁仓时间(秒)
+    uint256 public immutable lockTime;
+    // 锁仓起始时间戳(秒)
+    uint256 public immutable startTime;
+
+    // 事件
+    event TokenLockStart(address indexed beneficiary, address indexed token, uint256 startTime, uint256 lockTime);
+    event Release(address indexed beneficiary, address indexed token, uint256 releaseTime, uint256 amount);
+
+    /**
+     * @dev 部署时间锁合约，初始化代币合约地址，受益人地址和锁仓时间。
+     * @param token_: 被锁仓的ERC20代币合约
+     * @param beneficiary_: 受益人地址
+     * @param lockTime_: 锁仓时间(秒)
+     */
+    constructor(IERC20 token_, address beneficiary_, uint256 lockTime_) {
+        require(lockTime_ > 0, "TokenLock: lock time should greater than 0");
+        token = token_;
+        beneficiary = beneficiary_;
+        lockTime = lockTime_;
+        startTime = block.timestamp;
+
+        emit TokenLockStart(beneficiary_, address(token_), block.timestamp, lockTime_);
+    }
+
+    /**
+     * @dev 在锁仓时间过后，将代币释放给受益人。
+     */
+    function release() public {
+        require(block.timestamp >= startTime + lockTime, "TokenLock: current time is before release time");
+
+        uint256 amount = token.balanceOf(address(this));
+        require(amount > 0, "TokenLock: no tokens to release");
+
+        token.transfer(beneficiary, amount);
+
+        emit Release(msg.sender, address(token), block.timestamp, amount);
+    }
+}
+
+```
 
 ### 2024.10.10
 

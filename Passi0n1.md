@@ -1007,4 +1007,68 @@ abstract contract ERC20 is IERC20 {
 - **接口合约** 更严格，只能定义规范（函数签名），而不能包含实现。
 - **抽象合约** 则可以包含部分实现，是接口合约的灵活扩展形式。
 - 如果你只需要定义函数的规范，且不需要任何逻辑或状态变量，使用 `interface` 更合适；如果你需要定义部分逻辑或状态，同时允许子合约完成剩余部分的实现，使用抽象合约更合适。
+- 
+
+
+### 2024.10.06
+#### 学习笔记
+
+### 2024.10.07
+#### 学习笔记
+
+
+在 Solidity 中，当我们谈论抽象合约和未实现的函数时，我们需要了解几个关键概念：
+
+1. **抽象合约**：一个包含至少一个未实现函数（即没有函数体的函数）的合约。抽象合约不能被实例化，只能被其他合约继承。
+2. **纯函数**：使用`pure`关键字标记的函数保证不会读取或修改合约的状态。这意味着它不会访问区块链上的任何数据。
+3. **视图函数**：使用`view`关键字标记的函数保证不会修改合约的状态，但它可以读取区块链上的数据。
+4. **函数可见性**：Solidity中有四种函数可见性修饰符：`public`、`private`、`internal`和`external`。
+
+
+	* `public`：函数可以从任何地方被调用。
+	* `private`：函数只能从定义它的合约内部被调用。
+	* `internal`：函数可以从定义它的合约或其派生合约中被调用。
+	* `external`：函数只能从合约外部被调用（例如，通过交易）。
+
+现在，让我们分析每个选项：
+
+A. `abstract contract A{ function foo(uint a) internal pure virtual returns(uint); }`
+
+* 这个选项是正确的。`foo`函数被标记为`internal`和`pure`，并且是`virtual`的，这意味着它必须在派生合约中被实现。由于它是`internal`的，它只能在合约内部或其派生合约中被调用。
+
+B. `abstract contract A{ function foo(uint a) public view returns(uint); }`
+
+* 这个选项也是正确的，但有一个小问题。虽然`foo`函数被正确地标记为`public`和`view`，但它不是`virtual`的。在Solidity中，抽象函数应该使用`virtual`关键字，尽管在某些情况下省略它可能不会导致编译错误。然而，为了清晰和一致性，最好显式地使用`virtual`关键字。
+
+C. `contract A{ function foo(uint a) external pure virtual returns(uint); }`
+
+* 这个选项是错误的。`external`和`pure`修饰符可以一起使用，但`virtual`修饰符通常与`internal`或`public`一起使用。`external`函数通常不是`virtual`的，因为它们是从合约外部调用的，而不是通过继承来实现的。
+
+D. `contract A{ function foo(uint a) internal returns(uint); }`
+
+* 这个选项也是错误的。虽然`foo`函数被正确地标记为`internal`，但它没有使用`pure`或`view`关键字，这意味着它可能会修改合约的状态。此外，它不是`virtual`的，这意味着它不需要在派生合约中被实现。
+
+综上所述，最符合题目要求的选项是A。然而，B选项也是有效的，尽管它省略了`virtual`关键字。在实际编程中，最好显式地使用`virtual`关键字来明确表示函数需要在派生合约中被实现。
+
+因此，最准确的答案是 A，但如果考虑到省略 `virtual` 关键字的情况，B 也可以被视为正确。然而，根据题目的要求和 Solidity 的最佳实践，A 是最合适的答案。
+
+#疑问 
+
+被标记为 abstract 的合约能否被部署？
+
+选择一个答案
+A. 能
+B. 不能
+C. 如果实现了所有函数的子合约已经被部署，则该合约能被部署
+
+
+### 2024.10.08
+#### 学习笔记
+
+
+今天主要学习了异常处理机制
+
+
+
+   
 <!-- Content_END -->

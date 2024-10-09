@@ -66,5 +66,24 @@ day09:
 
 [solidity-101 15 Note](./content/llt/109.md)
 
+### 2024.10.4
+
+day10:
+
+[solidity-102 16 Note](./content/llt/110.md)
+
+### 2024.10.5
+
+day11:
+
+[solidity-102 17 Note](./content/llt/111.md)
+
+
+### 2024.10.6
+
+day12:
+
+[solidity-102 18 Note](./content/llt/112.md)
+
 <!-- Content_END -->
 

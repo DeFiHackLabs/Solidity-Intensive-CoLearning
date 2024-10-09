@@ -889,4 +889,91 @@ contract Faucet{
 }    
 代币水龙头发送代币，需要校验地址是否领取，代币是否已发放完
 
+
+
+### 2024.10.06
+import "./ERC20.sol";
+//批量发送代币
+contract AirDrop{
+    mapping(address=>uint) failTransferList;
+    function multiTransferToken(address _token,address[] calldata _address,uint256[] calldata _amount)external {
+        require(_address.length == _amount.length,"length is not equal");
+        IERC20 token = IERC20(_token);
+        uint _amountSum = getSum(_amount);
+        require(token.allowance(msg.sender, address(this))>_amountSum,"need approve token amount");
+
+        for(uint i=0;i<_address.length;i++){
+            token.transferFrom(msg.sender, _address[i], _amount[i]);
+        }
+    }
+
+    //向多个地址转移ETF
+    function multiTransferETH(address payable[] calldata _address,uint [] calldata _amount) public payable {
+        require(_address.length== _amount.length,"must be equal");//校验长度
+        // for循环，利用transfer函数发送ETH
+        for(uint i=0;i<_address.length;i++){
+           (bool success,) = _address[i].call{value: _amount[i]}("");//call发送ETH
+           if(!success){
+            failTransferList[_address[i]] = _amount[i];
+           }
+        }
+    }
+
+    //失败后重试
+    function withdrawFromFailList(address _to)public{
+        uint failAmount = failTransferList[_to];
+        require(failAmount>0,"the address not fail");
+        failTransferList[_to] = 0;//先将这个地址职位空
+        (bool success,) = _to.call{value:failAmount}("");
+        require(!success,"fail withdraw");
+    }
+
+   
+    function getSum(uint[] calldata _arr) public pure returns(uint sum){
+        for (uint i=0;i<_arr.length;i++){
+            sum = sum+_arr[i];
+        }
+    }
+
+}
+
+### 2024.10.07
+
+ERC165检查了合约是否实现了ERC721,ERC1155的接口
+import "./ierc165.sol";
+contract erc721 is ierc165{
+    function supportsInterface(bytes4 interfaceId)  external pure override  returns(bool){
+        return interfaceId == type(ierc165).interfaceId;
+    }
+}
+
+先直接实现下这个接口，但是会报错需要将erc721设置成abstract，明天待续
+
+### 2024.10.08
+
+ERC721用tokenId表示非同质化的代币，所以转账和授权都需要携带tokenId
+学习精准授权
+    function _approve(address owner,address to,uint tokenId) private{
+        _tokenApprovals[tokenId] =to;
+        emit Approval(owner,to,tokenId);
+    }
+
+    function approve(address to ,uint tokenId)external override {
+        address owner = _owners[tokenId];
+        require(msg.sender==owner || _operatorApprovals[msg.sender][to],"not owner nor approval all");
+        _approve(owner, to, tokenId);
+    }
+ 批量授权
+    function setApprovalForAll(address operator, bool approved) external override {
+        _operatorApprovals[msg.sender][operator] = approved;
+        emit ApprovalForAll(msg.sender, operator, approved);
+    }
+查询授权地址
+    function getApproved(uint tokenId) external view override returns(address){
+        require(_owners[tokenId] != address(0),"token not exist");
+        return _tokenApprovals[tokenId];
+    }
+
+    
+
 <!-- Content_END -->

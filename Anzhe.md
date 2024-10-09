@@ -1375,5 +1375,524 @@ function getString2(uint256 _number) public pure returns(string memory){
     return Strings.toHexString(_number);
 }
 ```
+### 2024.10.05
+在寫接收 ETH 合約時，會用到有兩個特殊的函數：`receive()` 和 `fallback()`。
+寫發送合約則可以用 `transfer()`、`send()` 和`call()` 三種方法。
+# 接收 ETH
+Solidity 支援兩種特殊的回退函數，`receive()` 和 `fallback()`，他們主要在兩種情況下被使用：
+1. 接收ETH
+2. 處理合約中不存在的函數呼叫（代理合約 proxy contract）
+
+註：Solidity 0.6.x 版本之前，語法上只有 fallback() 函數，用來接收用戶發送的 ETH 時調用以及在被調用函數簽名沒有匹配到時來調用。 0.6 版本之後，Solidity 才將 fallback() 函式拆分成 receive() 和 fallback() 兩個函式。
+## 接收 ETH 函數 `receive`
+`receive()` 函數是在合約收到 ETH 轉帳時被呼叫的函數。一個合約最多有一個`receive()` 函數，宣告方式與一般函數不一樣，不需要 function 關鍵字，語法：
+```
+receive() external payable { ... }
+```
+`receive()` 函數不能有任何的參數，不能傳回任何值，必須包含 `external` 和`payable`。
+當合約接收 ETH 的時候，`receive()` 會被觸發。 `receive()` 最好不要執行太多的邏輯，因為如果別人用 `send` 和 `transfer` 方法發送 ETH 的話，gas 會限制在 2300，`receive()` 太複雜可能會觸發 Out of Gas 報錯；如果用 `call` 就可以自訂 gas 執行更複雜的邏輯（這三種發送ETH的方法之後會提）。
+在 `receive()` 裡發送一個 `event`：
+```
+// 定義事件
+event Received(address Sender, uint Value);
+// 接收 ETH 時釋放 Received 事件
+receive() external payable {
+    emit Received(msg.sender, msg.value);
+}
+```
+有些惡意合約，會在 `receive()` 函數（舊版就是 `fallback()` 函數）嵌入惡意消耗 gas 的內容或使得執行故意失敗的程式碼，導致一些包含退款和轉帳邏輯的合約不能正常運作，因此寫包含退款等邏輯的合約時候，一定要注意這種情況。
+## 回退函數 `fallback`
+`fallback()` 函數會在呼叫合約不存在的函數時被觸發。可用於接收 ETH，也可以用於代理合約 proxy contract。`fallback()` 聲明時不需要 `function` 關鍵字，必須由 `external` 修飾，一般也會用 `payable` 修飾，用來接收 ETH，語法：
+```
+fallback() external payable { ... }
+```
+定義一個 `fallback()` 函數，被觸發時候會釋放 `fallbackCalled` 事件，並輸出 `msg.sender`、`msg.value` 和 `msg.data`:
+```
+event fallbackCalled(address Sender, uint Value, bytes Data);
+
+// fallback
+fallback() external payable{
+    emit fallbackCalled(msg.sender, msg.value, msg.data);
+}
+```
+## `receive` 和 `fallback` 的差別
+receive 和 fallback 都能夠用來接收 ETH，他們觸發的規則如下：
+```
+觸發fallback() 還是 receive()?
+           接收ETH
+              |
+        msg.data是空？
+             /  \
+           是    否
+          /        \
+ receive()存在?    fallback()
+       /  \
+     是    否
+     /      \
+receive()  fallback()
+```
+簡單來說，合約接收 ETH 時，`msg.data` 為空且存在 `receive()` 時，會觸發 `receive()`；`msg.data` 不為空或不存在 `receive()` 時，會觸發 `fallback()`，此時 `fallback()` 必須為 `payable`。 `receive()` 和 `payable fallback()` 皆不存在的時候，向合約直接發送 ETH 將會報錯（你仍可以透過帶有 `payable` 的函數向合約發送 ETH）。
+## 接收 ETH 合約
+我們先部署一個接收 ETH 合約 `ReceiveETH`。 `ReceiveETH` 合約裡有一個事件 Log，記錄收到的 ETH 數量和 gas 剩餘。還有兩個函數，一個是 `receive()` 函數，收到 ETH 被觸發，並且傳送 Log 事件；另一個是查詢合約 ETH 餘額的 `getBalance()` 函數。
+```
+contract ReceiveETH {
+    // 收到 ETH 事件，記錄 amount 和 gas
+    event Log(uint amount, uint gas);
+    
+    // receive 方法，接收 eth 時被觸發
+    receive() external payable{
+        emit Log(msg.value, gasleft());
+    }
+    
+    // 返回合約 ETH 餘額
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+}
+```
+# 發送 ETH
+Solidity 有三種方法向其他合約發送 ETH：`transfer()`、`send()` 和`call()`，其中 `call()` 是比較好的作法。
+首先定義一個 `SendETH` 合約，實現 `payable` 的建構子和 `receive`，讓我們在部署時和部署後可以向 `ReceiveETH` 合約發送ETH。
+```
+contract SendETH {
+    // 建構函數，payable 使得部署的時候可以轉 ETH 進去
+    constructor() payable{}
+    // receive 方法，接收 ETH 時被觸發
+    receive() external payable{}
+}
+```
+## 1. `transfer` 函數
+```
+    <接收方位址>.transfer(<發送ETH金額>)
+```
+* `transfer()` 的 gas 限制是 2300，足夠用於轉賬，但對方合約的 `fallback()` 或` receive()` 函數不能實現太複雜的邏輯。
+* `transfer()` 如果轉帳失敗，會自動 revert（回滾交易）。
+* 範例：`_to` 寫 `ReceiveETH` 合約的地址，`amount` 是 ETH 轉帳金額
+    ```
+    // 用 transfer() 發送 ETH
+    function tranferETH(address payable _to, uint256 amount) external payable{
+        _to.transfer(amount);
+    }
+    ```
+    <!--部署 SendETH 合約後，對 ReceiveETH 合約發送 ETH，此時 amount 為 10，value 為 0，amount > value，轉帳失敗，發生 revert。-->
+## 2. `send` 函數
+```
+<接收方位址>.send(<發送ETH金額>)
+```
+* `send()` 的 gas 限制是 2300，足夠用於轉賬，但對方合約的 `fallback()` 或`receive()` 函數不能實現太複雜的邏輯。
+* `send()` 如果轉帳失敗，不會 revert。
+* `send()` 的回傳值是 `bool`，代表轉帳成功或失敗，需要額外程式碼處理一下。
+* 範例：
+    ```
+    error SendFailed(); // 用 send 發送 ETH 失敗 error
+
+    // send() 發送 ETH
+    function sendETH(address payable _to, uint256 amount) external payable{
+        // 處理下 send 的回傳值，如果失敗，revert 交易並傳送 error
+        bool success = _to.send(amount);
+        if(!success){
+            revert SendFailed();
+        }
+    }
+    ```
+## 3. `call` 函數
+```
+<接收方位址>.call{value: <發送ETH金額>}("")
+```
+* `call()` 沒有 gas 限制，可以支援對方合約 `fallback()` 或 `receive()` 函數實現複雜邏輯。
+* `call()` 如果轉帳失敗，不會 revert。
+* `call()` 的回傳值是 `(bool, bytes)`，其中 bool 代表著轉帳成功或失敗，需要額外程式碼處理一下。
+* 範例：
+    ```
+    error CallFailed(); // // 使用 call 發送 ETH 失敗 error
+
+    // call() 發送 ETH
+    function callETH(address payable _to, uint256 amount) external payable{
+        // 處理下 call 的回傳值，如果失敗，revert 交易並發送 error
+        (bool success,) = _to.call{value: amount}("");
+        if(!success){
+            revert CallFailed();
+        }
+    }
+    ```
+
+## 發送 ETH 函數比較
+* `call` 沒有 gas 限制，最靈活，是最提倡的方法
+* `transfer` 有 2300 gas 限制，但發送失敗會自動 revert 交易，是次優選擇
+* `send` 有 2300 gas 限制，而且發送失敗不會自動 revert 交易，幾乎沒有人使用它
+
+### 2024.10.06
+在 Solidity 中，一個合約可以呼叫另一個合約的函數，這對建立複雜的 DApps 時非常有用，而在已知合約程式碼（或介面）和位址的情況下，可以呼叫已部署的合約。
+# 調用其他合約
+## 目標合約
+目標合約，用於被其他合約調用：
+```
+contract OtherContract {
+    uint256 private _x = 0; // 狀態變數_x
+    // 收到 ETH 的事件，記錄 amount 和 gas
+    event Log(uint amount, uint gas);
+    
+    // 回傳合約ETH餘額
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+
+    // 可以調整狀態變數_x的函數，並且可以往合約轉ETH (payable)
+    function setX(uint256 x) external payable{
+        _x = x;
+        // 如果轉入 ETH，則釋放 Log 事件
+        if(msg.value > 0){
+            emit Log(msg.value, gasleft());
+        }
+    }
+
+    // 讀取_x
+    function getX() external view returns(uint x){
+        x = _x;
+    }
+}
+```
+## 呼叫目標合約
+可以利用合約的位址和合約程式碼（或介面）來建立合約的參考：`_Name(_Address)`，其中 `_Name` 是合約名，應與合約程式碼（或介面）中標註的合約名稱保持一致，`_Address` 是合約位址。然後用合約的參考來呼叫它的函數：`_Name(_Address).f()`，其中 `f()` 是要呼叫的函數。
+範例：
+```
+contract CallContract{
+    // 1. 傳入合約地址
+    function callSetX(address _Address, uint256 x) external{
+        OtherContract(_Address).setX(x);
+    }
+    // 2. 傳入合約變數
+    function callGetX(OtherContract _Address) external view returns(uint x){
+        x = _Address.getX();
+    }
+    // 3. 建立合約變數
+    function callGetX2(address _Address) external view returns(uint x){
+        OtherContract oc = OtherContract(_Address);
+        x = oc.getX();
+    }
+    // 4. 呼叫合約並發送 ETH
+    function setXTransferETH(address otherContract, uint256 x) payable external{
+        OtherContract(otherContract).setX{value: msg.value}(x);
+    }
+}
+```
+分別編譯和部署 `OtherContract` 和 `CallContract`。
+## 說明
+### 1. 傳入合約地址
+在函數裡傳入目標合約位址，產生目標合約的引用，然後呼叫目標函數。以呼叫 `OtherContract` 合約的 `setX` 函數為例，我們在新合約中寫一個 `callSetX` 函數，傳入已部署好的 `OtherContract` 合約位址 `_Address` 和 `setX` 的參數 `x`。
+### 2. 傳入合約變數
+直接在函數裡傳入合約的引用，只需要把上面參數的 `address` 類型改為目標合約名，例如`OtherContract`。上面範例實作了呼叫目標合約的 `getX()` 函數。
+注意：此函數參數 `OtherContract _Address` 底層類型仍然是 `address`，產生的 ABI 中、呼叫 `callGetX` 時傳入的參數都是 `address` 類型
+### 3. 建立合約變數
+建立合約變量，然後通過它來呼叫目標函數。範例給變數 `oc` 儲存了 `OtherContract` 合約的引用。
+### 4. 呼叫合約並發送 ETH
+如果目標合約的函數是 payable 的，那麼我們可以透過呼叫它來給合約轉帳：`_Name(_Address).f{value: _Value}()`，其中 `_Name` 是合約名，`_Address` 是合約位址，`f`是目標函數名，`_Value`是要轉的 ETH 金額（以 wei 為單位）。
+
+# Call
+`call` 可以發送ETH，也可以用來呼叫合約。
+`call` 是 `address` 類型的低階成員函數，它用來與其他合約互動。它的回傳值為 `(bool, bytes memory)`，分別對應 call 是否成功以及目標函數的回傳值。
+* `call` 是 Solidity 官方推薦的透過觸發 `fallback` 或 `receive` 函數發送 ETH 的方法。
+* 不建議用 `call` 來呼叫另一個合約，因為當你呼叫不安全合約的函數時，你就把主動權交給了它。建議的方法仍是宣告合約變數後呼叫函數。
+* 當我們不知道對方合約的原始碼或 ABI，就無法產生合約變數；這時，我們仍可以透過 `call` 呼叫對方合約的函數。
+```
+<目標合約位址>.call(<位元組碼>);
+```
+其中 Bytecode 利用結構化編碼函數 `abi.encodeWithSignature` 獲得：
+```
+abi.encodeWithSignature("函數簽章", 逗號分隔的特定參數)
+```
+函數簽章為 `"函數名稱（逗號分隔的參數類型"`，例如 `abi.encodeWithSignature("f(uint256,address)", _x, _addr)`。
+call 在呼叫合約時可以指定交易發送的 ETH 和 gas 的數額：
+```
+<目標合約位址>.call{value:<發送數額>, gas:<gas數額>}(<位元組碼>);
+```
+## Call 呼叫合約範例
+### 目標合約
+```
+contract OtherContract {
+    uint256 private _x = 0; // 狀態變數_x
+    // 收到 ETH 的事件，記錄 amount 和 gas
+    event Log(uint amount, uint gas);
+    
+    // 加入 fallback 函數
+    fallback() external payable{}
+    ...
+}
+```
+### 用 call 呼叫目標合約
+```
+contract Call{
+    // 1. Response 事件
+    // 定義 Response 事件，輸出 call 回傳的結果 success 和 data
+    event Response(bool success, bytes data);
+
+    function callSetX(address payable _addr, uint256 x) public payable {
+        // 2. 呼叫 setX 函數
+        // call setX()，同時可以發送 ETH
+        (bool success, bytes memory data) = _addr.call{value: msg.value}(
+            abi.encodeWithSignature("setX(uint256)", x)
+        );
+
+        emit Response(success, data);
+    }
+
+    function callGetX(address _addr) external returns(uint256){
+        // 3. 呼叫 getX 函數
+        // call getX()
+        (bool success, bytes memory data) = _addr.call(
+            abi.encodeWithSignature("getX()")
+        );
+
+        emit Response(success, data);
+        return abi.decode(data, (uint256));
+    }
+
+    function callNonExist(address _addr) external{
+        // 4. 呼叫不存在的函數
+        (bool success, bytes memory data) = _addr.call(
+            abi.encodeWithSignature("foo(uint256)")
+        );
+
+        emit Response(success, data);
+    }
+}
+```
+## 說明
+### 1. Response 事件
+寫一個 `Call` 合約來呼叫目標合約函數。先定義一個 Response 事件，輸出 call 回傳的 `success` 和 `data`，方便我們觀察回傳值。
+### 2. 呼叫 setX 函數
+定義 `callSetX` 函數來呼叫目標合約的 `setX()`，轉入 `msg.value` 數額的 ETH，並釋放 `Response` 事件輸出 `success` 和 `data`。
+### 3. 呼叫 getX 函數
+呼叫 `getX()` 函數，它將傳回目標合約 `_x` 的值，類型為 `uint256`。我們可以利用 `abi.decode` 來解碼 call 的回傳值 `data`，並讀出數值。
+### 4. 呼叫不存在的函數
+如果我們給 `call` 輸入的函數不存在於目標合約，那麼目標合約的 `fallback` 函數會被觸發。我們 call 了不存在的 `foo` 函數。 call 仍能執行成功，並回傳 `success`，但其實呼叫的目標合約 `fallback` 函數。
+
+### 2024.10.07
+# Delegatecall
+`delegatecall` 與 `call` 類似，是 Solidity 中位址類型的低階成員函數。 delegate 是委託/代表的意思，那麼 delegatecall 委託了什麼？
+## Call
+當使用者 A 透過合約 B 來 call 合約 C 的時候，執行的是合約 C 的函數，上下文(Context，可以理解為包含變數和狀態的環境)也是合約 C 的：`msg.sender` 是 B 的位址，如果函數改變一些狀態變量，產生的效果會作用在合約 C 的變數上。
+![](https://i.imgur.com/j3BMCsC.png)
+## delegatecall
+當使用者 A 透過合約 B 來 delegatecall 合約 C 的時候，執行的是合約 C 的函數，但是上下文仍是合約 B 的：msg.sender是 A 的位址，並且如果函數改變一些狀態變量，產生的效果會作用於合約 B 的變數上。
+![](https://i.imgur.com/pdY13St.png)
+可以理解為：一個投資人（使用者 A）把他的資產（B 合約的狀態變數）都交給一個創業投資代理（C 合約）來打理。執行的是創業投資代理的函數，但是改變的是資產的狀態。
+### 語法
+```
+<目標合約位址>.delegatecall(<二進位編碼>);
+```
+其中二進位編碼利用結構化編碼函數 `abi.encodeWithSignature` 取得：`abi.encodeWithSignature("函數簽章", 逗號分隔的特定參數)`，例如`abi.encodeWithSignature("f(uint256,address)", _x, _addr)`。
+與 call 不同，delegatecall 在呼叫合約時可以指定交易發送的 gas，但不能指定發送的 ETH 金額。delegatecall 有安全隱患，使用時要確保當前合約和目標合約的狀態變數儲存結構相同，且目標合約安全，不然會造成資產損失。
+### 使用場景
+1. 代理合約（Proxy Contract）：將智能合約的儲存合約和邏輯合約分開：代理合約（Proxy Contract）儲存所有相關的變數，並且保存邏輯合約的位址；所有函數存在邏輯合約（Logic Contract）裡，透過 delegatecall 執行。當升級時，只需要將代理合約指向新的邏輯合約即可。
+2. EIP-2535 Diamonds（鑽石）：鑽石是一個支持建構可在生產中擴展的模組化智能合約系統的標準。鑽石是具有多個實施合約的代理合約。
+### 例子
+你（A）透過合約 B 調用目標合約 C。
+合約 B 必須和目標合約 C 的變數儲存佈局必須相同，兩個變量，且順序為 `num` 和 `sender`。
+```
+// 被呼叫的合約 C
+contract C {
+    uint public num;
+    address public sender;
+
+    function setVars(uint _num) public payable {
+        num = _num;
+        sender = msg.sender;
+    }
+}
+
+// 發起呼叫的合約B
+contract B {
+    uint public num;
+    address public sender;
+    
+    // 透過 call 來呼叫 C 的 setVars() 函數，將改變合約 C 裡的狀態變數
+    // 兩個參數 _addr 和 _num，分別對應合約 C 的位址和 setVars 的參數
+    function callSetVars(address _addr, uint _num) external payable{
+        // call setVars()
+        (bool success, bytes memory data) = _addr.call(
+            abi.encodeWithSignature("setVars(uint256)", _num)
+        );
+    }
+    // 透過 delegatecall 來呼叫 C 的 setVars() 函數，將改變合約 B 裡的狀態變數
+    function delegatecallSetVars(address _addr, uint _num) external payable{
+        // delegatecall setVars()
+        (bool success, bytes memory data) = _addr.delegatecall(
+            abi.encodeWithSignature("setVars(uint256)", _num)
+        );
+    }
+}
+```
+
+### 2024.10.08
+# 在合約中創建新合約
+在以太坊鏈上，使用者（外部帳戶，EOA）可以創造智能合約，智能合約也可以創造新的智能合約。去中心化交易所 uniswap 就是利用工廠合約（PairFactory）創建了無數個幣對合約（Pair）。今天會用簡化版的 uniswap 介紹如何透過合約創建合約。
+有兩種方法 `CREATE` 和 `CREATE2` 可以在合約中創建合約。
+## CREATE
+### 用法：
+new 一個合約，並傳入新合約建構子所需的參數：
+```
+Contract x = new Contract{Value: _value}(params)
+```
+其中 `Contract` 是要建立的合約名，x 是合約物件（地址），如果建構子是 `payable`，可以建立時轉入 `_value` 數量的 ETH，`params` 是新合約建構子的參數。
+
+### 用 `CREATE` 實作極簡版的 `Uniswap`
+`Uniswap V2` 核心合約中包括兩個合約：
+1. UniswapV2Pair：幣對合約，用於管理幣對地址、流動性、買賣。
+2. UniswapV2Factory：工廠合約，用於創建新的幣對，並管理幣對地址。
+
+#### Pair 合約
+* `Pair` **幣對合約**負責管理幣對地址，包含 3 個狀態變數：`factory`、`token0`和 `token1`。
+* 建構函式 `constructor` 在部署時將 `factory` 賦值為工廠合約地址。
+* `initialize` 函數會由工廠合約在部署完成後手動呼叫以初始化代幣地址，將 `token0` 和 `token1` 更新為幣對中兩種代幣的地址。
+    ```
+    contract Pair{
+        address public factory; // 工廠合約地址
+        address public token0; // 代幣 1
+        address public token1; // 代幣 2
+        
+        constructor() payable {
+            factory = msg.sender;
+        }
+        
+        // 工廠部署時分配一次
+        function initialize(address _token0, address _token1) external {
+            require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // 充分檢查
+            token0 = _token0;
+            token1 = _token1;
+        }
+    }
+    ```
+> Q：為什麼 uniswap 不在 constructor 中將 token0 和 token1 地址更新？
+> A：因為 uniswap 使用的是 `CREATE2` 建立合約，產生的合約位址可以實現預測。
+
+#### PairFactory 合約
+* `PairFactory` **工廠合約**用於創建新的幣對，並管理幣對地址。
+* 工廠合約（PairFactory）有兩個狀態變數
+    * `getPair` 是兩個代幣地址到幣對地址的 map，方便根據代幣找到幣對地址
+    * `allPairs` 是幣對地址的陣列，儲存了所有代幣地址。
+* `PairFactory` 合約只有一個 `createPair` 函數，根據輸入的兩個代幣地址 `tokenA` 和 `tokenB` 來創建新的 `Pair` 合約。
+    ``` 
+    contract PairFactory{
+       mapping(address => mapping(address => address)) public getPair; // 通過兩個代幣地址查 Pair 地址
+       address[] public allPairs; // 保存所有 Pair 地址
+       
+       function createPair(address tokenA, address tokenB) external returns (address pairAddr) {
+           // 創建新合約
+           Pair pair = new Pair();
+           
+           // 呼叫新合約的 initialize 方法
+           pair.initialize(tokenA, tokenB);
+           
+           // 更新地址 map
+           pairAddr = address(pair);
+           allPairs.push(pairAddr);
+           getPair[toeknA][tokenB] = pairAddr;
+           getPair[tokenB][tokenA] = pairAddr;
+       }
+    }
+    ```
+## CREATE2
+CREATE2 操作碼讓我們在智能合約部署在以太坊網路之前，就能預測合約的位址。 Uniswap 創建 Pair 合約用的是 CREATE2 而不是 CREATE。
+### CREATE 如何計算地址
+智能合約可以由**其他合約**和**普通帳戶**利用 CREATE 操作碼建立。這兩種情況下，新合約的地址都以相同的方式計算：創建者的地址(通常為部署的錢包地址或合約地址)和`nonce` (該地址發送交易的總數，對於合約帳戶是創建的合約總數，每創建一個合約`nonce+1`)的 Hash。
+```
+新地址 = hash(創建者地址, nonce)
+```
+創建者地址不會改變，但 `nonce` 可能會隨時間而改變，因此用 CREATE 創建的合約地址不好預測。
+### CREATE2 如何計算地址
+CREATE2 的目的是為了讓合約地址獨立於未來的事件。不管未來區塊鏈上發生了什麼，你都可以把合約部署在事先計算好的地址上。用 CREATE2 建立的合約地址由 4 個部分決定：
+* `0xFF`：一個常數，避免和 CREATE 衝突
+* `CreatorAddress`：呼叫 CREATE2 的目前合約（建立合約）地址。
+* `salt`（鹽）：一個創建者指定的 `bytes32` 類型的值，它的主要目的是用來影響新創建的合約的地址。
+* `initcode`：新合約的初始 Bytecode（合約的 Creation Code 和建構子的參數）。
+```
+地址 = hash("0xFF",創建者地址, salt, initcode)
+```
+#### CREATE2 使用
+CREATE2 的用法和 CREATE 類似，同樣是 new 一個合約，並傳入新合約建構子所需的參數，只不過要多傳一個 `salt` 參數。
+```
+Contract x = new Contract{salt: _salt, value: _value}(params)
+```
+其中 Contract 是要建立的合約名，`x` 是合約物件（地址），`_salt` 是指定的鹽；如果建構子是 `payable`，可以建立時轉入 `_value` 數量的 ETH，`params` 是新合約建構子的參數。
+
+### 用 `CREATE2` 實作極簡版的 `Uniswap`
+#### Pair 合約
+* `Pair` **幣對合約**負責管理幣對地址，包含 3 個狀態變數：`factory`、`token0`和 `token1`。
+* 建構函式 `constructor` 在部署時將 `factory` 賦值為工廠合約地址。
+* `initialize` 函數會由工廠合約在部署完成後手動呼叫以初始化代幣地址，將 `token0` 和 `token1` 更新為幣對中兩種代幣的地址。
+    ```
+    contract Pair{
+        address public factory; // 工廠合約地址
+        address public token0; // 代幣 1
+        address public token1; // 代幣 2
+        
+        constructor() payable {
+            factory = msg.sender;
+        }
+        
+        // 工廠部署時分配一次
+        function initialize(address _token0, address _token1) external {
+            require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // 充分檢查
+            token0 = _token0;
+            token1 = _token1;
+        }
+    }
+    ```
+#### PairFactory2 合約
+* `PairFactory` **工廠合約**用於創建新的幣對，並管理幣對地址。
+* 工廠合約（PairFactory）有兩個狀態變數
+    * `getPair` 是兩個代幣地址到幣對地址的 map，方便根據代幣找到幣對地址
+    * `allPairs` 是幣對地址的陣列，儲存了所有代幣地址。
+* `PairFactory` 合約只有一個 `createPair` 函數，根據輸入的兩個代幣地址 `tokenA` 和 `tokenB` 來創建新的 `Pair` 合約。
+* `salt` 為 `token1` 和 `token2` 的 hash
+    ``` 
+    contract PairFactory{
+       mapping(address => mapping(address => address)) public getPair; // 通過兩個代幣地址查 Pair 地址
+       address[] public allPairs; // 保存所有 Pair 地址
+       
+       function createPair2(address tokenA, address tokenB) external returns (address pairAddr) {
+           require(tokenA != tokenB, 'IDENTICAL_ADDRESSES'); // 避免 tokenA 和 tokenB 產生相同的衝突
+           
+           // 用 tokenA 和 tokenB 地址計算 salt
+           // 將 tokenA 和 tokenB 按大小順序排列
+           (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
+           bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+           
+           // 用 CREATE2 創建新合約
+           Pair pair = new Pair{salt: salt}();
+           
+           // 呼叫新合約的 initialize 方法
+           pair.initialize(tokenA, tokenB);
+           
+           // 更新地址 map
+           pairAddr = address(pair);
+           allPairs.push(pairAddr);
+           getPair[toeknA][tokenB] = pairAddr;
+           getPair[tokenB][tokenA] = pairAddr;
+       }
+    }
+    ```
+    
+#### 事先計算 Pair 地址
+用 `calculateAddr` 函數來事先計算 `tokenA` 和 `tokenB` 將會產生的 Pair 位址。透過它，我們可以驗證我們事先計算的地址和實際地址是否相同。
+```
+function calculateAddr(address tokenA, address tokenB) public view returns(address predictedAddress) {
+    require(tokenA != tokenB, 'IDENTICAL_ADDRESSES');
+    (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); // 將 tokenA 和 tokenB 按大小順序排列
+    bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+    // 計算合約位址方法 hash()
+    predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+        bytes(0xff),
+        addrss(this),
+        salt,
+        keccack256(type(Pair).creationCode)
+    )))))
+    
+}
+```
+
+部署 `PairFactory2` 合約後，可以查看呼叫 `createPair2` 對幣地址是否與事先計算的地址相同。
+
 
 <!-- Content_END -->

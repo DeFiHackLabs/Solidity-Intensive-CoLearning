@@ -786,5 +786,83 @@ contract OtherContract{
      - call调用其他函数的时候还可以指定eth和gas: 目标函数地址.call{value: 1 ether, gas: 100000}(abi.encodeWithSignature("functionName(parameterType[,...])", parameterValue[,...]))
      - 如果call调用的目标函数不存在，则会触发调用fallback函数
 
+### 2024.10.06
+
+學習內容:
+
+- [x] delegatecall调用函数
+   - 和call类似
+   - 区别：只能指定gas不能指定eth。delegateCall是代理调用，实际调用者为用户。call是直接调用，实际调用者为调用发起者。
+   - delegatecall有安全隐患，使用时要保证当前合约和目标合约状态变量的存储结构一致且保证目标合约安全
+   - 使用场景：代理合约、[EIP-2535 Diamonds](https://eip2535diamonds.substack.com/p/introduction-to-the-diamond-standard)
+    
+
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+// call和delegatecall的区别
+
+// 存储合约
+contract ContractA{
+    event ContractAMsgAdd(bool indexed,bytes);
+    event ContractAMsgDelegateAdd(bool indexed,bytes);
+    mapping(address => string) public msgMapping; // 合约A运行后，delegateCall会将状态变量存储到合约A：mapping为：(合约用户地址：message信息)
+
+    function setMapping(address _contractBAddress, string memory messages) external {
+       
+       // 直接调用 状态变量存储在合约B中，address为 合约A的地址
+       (bool success, bytes memory data) = _contractBAddress.call(abi.encodeWithSignature("addMsg(string)", messages));
+        emit ContractAMsgAdd(success, data);
+        // 代理调用 状态变量存储在合约A中，address为  用户的地址
+        (bool success2, bytes memory data2) = _contractBAddress.delegatecall(abi.encodeWithSignature("addMsg(string)", messages));
+        emit ContractAMsgDelegateAdd(success2, data2);
+    }
+}
+
+// 逻辑合约
+contract ContractB{
+    event AddMsgEvent(address indexed,string); 
+    mapping(address => string) public msgMapping; // 合约A运行后，call会将状态变量存储到合约B：mapping为：(合约B地址：message信息)
+    function addMsg(string memory messages) external {
+        msgMapping[msg.sender] = messages;
+        emit AddMsgEvent(msg.sender, messages);
+    }
+}
+```
+
+### 2024.10.07
+
+學習內容:
+
+- [x] 创建合约
+
+    -  create方式创建合约
+        - 用法：`Contract x = new Contract{value: 1 ether}(params);` 如果构造函数是payable，可以通过value传入eth
+        - 地址计算：`新地址 = hash(创建者地址, nonce)` 因为nonce会随时间改变，所以地址不可预测
+       
+    -  create2方式创建合约
+        - 用法：`Contract x  = new Contract{salt: _salt, value: 1 ether}(params);` 如果构造函数是payable，可以通过value传入eth
+        - 地址计算：
+           - `新地址 = hash("0xFF",创建者地址, salt, initcode)`
+           - `0xFF` 是固定值
+           - `initcode` 新合约的初始字节码（合约的Creation Code和构造函数的参数）
+           - `salt` 一个创建者指定的bytes32类型的值，它的主要目的是用来影响新创建的合约的地址。
+           - 创建者地址：调用 CREATE2 的当前合约（创建合约）地址。
+
+
+### 2024.10.08
+
+學習內容:
+
+- [x] 销毁合约
+
+    - 关键字selfdestruct
+    - 作用：销毁合约，将合约余额发送到指定地址
+    - 用法：`selfdestruct(_address);`, 其中_address为接收合约余额的地址
+    - 坎昆升级前：合约被销毁，合约余额会被转移到指定地址；坎昆升级后：同一笔交易内创建的合约可以被销毁，余额会被转到指定地址。已经部署的合约不会被销毁，但是余额会被转到指定账户。
+    - 调用selfdestruct时，指定的address没有fallback和receive函数，也能接收ETH
+    - 应用场景：selfdestruct时智能合约的紧急按钮，发生THE DAO攻击时，可以通过selfdestruct销毁合约，将合约余额转移到指定账户。
 
 <!-- Content_END -->

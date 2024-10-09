@@ -1203,11 +1203,11 @@ try someContract.someFunction returns(returnType var) {
 // Conditional catch
 try ... {
 } catch Error(string memory reason) {
-  // do something with reason
+  // catch failing revert() and require()
 } catch Panic(uint errorCode) {
-  // do something with errorCode
+  // catch overflow, serious error
 } catch (bytes memory lowLevelReason) {
-  // do something with lowLevelReason
+  // catch failing assert()
 }
 ```
 
@@ -1215,14 +1215,888 @@ End of WTF Solidity 102
 
 ### 2024.10.05
 
+#### Chapter 31: ERC20
+
+ERC20
+
+- A token standard on Ethereum, which originated from the EIP20 proposed by Vitalik Buterin in November 2015
+- Implements the basic logic of token transfer:
+  - Account balance
+  - Transfer
+  - Approve transfer
+  - Total token supply
+  - Token information: name, symbol, decimal
+
+IERC20
+
+- Interface contract of `ERC20` token standard
+  - Event
+    - `event Transfer(address indexed from, address indexed to, uint256 value);`
+    - `event Approval(address indexed owner, address indexed spender, uint256 value);`
+  - Functions
+    - `function totalSupply() external view returns (uint256);`
+    - `function balanceOf(address account) external view returns (uint256);`
+    - `function transfer(address to, uint256 amount) external returns (bool);`
+    - `function allowance(address owner, address spender) external view returns (uint256);`
+    - `function approve(address spender, uint256 amount) external returns (bool);`
+    - `function transferFrom(address from, address to, uint256 amount) external returns (bool);`
+
+Implementation of ERC20
+
+- State Variables
+
+```
+mapping(address => uint256) public override balanceOf;
+
+mapping(address => mapping(address => uint256)) public override allowance;
+
+uint256 public override totalSupply;   // total supply of the token
+
+string public name;   // the name of the token
+
+string public symbol;  // the symbol of the token
+
+uint8 public decimals = 18; // decimal places of the token
+```
+
+- Functions
+
+```
+// Initializes the token name and symbol
+constructor(string memory name_, string memory symbol_){
+  name = name_;
+  symbol = symbol_;
+}
+
+// Handle token transfer
+function transfer(address recipient, uint amount) external override returns (bool) {
+  balanceOf[msg.sender] -= amount;
+  balanceOf[recipient] += amount;
+  emit Transfer(msg.sender, recipient, amount);
+  return true;
+}
+
+// Handle token authorization logic
+function approve(address spender, uint amount) external override returns (bool) {
+  allowance[msg.sender][spender] = amount;
+  emit Approval(msg.sender, spender, amount);
+  return true;
+}
+
+// Logic for authorized transfer
+function transferFrom(address sender, address recipient, uint amount) external override returns (bool) {
+  allowance[sender][msg.sender] -= amount;
+  balanceOf[sender] -= amount;
+  balanceOf[recipient] += amount;
+  emit Transfer(sender, recipient, amount);
+  return true;
+}
+
+// Token minting
+function mint(uint amount) external {
+  balanceOf[msg.sender] += amount;
+  totalSupply += amount;
+  emit Transfer(address(0), msg.sender, amount);
+}
+
+// Destroy token
+function burn(uint amount) external {
+  balanceOf[msg.sender] -= amount;
+  totalSupply -= amount;
+  emit Transfer(msg.sender, address(0), amount);
+}
+```
+
 ### 2024.10.06
+
+#### Chapter 32: Token Faucet
+
+An apps or smart contract for claiming token, usually happen on testnet for dapps testing or learning to interact with blockchain.
+
+- However, the first blockchain faucet was introduced in Bitcoin mainnet during early time, had gave away over 19,700 BTC.
+
+Example of ERC20 Token Faucet
+
+```
+contract TokenFaucet {
+  uint256 public amountAllowed = 100; // the allowed amount for each request is 100
+  address public tokenContract;   // contract address of the token
+  mapping(address => bool) public requestedAddress;   // a map contains requested address
+
+  // Event SendToken
+  event SendToken(address indexed Receiver, uint256 indexed Amount);
+
+  // Set the ERC20'S contract address during deployment
+  constructor(address _tokenContract) {
+    tokenContract = _tokenContract; // set token contract
+  }
+
+  // Function for users to request tokens
+  function requestTokens() external {
+    require(requestedAddress[msg.sender] == false, "Can't Request Multiple Times!"); // Only one request per address
+    IERC20 token = IERC20(tokenContract); // Create an IERC20 contract object
+    require(token.balanceOf(address(this)) >= amountAllowed, "Faucet Empty!"); // Faucet is empty
+
+    token.transfer(msg.sender, amountAllowed); // Send token
+    requestedAddress[msg.sender] = true; // Record the requested address
+
+    emit SendToken(msg.sender, amountAllowed); // Emit SendToken event
+  }
+}
+```
 
 ### 2024.10.07
 
+#### Chapter 33: Airdrop
+
+Example of Airdrop Contract
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.26;
+
+import {MerkleProof} from "./MerkleProof.sol";
+
+interface IToken {
+    function mint(address to, uint256 amount) external;
+}
+
+contract Airdrop {
+    event Claim(address to, uint256 amount);
+
+    IToken public immutable token;
+    bytes32 public immutable root;
+    mapping(bytes32 => bool) public claimed;
+
+    constructor(address _token, bytes32 _root) {
+        token = IToken(_token);
+        root = _root;
+    }
+
+    function getLeafHash(address to, uint256 amount)
+        public
+        pure
+        returns (bytes32)
+    {
+        return keccak256(abi.encode(to, amount));
+    }
+
+    function claim(bytes32[] memory proof, address to, uint256 amount)
+        external
+    {
+        // NOTE: (to, amount) cannot have duplicates
+        bytes32 leaf = getLeafHash(to, amount);
+
+        require(!claimed[leaf], "airdrop already claimed");
+        require(MerkleProof.verify(proof, root, leaf), "invalid merkle proof");
+        claimed[leaf] = true;
+
+        token.mint(to, amount);
+
+        emit Claim(to, amount);
+    }
+}
+```
+
+This contract use Merkle Tree to check the eligibility of address to receive token airdrop.
+
+- Claim function check the merkle proof submit by address and prevent address from repeated claim
+
 ### 2024.10.08
+
+#### Chapter 34: ERC721
+
+ERC165
+
+- To declare the interfaces the smart contract support, for other contracts to check and access.
+
+```
+interface IERC165 {
+    /**
+     * @dev Returns true if contract implements the `interfaceId` for querying.
+     * See https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[EIP section] for the definition of what an interface is.
+     */
+    function supportsInterface(bytes4 interfaceId) external view returns (bool);
+}
+
+// ERC721 implemented ERC165
+function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+  return
+    interfaceId == type(IERC721).interfaceId ||
+    interfaceId == type(IERC165).interfaceId;
+}
+```
+
+ERC721
+
+- A non-divisible token standard
+
+IERC721
+
+- Interface contract of `ERC71` token standard
+
+  - Event
+    - `event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);`
+    - `event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);`
+    - `event ApprovalForAll(address indexed owner, address indexed operator, bool approved);`
+  - Functions
+    - `function balanceOf(address owner) external view returns (uint256 balance);`
+    - `function ownerOf(uint256 tokenId) external view returns (address owner);`
+    - `function safeTransferFrom(address from, address to, uint256 tokenId, bytes calldata data) external;`
+    - `function safeTransferFrom(address from, address to, uint256 tokenId) external;`
+    - `function transferFrom(address from, address to, uint256 tokenId) external;`
+    - `function approve(address to, uint256 tokenId) external;`
+    - `function setApprovalForAll(address operator, bool _approved) external;`
+    - `function getApproved(uint256 tokenId) external view returns (address operator);`
+    - `function isApprovedForAll(address owner, address operator) external view returns (bool);`
+
+  IERC721Receiver
+
+  - Implement this interface can allow a contract to receive `ERC721` tokens, otherwise it will revert by `safeTransferFrom()` method
+
+  ```
+  interface IERC721Receiver {
+    function onERC721Received(
+        address operator,
+        address from,
+        uint tokenId,
+        bytes calldata data
+    ) external returns (bytes4);
+  }
+
+  // How it works
+      function _checkOnERC721Received(
+        address from,
+        address to,
+        uint tokenId,
+        bytes memory _data
+    ) private returns (bool) {
+        if (to.isContract()) {
+            return
+                IERC721Receiver(to).onERC721Received(
+                    msg.sender,
+                    from,
+                    tokenId,
+                    _data
+                ) == IERC721Receiver.onERC721Received.selector;
+        } else {
+            return true;
+        }
+    }
+  ```
+
+  IERC721Metadata
+
+  - Implements commonly used functions for metadata querying
+    - `name()`
+    - `symbol()`
+    - `tokenURI()`: URL of `metadata
+    ```
+    interface IERC721Metadata is IERC721 {
+      function name() external view returns (string memory);
+      function symbol() external view returns (string memory);
+      function tokenURI(uint256 tokenId) external view returns (string memory);
+    }
+    ```
+
+Implementation of ERC20
+
+- State Variables
+
+```
+    // Token name
+    string public override name;
+    // Token symbol
+    string public override symbol;
+    // Mapping from token ID to owner address
+    mapping(uint => address) private _owners;
+    // Mapping owner address to balance of the token
+    mapping(address => uint) private _balances;
+    // Mapping from tokenId to approved address
+    mapping(uint => address) private _tokenApprovals;
+    //  Mapping from owner to operator addresses' batch approvals
+    mapping(address => mapping(address => bool)) private _operatorApprovals;
+```
+
+- Functions
+
+```
+// Initializes the contract by setting a `name` and a `symbol` to the token collection.
+constructor(string memory name_, string memory symbol_) {
+  name = name_;
+  symbol = symbol_;
+}
+
+// Implements the supportsInterface of IERC165
+function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+  return
+    interfaceId == type(IERC721).interfaceId ||
+    interfaceId == type(IERC165).interfaceId ||
+    interfaceId == type(IERC721Metadata).interfaceId;
+}
+
+// Implements the balanceOf function of IERC721, which uses `_balances` variable to check the balance of tokens in `owner`'s account.
+function balanceOf(address owner) external view override returns (uint) {
+  require(owner != address(0), "owner = zero address");
+  return _balances[owner];
+}
+
+// Implements the ownerOf function of IERC721, which uses `_owners` variable to check `tokenId`'s owner.
+function ownerOf(uint tokenId) public view override returns (address owner) {
+  owner = _owners[tokenId];
+  require(owner != address(0), "token doesn't exist");
+}
+
+// Implements the isApprovedForAll function of IERC721, which uses `_operatorApprovals` variable to check whether `owner` address's NFTs are authorized in batch to be held by another `operator` address.
+function isApprovedForAll(address owner, address operator) external view override returns (bool) {
+  return _operatorApprovals[owner][operator];
+}
+
+// Implements the setApprovalForAll function of IERC721, which approves all holding tokens to `operator` address. Invokes `_setApprovalForAll` function.
+function setApprovalForAll(address operator, bool approved) external override {
+  _operatorApprovals[msg.sender][operator] = approved;
+  emit ApprovalForAll(msg.sender, operator, approved);
+}
+
+// Implements the getApproved function of IERC721, which uses `_tokenApprovals` variable to check authorized address of `tokenId`.
+function getApproved(uint tokenId) external view override returns (address) {
+  require(_owners[tokenId] != address(0), "token doesn't exist");
+  return _tokenApprovals[tokenId];
+}
+
+// The approve function, which updates `_tokenApprovals` variable to approve `to` address to use `tokenId` and emits an Approval event.
+function _approve(address owner, address to, uint tokenId) private {
+  _tokenApprovals[tokenId] = to;
+  emit Approval(owner, to, tokenId);
+}
+
+    // Implements the approve function of IERC721, which approves `tokenId` to `to` address.
+    // Requirements: `to` is not `owner` and msg.sender is `owner` or an approved address. Invokes the _approve function.
+    function approve(address to, uint tokenId) external override {
+address owner = _owners[tokenId];
+require(
+    msg.sender == owner || _operatorApprovals[owner][msg.sender],
+    "not owner nor approved for all"
+);
+_approve(owner, to, tokenId);
+    }
+
+// Checks whether the `spender` address can use `tokenId` or not. (`spender` is `owner` or an approved address)
+function _isApprovedOrOwner(address owner, address spender, uint tokenId) private view returns (bool) {
+  return (spender == owner ||
+    _tokenApprovals[tokenId] == spender ||
+    _operatorApprovals[owner][spender]);
+}
+
+// The transfer function, which transfers `tokenId` from `from` address to `to` address by updating the `_balances` and `_owner` variables, emits a Transfer event.
+function _transfer(address owner, address from, address to, uint tokenId) private {
+  require(from == owner, "not owner");
+  require(to != address(0), "transfer to the zero address");
+
+  _approve(owner, address(0), tokenId);
+  _balances[from] -= 1;
+  _balances[to] += 1;
+  _owners[tokenId] = to;
+
+  emit Transfer(from, to, tokenId);
+}
+
+// Implements the transferFrom function of IERC721, we should not use it as it is not a safe transfer. Invokes the _transfer function.
+function transferFrom(address from,address to,uint tokenId) external override {
+  address owner = ownerOf(tokenId);
+  require(
+    _isApprovedOrOwner(owner, msg.sender, tokenId),
+    "not owner nor approved"
+  );
+
+  _transfer(owner, from, to, tokenId);
+}
+
+// Safely transfers `tokenId` token from `from` to `to`, this function will check that contract recipients are aware of the ERC721 protocol to prevent tokens from being forever locked. It invokes the _transfer and _checkOnERC721Received functions.
+function _safeTransfer(address owner, address from, address to, uint tokenId, bytes memory _data) private {
+  _transfer(owner, from, to, tokenId);
+  require(_checkOnERC721Received(from, to, tokenId, _data), "not ERC721Receiver");
+}
+
+// Implements the safeTransferFrom function of IERC721 to safely transfer. It invokes the _safeTransfe function.
+function safeTransferFrom(address from, address to, uint tokenId, bytes memory _data) public override {
+  address owner = ownerOf(tokenId);
+  require(
+    _isApprovedOrOwner(owner, msg.sender, tokenId),
+    "not owner nor approved"
+  );
+
+  _safeTransfer(owner, from, to, tokenId, _data);
+}
+
+// an overloaded function for safeTransferFrom
+function safeTransferFrom(address from, address to, uint tokenId) external override {
+  safeTransferFrom(from, to, tokenId, "");
+}
+
+// The mint function, which updates `_balances` and `_owners` variables to mint `tokenId` and transfers it to `to`. It emits an Transfer event.
+function _mint(address to, uint tokenId) internal virtual {
+  require(to != address(0), "mint to zero address");
+  require(_owners[tokenId] == address(0), "token already minted");
+
+  _balances[to] += 1;
+  _owners[tokenId] = to;
+
+  emit Transfer(address(0), to, tokenId);
+}
+
+// The destroy function, which destroys `tokenId` by updating `_balances` and `_owners` variables. It emits an Transfer event. Requirements: `tokenId` must exist.
+function _burn(uint tokenId) internal virtual {
+  address owner = ownerOf(tokenId);
+  require(msg.sender == owner, "not owner of token");
+
+  _approve(owner, address(0), tokenId);
+
+  _balances[owner] -= 1;
+  delete _owners[tokenId];
+
+  emit Transfer(owner, address(0), tokenId);
+}
+
+// It invokes IERC721Receiver-onERC721Received when `to` address is a contract to prevent `tokenId` from being forever locked.
+function _checkOnERC721Received(address from, address to, uint tokenId, bytes memory _data) private returns (bool) {
+  if (to.isContract()) {
+    return IERC721Receiver(to).onERC721Received(msg.sender, from, tokenId,_data) == IERC721Receiver.onERC721Received.selector;
+  } else {
+    return true;
+  }
+}
+
+// Implements the tokenURI function of IERC721Metadata to query metadata.
+function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
+  require(_owners[tokenId] != address(0), "Token Not Exist");
+
+  string memory baseURI = _baseURI();
+  return bytes(baseURI).length > 0 ? string(abi.encodePacked(baseURI, tokenId.toString())) : "";
+}
+
+// Base URI for computing {tokenURI}, which is the combination of `baseURI` and `tokenId`. Developers should rewrite this function accordingly.
+function _baseURI() internal view virtual returns (string memory) {
+  return "";
+}
+```
+
+Other ERC165 Interface ID
+
+```
+function supportsInterface(bytes4 interfaceId) public view virtual returns (bool) {
+  return
+    interfaceId == 0x01ffc9a7 || // ERC165 Interface ID for ERC165
+    interfaceId == 0x80ac58cd || // ERC165 Interface ID for ERC721
+    interfaceId == 0x5b5e139f || // ERC165 Interface ID for ERC721Metadata
+    interfaceId == 0x780e9d63;   // ERC165 Interface ID for ERC721Enumerable
+}
+```
 
 ### 2024.10.09
 
+#### Chapter 35: Dutch Auction
+
+One of the common auction, also known as descending price auction, where the item begin to sell at preset price and decrease sequentially until it's sold.
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.4;
+
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "https://github.com/AmazingAng/WTFSolidity/blob/main/34_ERC721/ERC721.sol";
+
+contract DutchAuction is Ownable, ERC721 {
+    uint256 public constant COLLECTOIN_SIZE = 10000; // Total number of NFTs
+    uint256 public constant AUCTION_START_PRICE = 1 ether; // Starting price (highest price)
+    uint256 public constant AUCTION_END_PRICE = 0.1 ether; // End price (lowest price/floor price)
+    uint256 public constant AUCTION_TIME = 10 minutes; // Auction duration. Set to 10 minutes for testing convenience
+    uint256 public constant AUCTION_DROP_INTERVAL = 1 minutes; // After how long the price will drop once
+    uint256 public constant AUCTION_DROP_PER_STEP =
+        (AUCTION_START_PRICE - AUCTION_END_PRICE) /
+        (AUCTION_TIME / AUCTION_DROP_INTERVAL); // Price reduction per step
+
+    uint256 public auctionStartTime; // Auction start timestamp
+    string private _baseTokenURI; // metadata URI
+    uint256[] private _allTokens; // Record all existing tokenIds
+
+    // Get real-time auction price
+    function getAuctionPrice()
+        public
+        view
+        returns (uint256)
+    {
+        if (block.timestamp < auctionStartTime) {
+        return AUCTION_START_PRICE;
+        }else if (block.timestamp - auctionStartTime >= AUCTION_TIME) {
+        return AUCTION_END_PRICE;
+        } else {
+        uint256 steps = (block.timestamp - auctionStartTime) /
+            AUCTION_DROP_INTERVAL;
+        return AUCTION_START_PRICE - (steps * AUCTION_DROP_PER_STEP);
+        }
+    }
+
+    // the auction mint function
+    function auctionMint(uint256 quantity) external payable{
+        uint256 _saleStartTime = uint256(auctionStartTime); // uses local variable to reduce gas
+        require(
+        _saleStartTime != 0 && block.timestamp >= _saleStartTime,
+        "sale has not started yet"
+        ); // checks if the start time of auction has been set and auction has started
+        require(
+        totalSupply() + quantity <= COLLECTOIN_SIZE,
+        "not enough remaining reserved for auction to support desired mint amount"
+        ); // checks if the number of NFTs has exceeded the limit
+
+        uint256 totalCost = getAuctionPrice() * quantity; // calculates the cost of mint
+        require(msg.value >= totalCost, "Need to send more ETH."); // checks if the user has enough ETH to pay
+
+        // Mint NFT
+        for(uint256 i = 0; i < quantity; i++) {
+            uint256 mintIndex = totalSupply();
+            _mint(msg.sender, mintIndex);
+            _addTokenToAllTokensEnumeration(mintIndex);
+        }
+        // refund excess ETH
+        if (msg.value > totalCost) {
+            payable(msg.sender).transfer(msg.value - totalCost); //please check is there any risk of reentrancy attack
+        }
+    }
+
+    // the withdraw function, onlyOwner modifier
+    function withdrawMoney() external onlyOwner {
+        (bool success, ) = msg.sender.call{value: address(this).balance}(""); // how to use call function please see lession #22
+        require(success, "Transfer failed.");
+    }
+}
+```
+
+#### Chapter 36: Merkle Tree
+
+A fundamental encryption technology in blockchain
+
+- Encrypted tree constructed from the bottom up, each leaf represent a hash of data,
+- And non-leaf represent the hash of two child nodes
+
+Generating a Merkle Tree
+
+- In Javascript, the most used library is [merkletreejs](https://github.com/merkletreejs/merkletreejs)
+
+```
+// Sample data
+    [
+    "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4",
+    "0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2",
+    "0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db",
+    "0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB"
+    ]
+
+// Merkle tree of sorted keccak256 hash
+└─ Root: eeefd63003e0e702cb41cd0043015a6e26ddb38073cc6ffeb0ba3e808ba8c097
+   ├─ 9d997719c0a5b5f6db9b8ac69a988be57cf324cb9fffd51dc2c37544bb520d65
+   │  ├─ Leaf0：5931b4ed56ace4c46b68524cb5bcbf4195f1bbaacbe5228fbd090546c88dd229
+   │  └─ Leaf1：999bf57501565dbd2fdcea36efa2b9aef8340a8901e3459f4a4c926275d36cdb
+   └─ 4726e4102af77216b09ccd94f40daa10531c87c4d60bba7f3b3faf5ff9f19b3c
+      ├─ Leaf2：04a10bfd00977f54cc3450c9b25c9b3a502a089eba0097ba35fc33c4ea5fcb54
+      └─ Leaf3：dfbe3e504ac4e35541bebad4d0e7574668e16fefa26cd4172f93e18b59ce9486
+```
+
+Verification of Merkle Proof
+
+```
+// Proof of address 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4
+[
+  "0x999bf57501565dbd2fdcea36efa2b9aef8340a8901e3459f4a4c926275d36cdb",
+  "0x4726e4102af77216b09ccd94f40daa10531c87c4d60bba7f3b3faf5ff9f19b3c"
+]
+```
+
+- `MerkleProof` library in Solidity
+
+```
+library MerkleProof {
+    /**
+     * @dev Returns `true` when the `root` reconstructed from `proof` and `leaf` equals to the given `root`, meaning the data is valid.
+     * During reconstruction, both the leaf node pairs and element pairs are sorted.
+     */
+    function verify(
+        bytes32[] memory proof,
+        bytes32 root,
+        bytes32 leaf
+    ) internal pure returns (bool) {
+        return processProof(proof, leaf) == root;
+    }
+
+    /**
+     * @dev Returns the `root` of the Merkle tree computed from a `leaf` and a `proof`.
+     * The `proof` is only valid when the reconstructed `root` equals to the given `root`.
+     * During reconstruction, both the leaf node pairs and element pairs are sorted.
+     */
+    function processProof(bytes32[] memory proof, bytes32 leaf) internal pure returns (bytes32) {
+        bytes32 computedHash = leaf;
+        for (uint256 i = 0; i < proof.length; i++) {
+            computedHash = _hashPair(computedHash, proof[i]);
+        }
+        return computedHash;
+    }
+
+    // Sorted Pair Hash
+    function _hashPair(bytes32 a, bytes32 b) private pure returns (bytes32) {
+        return a < b ? keccak256(abi.encodePacked(a, b)) : keccak256(abi.encodePacked(b, a));
+    }
+}
+```
+
+Use cases:
+
+- NFT Whitelist: One of the gas-efficient way to allow whitelisted address to mint NFT. Only stored `root` in contract while `proof` compute offline
+
+```
+contract MerkleTree is ERC721 {
+    bytes32 immutable public root; // Root of the Merkle tree
+    mapping(address => bool) public mintedAddress;   // Record the address that has already been minted
+
+    // Constructor, initialize the name and symbol of the NFT collection, and the root of the Merkle tree
+    constructor(string memory name, string memory symbol, bytes32 merkleroot)
+    ERC721(name, symbol)
+    {
+        root = merkleroot;
+    }
+
+    // Use the Merkle tree to verify the address and mint
+    function mint(address account, uint256 tokenId, bytes32[] calldata proof)
+    external
+    {
+        require(_verify(_leaf(account), proof), "Invalid merkle proof"); // Merkle verification passed
+        require(!mintedAddress[account], "Already minted!"); // Address has not been minted
+
+        mintedAddress[account] = true; // Record the minted address
+        _mint(account, tokenId); // Mint
+    }
+
+    // Calculate the hash value of the Merkle tree leaf
+    function _leaf(address account)
+    internal pure returns (bytes32)
+    {
+        return keccak256(abi.encodePacked(account));
+    }
+
+    // Merkle tree verification, call the verify() function of the MerkleProof library
+    function _verify(bytes32 leaf, bytes32[] memory proof)
+    internal view returns (bool)
+    {
+        return MerkleProof.verify(proof, root, leaf);
+    }
+}
+```
+
+#### Chapter 37: Digital Signature
+
+The digital signature algorithm used in Ethereum is Elliptic Curve Digital Signature Algorithm `ECDSA`. An algorithm based on the "private-public key" pair of elliptic curves
+
+- Identity authentication: Prove that the signer is the holder of the private key.
+- Non-repudiation: The sender cannot deny having sent the message.
+- Integrity: The message cannot be modified during transmission.
+
+`ECDSA` Contract
+
+- Signer use `private key` to create a `signature` for a `message`
+- Anyone can use the `signature` and the `message` to recover signer's `public key` and verify the signature
+
+Creating a signature
+
+1. Packing the message
+
+```
+// Concatenate the minting address (address type) and tokenId (uint256 type) to form the message msgHash
+function getMessageHash(address _account, uint256 _tokenId) public pure returns(bytes32){
+    return keccak256(abi.encodePacked(_account, _tokenId));
+}
+```
+
+2. Calculate Ethereum Signature Message
+
+```
+/*
+ * Create an Ethereum signed message hash.
+ * Adds the "\x19Ethereum Signed Message:\n32" string to prevent signing executable transactions.
+*/
+function toEthSignedMessageHash(bytes32 hash) internal pure returns (bytes32) {
+  // The length of hash is 32
+  return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash));
+}
+```
+
+3. Signing the hash generated
+
+```
+account = "0xe16C1623c1AA7D919cd2241d8b36d9E79C1Be2A2"
+hash = "0x1bf2c0ce4546651a1a2feb457b39d891a6b83931cc2454434f39961345ac378c"
+ethereum.request({method: "personal_sign", params: [account, hash]})
+```
+
+4. Recover Public Key from Signature and Message
+
+```
+   // @dev Recovers the signer address from _msgHash and the signature _signature
+    function recoverSigner(bytes32 _msgHash, bytes memory _signature) internal pure returns (address) {
+        // Checks the length of the signature. 65 is the length of a standard r,s,v signature.
+        require(_signature.length == 65, "invalid signature length");
+        bytes32 r;
+        bytes32 s;
+        uint8 v;
+        // Currently, we can only use assembly to obtain the values of r,s,v from the signature.
+        assembly {
+            /*
+            The first 32 bytes store the length of the signature (dynamic array storage rule)
+            add(sig, 32) = signature pointer + 32
+            Is equivalent to skipping the first 32 bytes of the signature
+            mload(p) loads the next 32 bytes of data from the memory address p
+            */
+            // Reads the next 32 bytes after the length data
+            r := mload(add(_signature, 0x20))
+            // Reads the next 32 bytes after r
+            s := mload(add(_signature, 0x40))
+            // Reads the last byte
+            v := byte(0, mload(add(_signature, 0x60)))
+        }
+        // Uses ecrecover(global function) to recover the signer address from msgHash, r,s,v
+        return ecrecover(_msgHash, v, r, s);
+    }
+```
+
+5. Verify Signature
+
+```
+// Verify if the signature address is correct via ECDSA. Returns true if correct.
+function verify(bytes32 _msgHash, bytes memory _signature, address _signer) internal pure returns (bool) {
+    return recoverSigner(_msgHash, _signature) == _signer;
+}
+```
+
+#### Chapter 38: NFT Exchange
+
+Design Logic
+
+- Seller: Create a listing, revoke the listing, and update the price
+- Buyer: Purchase the item via contract
+- Sale order: Listing created by seller, include listing price, owner and sales info
+
+Events
+
+```
+    event List(address indexed seller, address indexed nftAddr, uint256 indexed tokenId, uint256 price);
+    event Purchase(address indexed buyer, address indexed nftAddr, uint256 indexed tokenId, uint256 price);
+    event Revoke(address indexed seller, address indexed nftAddr, uint256 indexed tokenId);
+    event Update(address indexed seller, address indexed nftAddr, uint256 indexed tokenId, uint256 newPrice);
+```
+
+Order
+
+```
+    // Define the order structure
+    struct Order{
+        address owner;
+        uint256 price;
+    }
+    // NFT Order mapping
+    mapping(address => mapping(uint256 => Order)) public nftList;
+```
+
+Fallback and onERC721Received
+
+```
+// A fallback function for contract to receive ETH
+    fallback() external payable{}
+// Allow contract to receive ERC721 via IERC721Receiver
+```
+
+Trading
+
+```
+    // List: The seller lists NFT on sale, contract address is _nftAddr, tokenId is _tokenId, price is _price in ether (unit is wei)
+    function list(address _nftAddr, uint256 _tokenId, uint256 _price) public{
+        IERC721 _nft = IERC721(_nftAddr); // Declare an interface contract variable IERC721
+        require(_nft.getApproved(_tokenId) == address(this), "Need Approval"); // The contract is approved
+        require(_price > 0); // The price is greater than 0
+
+        Order storage _order = nftList[_nftAddr][_tokenId]; // Set the NFT holder and price
+        _order.owner = msg.sender;
+        _order.price = _price;
+        // Transfer NFT to the contract
+        _nft.safeTransferFrom(msg.sender, address(this), _tokenId);
+
+        // Release List event
+        emit List(msg.sender, _nftAddr, _tokenId, _price);
+    }
+
+// cancel order: seller cancels the order
+function revoke(address _nftAddr, uint256 _tokenId) public {
+    Order storage _order = nftList[_nftAddr][_tokenId]; // get the order
+    require(_order.owner == msg.sender, "Not Owner"); // must be initiated by the owner
+    // declare IERC721 interface contract variables
+    IERC721 _nft = IERC721(_nftAddr);
+    require(_nft.ownerOf(_tokenId) == address(this), "Invalid Order"); // NFT is in the contract
+
+    // transfer NFT to seller
+    _nft.safeTransferFrom(address(this), msg.sender, _tokenId);
+    delete nftList[_nftAddr][_tokenId]; // delete order
+
+    // emit Revoke event
+    emit Revoke(msg.sender, _nftAddr, _tokenId);
+}
+
+    // Adjust Price: Seller adjusts the listing price
+    function update(address _nftAddr, uint256 _tokenId, uint256 _newPrice) public {
+        require(_newPrice > 0, "Invalid Price"); // NFT price must be greater than 0
+        Order storage _order = nftList[_nftAddr][_tokenId]; // Get the Order
+        require(_order.owner == msg.sender, "Not Owner"); // It must be initiated by the owner
+        // Declare IERC721 interface contract variable
+        IERC721 _nft = IERC721(_nftAddr);
+        require(_nft.ownerOf(_tokenId) == address(this), "Invalid Order"); // NFT is in the contract
+
+        // Adjust the NFT price
+        _order.price = _newPrice;
+
+        // Release Update event
+        emit Update(msg.sender, _nftAddr, _tokenId, _newPrice);
+    }
+
+    // Purchase: A buyer purchases an NFT with ETH attached, the contract address is _nftAddr, tokenId is _tokenId
+    function purchase(address _nftAddr, uint256 _tokenId) payable public {
+        Order storage _order = nftList[_nftAddr][_tokenId]; // Get Order
+        require(_order.price > 0, "Invalid Price"); // The NFT price is greater than 0
+        require(msg.value >= _order.price, "Increase price"); // The purchase price is greater than the asking price
+        // Declare IERC721 interface contract variable
+        IERC721 _nft = IERC721(_nftAddr);
+        require(_nft.ownerOf(_tokenId) == address(this), "Invalid Order"); // The NFT is in the contract
+
+        // Transfer the NFT to the buyer
+        _nft.safeTransferFrom(address(this), msg.sender, _tokenId);
+        // Transfer ETH to the seller, refund any excess ETH to the buyer
+        payable(_order.owner).transfer(_order.price);
+        payable(msg.sender).transfer(msg.value-_order.price);
+
+        delete nftList[_nftAddr][_tokenId]; // Delete order
+
+        // Release Purchase event
+        emit Purchase(msg.sender, _nftAddr, _tokenId, msg.value);
+    }
+```
+
 ### 2024.10.10
+
+### 2024.10.11
+
+### 2024.10.12
+
+### 2024.10.13
+
+### 2024.10.14
+
+### 2024.10.15
+
+### 2024.10.16
 
 <!-- Content_END -->

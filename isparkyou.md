@@ -4299,8 +4299,1565 @@ function encodeTransactionData(
 }
 ```
 
+### 2024.10.5
+### ERC4626代币化金库标准
+#### 金库
+金库合约是 DeFi 乐高中的基础，它允许你把基础资产（代币）质押到合约中，换取一定收益，包括以下应用场景:
+收益农场: 在 Yearn Finance 中，你可以质押 USDT 获取利息。
+借贷: 在 AAVE 中，你可以出借 ETH 获取存款利息和贷款。
+质押: 在 Lido 中，你可以质押 ETH 参与 ETH 2.0 质押，得到可以生息的 stETH。
+
+#### 优点
+1. 代币化: ERC4626 继承了 ERC20，向金库存款时，将得到同样符合 ERC20 标准的金库份额，比如质押 ETH，自动获得 stETH。
+2. 更好的流通性: 由于代币化，你可以在不取回基础资产的情况下，利用金库份额做其他事情。拿 Lido 的 stETH 为例，你可以用它在 Uniswap 上提供流动性或交易，而不需要取出其中的 ETH。
+3. 更好的可组合性: 有了标准之后，用一套接口可以和所有 ERC4626 金库交互，让基于金库的应用、插件、工具开发更容易。
+
+#### 合约逻辑
+1. ERC20: ERC4626 继承了 ERC20，金库份额就是用 ERC20 代币代表的：用户将特定的 ERC20 基础资产（比如 WETH）存进金库，合约会给他铸造特定数量的金库份额代币；当用户从金库中提取基础资产时，会销毁相应数量的金库份额代币。asset() 函数会返回金库的基础资产的代币地址。
+2. 存款逻辑：让用户存入基础资产，并铸造相应数量的金库份额。相关函数为 deposit() 和 mint()。deposit(uint assets, address receiver) 函数让用户存入 assets 单位的资产，并铸造相应数量的金库份额给 receiver 地址。mint(uint shares, address receiver) 与它类似，只不过是以将铸造的金库份额作为参数。
+3. 提款逻辑：让用户销毁金库份额，并提取金库中相应数量的基础资产。相关函数为 withdraw() 和 redeem()，前者以取出基础资产数量为参数，后者以销毁的金库份额为参数。
+4. 会计和限额逻辑：ERC4626 标准中其他的函数是为了统计金库中的资产，存款/提款限额，和存款/提款的基础资产和金库份额数量。
+
+#### IERC4626接口合约
+**IERC4626 接口合约共包含 2 个事件:**
+Deposit 事件: 存款时触发。
+Withdraw 事件: 取款时触发。
+**IERC4626 接口合约还包含 16 个函数，根据功能分为 4 大类：元数据，存款/提款逻辑，会计逻辑，和存款/提款限额逻辑。**
+**元数据**
+asset(): 返回金库的基础资产代币地址，用于存款，取款。
+**存款/提款逻辑**
+deposit(): 存款函数，用户向金库存入 assets 单位的基础资产，然后合约铸造 shares 单位的金库额度给 receiver 地址。会释放 Deposit 事件。
+mint(): 铸造函数（也是存款函数），用户指定想获得的 shares 单位的金库额度，函数经过计算后得出需要存入的 assets 单位的基础资产数量，然后合约从用户账户转出 assets 单位的基础资产，再给 receiver 地址铸造指定数量的金库额度。会释放 Deposit 事件。
+withdraw(): 提款函数，owner 地址销毁 share 单位的金库额度，然后合约将相应数量的基础资产发送给 receiver 地址。
+redeem(): 赎回函数（也是提款函数），owner 地址销毁 shares 数量的金库额度，然后合约将相应单位的基础资产发给 receiver 地址
+**会计逻辑**
+totalAssets(): 返回金库中管理的基础资产代币总额。
+convertToShares(): 返回利用一定数额基础资产可以换取的金库额度。
+convertToAssets(): 返回利用一定数额金库额度可以换取的基础资产。
+previewDeposit(): 用于用户在当前链上环境模拟存款一定数额的基础资产能够获得的金库额度。
+previewMint(): 用于用户在当前链上环境模拟铸造一定数额的金库额度需要存款的基础资产数量。
+previewWithdraw(): 用于用户在当前链上环境模拟提款一定数额的基础资产需要赎回的金库份额。
+previewRedeem(): 用于链上和链下用户在当前链上环境模拟销毁一定数额的金库额度能够赎回的基础资产数量。
+**存款/提款限额逻辑**
+maxDeposit(): 返回某个用户地址单次存款可存的最大基础资产数额。
+maxMint(): 返回某个用户地址单次铸造可以铸造的最大金库额度。
+maxWithdraw(): 返回某个用户地址单次取款可以提取的最大基础资产额度。
+maxRedeem(): 返回某个用户地址单次赎回可以销毁的最大金库额度。
+```
+// SPDX-License-Identifier: MIT
+// Author: 0xAA from WTF Academy
+
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+
+/**
+ * @dev ERC4626 "代币化金库标准"的接口合约
+ * https://eips.ethereum.org/EIPS/eip-4626[ERC-4626].
+ */
+interface IERC4626 is IERC20, IERC20Metadata {
+    /*//////////////////////////////////////////////////////////////
+                                 事件
+    //////////////////////////////////////////////////////////////*/
+    // 存款时触发
+    event Deposit(address indexed sender, address indexed owner, uint256 assets, uint256 shares);
+
+    // 取款时触发
+    event Withdraw(
+        address indexed sender,
+        address indexed receiver,
+        address indexed owner,
+        uint256 assets,
+        uint256 shares
+    );
+
+    /*//////////////////////////////////////////////////////////////
+                            元数据
+    //////////////////////////////////////////////////////////////*/
+    /**
+     * @dev 返回金库的基础资产代币地址 （用于存款，取款）
+     * - 必须是 ERC20 代币合约地址.
+     * - 不能revert
+     */
+    function asset() external view returns (address assetTokenAddress);
+
+    /*//////////////////////////////////////////////////////////////
+                        存款/提款逻辑
+    //////////////////////////////////////////////////////////////*/
+    /**
+     * @dev 存款函数: 用户向金库存入 assets 单位的基础资产，然后合约铸造 shares 单位的金库额度给 receiver 地址
+     *
+     * - 必须释放 Deposit 事件.
+     * - 如果资产不能存入，必须revert，比如存款数额大大于上限等。
+     */
+    function deposit(uint256 assets, address receiver) external returns (uint256 shares);
+
+    /**
+     * @dev 铸造函数: 用户需要存入 assets 单位的基础资产，然后合约给 receiver 地址铸造 share 数量的金库额度
+     * - 必须释放 Deposit 事件.
+     * - 如果全部金库额度不能铸造，必须revert，比如铸造数额大大于上限等。
+     */
+    function mint(uint256 shares, address receiver) external returns (uint256 assets);
+
+    /**
+     * @dev 提款函数: owner 地址销毁 share 单位的金库额度，然后合约将 assets 单位的基础资产发送给 receiver 地址
+     * - 释放 Withdraw 事件
+     * - 如果全部基础资产不能提取，将revert
+     */
+    function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares);
+
+    /**
+     * @dev 赎回函数: owner 地址销毁 shares 数量的金库额度，然后合约将 assets 单位的基础资产发给 receiver 地址
+     * - 释放 Withdraw 事件
+     * - 如果金库额度不能全部销毁，则revert
+     */
+    function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets);
+
+    /*//////////////////////////////////////////////////////////////
+                            会计逻辑
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @dev 返回金库中管理的基础资产代币总额
+     * - 要包含利息
+     * - 要包含费用
+     * - 不能revert
+     */
+    function totalAssets() external view returns (uint256 totalManagedAssets);
+
+    /**
+     * @dev 返回利用一定数额基础资产可以换取的金库额度
+     * - 不要包含费用
+     * - 不包含滑点
+     * - 不能revert
+     */
+    function convertToShares(uint256 assets) external view returns (uint256 shares);
+
+    /**
+     * @dev 返回利用一定数额金库额度可以换取的基础资产
+     * - 不要包含费用
+     * - 不包含滑点
+     * - 不能revert
+     */
+    function convertToAssets(uint256 shares) external view returns (uint256 assets);
+
+    /**
+     * @dev 用于链上和链下用户在当前链上环境模拟存款一定数额的基础资产能够获得的金库额度
+     * - 返回值要接近且不大于在同一交易进行存款得到的金库额度
+     * - 不要考虑 maxDeposit 等限制，假设用户的存款交易会成功
+     * - 要考虑费用
+     * - 不能revert
+     * NOTE: 可以利用 convertToAssets 和 previewDeposit 返回值的差值来计算滑点
+     */
+    function previewDeposit(uint256 assets) external view returns (uint256 shares);
+
+    /**
+     * @dev 用于链上和链下用户在当前链上环境模拟铸造 shares 数额的金库额度需要存款的基础资产数量
+     * - 返回值要接近且不小于在同一交易进行铸造一定数额金库额度所需的存款数量
+     * - 不要考虑 maxMint 等限制，假设用户的存款交易会成功
+     * - 要考虑费用
+     * - 不能revert
+     */
+    function previewMint(uint256 shares) external view returns (uint256 assets);
+
+    /**
+     * @dev 用于链上和链下用户在当前链上环境模拟提款 assets 数额的基础资产需要赎回的金库份额
+     * - 返回值要接近且不大于在同一交易进行提款一定数额基础资产所需赎回的金库份额
+     * - 不要考虑 maxWithdraw 等限制，假设用户的提款交易会成功
+     * - 要考虑费用
+     * - 不能revert
+     */
+    function previewWithdraw(uint256 assets) external view returns (uint256 shares);
+
+    /**
+     * @dev 用于链上和链下用户在当前链上环境模拟销毁 shares 数额的金库额度能够赎回的基础资产数量
+     * - 返回值要接近且不小于在同一交易进行销毁一定数额的金库额度所能赎回的基础资产数量
+     * - 不要考虑 maxRedeem 等限制，假设用户的赎回交易会成功
+     * - 要考虑费用
+     * - 不能revert.
+     */
+    function previewRedeem(uint256 shares) external view returns (uint256 assets);
+
+    /*//////////////////////////////////////////////////////////////
+                     存款/提款限额逻辑
+    //////////////////////////////////////////////////////////////*/
+    /**
+     * @dev 返回某个用户地址单次存款可存的最大基础资产数额。
+     * - 如果有存款上限，那么返回值应该是个有限值
+     * - 返回值不能超过 2 ** 256 - 1 
+     * - 不能revert
+     */
+    function maxDeposit(address receiver) external view returns (uint256 maxAssets);
+
+    /**
+     * @dev 返回某个用户地址单次铸造可以铸造的最大金库额度
+     * - 如果有铸造上限，那么返回值应该是个有限值
+     * - 返回值不能超过 2 ** 256 - 1 
+     * - 不能revert
+     */
+    function maxMint(address receiver) external view returns (uint256 maxShares);
+
+    /**
+     * @dev 返回某个用户地址单次取款可以提取的最大基础资产额度
+     * - 返回值应该是个有限值
+     * - 不能revert
+     */
+    function maxWithdraw(address owner) external view returns (uint256 maxAssets);
+
+    /**
+     * @dev 返回某个用户地址单次赎回可以销毁的最大金库额度
+     * - 返回值应该是个有限值
+     * - 如果没有其他限制，返回值应该是 balanceOf(owner)
+     * - 不能revert
+     */
+    function maxRedeem(address owner) external view returns (uint256 maxShares);
+}
+```
+```
+// SPDX-License-Identifier: MIT
+pragma solidity >=0.8.0;
+
+import {IERC4626} from "./IERC4626.sol";
+import {ERC20, IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+/**
+ * @dev ERC4626 "代币化金库标准"合约，仅供教学使用，不要用于生产
+ */
+contract ERC4626 is ERC20, IERC4626 {
+    /*//////////////////////////////////////////////////////////////
+                    状态变量
+    //////////////////////////////////////////////////////////////*/
+    ERC20 private immutable _asset; // 
+    uint8 private immutable _decimals;
+
+    constructor(
+        ERC20 asset_,
+        string memory name_,
+        string memory symbol_
+    ) ERC20(name_, symbol_) {
+        _asset = asset_;
+        _decimals = asset_.decimals();
+
+    }
+
+    /** @dev See {IERC4626-asset}. */
+    function asset() public view virtual override returns (address) {
+        return address(_asset);
+    }
+
+    /**
+     * See {IERC20Metadata-decimals}.
+     */
+    function decimals() public view virtual override(IERC20Metadata, ERC20) returns (uint8) {
+        return _decimals;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        存款/提款逻辑
+    //////////////////////////////////////////////////////////////*/
+    /** @dev See {IERC4626-deposit}. */
+    function deposit(uint256 assets, address receiver) public virtual returns (uint256 shares) {
+        // 利用 previewDeposit() 计算将获得的金库份额
+        shares = previewDeposit(assets);
+
+        // 先 transfer 后 mint，防止重入
+        _asset.transferFrom(msg.sender, address(this), assets);
+        _mint(receiver, shares);
+
+        // 释放 Deposit 事件
+        emit Deposit(msg.sender, receiver, assets, shares);
+    }
+
+    /** @dev See {IERC4626-mint}. */
+    function mint(uint256 shares, address receiver) public virtual returns (uint256 assets) {
+        // 利用 previewMint() 计算需要存款的基础资产数额
+        assets = previewMint(shares);
+
+        // 先 transfer 后 mint，防止重入
+        _asset.transferFrom(msg.sender, address(this), assets);
+        _mint(receiver, shares);
+
+        // 释放 Deposit 事件
+        emit Deposit(msg.sender, receiver, assets, shares);
+
+    }
+
+    /** @dev See {IERC4626-withdraw}. */
+    function withdraw(
+        uint256 assets,
+        address receiver,
+        address owner
+    ) public virtual returns (uint256 shares) {
+        // 利用 previewWithdraw() 计算将销毁的金库份额
+        shares = previewWithdraw(assets);
+
+        // 如果调用者不是 owner，则检查并更新授权
+        if (msg.sender != owner) {
+            _spendAllowance(owner, msg.sender, shares);
+        }
+
+        // 先销毁后 transfer，防止重入
+        _burn(owner, shares);
+        _asset.transfer(receiver, assets);
+
+        // 释放 Withdraw 事件
+        emit Withdraw(msg.sender, receiver, owner, assets, shares);
+    }
+
+    /** @dev See {IERC4626-redeem}. */
+    function redeem(
+        uint256 shares,
+        address receiver,
+        address owner
+    ) public virtual returns (uint256 assets) {
+        // 利用 previewRedeem() 计算能赎回的基础资产数额
+        assets = previewRedeem(shares);
+
+        // 如果调用者不是 owner，则检查并更新授权
+        if (msg.sender != owner) {
+            _spendAllowance(owner, msg.sender, shares);
+        }
+
+        // 先销毁后 transfer，防止重入
+        _burn(owner, shares);
+        _asset.transfer(receiver, assets);
+
+        // 释放 Withdraw 事件       
+        emit Withdraw(msg.sender, receiver, owner, assets, shares);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            会计逻辑
+    //////////////////////////////////////////////////////////////*/
+    /** @dev See {IERC4626-totalAssets}. */
+    function totalAssets() public view virtual returns (uint256){
+        // 返回合约中基础资产持仓
+        return _asset.balanceOf(address(this));
+    }
+
+    /** @dev See {IERC4626-convertToShares}. */
+    function convertToShares(uint256 assets) public view virtual returns (uint256) {
+        uint256 supply = totalSupply();
+        // 如果 supply 为 0，那么 1:1 铸造金库份额
+        // 如果 supply 不为0，那么按比例铸造
+        return supply == 0 ? assets : assets * supply / totalAssets();
+    }
+
+    /** @dev See {IERC4626-convertToAssets}. */
+    function convertToAssets(uint256 shares) public view virtual returns (uint256) {
+        uint256 supply = totalSupply();
+        // 如果 supply 为 0，那么 1:1 赎回基础资产
+        // 如果 supply 不为0，那么按比例赎回
+        return supply == 0 ? shares : shares * totalAssets() / supply;
+    }
+
+    /** @dev See {IERC4626-previewDeposit}. */
+    function previewDeposit(uint256 assets) public view virtual returns (uint256) {
+        return convertToShares(assets);
+    }
+
+    /** @dev See {IERC4626-previewMint}. */
+    function previewMint(uint256 shares) public view virtual returns (uint256) {
+        return convertToAssets(shares);
+    }
+
+    /** @dev See {IERC4626-previewWithdraw}. */
+    function previewWithdraw(uint256 assets) public view virtual returns (uint256) {
+        return convertToShares(assets);
+    }
+
+    /** @dev See {IERC4626-previewRedeem}. */
+    function previewRedeem(uint256 shares) public view virtual returns (uint256) {
+        return convertToAssets(shares);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                     存款/提款限额逻辑
+    //////////////////////////////////////////////////////////////*/
+    /** @dev See {IERC4626-maxDeposit}. */
+    function maxDeposit(address) public view virtual returns (uint256) {
+        return type(uint256).max;
+    }
+
+    /** @dev See {IERC4626-maxMint}. */
+    function maxMint(address) public view virtual returns (uint256) {
+        return type(uint256).max;
+    }
+    
+    /** @dev See {IERC4626-maxWithdraw}. */
+    function maxWithdraw(address owner) public view virtual returns (uint256) {
+        return convertToAssets(balanceOf(owner));
+    }
+    
+    /** @dev See {IERC4626-maxRedeem}. */
+    function maxRedeem(address owner) public view virtual returns (uint256) {
+        return balanceOf(owner);
+    }
+}
+```
+
+### 2024.10.6
+### EIP712类型化数据签名
+#### EIP191签名标准personal sign
+它可以给一段消息签名。但是它过于简单，当签名数据比较复杂时，用户只能看到一串十六进制字符串（数据的哈希），无法核实签名内容是否与预期相符。
+
+#### 链下签名
+```
+EIP712Domain: [
+    { name: "name", type: "string" },
+    { name: "version", type: "string" },
+    { name: "chainId", type: "uint256" },
+    { name: "verifyingContract", type: "address" },
+]
+const domain = {
+    name: "EIP712Storage",
+    version: "1",
+    chainId: "1",
+    verifyingContract: "0xf8e81D47203A594245E36C48e151709F0C19fBe8",
+};
+const types = {
+    Storage: [
+        { name: "spender", type: "address" },
+        { name: "number", type: "uint256" },
+    ],
+};
+const message = {
+    spender: "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4",
+    number: "100",
+};
+// 获得provider
+const provider = new ethers.BrowserProvider(window.ethereum)
+// 获得signer后调用signTypedData方法进行eip712签名
+const signature = await signer.signTypedData(domain, types, message);
+console.log("Signature:", signature);
+```
+
+#### 链上验证
+```
+// SPDX-License-Identifier: MIT
+// By 0xAA 
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+
+contract EIP712Storage {
+    using ECDSA for bytes32;
+
+    bytes32 private constant EIP712DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+    bytes32 private constant STORAGE_TYPEHASH = keccak256("Storage(address spender,uint256 number)");
+    bytes32 private DOMAIN_SEPARATOR;
+    uint256 number;
+    address owner;
+
+    constructor(){
+        DOMAIN_SEPARATOR = keccak256(abi.encode(
+            EIP712DOMAIN_TYPEHASH, // type hash
+            keccak256(bytes("EIP712Storage")), // name
+            keccak256(bytes("1")), // version
+            block.chainid, // chain id
+            address(this) // contract address
+        ));
+        owner = msg.sender;
+    }
+
+    /**
+     * @dev Store value in variable
+     */
+    function permitStore(uint256 _num, bytes memory _signature) public {
+        // 检查签名长度，65是标准r,s,v签名的长度
+        require(_signature.length == 65, "invalid signature length");
+        bytes32 r;
+        bytes32 s;
+        uint8 v;
+        // 目前只能用assembly (内联汇编)来从签名中获得r,s,v的值
+        assembly {
+            /*
+            前32 bytes存储签名的长度 (动态数组存储规则)
+            add(sig, 32) = sig的指针 + 32
+            等效为略过signature的前32 bytes
+            mload(p) 载入从内存地址p起始的接下来32 bytes数据
+            */
+            // 读取长度数据后的32 bytes
+            r := mload(add(_signature, 0x20))
+            // 读取之后的32 bytes
+            s := mload(add(_signature, 0x40))
+            // 读取最后一个byte
+            v := byte(0, mload(add(_signature, 0x60)))
+        }
+
+        // 获取签名消息hash
+        bytes32 digest = keccak256(abi.encodePacked(
+            "\x19\x01",
+            DOMAIN_SEPARATOR,
+            keccak256(abi.encode(STORAGE_TYPEHASH, msg.sender, _num))
+        )); 
+        
+        address signer = digest.recover(v, r, s); // 恢复签名者
+        require(signer == owner, "EIP712Storage: Invalid signature"); // 检查签名
+
+        // 修改状态变量
+        number = _num;
+    }
+
+    /**
+     * @dev Return value 
+     * @return value of 'number'
+     */
+    function retrieve() public view returns (uint256){
+        return number;
+    }    
+}
+```
+
+### ERC20
+它流行的一个主要原因是 approve 和 transferFrom 两个函数搭配使用，使得代币不仅可以在外部拥有账户（EOA）之间转移，还可以被其他合约使用。
+但是，ERC20的 approve 函数限制了只有代币所有者才能调用，这意味着所有 ERC20 代币的初始操作必须由 EOA 执行。
+
+#### ERC20Permit
+EIP-2612 提出了 ERC20Permit，扩展了 ERC20 标准，添加了一个 permit 函数，允许用户通过 EIP-712 签名修改授权，而不是通过 msg.sender。这有两点好处：
+1. 授权这步仅需用户在链下签名，减少一笔交易。
+2. 签名后，用户可以委托第三方进行后续交易，不需要持有 ETH：用户 A 可以将签名发送给 拥有gas的第三方 B，委托 B 来执行后续交易。
+
+#### IERC20接口合约
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+/**
+ * @dev ERC20 Permit 扩展的接口，允许通过签名进行批准，如 https://eips.ethereum.org/EIPS/eip-2612[EIP-2612]中定义。
+ */
+interface IERC20Permit {
+    /**
+     * @dev 根据owner的签名, 将 `owenr` 的ERC20余额授权给 `spender`，数量为 `value`
+     */
+    function permit(
+        address owner,
+        address spender,
+        uint256 value,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external;
+
+    /**
+     * @dev 返回 `owner` 的当前 nonce。每次为 {permit} 生成签名时，都必须包括此值。
+     */
+    function nonces(address owner) external view returns (uint256);
+
+    /**
+     * @dev 返回用于编码 {permit} 的签名的域分隔符（domain separator）
+     */
+    // solhint-disable-next-line func-name-mixedcase
+    function DOMAIN_SEPARATOR() external view returns (bytes32);
+}
+
+#### ERC20Permit合约
+```
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.0;
+
+import "./IERC20Permit.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+
+/**
+ * @dev ERC20 Permit 扩展的接口，允许通过签名进行批准，如 https://eips.ethereum.org/EIPS/eip-2612[EIP-2612]中定义。
+ *
+ * 添加了 {permit} 方法，可以通过帐户签名的消息更改帐户的 ERC20 余额（参见 {IERC20-allowance}）。通过不依赖 {IERC20-approve}，代币持有者的帐户无需发送交易，因此完全不需要持有 Ether。
+ */
+contract ERC20Permit is ERC20, IERC20Permit, EIP712 {
+    mapping(address => uint) private _nonces;
+
+    bytes32 private constant _PERMIT_TYPEHASH =
+        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+
+    /**
+     * @dev 初始化 EIP712 的 name 以及 ERC20 的 name 和 symbol
+     */
+    constructor(string memory name, string memory symbol) EIP712(name, "1") ERC20(name, symbol){}
+
+    /**
+     * @dev See {IERC20Permit-permit}.
+     */
+    function permit(
+        address owner,
+        address spender,
+        uint256 value,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) public virtual override {
+        // 检查 deadline
+        require(block.timestamp <= deadline, "ERC20Permit: expired deadline");
+
+        // 拼接 Hash
+        bytes32 structHash = keccak256(abi.encode(_PERMIT_TYPEHASH, owner, spender, value, _useNonce(owner), deadline));
+        bytes32 hash = _hashTypedDataV4(structHash);
+        
+        // 从签名和消息计算 signer，并验证签名
+        address signer = ECDSA.recover(hash, v, r, s);
+        require(signer == owner, "ERC20Permit: invalid signature");
+        
+        // 授权
+        _approve(owner, spender, value);
+    }
+
+    /**
+     * @dev See {IERC20Permit-nonces}.
+     */
+    function nonces(address owner) public view virtual override returns (uint256) {
+        return _nonces[owner];
+    }
+
+    /**
+     * @dev See {IERC20Permit-DOMAIN_SEPARATOR}.
+     */
+    function DOMAIN_SEPARATOR() external view override returns (bytes32) {
+        return _domainSeparatorV4();
+    }
+
+    /**
+     * @dev "消费nonce": 返回 `owner` 当前的 `nonce`，并增加 1。
+     */
+    function _useNonce(address owner) internal virtual returns (uint256 current) {
+        current = _nonces[owner];
+        _nonces[owner] += 1;
+    }
+}
+```
+
+**安全注意**
+一些合约在集成permit时，也会带来DoS（拒绝服务）的风险。因为permit在执行时会用掉当前的nonce值，如果合约的函数中包含permit操作，则攻击者可以通过抢跑执行permit从而使得目标交易因为nonce被占用而回滚。
+
+### 跨链桥
+跨链桥不是区块链原生支持的，跨链操作需要可信第三方来执行，这也带来了风险
+
+#### 种类
+1. Burn/Mint：在源链上销毁（burn）代币，然后在目标链上创建（mint）同等数量的代币。此方法好处是代币的总供应量保持不变，但是需要跨链桥拥有代币的铸造权限，适合项目方搭建自己的跨链桥。
+![image](https://github.com/user-attachments/assets/56616b7a-a181-4b1f-ab73-179c5ac62963)
+2. Stake/Mint：在源链上锁定（stake）代币，然后在目标链上创建（mint）同等数量的代币（凭证）。源链上的代币被锁定，当代币从目标链移回源链时再解锁。这是一般跨链桥使用的方案，不需要任何权限，但是风险也较大，当源链的资产被黑客攻击时，目标链上的凭证将变为空气。
+![image](https://github.com/user-attachments/assets/cd62aa84-6387-4124-b08f-6a6156014558)
+3. Stake/Unstake：在源链上锁定（stake）代币，然后在目标链上释放（unstake）同等数量的代币，在目标链上的代币可以随时兑换回源链的代币。这个方法需要跨链桥在两条链都有锁定的代币，门槛较高，一般需要激励用户在跨链桥锁仓。
+![image](https://github.com/user-attachments/assets/abe1b911-f6a6-47a2-9169-91654785df55)
+
+#### 跨链代币合约
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract CrossChainToken is ERC20, Ownable {
+    
+    // Bridge event
+    event Bridge(address indexed user, uint256 amount);
+    // Mint event
+    event Mint(address indexed to, uint256 amount);
+
+    /**
+     * @param name Token Name
+     * @param symbol Token Symbol
+     * @param totalSupply Token Supply
+     */
+    constructor(
+        string memory name,
+        string memory symbol,
+        uint256 totalSupply
+    ) payable ERC20(name, symbol) Ownable(msg.sender) {
+        _mint(msg.sender, totalSupply);
+    }
+
+    /**
+     * Bridge function
+     * @param amount: burn amount of token on the current chain and mint on the other chain
+     */
+    function bridge(uint256 amount) public {
+        _burn(msg.sender, amount);
+        emit Bridge(msg.sender, amount);
+    }
+
+    /**
+     * Mint function
+     */
+    function mint(address to, uint amount) external onlyOwner {
+        _mint(to, amount);
+        emit  Mint(to, amount);
+    }
+}
+```
+constructor(): 构造函数，在部署合约时会被调用一次，用于初始化代币的名字、符号和总供应量。
+bridge(): 用户调用此函数进行跨链转移，它会销毁用户指定数量的代币，并释放Bridge事件。
+mint(): 只有合约的所有者才能调用此函数，用于处理跨链事件，并释放Mint事件。当用户在另一条链调用bridge()函数销毁代币，脚本会监听Bridge事件，并给用户在目标链铸造代币。
+
+#### 跨链脚本
+```
+import { ethers } from "ethers";
+
+// 初始化两条链的provider
+const providerGoerli = new ethers.JsonRpcProvider("Goerli_Provider_URL");
+const providerSepolia = new ethers.JsonRpcProvider("Sepolia_Provider_URL://eth-sepolia.g.alchemy.com/v2/RgxsjQdKTawszh80TpJ-14Y8tY7cx5W2");
+
+// 初始化两条链的signer
+// privateKey填管理者钱包的私钥
+const privateKey = "Your_Key";
+const walletGoerli = new ethers.Wallet(privateKey, providerGoerli);
+const walletSepolia = new ethers.Wallet(privateKey, providerSepolia);
+
+// 合约地址和ABI
+const contractAddressGoerli = "0xa2950F56e2Ca63bCdbA422c8d8EF9fC19bcF20DD";
+const contractAddressSepolia = "0xad20993E1709ed13790b321bbeb0752E50b8Ce69";
+
+const abi = [
+    "event Bridge(address indexed user, uint256 amount)",
+    "function bridge(uint256 amount) public",
+    "function mint(address to, uint amount) external",
+];
+
+// 初始化合约实例
+const contractGoerli = new ethers.Contract(contractAddressGoerli, abi, walletGoerli);
+const contractSepolia = new ethers.Contract(contractAddressSepolia, abi, walletSepolia);
+
+const main = async () => {
+    try{
+        console.log(`开始监听跨链事件`)
+
+        // 监听chain Sepolia的Bridge事件，然后在Goerli上执行mint操作，完成跨链
+        contractSepolia.on("Bridge", async (user, amount) => {
+            console.log(`Bridge event on Chain Sepolia: User ${user} burned ${amount} tokens`);
+
+            // 在执行burn操作
+            let tx = await contractGoerli.mint(user, amount);
+            await tx.wait();
+
+            console.log(`Minted ${amount} tokens to ${user} on Chain Goerli`);
+        });
+
+        // 监听chain Goerli的Bridge事件，然后在Sepolia上执行mint操作，完成跨链
+        contractGoerli.on("Bridge", async (user, amount) => {
+            console.log(`Bridge event on Chain Goerli: User ${user} burned ${amount} tokens`);
+
+            // 在执行burn操作
+            let tx = await contractSepolia.mint(user, amount);
+            await tx.wait();
+
+            console.log(`Minted ${amount} tokens to ${user} on Chain Sepolia`);
+        });
+    } catch(e) {
+        console.log(e);
+    } 
+}
+
+main();
+```
+
+### 多重调用
+MultiCall（多重调用）合约的设计能让我们在一次交易中执行多个函数调用。它的优点如下：
+1. 方便性：MultiCall能让你在一次交易中对不同合约的不同函数进行调用，同时这些调用还可以使用不同的参数。比如你可以一次性查询多个地址的ERC20代币余额。
+2. 节省gas：MultiCall能将多个交易合并成一次交易中的多个调用，从而节省gas。
+3. 原子性：MultiCall能让用户在一笔交易中执行所有操作，保证所有操作要么全部成功，要么全部失败，这样就保持了原子性。比如，你可以按照特定的顺序进行一系列的代币交易。
+
+#### MultiCall合约
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+contract Multicall {
+    // Call结构体，包含目标合约target，是否允许调用失败allowFailure，和call data
+    struct Call {
+        address target;
+        bool allowFailure;
+        bytes callData;
+    }
+
+    // Result结构体，包含调用是否成功和return data
+    struct Result {
+        bool success;
+        bytes returnData;
+    }
+
+    /// @notice 将多个调用（支持不同合约/不同方法/不同参数）合并到一次调用
+    /// @param calls Call结构体组成的数组
+    /// @return returnData Result结构体组成的数组
+    function multicall(Call[] calldata calls) public returns (Result[] memory returnData) {
+        uint256 length = calls.length;
+        returnData = new Result[](length);
+        Call calldata calli;
+        
+        // 在循环中依次调用
+        for (uint256 i = 0; i < length; i++) {
+            Result memory result = returnData[i];
+            calli = calls[i];
+            (result.success, result.returnData) = calli.target.call(calli.callData);
+            // 如果 calli.allowFailure 和 result.success 均为 false，则 revert
+            if (!(calli.allowFailure || result.success)){
+                revert("Multicall: call failed");
+            }
+        }
+    }
+}
+```
+
+### 去中心化交易所
+恒定乘积自动做市商（Constant Product Automated Market Maker, CPAMM），它是去中心化交易所的核心机制，被Uniswap，PancakeSwap等一系列DEX采用
+#### 自动做市商
+自动做市商（Automated Market Maker，简称 AMM）是一种算法，或者说是一种在区块链上运行的智能合约，它允许数字资产之间的去中心化交易。AMM 的引入开创了一种全新的交易方式，无需传统的买家和卖家进行订单匹配，而是通过一种预设的数学公式（比如，常数乘积公式）创建一个流动性池，使得用户可以随时进行交易。
+1. 恒定总和自动做市商（Constant Sum Automated Market Maker, CSAMM）是最简单的自动做市商模型它在交易时的约束为:k=x+y
+2. 恒定乘积自动做市商（CPAMM）是最流行的自动做市商模型，最早被 Uniswap 采用。它在交易时的约束为:k=x∗y
+
+#### 去中心化交易所合约
+```
+contract SimpleSwap is ERC20 {
+    // 代币合约
+    IERC20 public token0;
+    IERC20 public token1;
+
+    // 代币储备量
+    uint public reserve0;
+    uint public reserve1;
+    
+    // 构造器，初始化代币地址
+    constructor(IERC20 _token0, IERC20 _token1) ERC20("SimpleSwap", "SS") {
+        token0 = _token0;
+        token1 = _token1;
+    }
+}
+event Mint(address indexed sender, uint amount0, uint amount1);
+
+// 添加流动性，转进代币，铸造LP
+// @param amount0Desired 添加的token0数量
+// @param amount1Desired 添加的token1数量
+function addLiquidity(uint amount0Desired, uint amount1Desired) public returns(uint liquidity){
+    // 将添加的流动性转入Swap合约，需事先给Swap合约授权
+    token0.transferFrom(msg.sender, address(this), amount0Desired);
+    token1.transferFrom(msg.sender, address(this), amount1Desired);
+    // 计算添加的流动性
+    uint _totalSupply = totalSupply();
+    if (_totalSupply == 0) {
+        // 如果是第一次添加流动性，铸造 L = sqrt(x * y) 单位的LP（流动性提供者）代币
+        liquidity = sqrt(amount0Desired * amount1Desired);
+    } else {
+        // 如果不是第一次添加流动性，按添加代币的数量比例铸造LP，取两个代币更小的那个比例
+        liquidity = min(amount0Desired * _totalSupply / reserve0, amount1Desired * _totalSupply /reserve1);
+    }
+
+    // 检查铸造的LP数量
+    require(liquidity > 0, 'INSUFFICIENT_LIQUIDITY_MINTED');
+
+    // 更新储备量
+    reserve0 = token0.balanceOf(address(this));
+    reserve1 = token1.balanceOf(address(this));
+
+    // 给流动性提供者铸造LP代币，代表他们提供的流动性
+    _mint(msg.sender, liquidity);
+    
+    emit Mint(msg.sender, amount0Desired, amount1Desired);
+}
+// 移除流动性，销毁LP，转出代币
+// 转出数量 = (liquidity / totalSupply_LP) * reserve
+// @param liquidity 移除的流动性数量
+function removeLiquidity(uint liquidity) external returns (uint amount0, uint amount1) {
+    // 获取余额
+    uint balance0 = token0.balanceOf(address(this));
+    uint balance1 = token1.balanceOf(address(this));
+    // 按LP的比例计算要转出的代币数量
+    uint _totalSupply = totalSupply();
+    amount0 = liquidity * balance0 / _totalSupply;
+    amount1 = liquidity * balance1 / _totalSupply;
+    // 检查代币数量
+    require(amount0 > 0 && amount1 > 0, 'INSUFFICIENT_LIQUIDITY_BURNED');
+    // 销毁LP
+    _burn(msg.sender, liquidity);
+    // 转出代币
+    token0.transfer(msg.sender, amount0);
+    token1.transfer(msg.sender, amount1);
+    // 更新储备量
+    reserve0 = token0.balanceOf(address(this));
+    reserve1 = token1.balanceOf(address(this));
+
+    emit Burn(msg.sender, amount0, amount1);
+}
+// 给定一个资产的数量和代币对的储备，计算交换另一个代币的数量
+function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) public pure returns (uint amountOut) {
+    require(amountIn > 0, 'INSUFFICIENT_AMOUNT');
+    require(reserveIn > 0 && reserveOut > 0, 'INSUFFICIENT_LIQUIDITY');
+    amountOut = amountIn * reserveOut / (reserveIn + amountIn);
+}
+
+// swap代币
+// @param amountIn 用于交换的代币数量
+// @param tokenIn 用于交换的代币合约地址
+// @param amountOutMin 交换出另一种代币的最低数量
+function swap(uint amountIn, IERC20 tokenIn, uint amountOutMin) external returns (uint amountOut, IERC20 tokenOut){
+    require(amountIn > 0, 'INSUFFICIENT_OUTPUT_AMOUNT');
+    require(tokenIn == token0 || tokenIn == token1, 'INVALID_TOKEN');
+    
+    uint balance0 = token0.balanceOf(address(this));
+    uint balance1 = token1.balanceOf(address(this));
+
+    if(tokenIn == token0){
+        // 如果是token0交换token1
+        tokenOut = token1;
+        // 计算能交换出的token1数量
+        amountOut = getAmountOut(amountIn, balance0, balance1);
+        require(amountOut > amountOutMin, 'INSUFFICIENT_OUTPUT_AMOUNT');
+        // 进行交换
+        tokenIn.transferFrom(msg.sender, address(this), amountIn);
+        tokenOut.transfer(msg.sender, amountOut);
+    }else{
+        // 如果是token1交换token0
+        tokenOut = token0;
+        // 计算能交换出的token1数量
+        amountOut = getAmountOut(amountIn, balance1, balance0);
+        require(amountOut > amountOutMin, 'INSUFFICIENT_OUTPUT_AMOUNT');
+        // 进行交换
+        tokenIn.transferFrom(msg.sender, address(this), amountIn);
+        tokenOut.transfer(msg.sender, amountOut);
+    }
+
+    // 更新储备量
+    reserve0 = token0.balanceOf(address(this));
+    reserve1 = token1.balanceOf(address(this));
+
+    emit Swap(msg.sender, amountIn, address(tokenIn), amountOut, address(tokenOut));
+}
+```
+
+### 闪电贷Flashloan
+闪电贷利用了以太坊交易的原子性：一个交易（包括其中的所有操作）要么完全执行，要么完全不执行。如果一个用户尝试使用闪电贷并在同一个交易中没有归还资金，那么整个交易都会失败并被回滚，就像它从未发生过一样。因此，DeFi平台不需要担心借款人还不上款，因为还不上的话就意味着钱没借出去；同时，借款人也不用担心套利不成功，因为套利不成功的话就还不上款，也就意味着借钱没成功。
+
+#### 1. Uniswap V2闪电贷
+```
+function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external lock {
+    // 其他逻辑...
+
+    // 乐观的发送代币到to地址
+    if (amount0Out > 0) _safeTransfer(_token0, to, amount0Out);
+    if (amount1Out > 0) _safeTransfer(_token1, to, amount1Out);
+
+    // 调用to地址的回调函数uniswapV2Call
+    if (data.length > 0) IUniswapV2Callee(to).uniswapV2Call(msg.sender, amount0Out, amount1Out, data);
+
+    // 其他逻辑...
+
+    // 通过k=x*y公式，检查闪电贷是否归还成功
+    require(balance0Adjusted.mul(balance1Adjusted) >= uint(_reserve0).mul(_reserve1).mul(1000**2), 'UniswapV2: K');
+}
+```
+#### 闪电贷合约UniswapV2Flashloan.sol
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "./Lib.sol";
+
+// UniswapV2闪电贷回调接口
+interface IUniswapV2Callee {
+    function uniswapV2Call(address sender, uint amount0, uint amount1, bytes calldata data) external;
+}
+
+// UniswapV2闪电贷合约
+contract UniswapV2Flashloan is IUniswapV2Callee {
+    address private constant UNISWAP_V2_FACTORY =
+        0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
+
+    address private constant DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+    address private constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+    IUniswapV2Factory private constant factory = IUniswapV2Factory(UNISWAP_V2_FACTORY);
+
+    IERC20 private constant weth = IERC20(WETH);
+
+    IUniswapV2Pair private immutable pair;
+
+    constructor() {
+        pair = IUniswapV2Pair(factory.getPair(DAI, WETH));
+    }
+
+    // 闪电贷函数
+    function flashloan(uint wethAmount) external {
+        // calldata长度大于1才能触发闪电贷回调函数
+        bytes memory data = abi.encode(WETH, wethAmount);
+
+        // amount0Out是要借的DAI, amount1Out是要借的WETH
+        pair.swap(0, wethAmount, address(this), data);
+    }
+
+    // 闪电贷回调函数，只能被 DAI/WETH pair 合约调用
+    function uniswapV2Call(
+        address sender,
+        uint amount0,
+        uint amount1,
+        bytes calldata data
+    ) external {
+        // 确认调用的是 DAI/WETH pair 合约
+        address token0 = IUniswapV2Pair(msg.sender).token0(); // 获取token0地址
+        address token1 = IUniswapV2Pair(msg.sender).token1(); // 获取token1地址
+        assert(msg.sender == factory.getPair(token0, token1)); // ensure that msg.sender is a V2 pair
+
+        // 解码calldata
+        (address tokenBorrow, uint256 wethAmount) = abi.decode(data, (address, uint256));
+
+        // flashloan 逻辑，这里省略
+        require(tokenBorrow == WETH, "token borrow != WETH");
+
+        // 计算flashloan费用
+        // fee / (amount + fee) = 3/1000
+        // 向上取整
+        uint fee = (amount1 * 3) / 997 + 1;
+        uint amountToRepay = amount1 + fee;
+
+        // 归还闪电贷
+        weth.transfer(address(pair), amountToRepay);
+    }
+}
+```
+
+#### Foundry测试合约UniswapV2Flashloan.t.sol
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "forge-std/Test.sol";
+import "../src/UniswapV2Flashloan.sol";
+
+address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+contract UniswapV2FlashloanTest is Test {
+    IWETH private weth = IWETH(WETH);
+
+    UniswapV2Flashloan private flashloan;
+
+    function setUp() public {
+        flashloan = new UniswapV2Flashloan();
+    }
+
+    function testFlashloan() public {
+        // 换weth，并转入flashloan合约，用做手续费
+        weth.deposit{value: 1e18}();
+        weth.transfer(address(flashloan), 1e18);
+        // 闪电贷借贷金额
+        uint amountToBorrow = 100 * 1e18;
+        flashloan.flashloan(amountToBorrow);
+    }
+
+    // 手续费不足，会revert
+    function testFlashloanFail() public {
+        // 换weth，并转入flashloan合约，用做手续费
+        weth.deposit{value: 1e18}();
+        weth.transfer(address(flashloan), 3e17);
+        // 闪电贷借贷金额
+        uint amountToBorrow = 100 * 1e18;
+        // 手续费不足
+        vm.expectRevert();
+        flashloan.flashloan(amountToBorrow);
+    }
+}
+```
+
+#### 2. Uniswap V3闪电贷
+```
+function flash(
+    address recipient,
+    uint256 amount0,
+    uint256 amount1,
+    bytes calldata data
+) external override lock noDelegateCall {
+    // 其他逻辑...
+
+    // 乐观的发送代币到to地址
+    if (amount0 > 0) TransferHelper.safeTransfer(token0, recipient, amount0);
+    if (amount1 > 0) TransferHelper.safeTransfer(token1, recipient, amount1);
+
+    // 调用to地址的回调函数uniswapV3FlashCallback
+    IUniswapV3FlashCallback(msg.sender).uniswapV3FlashCallback(fee0, fee1, data);
+
+    // 检查闪电贷是否归还成功
+    uint256 balance0After = balance0();
+    uint256 balance1After = balance1();
+    require(balance0Before.add(fee0) <= balance0After, 'F0');
+    require(balance1Before.add(fee1) <= balance1After, 'F1');
+
+    // sub is safe because we know balanceAfter is gt balanceBefore by at least fee
+    uint256 paid0 = balance0After - balance0Before;
+    uint256 paid1 = balance1After - balance1Before;
+
+    // 其他逻辑...
+}
+```
+#### 闪电贷合约UniswapV3Flashloan.sol
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "./Lib.sol";
+
+// UniswapV3闪电贷回调接口
+// 需要实现并重写uniswapV3FlashCallback()函数
+interface IUniswapV3FlashCallback {
+    /// 在实现中，你必须偿还池中由 flash 发送的代币及计算出的费用金额。
+    /// 调用此方法的合约必须经由官方 UniswapV3Factory 部署的 UniswapV3Pool 检查。
+    /// @param fee0 闪电贷结束时，应支付给池的 token0 的费用金额
+    /// @param fee1 闪电贷结束时，应支付给池的 token1 的费用金额
+    /// @param data 通过 IUniswapV3PoolActions#flash 调用由调用者传递的任何数据
+    function uniswapV3FlashCallback(
+        uint256 fee0,
+        uint256 fee1,
+        bytes calldata data
+    ) external;
+}
+
+// UniswapV3闪电贷合约
+contract UniswapV3Flashloan is IUniswapV3FlashCallback {
+    address private constant UNISWAP_V3_FACTORY = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
+
+    address private constant DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+    address private constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    uint24 private constant poolFee = 3000;
+
+    IERC20 private constant weth = IERC20(WETH);
+    IUniswapV3Pool private immutable pool;
+
+    constructor() {
+        pool = IUniswapV3Pool(getPool(DAI, WETH, poolFee));
+    }
+
+    function getPool(
+        address _token0,
+        address _token1,
+        uint24 _fee
+    ) public pure returns (address) {
+        PoolAddress.PoolKey memory poolKey = PoolAddress.getPoolKey(
+            _token0,
+            _token1,
+            _fee
+        );
+        return PoolAddress.computeAddress(UNISWAP_V3_FACTORY, poolKey);
+    }
+
+    // 闪电贷函数
+    function flashloan(uint wethAmount) external {
+        bytes memory data = abi.encode(WETH, wethAmount);
+        IUniswapV3Pool(pool).flash(address(this), 0, wethAmount, data);
+    }
+
+    // 闪电贷回调函数，只能被 DAI/WETH pair 合约调用
+    function uniswapV3FlashCallback(
+        uint fee0,
+        uint fee1,
+        bytes calldata data
+    ) external {
+        // 确认调用的是 DAI/WETH pair 合约
+        require(msg.sender == address(pool), "not authorized");
+        
+        // 解码calldata
+        (address tokenBorrow, uint256 wethAmount) = abi.decode(data, (address, uint256));
+
+        // flashloan 逻辑，这里省略
+        require(tokenBorrow == WETH, "token borrow != WETH");
+
+        // 归还闪电贷
+        weth.transfer(address(pool), wethAmount + fee1);
+    }
+}
+```
+
+#### Foundry测试合约UniswapV3Flashloan.t.sol
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import {Test, console2} from "forge-std/Test.sol";
+import "../src/UniswapV3Flashloan.sol";
+
+address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+contract UniswapV2FlashloanTest is Test {
+    IWETH private weth = IWETH(WETH);
+
+    UniswapV3Flashloan private flashloan;
+
+    function setUp() public {
+        flashloan = new UniswapV3Flashloan();
+    }
+
+    function testFlashloan() public {
+        // 换weth，并转入flashloan合约，用做手续费
+        weth.deposit{value: 1e18}();
+        weth.transfer(address(flashloan), 1e18);
+                
+        uint balBefore = weth.balanceOf(address(flashloan));
+        console2.logUint(balBefore);
+        // 闪电贷借贷金额
+        uint amountToBorrow = 1 * 1e18;
+        flashloan.flashloan(amountToBorrow);
+    }
+
+    // 手续费不足，会revert
+    function testFlashloanFail() public {
+        // 换weth，并转入flashloan合约，用做手续费
+        weth.deposit{value: 1e18}();
+        weth.transfer(address(flashloan), 1e17);
+        // 闪电贷借贷金额
+        uint amountToBorrow = 100 * 1e18;
+        // 手续费不足
+        vm.expectRevert();
+        flashloan.flashloan(amountToBorrow);
+    }
+}
+```
+
+#### 3. AAVE V3闪电贷
+#### 闪电贷合约AaveV3Flashloan.sol
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "./Lib.sol";
+
+interface IFlashLoanSimpleReceiver {
+    /**
+    * @notice 在接收闪电借款资产后执行操作
+    * @dev 确保合约能够归还债务 + 额外费用，例如，具有
+    *      足够的资金来偿还，并已批准 Pool 提取总金额
+    * @param asset 闪电借款资产的地址
+    * @param amount 闪电借款资产的数量
+    * @param premium 闪电借款资产的费用
+    * @param initiator 发起闪电贷款的地址
+    * @param params 初始化闪电贷款时传递的字节编码参数
+    * @return 如果操作的执行成功则返回 True，否则返回 False
+    */
+    function executeOperation(
+        address asset,
+        uint256 amount,
+        uint256 premium,
+        address initiator,
+        bytes calldata params
+    ) external returns (bool);
+}
+
+// AAVE V3闪电贷合约
+contract AaveV3Flashloan {
+    address private constant AAVE_V3_POOL =
+        0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
+
+    address private constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+    ILendingPool public aave;
+
+    constructor() {
+        aave = ILendingPool(AAVE_V3_POOL);
+    }
+
+    // 闪电贷函数
+    function flashloan(uint256 wethAmount) external {
+        aave.flashLoanSimple(address(this), WETH, wethAmount, "", 0);
+    }
+
+    // 闪电贷回调函数，只能被 pool 合约调用
+    function executeOperation(address asset, uint256 amount, uint256 premium, address initiator, bytes calldata)
+        external
+        returns (bool)
+    {   
+        // 确认调用的是 DAI/WETH pair 合约
+        require(msg.sender == AAVE_V3_POOL, "not authorized");
+        // 确认闪电贷发起者是本合约
+        require(initiator == address(this), "invalid initiator");
+
+        // flashloan 逻辑，这里省略
+
+        // 计算flashloan费用
+        // fee = 5/1000 * amount
+        uint fee = (amount * 5) / 10000 + 1;
+        uint amountToRepay = amount + fee;
+
+        // 归还闪电贷
+        IERC20(WETH).approve(AAVE_V3_POOL, amountToRepay);
+
+        return true;
+    }
+}
+```
+#### Foundry测试合约AaveV3Flashloan.t.sol
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "forge-std/Test.sol";
+import "../src/AaveV3Flashloan.sol";
+
+address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+contract UniswapV2FlashloanTest is Test {
+    IWETH private weth = IWETH(WETH);
+
+    AaveV3Flashloan private flashloan;
+
+    function setUp() public {
+        flashloan = new AaveV3Flashloan();
+    }
+
+    function testFlashloan() public {
+        // 换weth，并转入flashloan合约，用做手续费
+        weth.deposit{value: 1e18}();
+        weth.transfer(address(flashloan), 1e18);
+        // 闪电贷借贷金额
+        uint amountToBorrow = 100 * 1e18;
+        flashloan.flashloan(amountToBorrow);
+    }
+
+    // 手续费不足，会revert
+    function testFlashloanFail() public {
+        // 换weth，并转入flashloan合约，用做手续费
+        weth.deposit{value: 1e18}();
+        weth.transfer(address(flashloan), 4e16);
+        // 闪电贷借贷金额
+        uint amountToBorrow = 100 * 1e18;
+        // 手续费不足
+        vm.expectRevert();
+        flashloan.flashloan(amountToBorrow);
+    }
+}
+```
+
+### 2024.10.7
+### ethers.js
+是一个完整而紧凑的开源库，用于与以太坊区块链及其生态系统进行交互。如果你要写Dapp的前端，你就需要用到ethers.js。
+与更早出现的web3.js相比，它有以下优点：
+1. 代码更加紧凑：ethers.js大小为116.5 kB，而web3.js为590.6 kB。
+2. 更加安全：Web3.js认为用户会在本地部署以太坊节点，私钥和网络连接状态由这个节点管理（实际并不是这样）；ethers.js中，Provider提供器类管理网络连接状态，Wallet钱包类管理密钥，安全且灵活。
+3. 原生支持ENS。
+
+```
+import { ethers } from "ethers";
+const provider = ethers.getDefaultProvider();
+const main = async () => {
+    const balance = await provider.getBalance(`vitalik.eth`);
+    console.log(`ETH Balance of vitalik: ${ethers.formatEther(balance)} ETH`);
+}
+main()
+```
+
+### Provider提供器
+Provider类是对以太坊网络连接的抽象，为标准以太坊节点功能提供简洁、一致的接口。在ethers中，Provider不接触用户私钥，只能读取链上信息，不能写入，这一点比web3.js要安全。
+ethers中最常用的是jsonRpcProvider，可以让用户连接到特定节点服务商的节点。
+```
+// 利用公共rpc节点连接以太坊网络
+// 可以在 https://chainlist.org 上找到
+const ALCHEMY_MAINNET_URL = 'https://rpc.ankr.com/eth';
+const ALCHEMY_SEPOLIA_URL = 'https://rpc.sepolia.org';
+// 连接以太坊主网
+const providerETH = new ethers.JsonRpcProvider(ALCHEMY_MAINNET_URL)
+// 连接Sepolia测试网
+const providerSepolia = new ethers.JsonRpcProvider(ALCHEMY_SEPOLIA_URL)
+    // 1. 查询vitalik在主网和Sepolia测试网的ETH余额
+    console.log("1. 查询vitalik在主网和Sepolia测试网的ETH余额");
+    const balance = await providerETH.getBalance(`vitalik.eth`);
+    const balanceSepolia = await providerSepolia.getBalance(`0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045`);
+    // 将余额输出在console（主网）
+    console.log(`ETH Balance of vitalik: ${ethers.formatEther(balance)} ETH`);
+    // 输出Sepolia测试网ETH余额
+    console.log(`Sepolia ETH Balance of vitalik: ${ethers.formatEther(balanceSepolia)} ETH`);
+
+    // 2. 查询provider连接到了哪条链
+    console.log("\n2. 查询provider连接到了哪条链")
+    const network = await providerETH.getNetwork();
+    console.log(network.toJSON());
+
+    // 3. 查询区块高度
+    console.log("\n3. 查询区块高度")
+    const blockNumber = await providerETH.getBlockNumber();
+    console.log(blockNumber);
+    // 4. 查询 vitalik 钱包历史交易次数
+    console.log("\n4. 查询 vitalik 钱包历史交易次数")
+    const txCount = await providerETH.getTransactionCount("vitalik.eth");
+    console.log(txCount);
+
+    // 5. 查询当前建议的gas设置
+    console.log("\n5. 查询当前建议的gas设置")
+    const feeData = await providerETH.getFeeData();
+    console.log(feeData);
+    // 6. 查询区块信息
+    console.log("\n6. 查询区块信息")
+    const block = await providerETH.getBlock(0);
+    console.log(block);
+    // 7. 给定合约地址查询合约bytecode，例子用的WETH地址
+    console.log("\n7. 给定合约地址查询合约bytecode，例子用的WETH地址")
+    const code = await providerETH.getCode("0xc778417e063141139fce010982780140aa0cd5ab");
+    console.log(code);
+```
+
+### 2024.10.8
+### 读取合约信息
+#### Contract类
+在ethers中，Contract类是部署在以太坊网络上的合约（EVM字节码）的抽象。通过它，开发者可以非常容易的对合约进行读取call和交易transaction，并可以获得交易的结果和事件。
+
+#### 创建Contract变量
+Contract对象分为两类，只读和可读写。只读Contract只能读取链上合约信息，执行call操作，即调用合约中view和pure的函数，而不能执行交易transaction。
+```
+只读Contract：参数分别是合约地址，合约abi和provider变量（只读）。
+const contract = new ethers.Contract(`address`, `abi`, `provider`);
+可读写Contract：参数分别是合约地址，合约abi和signer变量。Signer签名者是ethers中的另一个类，用于签名交易，之后我们会讲到。
+const contract = new ethers.Contract(`address`, `abi`, `signer`);
+```
+
+#### 读取合约信息
+```
+import { ethers } from "ethers";
+// 利用Infura的rpc节点连接以太坊网络
+// 准备Infura API Key, 教程：https://github.com/AmazingAng/WTFSolidity/blob/main/Topics/Tools/TOOL02_Infura/readme.md
+const INFURA_ID = ''
+// 连接以太坊主网
+const provider = new ethers.JsonRpcProvider(`https://mainnet.infura.io/v3/${INFURA_ID}`)
+// 第1种输入abi的方式: 复制abi全文
+// WETH的abi可以在这里复制：https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2#code
+const abiWETH = '[{"constant":true,"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view",...太长后面省略...';
+const addressWETH = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2' // WETH Contract
+const contractWETH = new ethers.Contract(addressWETH, abiWETH, provider)
+// 第2种输入abi的方式：输入程序需要用到的函数，逗号分隔，ethers会自动帮你转换成相应的abi
+// 人类可读abi，以ERC20合约为例
+const abiERC20 = [
+    "function name() view returns (string)",
+    "function symbol() view returns (string)",
+    "function totalSupply() view returns (uint256)",
+    "function balanceOf(address) view returns (uint)",
+];
+const addressDAI = '0x6B175474E89094C44Da98b954EedeAC495271d0F' // DAI Contract
+const contractDAI = new ethers.Contract(addressDAI, abiERC20, provider)
+
+const main = async () => {
+    // 1. 读取WETH合约的链上信息（WETH abi）
+    const nameWETH = await contractWETH.name()
+    const symbolWETH = await contractWETH.symbol()
+    const totalSupplyWETH = await contractWETH.totalSupply()
+    console.log("\n1. 读取WETH合约信息")
+    console.log(`合约地址: ${addressWETH}`)
+    console.log(`名称: ${nameWETH}`)
+    console.log(`代号: ${symbolWETH}`)
+    console.log(`总供给: ${ethers.formatEther(totalSupplyWETH)}`)
+    const balanceWETH = await contractWETH.balanceOf('vitalik.eth')
+    console.log(`Vitalik持仓: ${ethers.formatEther(balanceWETH)}\n`)
+
+    // 2. 读取DAI合约的链上信息（IERC20接口合约）
+    const nameDAI = await contractDAI.name()
+    const symbolDAI = await contractDAI.symbol()
+    const totalSupplDAI = await contractDAI.totalSupply()
+    console.log("\n2. 读取DAI合约信息")
+    console.log(`合约地址: ${addressDAI}`)
+    console.log(`名称: ${nameDAI}`)
+    console.log(`代号: ${symbolDAI}`)
+    console.log(`总供给: ${ethers.formatEther(totalSupplDAI)}`)
+    const balanceDAI = await contractDAI.balanceOf('vitalik.eth')
+    console.log(`Vitalik持仓: ${ethers.formatEther(balanceDAI)}\n`)
+}
+
+main()
+```
+
+### 发送ETH
+#### Signer签名者类
+在ethers中，Signer签名者类是以太坊账户的抽象，可用于对消息和交易进行签名，并将签名的交易发送到以太坊网络，并更改区块链状态。Signer类是抽象类，不能直接实例化，我们需要使用它的子类：Wallet钱包类。
+
+#### Wallet钱包类
+#### 创建Wallet实例
+```
+// 创建随机的wallet对象
+const wallet1 = ethers.Wallet.createRandom()
+// 利用私钥和provider创建wallet对象
+const privateKey = '0x227dbb8586117d55284e26620bc76534dfbd2394be34cf4a09cb775d593b6f2b'
+const wallet2 = new ethers.Wallet(privateKey, provider)
+// 从助记词创建wallet对象
+const wallet3 = ethers.Wallet.fromPhrase(mnemonic.phrase)
+```
+还可以通过ethers.Wallet.fromEncryptedJson解密一个JSON钱包文件创建钱包实例，JSON文件即keystore文件
+
+#### 发送ETH
+```
+    // 创建交易请求，参数：to为接收地址，value为ETH数额
+    const tx = {
+        to: address1,
+        value: ethers.parseEther("0.001")
+    }
+        //发送交易，获得收据
+    const txRes = await wallet2.sendTransaction(tx)
+    const receipt = await txRes.wait() // 等待链上确认交易
+    console.log(receipt) // 打印交易的收据
+    ```
+
+#### 代码示例
+```
+// 利用Wallet类发送ETH
+// 由于playcode不支持ethers.Wallet.createRandom()函数，我们只能用VScode运行这一讲代码
+import { ethers } from "ethers";
+
+// 利用Alchemy的rpc节点连接以太坊测试网络
+// 准备 alchemy API 可以参考https://github.com/AmazingAng/WTFSolidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md 
+const ALCHEMY_GOERLI_URL = 'https://eth-goerli.alchemyapi.io/v2/GlaeWuylnNM3uuOo-SAwJxuwTdqHaY5l';
+const provider = new ethers.JsonRpcProvider(ALCHEMY_GOERLI_URL);
+// 创建随机的wallet对象
+const wallet1 = ethers.Wallet.createRandom()
+const wallet1WithProvider = wallet1.connect(provider)
+const mnemonic = wallet1.mnemonic // 获取助记词
+
+// 利用私钥和provider创建wallet对象
+const privateKey = '0x227dbb8586117d55284e26620bc76534dfbd2394be34cf4a09cb775d593b6f2b'
+const wallet2 = new ethers.Wallet(privateKey, provider)
+// 从助记词创建wallet对象
+const wallet3 = ethers.Wallet.fromPhrase(mnemonic.phrase)
+    const address1 = await wallet1.getAddress()
+    const address2 = await wallet2.getAddress() 
+    const address3 = await wallet3.getAddress() // 获取地址
+    console.log(`1. 获取钱包地址`);
+    console.log(`钱包1地址: ${address1}`);
+    console.log(`钱包2地址: ${address2}`);
+    console.log(`钱包3地址: ${address3}`);
+    console.log(`钱包1和钱包3的地址是否相同: ${address1 === address3}`);
+
+console.log(`钱包1助记词: ${wallet1.mnemonic.phrase}`)
+
+    console.log(`钱包2私钥: ${wallet2.privateKey}`)
+
+    const txCount1 = await provider.getTransactionCount(wallet1WithProvider)
+    const txCount2 = await provider.getTransactionCount(wallet2)
+    console.log(`钱包1发送交易次数: ${txCount1}`)
+    console.log(`钱包2发送交易次数: ${txCount2}`)
+
+    // 5. 发送ETH
+    // 如果这个钱包没goerli测试网ETH了，去水龙头领一些，钱包地址: 0xe16C1623c1AA7D919cd2241d8b36d9E79C1Be2A2
+    // 1. chainlink水龙头: https://faucets.chain.link/goerli
+    // 2. paradigm水龙头: https://faucet.paradigm.xyz/
+    console.log(`\n5. 发送ETH（测试网）`);
+    // i. 打印交易前余额
+    console.log(`i. 发送前余额`)
+    console.log(`钱包1: ${ethers.formatEther(await provider.getBalance(wallet1WithProvider))} ETH`)
+    console.log(`钱包2: ${ethers.formatEther(await provider.getBalance(wallet2))} ETH`)
+    // ii. 构造交易请求，参数：to为接收地址，value为ETH数额
+    const tx = {
+        to: address1,
+        value: ethers.parseEther("0.001")
+    }
+    // iii. 发送交易，获得收据
+    console.log(`\nii. 等待交易在区块链确认（需要几分钟）`)
+    const receipt = await wallet2.sendTransaction(tx)
+    await receipt.wait() // 等待链上确认交易
+    console.log(receipt) // 打印交易详情
+    // iv. 打印交易后余额
+    console.log(`\niii. 发送后余额`)
+    console.log(`钱包1: ${ethers.formatEther(await provider.getBalance(wallet1WithProvider))} ETH`)
+    console.log(`钱包2: ${ethers.formatEther(await provider.getBalance(wallet2))} ETH`)
+```
 
 
 
 
+
+
+
+
+    
 <!-- Content_END -->

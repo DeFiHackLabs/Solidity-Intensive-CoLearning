@@ -452,9 +452,40 @@ Since EVM executors can choose to include a transaction or not, transaction send
 
 ### 2024.10.04
 
+Try to understand the contracts in openzeppelin, the first one is ERC20，
+
+Most of the code is still incomprehensible, but it doesn't matter. 
+
+It's also interesting to feel further joy now. 
+
+Lines of code are like colorful elves dancing. hhh
+
+
 Q1:
 
 Q2:
+
+### 2024.10.05
+
+Q1:
+
+Q2:
+
+
+### 2024.10.07
+
+
+I‘m a little busy during the National Day holiday, 
+
+but, I don't want to miss the daily check-in, 
+
+and, I will start to make up my study records.
+
+
+
+### 2024.20.08
+
+I should focus on cultivating a feeling：Facing Challenges Head-On. 
 
 
 

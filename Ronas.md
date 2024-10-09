@@ -547,4 +547,174 @@ timezone: Asia/Shanghai
             }
             ```
 
+### 2024.10.06
+
+> 進度: Solidity 102 26
+
+- selfdestruct
+    - 觸發 `selfdestruct` 後, 會將合約內的 ETH 發送到指定地址
+    - deprecated since 0.8.18 - [solidity-0.8.18](https://blog.soliditylang.org/2023/02/01/solidity-0.8.18-release-announcement/) [EIP-6049](https://eips.ethereum.org/EIPS/eip-6049)
+    - 坎昆升級後, 加入了 [EIP-6780](https://eips.ethereum.org/EIPS/eip-6780), 更改了 `selfdestruct` 功能, 升級後的 `selfdestruct` 只會轉移 ETH, 刪除功能必須在同時發生創建-自毀才會發生
+        - 已部署的合約已無法被刪除
+
+### 2024.10.07
+
+> 進度: Solidity 102 27~30
+
+- ABI (Application Binary Interface)
+    - 編碼
+        - abi.encode
+            ```
+            abi.encode(x, addr, name, array);
+
+            # 預期結果
+            0x000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000043078414100000000000000000000000000000000000000000000000000000000
+            ```
+            - 與合約交互時使用
+            - 每個參數都會填充 0 補滿 32 bytes
+        - abi.encodePacked 
+            ```
+            abi.encodePacked(x, addr, name, array);
+            ```
+            - 會將多餘的 0 壓縮以節省空間, 在不須與合約交互時使用
+        - abi.encodeWithSignature
+            ```
+            abi.encodeWithSignature("foo(uint256,address,string,uint256[2])", x, addr, name, array);
+            ```
+            - 第一個參數為函數簽名 (e.g. `foo(uint256,address,string,uint256[2])`)
+        - abi.encodeWithSelector
+            ```
+            abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array);
+            ```
+            - 第一個參數為函數選擇器 (e.g. `bytes4(keccak256("foo(uint256,address,string,uint256[2])"))`), 結果與 encodeWithSignature 相同
+    - 解碼 
+        - abi.decode
+- Hash
+    - Keccak256
+        - 不等於標準 SHA3
+
+- Calldata & Function Selector
+    - 呼叫智能合約時, 本質上是向目標合約發送一段 `calldata`
+    - `calldata` 前四個 byte 為 selector
+
+- Try Cache
+    - since v6.0
+
+### 2024.10.08
+
+> 進度: Solidity 103 31~32
+
+- ERC20
+    - `IERC20` 為對外接口 `ERC20` 為邏輯實現
+    - 事件
+        - `Transfer`
+        - `Approval`
+    - 函數
+        - `totalSupply()` 代幣總供應量
+        - `balanceOf()` 取得餘額
+        - `transfer()` 移轉代幣
+        - `allowance()` 查詢授權額度
+        - `approve()` 授權
+        - `transferFrom()` 授權移轉代幣
+
+- ERC20 Token Faucet
+    - 狀態變數
+        - `amountAllowed`: 每次能領取數量
+        - `tokenContract`: 代幣地址
+        - `requestedAddress`: 領取過的地址
+    - 事件 
+        - `SendToken`: 於 `requestToken()` 中 emit
+    - 函數
+        - 建構函數設定代幣地址
+            ```
+            constructor(address _tokenContract) {
+                tokenContract = _tokenContract; // set token contract
+            }
+            ```
+        - `requestToken()`
+            ```
+            function requestTokens() external {
+                require(!requestedAddress[msg.sender], "Can't Request Multiple Times!"); // 每个地址只能领一次
+                IERC20 token = IERC20(tokenContract); // 创建IERC20合约对象
+                require(token.balanceOf(address(this)) >= amountAllowed, "Faucet Empty!"); // 水龙头空了
+
+                token.transfer(msg.sender, amountAllowed); // 发送token
+                requestedAddress[msg.sender] = true; // 记录领取地址 
+                
+                emit SendToken(msg.sender, amountAllowed); // 释放SendToken事件
+            }
+            ```
+
+### 2024.10.09
+
+> 進度: Solidity 103 33~35
+
+- 空投合約 (Airdrop)
+    - 分送代幣給多個合約
+    - 函數
+        - `getSum()`
+            ```
+            function getSum(uint256[] calldata _arr) public pure returns(uint sum){
+                for(uint i = 0; i < _arr.length; i++)
+                    sum = sum + _arr[i];
+            }
+            ```
+        - `multiTransferToken()`
+            ```
+            // @notice 向多个地址转账ERC20代币，使用前需要先授权
+            ///
+            /// @param _token 转账的ERC20代币地址
+            /// @param _addresses 空投地址数组
+            /// @param _amounts 代币数量数组（每个地址的空投数量）
+            function multiTransferToken(
+                address _token,
+                address[] calldata _addresses,
+                uint256[] calldata _amounts
+                ) external {
+                // 检查：_addresses和_amounts数组的长度相等
+                require(_addresses.length == _amounts.length, "Lengths of Addresses and Amounts NOT EQUAL");
+                IERC20 token = IERC20(_token); // 声明IERC合约变量
+                uint _amountSum = getSum(_amounts); // 计算空投代币总量
+                // 检查：授权代币数量 >= 空投代币总量
+                require(token.allowance(msg.sender, address(this)) >= _amountSum, "Need Approve ERC20 token");
+
+                // for循环，利用transferFrom函数发送空投
+                for (uint8 i; i < _addresses.length; i++) {
+                    token.transferFrom(msg.sender, _addresses[i], _amounts[i]);
+                }
+            }
+            ```
+
+- ERC165
+    ```
+    interface IERC165 {
+        /**
+        * @dev 如果合约实现了查询的`interfaceId`，则返回true
+        * 规则详见：https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[EIP section]
+        *
+        */
+        function supportsInterface(bytes4 interfaceId) external view returns (bool);
+    }
+    ```
+    - 檢查是否支援 ERC721, ERC1155
+
+- ERC721 非同質化代幣標準
+    - `IERC721` 為對外接口 `ERC721` 為邏輯實現
+    - 事件
+        - `Transfer`
+        - `Approval`
+        - `ApprovalForAll`
+    - 函數
+        - `balanceOf()` 取得餘額
+        - `ownerOf()` 取得所有人
+        - `transferFrom()` 授權移轉代幣
+        - `safeTransferFrom(from, to, tokenId)` 安全授權移轉代幣
+        - `safeTransferFrom(data)` 
+        - `approve()` 授權
+        - `getApproved()` 查詢 tokenId 被批准給哪個地址
+        - `setApprovalForAll()` 批次授權給某個 operator
+        - `isApprovedForAll()` 查詢是否批次授權
+
+- 荷蘭拍賣 (Dutch Auction)
+
 <!-- Content_END -->
