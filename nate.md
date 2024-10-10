@@ -335,9 +335,9 @@ WTF solidity29-30
    - 映射类型参数 合约对象需转成address，结构体为(成员类型1,成员类型2,...)，枚举为uint8
 3. try/catch     
 ### 2024.10.08
-WTF solidity31-32
+WTF solidity31-33
 1. ERC-20
-   
+2. 两个简单的ERC20应用合约faucet和airdrop   
 ### 2024.10.09
 WTF solidity36-37
 <!-- Content_END -->
