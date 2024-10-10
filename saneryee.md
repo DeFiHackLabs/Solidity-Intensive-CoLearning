@@ -50,7 +50,86 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 ## Notes
 
 <!-- Content_START -->
+### 2024.10.09
 
+Day 13
+
+WTF Academy Solidity 101 42_PaymentSplit, 43_TokenVesting
+
+**Pull Payment**
+
+Advantages
+
+1. **Reduced Risk of Denial of Service (DOS)**: IF sending payments to multiple recipients, a single failing transfer won't block the entire operation since each recipient withdraws independently.
+2. **Reentrancy Protection**: In the Push Payment approach, the contract directly transfers funds, which can be vulnerable to re-entrancy attacks if the recipient’s fallback or receive function attempts to call back into the contract. With Pull Payments, the recipient initiates the transfer, reducing this attack surface.
+3. **Prevents Failed Transactions from Halting Payment Distribution**: If the contract uses a loop to pay multiple recipients in a push-style approach, a single failed transaction can halt the entire loop, preventing other recipients from being paid. With Pull Payments, each recipient’s withdrawal is handled individually, so one recipient’s failure does not impact others.
+4. **Reduces Gas Costs on Payment Execution**
+5. **Better Fund Management** Recipients can choose when to withdraw their funds, which can be advantageous for tax planning or gas price optimization.
+
+Common use cases:
+
+- Marketplaces where sellers receive payments
+- Reward distribution systems
+- Dividend payments
+
+Reference:
+[Openzeppelin PaymentSplitter](https://docs.openzeppelin.com/contracts/4.x/api/finance#PaymentSplitter)
+[Openzeppelin PullPayment](https://docs.openzeppelin.com/contracts/4.x/api/security#PullPayment)
+
+
+**TokenVesting**
+
+Reference:
+[Openzeppelin VestingWallet](https://docs.openzeppelin.com/contracts/4.x/api/finance#VestingWallet)
+
+**Cliff Vesting**
+
+Cliff vesting is a token release strategy where tokens are completely locked during an initial period (cliff period). Once the cliff period ends, a predetemined portion of tokens is immediately released, and the remaining tokens.
+
+Example:
+
+1. Cliff Period
+
+   - Initial period where tokens are completely locked
+   -  No tokens can be withdrawn during this time
+   -  Typically 6-12 months for team tokens
+
+2. Cliff Release
+
+   - Immediate release of a predetermined amount when cliff ends
+   - Usually 20-25% of total tokens
+   - Provides initial liquidity to beneficiaries
+
+3. Linear Vesting
+
+   - Remaining tokens are released linearly over time
+   - Smooth release curve reduces market impact
+   - Continuous incentive for long-term participation
+
+```
+   Total Amount: 1,000,000 tokens
+   Cliff Period: 6 months
+   Cliff Release: 200,000 tokens (20%)
+   Total Duration: 12 months
+
+   Timeline:
+   Months 0-6: 0 tokens (locked)
+   Month 6: 200,000 tokens (cliff release)
+   Months 7-12: ~133,333 tokens/month (linear)
+   Month 12: All tokens released
+```
+
+Types of Vesting:
+
+- With time-based vesting, tokens are progressively released to holders over a set amount of time.
+
+- Milestone-based vesting releases tokens upon the achievement of certain project milestones.
+
+- Hybrid vesting combines elements of both time-based and milestone-based vesting.
+
+- Reverse vesting involves tokens being released all at once, with the potential for them to be repurchased if certain conditions are not met.
+
+---
 ### 2024.10.08
 
 Day 13

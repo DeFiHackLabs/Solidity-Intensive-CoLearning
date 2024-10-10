@@ -710,8 +710,162 @@ fallback() external payable {
 - 調用不存在的函數： 如果 call 輸入了一個不存在的函數簽名，那麼目標合約的 fallback 函數會被觸發。
 
 ### 2024.10.09
+## 23_Delegatecall
+#### call 與 delegatecall 的區別
+- call：執行目標合約的函數，上下文是目標合約。
+   - msg.sender 是發起合約。
+   - 狀態變量的修改會作用於目標合約。
+- delegatecall：執行目標合約的函數，上下文是發起合約。
+   - msg.sender 是發起調用的外部地址。
+   - 狀態變量的修改作用於發起合約。
+目前，delegatecall 最常見的應用場景是Proxy Contract和EIP-2535 Diamonds。
+
+## 24_Create
+#### 動態創建新合約
+```solidity
+Contract x = new Contract{value: _value}(params);
+```
+#### Uniswap
+- Uniswap 是去中心化交易所的代表性項目，它通過工廠合約 (Factory Contract) 創建各種幣對合約來管理流動性池。
+##### Pair 合約
+- Pair 合約的作用是管理代幣對，包含三個主要狀態變量：
+   - factory: 記錄創建它的工廠合約地址。
+   - token0 和 token1: 這對應於代幣對的兩種代幣地址。
+- 初始化時，factory 記錄為創建它的合約地址，並且 initialize 函數在合約部署後被手動調用，用來設置兩個代幣的地址。
+##### PairFactory 合約
+- PairFactory 是工廠合約，負責創建新的代幣對 (Pair) 合約。工廠合約的主要功能是：
+   - getPair: 一個mapping，允許通過兩個代幣地址查找對應的代幣對合約地址。
+   - allPairs: 存儲所有創建的代幣對合約地址。
+
+## 24_Create
+`CREATE2 是一個以太坊操作碼，用於在智能合約部署之前就能預測合約的地址。這與 CREATE 操作碼不同，CREATE2 允許我們生成可預測的合約地址，無論未來的事件如何變化。`
+#### CREATE 和 CREATE2 地址計算的區別
+#### CREATE 地址計算
+- CREATE 操作碼的合約地址由以下內容決定：
+   - 創建者的地址（可以是外部帳戶或合約地址）。
+   - 創建者的 nonce（代表該地址發出的交易或合約創建的次數）。
+   - 由於 nonce 隨時間增加，因此很難預測未來使用 CREATE 創建的合約地址。   
+#### CREATE2 地址計算
+- CREATE2 提供了一種方式，可以在合約部署之前計算出地址，無需依賴未來的 nonce 或事件。<br>CREATE2 計算合約地址時，使用的是：
+   - 0xFF（一個常數）。
+   - 創建合約的地址。
+   - salt（由創建者指定的值，通常是 bytes32）。
+   - 合約的 initcode（合約的創建代碼）。
+```solidity
+//CREATE
+新地址 = keccak256(rlp.encode([創建者地址, nonce]))
+//CREATE2
+新地址 = keccak256(abi.encodePacked(0xFF, 創建者地址, salt, keccak256(initcode)))
+```
+- CREATE2 保證了只要提供相同的 salt 和 initcode，即使在不同的時間段，合約的地址都是相同且可預測的。
+### CREATE2 用法
+- CREATE2 的語法與 CREATE 類似，但多了一個 salt 參數，用來確定合約地址：
+```solidity
+Contract x = new Contract{salt: _salt, value: _value}(params);
+```
+_salt 是用來影響合約地址的參數。<br>
+_value 是創建時轉入的 ETH（如果構造函數是 payable）。
+- CREATE2 的實際應用場景
+   - 交易所錢包地址預留
+   - Uniswap V2 的交易對創建
+
+## 26_DeleteContract
+`用於刪除智能合約，並將合約中剩餘的 ETH 轉移到指定地址。`
+最早被命名為 suicide，後來改名為 selfdestruct 以避免敏感詞。<br>指令的初衷是為了應對合約運行中的緊急情況<br>例如合約發生嚴重錯誤時，可以自毀來停止進一步的運行
+- 已經部署的合約無法被 selfdestruct 完全刪除。
+- 只有在同一筆交易中創建和銷毀的合約才能真正被刪除。
+```solidity
+selfdestruct(_addr);
+```
+_addr 是接收合約中剩餘 ETH 的地址。<br>這個地址不需要具備 receive() 或 fallback() 函數來接收 ETH，selfdestruct 會自動轉移資金。
+## 27_ABIEncode
+### ABI 編碼函數
+1. abi.encode 用於將給定參數按照 ABI 規則進行編碼，每個參數會填充為 32 字節長度的數據，這是與合約交互時使用的主要方法。<br>編碼的結果每個變量會填充為 32 字節，適合與智能合約進行交互。
+```solidity
+function encode() public view returns(bytes memory result) {
+    result = abi.encode(x, addr, name, array);
+}
+```
+
+2. abi.encodePacked
+   - abi.encodePacked 和 abi.encode 類似，但會將填充的 0 省略，緊湊地編碼數據。這對於節省空間和計算哈希特別有用，但不適合與合約直接交互，因為缺少具體的填充。
+```solidity
+function encodePacked() public view returns(bytes memory result) {
+    result = abi.encodePacked(x, addr, name, array);
+}
+```
+3. abi.encodeWithSignature
+   - abi.encodeWithSignature 與 abi.encode 類似，但第一個參數是函數的簽名 (函數名稱和參數類型)，適合用於調用合約中的具體函數。
+```solidity
+function encodeWithSignature() public view returns(bytes memory result) {
+    result = abi.encodeWithSignature("foo(uint256,address,string,uint256[2])", x, addr, name, array);
+}
+```
+4. abi.encodeWithSelector
+   - abi.encodeWithSelector 類似於 abi.encodeWithSignature，但第一個參數是具體的函數選擇器，可以通過 Keccak 哈希計算得到。
+```solidity
+function encodeWithSelector() public view returns(bytes memory result) {
+    result = abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array);
+}
+```
+### ABI 解碼函數
+#### abi.decode
+- abi.decode 用於解碼使用 abi.encode 編碼的數據，將其還原為原始的參數。使用時需要指定數據的類型，以正確還原數據。
+```solidity
+function decode(bytes memory data) public pure returns(uint dx, address daddr, string memory dname, uint[2] memory darray) {
+    (dx, daddr, dname, darray) = abi.decode(data, (uint, address, string, uint[2]));
+}
+```
+## 28_Hash
+一種密碼學概念，能夠將任意長度的輸入數據轉換成一個固定長度的哈希值。
+#### Keccak256 是 Solidity 中最常用的哈希函數
+在 Ethereum 和 Solidity 開發時，使用的是 Keccak，而不是 NIST 標準的 SHA3。<br>為了避免混淆，在 Solidity 中使用 Keccak256 函數。
+#### 使用 Keccak256 生成數據唯一標識
+有一組不同類型的數據（如uint，string 和 address）<br>可以先用 abi.encodePacked 將數據打包，然後再用 keccak256 計算其唯一標識。
+#### 弱抗碰撞性
+```solidity
+function weak(
+    string memory string1
+    )public view returns (bool){
+    return keccak256(abi.encodePacked(string1)) == _msg;
+}
+```
+#### 強抗碰撞性
+```solidity
+function weak(
+    string memory string1
+    )public view returns (bool){
+    return keccak256(abi.encodePacked(string1)) == _msg;
+}
+```
+## 29_Selector
+當我們在以太坊上調用智能合約的函數時，實際上是發送了一段 calldata 給合約。<br>這段 calldata 中包含了函數選擇器 (selector) 和傳遞的參數，用於告訴智能合約調用哪個函數和使用什麼參數。
+#### msg.data 和 calldata
+msg.data 是 Solidity 中的一個全局變量，表示交易的完整 calldata。<br>當調用合約中的函數時，calldata 中的前 4 個字節是函數選擇器，剩下的部分是函數的參數。
+- 前 4 個字節 (0x6a627842) 是函數選擇器 (selector)。
+- 後面的字節 是參數 (0x2c44b726adf1963ca47af88b284c06f30380fc78)。
+#### 函數簽名和函數選擇器
+函數選擇器是根據函數簽名生成的。函數簽名的格式是 "函數名(參數類型1,參數類型2,...)"。<br>函數選擇器是函數簽名的 Keccak 哈希的前 4 個字節。
+#### 函數參數類型
+1. 基礎類型參數
+2. 固定長度類型參數
+3. 可變長度類型參數
+4. 映射類型參數
+#### 使用函數選擇器調用函數
+使用函數選擇器來調用目標函數，通過 abi.encodeWithSelector 將選擇器與參數打包傳遞給合約進行低級調用
+
+## 30_TryCatch
+```solidity
+try externalContract.f() {
+    // 成功時運行的代碼
+} catch {
+    // 失敗時運行的代碼
+}
+```
 
 ### 2024.10.10
+
+
 
 ### 2024.10.11
 

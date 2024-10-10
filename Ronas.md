@@ -645,4 +645,76 @@ timezone: Asia/Shanghai
             }
             ```
 
+### 2024.10.09
+
+> 進度: Solidity 103 33~35
+
+- 空投合約 (Airdrop)
+    - 分送代幣給多個合約
+    - 函數
+        - `getSum()`
+            ```
+            function getSum(uint256[] calldata _arr) public pure returns(uint sum){
+                for(uint i = 0; i < _arr.length; i++)
+                    sum = sum + _arr[i];
+            }
+            ```
+        - `multiTransferToken()`
+            ```
+            // @notice 向多个地址转账ERC20代币，使用前需要先授权
+            ///
+            /// @param _token 转账的ERC20代币地址
+            /// @param _addresses 空投地址数组
+            /// @param _amounts 代币数量数组（每个地址的空投数量）
+            function multiTransferToken(
+                address _token,
+                address[] calldata _addresses,
+                uint256[] calldata _amounts
+                ) external {
+                // 检查：_addresses和_amounts数组的长度相等
+                require(_addresses.length == _amounts.length, "Lengths of Addresses and Amounts NOT EQUAL");
+                IERC20 token = IERC20(_token); // 声明IERC合约变量
+                uint _amountSum = getSum(_amounts); // 计算空投代币总量
+                // 检查：授权代币数量 >= 空投代币总量
+                require(token.allowance(msg.sender, address(this)) >= _amountSum, "Need Approve ERC20 token");
+
+                // for循环，利用transferFrom函数发送空投
+                for (uint8 i; i < _addresses.length; i++) {
+                    token.transferFrom(msg.sender, _addresses[i], _amounts[i]);
+                }
+            }
+            ```
+
+- ERC165
+    ```
+    interface IERC165 {
+        /**
+        * @dev 如果合约实现了查询的`interfaceId`，则返回true
+        * 规则详见：https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[EIP section]
+        *
+        */
+        function supportsInterface(bytes4 interfaceId) external view returns (bool);
+    }
+    ```
+    - 檢查是否支援 ERC721, ERC1155
+
+- ERC721 非同質化代幣標準
+    - `IERC721` 為對外接口 `ERC721` 為邏輯實現
+    - 事件
+        - `Transfer`
+        - `Approval`
+        - `ApprovalForAll`
+    - 函數
+        - `balanceOf()` 取得餘額
+        - `ownerOf()` 取得所有人
+        - `transferFrom()` 授權移轉代幣
+        - `safeTransferFrom(from, to, tokenId)` 安全授權移轉代幣
+        - `safeTransferFrom(data)` 
+        - `approve()` 授權
+        - `getApproved()` 查詢 tokenId 被批准給哪個地址
+        - `setApprovalForAll()` 批次授權給某個 operator
+        - `isApprovedForAll()` 查詢是否批次授權
+
+- 荷蘭拍賣 (Dutch Auction)
+
 <!-- Content_END -->
