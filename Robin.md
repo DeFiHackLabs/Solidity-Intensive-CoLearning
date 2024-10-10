@@ -898,6 +898,30 @@ contract ContractB{
         - 生成数据唯一标识
         - 加密签名
         - 安全加密
-      
 
+
+### 2024.10.10
+
+學習內容:
+
+- [x] 函数选择器
+    - 概念 calldata的前四个字节是函数选择器selector
+    - 用法 selector = ` byte4(keccak256("functionName(parameterType[,...])"))`
+    - 注意：uint和int在函数签名中要使用uint256和int256
+    - 利用函数选择器调用函数：` address(_address).call(abi.encodeWithSelector(byte4(keccak256("functionName(parameterType[,...])"))))`
+
+
+- [x] try-catch
+    - 概念：用于捕获合约内部的异常
+    - 用法：
+        ```solidity
+        try externalContract.f() returns (bool success) {
+            // 成功
+        } catch Error(string memory reason) {
+            // 失败
+        } catch (bytes memory lowLevelData) {
+            // 失败
+        }
+        ```
+    - 注意：只能被用于external函数或创建合约时constructor（被视为external函数）的调用
 <!-- Content_END -->
