@@ -163,7 +163,7 @@ WTF solidity34-35
 3. [ERC165](https://eips.ethereum.org/EIPS/eip-165)
 4. 荷兰拍卖合约实现
 ### 2024.09.29
-WTF solidity38-40
+WTF solidity40
 ### 2024.09.30
 WTF solidity41-43
 ### 2024.10.01
@@ -334,7 +334,7 @@ WTF solidity29-30
    后通过 keccak256 hash后的前四个字节
 2. 计算method id -> `bytes4(keccak256("函数名(参数类型1,参数类型2,...)"))`
    - 基础类型参数中uint需写成uint256，int为int256
-   - 固定长度类型参数 如uint8[3]写为uint[8]
+   - 固定长度类型参数 如uint8[3]写为uint8[3]
    - 可变长度类型参数 如address[]写为address[]
    - 映射类型参数 合约对象需转成address，结构体为(成员类型1,成员类型2,...)，枚举为uint8
 3. try/catch     
@@ -350,5 +350,38 @@ WTF solidity36-37
    节点由hash关联，父节点为孩子节点的hash。其特征方便证明一个值是否存在于merkle tree当中，只需要提供merkle proof即可。比特币和以太坊
    中应用其验证交易是否存在
 2. 签名
-      
+   以太坊中采用双椭圆曲线数字签名算法（ECDSA）
+   1. 先将需要签名的信息进行`abi.encodePacked()`编码，再用`keccak256`进行hash
+   2. 将处理过的信息前加上"\x19Ethereum Signed Message:\n32"字符，再用`keccak256`进行hash
+   3. 将处理后的信息利用钱包和私钥进行签名
+   4. 通过签名和处理后的信息获取公钥
+      ``` solidity
+      // @dev 从_msgHash和签名_signature中恢复signer地址
+      function recoverSigner(bytes32 _msgHash, bytes memory _signature) internal pure returns (address){
+        // 检查签名长度，rsv格式签名一般长度为65位，r32位，s32位，v1位
+        require(_signature.length == 65, "invalid signature length");
+        bytes32 r;
+        bytes32 s;
+        uint8 v;
+        // 目前只能用assembly (内联汇编)来从签名中获得r,s,v的值
+        assembly {
+            /*
+            solidity中动态数组前32字节存的是数组的长度
+            add(sig, 32) = sig的指针 + 32
+            等效为略过signature的前32 bytes
+            mload(p) 载入从内存地址p起始的接下来32 bytes数据
+            */
+            // 略过前32位获取r
+            r := mload(add(_signature, 0x20))
+            // 略过前64位获取r
+            s := mload(add(_signature, 0x40))
+            // 最后一个byte为v
+            v := byte(0, mload(add(_signature, 0x60)))
+        }
+        // 使用ecrecover(全局函数)：利用 msgHash 和 r,s,v 恢复 signer 地址
+        return ecrecover(_msgHash, v, r, s);
+      }
+      ```
+### 2024.10.10
+WTF solidity38-39      
 <!-- Content_END -->
