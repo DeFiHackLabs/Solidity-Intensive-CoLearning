@@ -159,7 +159,7 @@ initcode: 新合约的初始字节码（合约的Creation Code和构造函数的
 ### 2024.09.27
 WTF solidity33-35
 ### 2024.09.29
-WTF solidity36-40
+WTF solidity38-40
 ### 2024.09.30
 WTF solidity41-43
 ### 2024.10.01
@@ -325,6 +325,19 @@ WTF solidity26-28
 3. solidity最常用的哈希函数keccak256     
 ### 2024.10.07
 WTF solidity29-30
+1. 函数选择器   
+   发送给合约的calldata其实为合约中函数的method id和参数abi编码组成的16进制字节码，其中method id为函数签名`函数名（逗号分隔的参数类型)`
+   后通过 keccak256 hash后的前四个字节
+2. 计算method id -> `bytes4(keccak256("函数名(参数类型1,参数类型2,...)"))`
+   - 基础类型参数中uint需写成uint256，int为int256
+   - 固定长度类型参数 如uint8[3]写为uint[8]
+   - 可变长度类型参数 如address[]写为address[]
+   - 映射类型参数 合约对象需转成address，结构体为(成员类型1,成员类型2,...)，枚举为uint8
+3. try/catch     
 ### 2024.10.08
-WTF solidity31-32
+WTF solidity31-33
+1. ERC-20
+2. 两个简单的ERC20应用合约faucet和airdrop   
+### 2024.10.09
+WTF solidity36-37
 <!-- Content_END -->

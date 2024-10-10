@@ -483,10 +483,12 @@ and, I will start to make up my study records.
 
 
 
-### 2024.20.08
+### 2024.10.08
 
 I should focus on cultivating a feeling：Facing Challenges Head-On. 
 
+
+### 2024.10.09
 
 
 <!-- Content_END -->

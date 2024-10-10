@@ -1156,6 +1156,170 @@ timezone: Asia/Shanghai
 
 ---
 
+#### 学习内容 26. 删除合约
+
+1. selfdestruct
+
+    - 删除智能合约，并将该合约剩余`ETH`转到指定地址
+    - 在一些情况下它会导致预期之外的合约语义，但由于目前还没有代替方案（有警告）
+
+2. EIP-6780
+
+    - 减少了`SELFDESTRUCT`操作码的功能
+    - 当前`SELFDESTRUCT`仅会被用来将合约中的ETH转移到指定地址
+    - 原先的删除功能只有在`合约创建-自毁`这两个操作处在同一笔交易时才能生效
+        - 已经部署的合约无法被`SELFDESTRUCT`
+        - 如果要使用原先的`SELFDESTRUCT`功能，必须在同一笔交易中创建并`SELFDESTRUCT`
+
+3. 使用
+
+    - `selfdestruct(_addr)；`
+        - 其中`_addr`是接收合约中剩余`ETH`的地址
+        - `_addr` 地址不需要有`receive()`或`fallback()`也能接收`ETH`
+
+4. 转移ETH功能
+
+    - 坎昆升级前，合约会被自毁。
+
+    - 坎昆升级后，合约依然存在，只是将合约包含的ETH转移到指定地址，而合约依然能够调用。
+
+    - ```solidity
+        function demo() public payable returns (DemoResult memory) {
+            DeleteContract del = new DeleteContract{value: msg.value}();
+            DemoResult memory res = DemoResult({
+                addr: address(del),
+                balance: del.getBalance(),
+                value: del.value()
+            });
+            del.deleteContract();
+            return res;
+        }
+        ```
+
+5. 注意点
+
+    - 对外提供合约销毁接口时，最好设置为只有合约所有者可以调用，可以使用函数修饰符`onlyOwner`进行函数声明。
+    - 当合约中有`selfdestruct`功能时常常会带来安全问题和信任问题
+    - 合约中的selfdestruct功能会为攻击者打开攻击向量
+    - 此功能还会降低用户对合约的信心
+
+6. 合约部署
+
+    - ![image-20241009171201571](content/Aris/image-20241009171201571.png)
+    - ![image-20241009171653387](content/Aris/image-20241009171653387.png)
+
+7. 第 26 节测验得分: 100, 答案: 
+
+---
+
+### 2024.10.10
+
+#### 学习内容 27. ABI编码解码
+
+1. ABI
+
+    - Application Binary Interface，应用二进制接口
+    - 与以太坊智能合约交互的标准
+    - 数据基于他们的类型编码
+    - 由于编码后不包含类型信息，解码时需要注明它们的类型
+
+2. abi编码-abi.encode
+
+    - ```solidity
+        abi.encode(x, addr, name, array)
+        ```
+
+    - 将每个参数填充为32字节的数据，并拼接在一起
+
+    - `0x000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000043078414100000000000000000000000000000000000000000000000000000000`
+
+    - abi.encode将每个数据都填充为32字节，中间有很多0
+
+3. abi编码-abi.encodePacked
+
+    - ```solidity
+        abi.encodePacked(x, addr, name, array)
+        ```
+
+    - 将给定参数根据其所需最低空间编码,会把其中填充的很多`0`省略
+
+    - 比如，只用1字节来编码`uint8`类型
+
+    - `abi.encodePacked`对编码进行了压缩，长度比`abi.encode`短很多
+
+4. abi编码-abi.encodeWithSignature
+
+    - ```solidity
+        abi.encodeWithSignature("foo(uint256,address,string,uint256[2])", x, addr, name, array)
+        ```
+
+    - 第一个参数为`函数签名`
+
+    - 同于在`abi.encode`编码结果前加上了4字节的`函数选择器`
+
+5. abi编码-abi.encodeWithSelector
+
+    - ```solidity
+        abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array)
+        ```
+
+    - 第一个参数为`函数选择器`,是`函数签名`Keccak哈希的前4个字节
+
+    - 结果与`abi.encodeWithSignature`结果一样
+
+6. abi解码-abi.decode
+
+    - ```solidity
+        (dx, daddr, dname, darray) = abi.decode(data, (uint, address, string, uint[2]));
+        ```
+
+    - 解码时需要注明对应顺序和类型!!!
+
+7. 使用场景
+
+    - 合约开发,ABI常配合call来实现对合约的底层调用;
+
+        - ```solidity
+            bytes4 selector = contract.getValue.selector;
+            
+            bytes memory data = abi.encodeWithSelector(selector, _x);
+            (bool success, bytes memory returnedData) = address(contract).staticcall(data);
+            require(success);
+            
+            return abi.decode(returnedData, (uint256));
+            ```
+
+    - ethers.js中常用ABI实现合约的导入和函数调用;
+
+        - ```javascript
+            const wavePortalContract = new ethers.Contract(contractAddress, contractABI, signer);
+            const waves = await wavePortalContract.getAllWaves();
+            ```
+
+    - 对不开源合约进行反编译后，某些函数无法查到函数签名，可通过ABI进行调用;
+
+        - ```solidity
+            bytes memory data = abi.encodeWithSelector(bytes4(0x533ba33a));
+            
+            (bool success, bytes memory returnedData) = address(contract).staticcall(data);
+            require(success);
+            
+            return abi.decode(returnedData, (uint256));
+            ```
+
+8. 合约部署
+
+    - ![image-20241010142845934](content/Aris/image-20241010142845934.png)
+
+9. 第 27 节测验得分: 100, 答案: EBAD
+
+    - ![image-20241010145110306](content/Aris/image-20241010145110306.png)
+
+
+---
+
+
+
 
 
 

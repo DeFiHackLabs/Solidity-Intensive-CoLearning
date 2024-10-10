@@ -15,6 +15,30 @@ timezone: Asia/Shanghai
 ## Notes
 
 <!-- Content_START -->
+### 2024.10.09
+Pure 和 View 關鍵字到底是什麼？
+pure 和 view 關鍵字在 Solidity 中非常重要，對於初學者來說可能比較難理解，因為其他編程語言中並沒有類似的概念。這兩個關鍵字的引入主要是為了`管理`以太坊交易中的 Gas 費用。
+
+為什麼需要 Pure 和 View？
+在以太坊上，合約的`狀態變量`是存儲在區塊鏈上的，每次修改這些狀態變量時，都需要消耗 Gas 費。而 pure 和 view 這兩個關鍵字是為了`區分`那些不需要修改鏈上狀態的操作，從而節省不必要的 Gas 費用。
+
+什麼是 view 函數？
+view 函數是只`讀`函數，這意味著它可以讀取鏈上的狀態變量，`但不能`修改它們。當用戶直接調用 `view` 函數時，`不需要`支付 Gas，因為這些操作`不會`改變鏈上的任何狀態。然而，如果 view 函數被其他`非` view 函數調用，則仍然需要支付 Gas。
+```solidity
+// 一個簡單的 view 函數，只讀取狀態變量
+pragma solidity ^0.8.0;
+
+contract Example {
+    uint256 public storedData;
+
+    // view 函數：只讀取狀態變量
+    function getStoredData() public view returns (uint256) {
+        return storedData;
+    }
+}
+```
+在這個例子中，getStoredData() 函數只讀取 storedData 的值，而不會修改它，因此被標記為 view。用戶直接調用這個函數時，不會消耗 Gas。
+
 ### 2024.10.07
 pure 和 view 關鍵字在 Solidity 中非常重要，對於初學者來說可能比較難理解，因為其他編程語言中並沒有類似的概念。這兩個關鍵字的引入主要是為了管理以太坊交易中的 Gas 費用。
 

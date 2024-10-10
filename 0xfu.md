@@ -823,4 +823,10 @@ contract Timelock{
 
 ### 
 
+### 2024.10.9
+
+#### [可升级合约](./content/0xfu/UpgradeContract.md)
+
+### 
+
 <!-- Content_END -->
