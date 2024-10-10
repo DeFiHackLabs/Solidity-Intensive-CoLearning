@@ -174,4 +174,8 @@ Add source codes for 23.Delegatecall and its tests
 
 Add source codes for 24.Create and its tests
 
+### 2024.10.10
+
+Add source codes for 25.Create2 and its tests
+
 <!-- Content_END -->
