@@ -998,4 +998,29 @@ function _checkOnERC721Received(address from,address to,uint tokenId,bytes memor
         _checkOnERC721Received(from,to,tokenId,_data);
     }
   上边校验通过后，进行transfer操作  
+
+### 2024.10.10
+function mint(address to,uint tokenId) internal  virtual{
+        require(to != address(0),"mint to zero address"); //不可以是空的地址，不然会失败
+        require(_owners[tokenId] == address(0),"token already mint"); //第一次铸币，tokenId没有对应的地址
+        _balances[to] +=1; //更新代币地址的余额
+        _owners[tokenId] = to; //建立对应关系
+        emit Transfer(address(0),to,tokenId); //释放事件，记录日志
+    }
+
+    function burn(uint tokenId) internal  virtual{
+        address owner = ownerOf(tokenId); //根据tokenId找地址
+        require(msg.sender == owner,"must be owner");
+        _approve(owner, address(0), tokenId); //授权
+        _balances[owner] -=1; //减余额
+        delete _owners[tokenId]; //置空
+        emit Transfer(owner,address(0),tokenId);
+
+    }
+    学习了铸币和销毁币的操作
+
+
+
+
+  
 <!-- Content_END -->
