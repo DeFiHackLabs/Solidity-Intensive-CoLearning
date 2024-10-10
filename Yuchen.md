@@ -1739,5 +1739,85 @@ predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
 <img src="https://github.com/user-attachments/assets/7d4d71a9-8713-4bfd-90b4-16f10509de14" height="340px" width="600px" />  
 
 
+### 2024.10.10
+
+#### 刪除合約
+
+`selfdestruct`
+* 此命令用來刪除智能合約，並將該合約剩餘`ETH`轉到指定地址。
+* 是為了應對合約出錯的極端情況而設計的。  
+
+1. 已经部署的合约无法被SELFDESTRUCT了。
+2. 如果要使用原先的SELFDESTRUCT功能，必须在同一笔交易中创建并SELFDESTRUCT。
+
+#### 如何使用`selfdestruct`：
+```Solidity
+selfdestruct(_addr)；
+```  
+其中_addr是接收合约中剩余ETH的地址。_addr 地址不需要有receive()或fallback()也能接收ETH。
+
+#### Demo-转移ETH功能
+當調用`deleteContract()`函數，合約將觸發`selfdestruct`操作。在坎昆升級前，合約會被自毁。但是在升級後，合約依然存在，只是將合約包含的ETH轉移到指定地址，而合約依然能够調用。    
+```Solidity
+contract DeleteContract {
+
+    uint public value = 10;
+
+    constructor() payable {}
+
+    receive() external payable {}
+
+    // 调用selfdestruct销毁合约，并把剩余的ETH转给msg.sender
+    function deleteContract() external {
+        selfdestruct(payable(msg.sender));
+    }
+
+    function getBalance() external view returns(uint balance){
+        balance = address(this).balance;
+    }
+}
+```
+
+
+**Demo-同笔交易内实现合约创建-自毁**  
+根据提案，原先的删除功能只有在合约创建-自毁这两个操作处在同一笔交易时才能生效。所以我们需要通过另一个合约进行控制。
+
+```Solidity
+contract DeployContract {
+
+    struct DemoResult {
+        address addr;
+        uint balance;
+        uint value;
+    }
+
+    constructor() payable {}
+
+    function getBalance() external view returns(uint balance){
+        balance = address(this).balance;
+    }
+
+    function demo() public payable returns (DemoResult memory){
+        DeleteContract del = new DeleteContract{value:msg.value}();
+        DemoResult memory res = DemoResult({
+            addr: address(del),
+            balance: del.getBalance(),
+            value: del.value()
+        });
+        del.deleteContract();
+        return res;
+    }
+}
+```
+
+**※注意：**  
+1. 对外提供合约销毁接口时，最好设置为只有合约所有者可以调用，可以使用函数修饰符onlyOwner进行函数声明。
+2. 当合约中有selfdestruct功能时常常会带来安全问题和信任问题，合约中的selfdestruct功能会为攻击者打开攻击向量(例如使用selfdestruct向一个合约频繁转入token进行攻击，这将大大节省了GAS的费用，虽然很少人这么做)，此外，此功能还会降低用户对合约的信心。
+
+**總結**  
+`selfdestruct`是智能合約的緊急按钮，銷毀合約並將剩餘`ETH`轉移到指定帳戶。
+
+
+
 
 <!-- Content_END -->
