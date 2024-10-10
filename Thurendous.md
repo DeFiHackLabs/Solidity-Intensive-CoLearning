@@ -1839,6 +1839,8 @@ contract Selector{
     }
     ...
 }
+
+
 ```
 
 - 使用selector来调用函数
@@ -1881,5 +1883,190 @@ try externalContract.f() returns(returnType){
     // 例如revert() require(false) revert自定义类型的error
 }
 ```
+
+### 2024.10.10
+
+(Day 15)
+
+学习笔记
+
+#### 56. 去中心化交易所
+
+恒定乘积做市商。也叫做Constant Product Automated Market Maker(CPAMM)。它是去中心化交易所的核心的机制。
+
+被Uniswap, PancakeSwap, SushiSwap等DEX采用。我们实现一个简单的[Uniswap V2](https://github.com/Uniswap/v2-core)的合约。
+
+自动做市商是一种算法，是在区块链上运行的智能合约。它允许数字资产之间的交易。AMM打开了一种全新的交易模式。无需传统的买家和卖家进行匹配，而是通过一种预设的数学公式（比如，常数乘积公式）创建了一个流动性池子。使得用户可以随时进行讲交易。
+
+x：可乐
+
+y：美元
+
+Δx和Δy：交易对中两种资产的变化量。
+
+L和ΔL：流动性池中总流动性的数量和变化量。
+
+- 恒定总和做市商
+
+恒定总和做市商(Constant Sum Automated Market Maker, CSAMM)是最简单的做市商模型。我们从他开始。
+
+他在交易的时候的约束是：
+
+x + y = k
+
+k是一个常数。
+
+也就是说，在交易的前后市场中，可乐和美元的数量的总和不变。举个例子，市场中流动性有10瓶可乐和10美元。此时k=20。如果一个用户想买可乐，这时k=20，价格是1美元/瓶，这个做市商需要卖出1美元，那么他卖出1美元后，市场中就只有9美元和11瓶可乐。此时保持k=20，价格还是1美元/瓶。没有变化。
+
+这个就是最简单的恒定总和做市商。
+
+CSAMM的优点是可以保证代币的相对价格的不变。这点在稳定币兑换中很重要，大家都希望1USDT总是能够兑换1USDC。它的缺点也很明显了，就是他的流动性非常容易耗尽。我只需要10美元就可以把这个池子的流动性耗尽。其他用户就没发交易然后喝可乐了。
+
+- 恒定乘积做市商
+
+恒定乘积做市商(Constant Product Automated Market Maker, CPAMM)是Uniswap采用的模型。
+
+在CPAMM中，交易对中两种资产的数量乘积总是保持不变。
+
+x * y = k
+
+k是一个常数。
+
+举个例子，市场中流动性有10瓶可乐和10美元。此时k=100。如果一个用户想买可乐，这时k=100，价格是1美元/瓶，这个做市商需要卖出1美元，那么他卖出1美元后，市场中就只有9美元和11瓶可乐。此时保持k=100，价格还是1美元/瓶。没有变化。
+
+这个就是最简单的恒定乘积做市商。
+
+CPAMM的优点是他的流动性不容易耗尽。因为他的流动性是基于两种资产的数量乘积来决定的。
+
+比如，同样的例子，市场中有10瓶可乐和10美元。此时k=100。按照之前的恒定总和的做市商的话，如果一个用户想要买可乐，他买了2瓶可乐。那么市场中就只有8瓶可乐和12美元。此时k=96。常数k不守恒了，所以不对了，所以我们其实是这样计算的，
+
+如果买了两瓶可乐的话，那么，x*y=k还是总是保持不变，那么，x*y=10*10=100，那么，y=100/8=12.5。也就是说，卖出了两瓶可乐的话，那么需要支付的金额是2.5美元。
+
+- 去中心化交易所
+
+下面我们实现一个简单的去中心化交易所。
+
+```solidity
+contract SimpleSwap is ERC20 {
+    // 代币合约
+    IERC20 public token0;
+    IERC20 public token1;
+
+    // 代币储备量
+    uint public reserve0;
+    uint public reserve1;
+    
+    // 构造器，初始化代币地址
+    constructor(IERC20 _token0, IERC20 _token1) ERC20("SimpleSwap", "SS") {
+        token0 = _token0;
+        token1 = _token1;
+    }
+}
+```
+
+交易所主要有两类参与者：流动性提供者（Liquidity Provider，LP）和交易者（Trader）。下面我们分别实现这两部分的功能。
+
+- 流动性提供
+
+流动性的提供者是给市场提供流动性的人。他们向池子中注入两种资产，成为流动性提供者。
+
+他们提供流动性，并且获得手续费。
+
+我们需要实现这个流动性提供的功能。
+
+根据uniswap v2的实现，LP份额的计算公式是：
+
+![img](./content/Thurendous/01-AMM.png)
+
+因为SimpleSwap合约继承了ERC20合约，所以在计算好了LP份额以后，可以将份额以代币形式铸造给用户。
+
+下面的 addLiquidity() 函数实现了添加流动性的功能，主要步骤如下：
+
+- 将用户添加的代币转入合约，需要用户事先给合约授权。
+- 根据公式计算添加的流动性份额，并检查铸造的LP数量。
+- 更新合约的代币储备量。
+- 给流动性提供者铸造LP代币。
+- 释放 Mint 事件。
+
+```solidity
+event Mint(address indexed sender, uint amount0, uint amount1);
+
+// 添加流动性，转进代币，铸造LP
+// @param amount0Desired 添加的token0数量
+// @param amount1Desired 添加的token1数量
+function addLiquidity(uint amount0Desired, uint amount1Desired) public returns(uint liquidity){
+    // 将添加的流动性转入Swap合约，需事先给Swap合约授权
+    token0.transferFrom(msg.sender, address(this), amount0Desired);
+    token1.transferFrom(msg.sender, address(this), amount1Desired);
+    // 计算添加的流动性
+    uint _totalSupply = totalSupply();
+    if (_totalSupply == 0) {
+        // 如果是第一次添加流动性，铸造 L = sqrt(x * y) 单位的LP（流动性提供者）代币
+        liquidity = sqrt(amount0Desired * amount1Desired);
+    } else {
+        // 如果不是第一次添加流动性，按添加代币的数量比例铸造LP，取两个代币更小的那个比例
+        liquidity = min(amount0Desired * _totalSupply / reserve0, amount1Desired * _totalSupply /reserve1);
+    }
+
+    // 检查铸造的LP数量
+    require(liquidity > 0, 'INSUFFICIENT_LIQUIDITY_MINTED');
+
+    // 更新储备量
+    reserve0 = token0.balanceOf(address(this));
+    reserve1 = token1.balanceOf(address(this));
+
+    // 给流动性提供者铸造LP代币，代表他们提供的流动性
+    _mint(msg.sender, liquidity);
+    
+    emit Mint(msg.sender, amount0Desired, amount1Desired);
+}
+```
+
+- 移除流动性
+
+流动性提供者可以随时移除他们的流动性。
+
+![img](./content/Thurendous/02-AMM.png)
+
+下边的removeLiquidity()函数实现了移除流动性的功能，主要步骤如下：
+
+- 获取合约中的代币余额。
+- 按LP的比例计算要转出的代币数量。
+- 检查代币数量。
+- 销毁LP份额。
+- 将相应的代币转账给用户。
+- 更新储备量。
+- 释放 Burn 事件。
+
+```solidity
+// 移除流动性，销毁LP，转出代币
+// 转出数量 = (liquidity / totalSupply_LP) * reserve
+// @param liquidity 移除的流动性数量
+function removeLiquidity(uint liquidity) external returns (uint amount0, uint amount1) {
+    // 获取余额
+    uint balance0 = token0.balanceOf(address(this));
+    uint balance1 = token1.balanceOf(address(this));
+    // 按LP的比例计算要转出的代币数量
+    uint _totalSupply = totalSupply();
+    amount0 = liquidity * balance0 / _totalSupply;
+    amount1 = liquidity * balance1 / _totalSupply;
+    // 检查代币数量
+    require(amount0 > 0 && amount1 > 0, 'INSUFFICIENT_LIQUIDITY_BURNED');
+    // 销毁LP
+    _burn(msg.sender, liquidity);
+    // 转出代币
+    token0.transfer(msg.sender, amount0);
+    token1.transfer(msg.sender, amount1);
+    // 更新储备量
+    reserve0 = token0.balanceOf(address(this));
+    reserve1 = token1.balanceOf(address(this));
+
+    emit Burn(msg.sender, amount0, amount1);
+}
+```
+
+
+
+
 
 <!-- Content_END -->
