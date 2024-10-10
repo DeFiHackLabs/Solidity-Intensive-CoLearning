@@ -733,6 +733,31 @@ interface IERC165 {
 
     function safeTransferFrom( address from, address to, uint256 tokenId, bytes calldata data) external;
 }
+### 2024.10.10
+1. 学习异常，分析代码。
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+contract test_error{
 
+    error TransferNotOwner(address sender);
+
+    function transferOwner1(uint256 tokenId, address newOwner) public {
+    if(_owners[tokenId] != msg.sender){
+        revert TransferNotOwner();
+        // revert TransferNotOwner(msg.sender);
+    }
+    _owners[tokenId] = newOwner;
+    }
+
+    function transferOwner2(uint256 tokenId, address newOwner) public {
+    require(_owners[tokenId] == msg.sender, "Transfer Not Owner");
+    _owners[tokenId] = newOwner;
+    }
+
+    function transferOwner3(uint256 tokenId, address newOwner) public {
+    assert(_owners[tokenId] == msg.sender);
+    _owners[tokenId] = newOwner;
+}
+}
 
 <!-- Content_END -->
