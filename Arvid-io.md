@@ -1508,4 +1508,151 @@ address[] public allPairs;
     
     This double mapping makes it easy to look up the `Pair` contract regardless of the order of the token addresses.
 
+### 2024.10.10
+
+### Reference Types in Solidity
+
+Reference types in Solidity include arrays and structs. Since these variables are more complex and take up more storage space, we must specify the **data location** when using them.
+
+---
+
+### Data Locations
+
+There are three types of data locations in Solidity: `storage`, `memory`, and `calldata`. Different storage locations have different gas costs. Data in `storage` is stored on the blockchain (similar to a computer's hard drive) and consumes more gas, while `memory` and `calldata` are temporary, residing in memory and consuming less gas.
+
+- **storage**: State variables within the contract are stored in `storage` by default, meaning they are stored on the blockchain.
+- **memory**: Used for function parameters and temporary variables that only exist during function execution and do not persist on the blockchain. When returning dynamic data types (like strings, bytes, arrays, or custom structs), you must use the `memory` keyword.
+- **calldata**: Similar to `memory` but the key difference is that `calldata` variables are immutable (cannot be modified). It’s generally used for function parameters.
+
+Example:
+
+```solidity
+solidity
+複製程式碼
+function fCalldata(uint[] calldata _x) public pure returns(uint[] calldata){
+    // _x is a calldata array and cannot be modified
+    // _x[0] = 0; // This would throw an error
+    return _x;
+}
+
+```
+
+---
+
+### Data Location and Assignment Rules
+
+When assigning between different data locations, sometimes an independent copy is created (modifying the new variable does not affect the original), while other times a reference is created (modifying the new variable will affect the original). The rules are as follows:
+
+- **Assignment creates a reference**: Modifying the reference or the original will reflect the changes in both.
+
+For example:
+
+- Assigning a `storage` state variable to another `storage` variable creates a reference. Changing the new variable will affect the original.
+
+```solidity
+solidity
+複製程式碼
+uint[] x = [1, 2, 3]; // State variable x (in storage)
+
+function fStorage() public {
+    // Declare a storage variable xStorage that points to x
+    // Modifying xStorage will also affect x
+    uint[] storage xStorage = x;
+    xStorage[0] = 100;
+}
+
+```
+
+Example:
+
+![5-2.png](5-2.png)
+
+- **Memory to memory assignment creates a reference**: Modifying the new variable will affect the original.
+
+In other cases, assignment creates a copy, meaning changes to one will not affect the other.
+
+---
+
+### Variable Scopes
+
+Solidity variables can be categorized into three types based on their scope: **state variables**, **local variables**, and **global variables**.
+
+### 1. **State Variables**
+
+State variables are stored on the blockchain and can be accessed by all functions within the contract. They are costly in terms of gas. State variables are declared within the contract but outside of functions:
+
+```solidity
+solidity
+複製程式碼
+contract Variables {
+    uint public x = 1;
+    uint public y;
+    string public z;
+}
+
+```
+
+You can modify the value of state variables within functions:
+
+```solidity
+solidity
+複製程式碼
+function foo() external {
+    // State variables can be modified inside a function
+    x = 5;
+    y = 2;
+    z = "0xAA";
+}
+
+```
+
+### 2. **Local Variables**
+
+Local variables only exist during the function's execution and are not stored on the blockchain. They are cheaper in terms of gas. Local variables are declared inside functions:
+
+```solidity
+solidity
+複製程式碼
+function bar() external pure returns(uint) {
+    uint xx = 1;
+    uint yy = 3;
+    uint zz = xx + yy;
+    return zz;
+}
+
+```
+
+### 3. **Global Variables**
+
+Global variables are predefined by Solidity and can be used anywhere within the contract without declaration. They provide information about the blockchain and the transaction.
+
+```solidity
+solidity
+複製程式碼
+function global() external view returns(address, uint, bytes memory) {
+    address sender = msg.sender;
+    uint blockNum = block.number;
+    bytes memory data = msg.data;
+    return (sender, blockNum, data);
+}
+
+```
+
+In this example, three common global variables are used: `msg.sender`, `block.number`, and `msg.data`, which represent the sender’s address, the current block number, and the request data, respectively.
+
+Some other commonly used global variables include:
+
+- `blockhash(uint blockNumber)`: Returns the hash of a given block – only works for the most recent 256 blocks.
+- `block.coinbase`: The address of the current block’s miner.
+- `block.gaslimit`: The gas limit for the current block.
+- `block.number`: The current block number.
+- `block.timestamp`: The current block’s timestamp (seconds since the Unix epoch).
+- `gasleft()`: The remaining gas for the current transaction.
+- `msg.data`: The complete calldata.
+- `msg.sender`: The address of the caller.
+- `msg.sig`: The first four bytes of the calldata (function identifier).
+- `msg.value`: The amount of wei sent with the current transaction.
+
+
+
 <!-- Content_END -->

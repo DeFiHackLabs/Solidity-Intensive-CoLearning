@@ -110,6 +110,10 @@ LFG～～～～～ 會完成的
 
 ### 2024.10.09
 
-[**WTF Solidity 極簡入門：32. 代幣水龍頭**](<content/Haoder/md/331.md>)
+[**WTF Solidity 極簡入門：32. 代幣水龍頭**](<content/Haoder/md/332.md>)
+
+### 2024.10.10
+
+[**WTF Solidity 極簡入門：33. 空投合約**](<content/Haoder/md/333.md>)
 
 <!-- Content_END -->

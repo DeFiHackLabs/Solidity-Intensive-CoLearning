@@ -829,4 +829,10 @@ contract Timelock{
 
 ### 
 
+### 2024.10.10
+
+#### [透明代理](./content/0xfu/TransparentProxy.md)
+
+### 
+ 
 <!-- Content_END -->

@@ -1308,4 +1308,114 @@ receive()  fallback()
 
 
 
+### 2024.10.10
+
+學習內容: 
+
+- [solidity-102 第二十课  发送ETH](https://www.wtf.academy/docs/solidity-102/SendETH/)
+- [solidity-102 第二十一课  调用其他合约](https://www.wtf.academy/docs/solidity-102/CallContract/)
+
+笔记
+
+
+#### 发送ETH
+
+Solidity 提供三种方法发送 ETH：`transfer()`、`send()` 和 `call()`。
+
+##### transfer()
+- 用法：`接收方地址.transfer(发送ETH数额)`
+- gas 限制：2300
+- 失败时自动 revert
+
+```solidity
+function transferETH(address payable _to, uint256 amount) external payable {
+    _to.transfer(amount);
+}
+```
+
+##### send()
+- 用法：`接收方地址.send(发送ETH数额)`
+- gas 限制：2300
+- 返回 bool 值表示成功或失败
+
+```solidity
+function sendETH(address payable _to, uint256 amount) external payable {
+    bool success = _to.send(amount);
+    if(!success){
+        revert SendFailed();
+    }
+}
+```
+
+##### call()
+- 用法：`接收方地址.call{value: 发送ETH数额}("")`
+- 无 gas 限制
+- 返回 (bool, bytes)
+
+```solidity
+function callETH(address payable _to, uint256 amount) external payable {
+    (bool success,) = _to.call{value: amount}("");
+    if(!success){
+        revert CallFailed();
+    }
+}
+```
+
+#### 调用其他合约
+
+##### 方法1：传入合约地址
+```solidity
+function callSetX(address _Address, uint256 x) external {
+    OtherContract(_Address).setX(x);
+}
+```
+
+##### 方法2：传入合约变量
+```solidity
+function callGetX(OtherContract _Address) external view returns(uint x) {
+    x = _Address.getX();
+}
+```
+
+##### 方法3：创建合约变量
+```solidity
+function callGetX2(address _Address) external view returns(uint x) {
+    OtherContract oc = OtherContract(_Address);
+    x = oc.getX();
+}
+```
+
+##### 方法4：调用合约并发送ETH
+```solidity
+function setXTransferETH(address otherContract, uint256 x) payable external {
+    OtherContract(otherContract).setX{value: msg.value}(x);
+}
+```
+
+#### 思考与解答
+
+1. 为什么 `call()` 被推荐用于发送 ETH？
+   - 解答：
+     - 灵活性：`call()` 没有 gas 限制，可以执行更复杂的逻辑。
+     - 安全性：返回值可以让我们处理失败情况，避免静默失败。
+     - 兼容性：适用于不同版本的 Solidity。
+     - 可扩展性：可以调用任意函数，不仅限于发送 ETH。
+
+2. 在调用其他合约时，传入合约地址和传入合约变量有什么区别？
+   - 解答：
+     - 传入合约地址更灵活，可以在运行时决定调用哪个合约。
+     - 传入合约变量在编译时提供类型检查，可以增加代码的安全性。
+     - 传入合约变量可以提高代码可读性，明确表示期望的合约类型。
+     - 底层实现上，两者都是传递地址，但合约变量提供了额外的类型信息。
+
+3. 在实际开发中，如何选择合适的跨合约调用方式？
+   - 解答：选择取决于具体需求：
+     - 如果需要高度灵活性，使用传入地址的方法。
+     - 如果强调类型安全和代码可读性，使用合约变量。
+     - 如果需要频繁调用同一合约，可以创建合约变量以提高效率。
+     - 如果需要同时转账和调用函数，使用 `call()` 方法。
+
+
+
+
 <!-- Content_END -->

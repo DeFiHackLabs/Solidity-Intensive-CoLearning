@@ -50,6 +50,46 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 ## Notes
 
 <!-- Content_START -->
+### 2024.10.10
+
+Day 14
+
+WTF Academy Solidity 101 44_TokenLocker, 45_Timelock
+
+Token Locker
+1. Sprcifically designed for locking tokens
+2. Commonly used for:
+   - Project team token locking to increase investor confidence
+   - Token locking after ICO/IDO
+   - Liquidity mining rewards locking
+3. Functional chatacteristics:
+   - Can set linear release
+   - Can set batch unlocking
+   - Usually only locks ERC20 tokens
+   - Generally cannot modify lock time
+
+Time Lock
+1. More general time-locking mechanism
+2. Main uses:
+   - Delayed execution of DAO governance proposals
+   - Delayed implementation of DeFi protocol parameter updates
+   - Delayed execution of smart contract upgrades
+3. Functional characteristics:
+   - Can lock any contract all
+   - Usually includes cancellation mechanism
+   - Can set multiple administrators
+   - Supports queue management for multiple operations
+
+Key Differences:
+1. Code structure:
+   - TokenLocker focuses on token locking and unlocking logic
+   - TimeLock focuses on delayed execution mechanism for general transactions
+2. Flexbility:
+   - TokenLocker specializes in token locking, relatively single-purpose
+   - TimeLock can execute any contract calls, more flexible
+
+---
+
 ### 2024.10.09
 
 Day 13

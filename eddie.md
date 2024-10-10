@@ -15,6 +15,29 @@ timezone: Asia/Shanghai
 ## Notes
 <!-- Content_START -->
 
+### 2024.10.10
+
+Solidity 103章节：ERC-2612 ERC20Permit，多重调用
+
+- Nonce补充
+
+  nonce用于确认交易顺序，撤销pending中的交易，确定生成的合约地址
+
+- ERC20Permit
+
+  这里的用途主要是分离permit的发起者和gas的付费人（实际进行approve）的两个角色，用户仅仅需要进行签名即可进行交易，用于近似的cex体验；
+
+- Multicall
+
+  calldata同样可以修饰结构体的声明，Call calldata calli；calli直接从调用数据中读取，不需要复制到内存，从而节省gas；
+
+- 相关代码
+
+  [ERC20Permit.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/ERC20Permit)
+
+  [MultiCall.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/MultiCall)
+
+
 ### 2024.10.09
 
 Solidity 103章节：ERC4626代币化金库标准、EIP712类型化数据签名
