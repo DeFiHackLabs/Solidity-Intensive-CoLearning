@@ -2917,4 +2917,193 @@ timezone: Asia/Shanghai
         }
         ```
 ###
+
+### 2024.10.09
+
+学习内容:
+1. 第四十三讲
+
+    - 线性释放 - 即分阶段释放代币的机制，通常用于激励长期参与项目的利益相关者。   
+
+    - 在Solidity中如何编写，逻辑来控制代币的分发。
+
+        - 受益人 (Beneficiary)：可以接收代币的地址。
+
+        - 开始时间 (Start Time)：开始释放代币的时间点。
+
+        - 持续时间 (Duration)：整个代币释放过程的总时长。
+
+        - Token Contract Address：被锁定的代币的合约地址。
+
+    - 核心函数
+
+        - 构造函数：用于初始化合约时，设置受益人、开始时间、持续时间和代币地址。
+	    - release()函数：释放可用代币的函数。包括：
+            - 计算当前已解锁的代币数。
+            - 检查已释放的数量是否有剩余代币可释放。
+            - 实现代币转账给受益人。
+        - 可释放的代币计算：如何通过时间比例计算当前可释放的代币。
+
+    - 代码分析
+        - 在实际开发中`release()`函数在发起转账之前，可以先检查合约中的token余额是否满足此次转账的金额。
+
+            ```Solidity
+
+            /**
+            * @dev 受益人提取已释放的代币。
+            * 调用 vestedAmount() 函数计算可提取的代币数量，然后 transfer 给受益人。
+            * 释放 {ERC20Released} 事件。
+            */
+            function release(address token) public {
+                // 调用 vestedAmount() 函数计算可提取的代币数量
+                uint256 releasable = vestedAmount(token, uint256(block.timestamp)) - erc20Released[token];
+
+                // 防止提前调用：没有可释放的代币则禁止调用
+                require(releasable > 0, "No tokens available for release");
+
+                // 检查合约是否有足够的余额
+                uint256 contractBalance = IERC20(token).balanceOf(address(this));
+                require(contractBalance >= releasable, "Insufficient contract balance for release");
+
+                // 更新已释放代币数量   
+                erc20Released[token] += releasable; 
+
+                // 触发事件
+                emit ERC20Released(token, releasable);
+
+                // 转代币给受益人
+                IERC20(token).transfer(beneficiary, releasable);
+            }
+           ```
+    - 学习总结
+
+        - 对于线性规则的编写，在实际开发中需要做好黑盒测试。
+###
+
+### 2024.10.10
+
+学些内容:
+1. 第四十四讲
+
+    - 代币锁(`Token Locker`) - 是一种简单的时间锁合约，它可以把合约中的代币锁仓一段时间，受益人在锁仓期满后可以取走代币。代币锁一般是用来锁仓流动性提供者LP代币的。
+
+    - 代币锁合约逻辑
+
+        - 开发者在部署合约时规定锁仓的时间，受益人地址，以及代币合约。
+
+        - 开发者将代币转入TokenLocker合约。
+
+        - 在锁仓期满，受益人可以取走合约里的代币。
+    
+    - 核心函数
+
+        - 构造函数：初始化代币合约，受益人地址，以及锁仓时间。
+
+            ```Solidity
+            /**
+            * @dev 部署时间锁合约，初始化代币合约地址，受益人地址和锁仓时间。
+            * @param token_: 被锁仓的ERC20代币合约
+            * @param beneficiary_: 受益人地址
+            * @param lockTime_: 锁仓时间(秒)
+            */
+
+            constructor(
+                IERC20 token_,
+                address beneficiary_,
+                uint256 lockTime_
+            ) {
+                require(lockTime_ > 0, "TokenLock: lock time should greater than 0");
+                token = token_;
+                beneficiary = beneficiary_;
+                lockTime = lockTime_;
+                startTime = block.timestamp;
+
+                emit TokenLockStart(beneficiary_, address(token_), block.timestamp, lockTime_);
+            }
+            ```
+        - release()：在锁仓期满后，将代币释放给受益人。需要受益人主动调用release()函数提取代币。
+            
+            ```Solidity
+
+            /**
+            * @dev 在锁仓时间过后，将代币释放给受益人。
+            */
+            function release() public {
+                require(block.timestamp >= startTime+lockTime, "TokenLock: current time is before release time");
+
+                uint256 amount = token.balanceOf(address(this));
+                require(amount > 0, "TokenLock: no tokens to release");
+
+                token.transfer(beneficiary, amount);
+
+                emit Release(msg.sender, address(token), block.timestamp, amount);
+            }
+            ```
+    - 代码示例
+
+        ```Solidity
+        // SPDX-License-Identifier: MIT
+        // wtf.academy
+        pragma solidity ^0.8.0;
+
+        import "../31_ERC20/IERC20.sol";
+        import "../31_ERC20/ERC20.sol";
+
+        /**
+        * @dev ERC20代币时间锁合约。受益人在锁仓一段时间后才能取出代币。
+        */
+        contract TokenLocker {
+
+            // 事件
+            event TokenLockStart(address indexed beneficiary, address indexed token, uint256 startTime, uint256 lockTime);
+            event Release(address indexed beneficiary, address indexed token, uint256 releaseTime, uint256 amount);
+
+            // 被锁仓的ERC20代币合约
+            IERC20 public immutable token;
+            // 受益人地址
+            address public immutable beneficiary;
+            // 锁仓时间(秒)
+            uint256 public immutable lockTime;
+            // 锁仓起始时间戳(秒)
+            uint256 public immutable startTime;
+
+            /**
+            * @dev 部署时间锁合约，初始化代币合约地址，受益人地址和锁仓时间。
+            * @param token_: 被锁仓的ERC20代币合约
+            * @param beneficiary_: 受益人地址
+            * @param lockTime_: 锁仓时间(秒)
+            */
+            constructor(
+                IERC20 token_,
+                address beneficiary_,
+                uint256 lockTime_
+            ) {
+                require(lockTime_ > 0, "TokenLock: lock time should greater than 0");
+                token = token_;
+                beneficiary = beneficiary_;
+                lockTime = lockTime_;
+                startTime = block.timestamp;
+
+                emit TokenLockStart(beneficiary_, address(token_), block.timestamp, lockTime_);
+            }
+
+            /**
+            * @dev 在锁仓时间过后，将代币释放给受益人。
+            */
+            function release() public {
+                require(block.timestamp >= startTime+lockTime, "TokenLock: current time is before release time");
+
+                uint256 amount = token.balanceOf(address(this));
+                require(amount > 0, "TokenLock: no tokens to release");
+
+                token.transfer(beneficiary, amount);
+
+                emit Release(msg.sender, address(token), block.timestamp, amount);
+            }
+        }
+        ```
+    - 学习总结
+
+        - 学习了代币锁的机制以及其应用场景。
+###
 <!-- Content_END -->

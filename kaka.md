@@ -420,5 +420,13 @@ npx hardhat vars setup  // 列出所有
 
 在项目根目录执行：`npx hardhat compile`进行编译。
 
+### 2024.10.09
+**学习内容：**<br>
+`IERC721`是`ERC721`标准的接口合约，规定了`ERC721`要实现的基本函数。它利用`tokenId`来表示特定的非同质化代币，授权或转账都要明确`tokenId`；而`ERC20`只需要明确转账的数额即可。
+
+在编写和部署 ERC721 合约时，使用 OpenZeppelin 的实现可以简化很多工作，因为它们已经实现了 IERC721、IERC721Receiver 和 IERC721Metadata 接口。
+
+- **IERC721Receiver**：用于处理 ERC721 代币的安全转账。如果接收方是合约，必须实现这个接口来接受代币。
+- **IERC721Metadata**：扩展了 ERC721 标准，允许设置代币的名称、符号和每个代币的 URI。
 
 <!-- Content_END -->

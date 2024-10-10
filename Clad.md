@@ -18,11 +18,14 @@ timezone: Asia/Taipei
 學習內容 Solidity 101  
 筆記:  
 #### Mapping
-###### 使用 mapping 的時機？
-- mapping 映射, 可以透過 key 查詢對應的 value, ex: 通過一個人的 id 查詢他的錢包地址
+功用
+- 可以透過 key 查詢對應的 value, ex: 通過一個人的 id 查詢他的錢包地址
 - mapping 的 _keyType 只能選擇 solidity 內建的直類型, _valueType 則可以自定義類型
-  
+
+寫法
+給映射新增鍵值
 ```solidity
+   // 此範例有兩組 mapping, 透過 writeMap() 對 idToAddress 新增鍵值 
    mapping(uint => address) public idToAddress;
    mapping(address => address) public swapPair;
 
@@ -748,5 +751,31 @@ IERC20
 - IERC20 是 ERC20 代幣標準的合約接口, 用來規定 ERC20 代幣需要實現的函數和事件, 內含 ERC20 要使用的函數名稱, 輸入輸出參數
 - IERC20 定義 2 個事件, 6 個函數
 
+### 2024.10.9        
+學習內容  
+筆記:  
+
+#### 代幣水龍頭
+實做一個簡易版的 ERC20 水龍頭合約
+結構
+- 狀態變數*3, 紀錄每次能提領的數量, token 合約地址, 紀錄領取過代幣的地址 
+- 事件*1, 紀錄每次提取代幣的地址和數量
+- 函數*2, 構造函數(初始化 tokenContract 狀態變數, 確定發放的 ERC20 代幣地址), requestTokens() (用戶調用, 可以領取代幣)
+  
+### 2024.10.10        
+學習內容  
+筆記:  
+
+#### 空投代幣合約
+- 邏輯: 利用循環, 讓一筆交易將 ERC20 代幣發送給多個地址
+
+結構
+- 由兩個函數組成
+- getSim() 返回 uint 數組的和
+- multiTransferToken() 發送 ERC20 代幣空
+  需要做
+  1. require 空投地址的數量組和每個地址的空投數量組長度相等
+  2. require 授權代幣數量 >= 空投代幣總量
+  3. for 循環, 利用 transferFrom() 發送空投
 
 <!-- Content_END -->
