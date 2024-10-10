@@ -18,10 +18,18 @@ timezone: Asia/Taipei
 學習內容 Solidity 101  
 筆記:  
 #### Mapping
-###### 使用 mapping 的時機？
-- mapping 映射, 可以透過 key 查詢對應的 value, ex: 通過一個人的 id 查詢他的錢包地址
+功用
+- 可以透過 key 查詢對應的 value, ex: 通過一個人的 id 查詢他的錢包地址
 - mapping 的 _keyType 只能選擇 solidity 內建的直類型, _valueType 則可以自定義類型
-  
+
+寫法
+給映射新增鍵值
+```Solidity
+function newMap(uint _value, address _address) public{
+   idToAddress[_value] = _address;
+}
+```
+
 ```solidity
    mapping(uint => address) public idToAddress;
    mapping(address => address) public swapPair;
