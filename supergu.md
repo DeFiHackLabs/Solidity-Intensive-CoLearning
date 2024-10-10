@@ -312,6 +312,81 @@ contract Events {
    - can store larger size
    - consume less gas than topic
 
+#### Chapter 13: Inheritance
 
+```Solidity
+/* Inheritance tree visualized：
+  God
+ /  \
+Adam Eve
+ \  /
+people
+Linearized order: people --> Eve --> Adam --> God
+*/
+contract God {
+   event Log(string message);
+   function foo() public virtual {
+      emit Log("God.foo called");
+   }
+   function bar() public virtual {
+      emit Log("God.bar called");
+   }
+}
+contract Adam is God {
+   function foo() public virtual override {
+      emit Log("Adam.foo called");
+      God.foo();
+   }
+   function bar() public virtual override {
+      emit Log("Adam.bar called");
+      super.bar();
+   }
+}
+contract Eve is God {
+   function foo() public virtual override {
+      emit Log("Eve.foo called");
+      God.foo();
+   }
+   function bar() public virtual override {
+      emit Log("Eve.bar called");
+      super.bar(); // This calls Adam.bar because of L3 linearization rule
+   }
+}
+contract people is Adam, Eve { // multiple inheritance, search from right to left
+   function foo() public override(Adam, Eve) { // log Eve.foo, God.foo
+      super.foo();
+   }
+   function bar() public override(Adam, Eve) { // log Eve.bar, Adam.bar, God.bar
+      super.bar();
+   }
+}
+```
+
+- multiple inheritance must follows seniority, e.g. `contract people is God, Adam`
+
+#### Chapter 14: Abstract and Interface
+
+- Abstract
+   - must contains the keyword `virtual`
+   - e.g. `abstract contract A { function foo(uint a) internal virtual returns(uint); } `
+- Interface
+   - must contain `external`
+   - e.g. `interface IERC721 {function balanceOf(address owner) external view returns (uint256 balance);}`
+
+#### Chapter 15: Errors
+
+- Error (cheapest gas)
+   ```solidity
+   error TransferNotOwner(); // custom error
+   revert TransferNotOwner();
+   ```
+- Require
+   ```solidity
+   require(condition, "error message");
+   ```
+- Assert
+   ```solidity
+   assert(condition);
+   ```
 
 <!-- Content_END -->
