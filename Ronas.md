@@ -717,4 +717,74 @@ timezone: Asia/Shanghai
 
 - 荷蘭拍賣 (Dutch Auction)
 
+
+### 2024.10.10
+
+> 進度: Solidity 103 36~37
+
+- Merkle Tree
+    - 基於密碼學中 Hash 演算法, 又稱 Hash Tree, 可實現大型有效性與安全性驗證 (Merkle Proof)
+    - 在 N 層 Merkle Tree 中, 知道 root 後要驗證 leaf 節點, 只需要中間層的 ceil(log₂N) 個數據 (proof), leaf 透過 proof 層層運算能推導出 root 則驗證成功, 反之驗證失敗
+    - 常應用於 NFT 白名單, 空投合約
+        - example: https://github.com/carv-protocol/contracts/tree/staking/contracts/airdrop
+    - references
+        - https://github.com/merkletreejs/merkletreejs
+
+- 用錢包執行簽章
+    - 基於公鑰密碼系統數位簽章
+        - 身分驗證: 只有私鑰持有人才能進行簽章
+        - 不可否認: 簽章發送方無法否認簽章
+        - 完整性: 不可竄改
+    - 執行簽章
+        ```
+        function getMessageHash(address _account, uint256 _tokenId) public pure returns(bytes32){
+            return keccak256(abi.encodePacked(_account, _tokenId));
+        }
+
+        // EIP191 以太坊簽名消息
+        function toEthSignedMessageHash(bytes32 hash) public pure returns (bytes32) {
+            // 哈希的长度为32
+            return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash));
+        }
+        ```
+    - 驗證簽章
+        - signature 中包含三段, 分別為 r, s, v 值, 可根據這三個值及 msgHash 求得不可否認的 signer
+        - `recoverSigner`
+            ```
+            function recoverSigner(bytes32 _msgHash, bytes memory _signature) internal pure returns (address){
+                // 检查签名长度，65是标准r,s,v签名的长度
+                require(_signature.length == 65, "invalid signature length");
+                bytes32 r;
+                bytes32 s;
+                uint8 v;
+                // 目前只能用assembly (内联汇编)来从签名中获得r,s,v的值
+                assembly {
+                    /*
+                    前32 bytes存储签名的长度 (动态数组存储规则)
+                    add(sig, 32) = sig的指针 + 32
+                    等效为略过signature的前32 bytes
+                    mload(p) 载入从内存地址p起始的接下来32 bytes数据
+                    */
+                    // 读取长度数据后的32 bytes
+                    r := mload(add(_signature, 0x20))
+                    // 读取之后的32 bytes
+                    s := mload(add(_signature, 0x40))
+                    // 读取最后一个byte
+                    v := byte(0, mload(add(_signature, 0x60)))
+                }
+                // 使用ecrecover(全局函数)：利用 msgHash 和 r,s,v 恢复 signer 地址
+                return ecrecover(_msgHash, v, r, s);
+            }
+            ```
+        - `verify`
+            ```
+            function verify(bytes32 _msgHash, bytes memory _signature, address _signer) internal pure returns (bool) {
+                return recoverSigner(_msgHash, _signature) == _signer;
+            }
+            ```
+
+- 運用簽章方法分配空投
+    - 簽章線下完成, 不需耗費 gas
+    - 需中心化的接口驗證簽章, 較不去中心化
+    
 <!-- Content_END -->
