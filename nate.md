@@ -157,7 +157,11 @@ initcode: 新合约的初始字节码（合约的Creation Code和构造函数的
    的话，合约地址会随创建账户的状态而变化不好预测
    ```
 ### 2024.09.27
-WTF solidity33-35
+WTF solidity34-35
+1. [ERC721](https://eips.ethereum.org/EIPS/eip-165)
+2. [openzeppelin erc721实现](https://github.com/OpenZeppelin/openzeppelin-contracts/tree/master/contracts/token/ERC721)
+3. [ERC165](https://eips.ethereum.org/EIPS/eip-165)
+4. 荷兰拍卖合约实现
 ### 2024.09.29
 WTF solidity38-40
 ### 2024.09.30
@@ -336,8 +340,15 @@ WTF solidity29-30
 3. try/catch     
 ### 2024.10.08
 WTF solidity31-33
-1. ERC-20
+1. [ERC-20](https://eips.ethereum.org/EIPS/eip-20)
+   [OpenZeppelin实现](https://github.com/OpenZeppelin/openzeppelin-contracts/tree/master/contracts/token/ERC20)
 2. 两个简单的ERC20应用合约faucet和airdrop   
 ### 2024.10.09
 WTF solidity36-37
+#### 以太坊中密码学应用
+1. Merkle tree
+   节点由hash关联，父节点为孩子节点的hash。其特征方便证明一个值是否存在于merkle tree当中，只需要提供merkle proof即可。比特币和以太坊
+   中应用其验证交易是否存在
+2. 签名
+      
 <!-- Content_END -->
