@@ -864,8 +864,17 @@ try externalContract.f() {
 ```
 
 ### 2024.10.10
-
-
+核心功能
+- balanceOf
+- transfer
+- transferFrom
+- approve
+- allowance
+- totalSupply
+ERC20 事件
+- Transfer 事件
+- Approval 事件
+IERC20 接口 : 是 ERC20 標準的接口，規定了代幣所需實現的函數和事件。<br>這是 ERC20 的協議部分，用來保證所有 ERC20 代幣的函數和參數結構保持一致。
 
 ### 2024.10.11
 
