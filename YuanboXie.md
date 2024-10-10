@@ -2805,6 +2805,35 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 ### 2024.10.13
 
 - [104-S04] 权限管理漏洞
+    - 智能合约中的权限管理定义了不同角色在应用中的权限。通常来说，代币的铸造、提取资金、暂停等功能都需要较高权限的用户才能调用。如果权限配置错误，就可能造成意想不到的损失。两种常见的权限管理漏洞。
+        - 1. 权限配置错误: 如果合约中特殊功能没有加上权限管理，那么任何人都能铸造大量代币或将合约中的资金提光。
+        ```solidity
+        function badMint(address to, uint amount) public { // 错误的mint函数，没有限制权限
+            _mint(to, amount);
+        }
+        ```
+        - 2. 授权检查错误: 没有在函数中检查调用者是否拥有足够的授权
+        ```solidity
+        function badBurn(address account, uint amount) public { // 错误的burn函数，没有限制权限
+            _burn(account, amount);
+        }
+        ```
+    - 预防方法：
+        - 使用 Openzeppelin 的权限管理库给合约的特殊函数配置相应的权限：比如使用OnlyOwner修饰器
+        ```solidity
+        function goodMint(address to, uint amount) public onlyOwner { // 正确的mint函数，使用 onlyOwner 修饰器限制权限
+            _mint(to, amount); 
+        }
+        ```
+        - 在函数的逻辑中确保合约调用者拥有足够的授权
+        ```solidity
+        function goodBurn(address account, uint amount) public {
+            if(msg.sender != account){ // 正确的burn函数，如果销毁的不是自己的代币，则会检查授权
+                _spendAllowance(account, msg.sender, amount);
+            }
+            _burn(account, amount);
+        }
+        ```
 - [104-S05] 整型溢出
 - [104-S06] 签名重放
 
