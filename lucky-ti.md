@@ -660,7 +660,6 @@ call的使用规则如下：
 ```
 目标合约地址.call(字节码);
 ```
-```
 其中字节码利用结构化编码函数abi.encodeWithSignature获得：
 ```
 abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)
@@ -720,6 +719,110 @@ abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)
 
 2.EIP-2535 Diamonds（钻石）：钻石是一个支持构建可在生产中扩展的模块化智能合约系统的标准。钻石是具有多个实施合约的代理合约。 更多信息请查看：钻石标准简介（https://eip2535diamonds.substack.com/p/introduction-to-the-diamond-standard）。
 
+有两种方法可以在合约中创建新合约，create和create2。
+
+create的用法：
+```
+Contract x = new Contract{value: _value}(params)
+```
+
+其中Contract是要创建的合约名，x是合约对象（地址），如果构造函数是payable，可以创建时转入_value数量的ETH，params是新合约构造函数的参数。
+```
+contract PairFactory{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair(address tokenA, address tokenB) external returns (address pairAddr) {
+        // 创建新合约
+        Pair pair = new Pair(); 
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+}
+```
+智能合约可以由其他合约和普通账户利用CREATE操作码创建。 在这两种情况下，新合约的地址都以相同的方式计算：创建者的地址(通常为部署的钱包地址或者合约地址)和nonce(该地址发送交易的总数,对于合约账户是创建的合约总数,每创建一个合约nonce+1)的哈希。创建者地址不会变，但nonce可能会随时间而改变，因此用CREATE创建的合约地址不好预测。
+```
+新地址 = hash(创建者地址, nonce)
+```
+CREATE2的目的是为了让合约地址独立于未来的事件。
+用CREATE2创建的合约地址由4个部分决定：
+
+0xFF：一个常数，避免和CREATE冲突
+CreatorAddress: 调用 CREATE2 的当前合约（创建合约）地址。
+salt（盐）：一个创建者指定的bytes32类型的值，它的主要目的是用来影响新创建的合约的地址。
+initcode: 新合约的初始字节码（合约的Creation Code和构造函数的参数）。
+```
+新地址 = hash("0xFF",创建者地址, salt, initcode)
+```
+
+create2的用法：
+```
+Contract x = new Contract{salt: _salt, value: _value}(params)
+```
+
+```
+contract PairFactory2{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair2(address tokenA, address tokenB) external returns (address pairAddr) {
+        require(tokenA != tokenB, 'IDENTICAL_ADDRESSES'); //避免tokenA和tokenB相同产生的冲突
+        // 用tokenA和tokenB地址计算salt
+        (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); //将tokenA和tokenB按大小排序
+        bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+        // 用create2部署新合约
+        Pair pair = new Pair{salt: salt}(); 
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+}
+```
+
+事先预测create2地址：
+```
+// 提前计算pair合约地址
+function calculateAddr(address tokenA, address tokenB) public view returns(address predictedAddress){
+    require(tokenA != tokenB, 'IDENTICAL_ADDRESSES'); //避免tokenA和tokenB相同产生的冲突
+    // 计算用tokenA和tokenB地址计算salt
+    (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); //将tokenA和tokenB按大小排序
+    bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+    // 计算合约地址方法 hash()
+    predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+        bytes1(0xff),
+        address(this),
+        salt,
+        keccak256(type(Pair).creationCode)
+        )))));
+}
+```
+
+如果部署合约构造函数中存在参数
+例如当create2合约时：
+
+Pair pair = new Pair{salt: salt}(address(this));
+
+计算时，需要将参数和initcode一起进行打包：
+
+keccak256(type(Pair).creationCode) => keccak256(abi.encodePacked(type(Pair).creationCode, abi.encode(address(this))))
+
+```
+predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+                bytes1(0xff),
+                address(this),
+                salt,
+                keccak256(abi.encodePacked(type(Pair).creationCode, abi.encode(address(this))))
+            )))));
+```
 
 答案：
 
@@ -732,6 +835,16 @@ PART 23
 (bool success,bytes memory data) = _addr.delegatecall(abi.encodeWithSignature("mint(uint256)",_num));
 6.	在代理合约中，存储所有相关的变量的是___，存储所有函数的是___，同时____________
 代理合约；逻辑合约；代理合约delegatecalli逻辑合约
+
+PART 24
+1.	Solidity中创建新合约的关键字是：new
+2.	Contract x = new Contract{value: _value}(params)，表达式中value代表什么？当前合约发送给新创建合约的ETH
+3.	Contract x = new Contract{value: _value}(params)，表达式中params代表什么？
+新合约的构造函数的参数
+4.	1个工厂合约PairFactory创建Pair合约的最大数量一般由什么决定？PairFactoryi合约逻辑
+5.	示例中Pair合约创建时的msg.sender是？工厂合约PairFactory
+
+
 
 
 
@@ -759,6 +872,10 @@ PART 23
 ### 2024.10.09
 
 完成章节41-42
+
+### 2024.10.10
+
+完成章节43-44
 
 
 
