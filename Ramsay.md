@@ -1319,4 +1319,42 @@ contract PIXIU is ERC20 {
 }
 ```
 
+### 2024.10.11
+#### Faucet
+
+通过智能合约来实现简易版本的 `ERC20` 水龙头：
+
+```solidity
+pragma solidity ^0.8.4;
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+contract Facuet {
+    uint256 public amountAllowed = 100;
+    address public tokenContract;
+    mapping(address => bool) public requestedAddress;
+    event SendToken(address indexed Receiver, uint256 indexed Amount);
+    constructor (address _tokenContract) {
+        tokenContract = _tokenContract;
+    }
+
+    function requestTokens() external {
+        require(!requestedAddress[msg.sender], "Can't request multiple times!");
+        IERC20 token = IERC20(tokenContract);
+        require(token.balanceOf(address(this))>= amountAllowed, "Faucet Empty!");
+
+        token.transfer(msg.sender, amountAllowed);
+        requestedAddress[msg.sender] = true;
+
+        emit SendToken(msg.sender, amountAllowed);
+    }
+}
+```
+
+但实际的水龙头肯定会比这个复杂，因为代币数量有限，会限制每个地址领取的时间间隔（假设能重复领取的话）; 为了避免被爬虫直接把水龙头给薅光，还会加上类似 Google 的 Recaptcha 或者是 Cloudflare 的 Turnstile 人机校验服务; 更严格的还会接入链上 passport 服务，超过一定分数才能领水。
+
+这让我意识到, 即使领水是 Web3 的概念，但是水龙头的实现不能是单纯的 Solidity 智能合约，更进一步地说，如果把区块链理解成分布式的数据库，那么 Solidity 是否就算是数据库的存储过程呢？
+
+我们当然可以把逻辑计算放到存储过程，但是鉴于其成本较高（数据库的存储过程成本就是维护成本，存储成本，而区块链就是 gas fee）, 部分逻辑适合放到逻辑层（Web2），部分逻辑可以放到存储层（智能合约）
+
+课程提到最早的代币水龙头是BTC水龙头，但是那个时候还没有智能合约，所以肯定是使用 Web2 的技术栈实现的.
+
 <!-- Content_END -->

@@ -144,5 +144,9 @@ timezone: Asia/Shanghai
 6. 引用(import)在代碼中的位置：在聲明版本號之後，在其他代碼之前
 
 
+### 2024.10.10
+1. Solidity支持兩種特殊的回調函數，receive()和fallback()，他們主要在兩種情況下被使用：(1)接收ETH(2)處理合約中不存在的函數調用（代理合約proxy contract）
+2. 惡意合約，會在receive() 函數（舊版本的fallback() 函數）嵌入惡意消耗gas的内容或者使得執行故意失敗的代碼，讓一些退款、轉帳邏輯的合約不能正常工作
+3. receive()和payable fallback()都不存在的時候，向合約直接發送ETH將會報錯（你仍可以通過帶有payable的函數向合約發送ETH）
 
 <!-- Content_END -->

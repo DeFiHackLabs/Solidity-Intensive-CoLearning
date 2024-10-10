@@ -1702,6 +1702,43 @@ contract Example {
 ### 2024.10.09
 #### WTF Academy Solidity 102.17 库合约
 
+##### 库合约（Library Contract）
+
+在 Solidity 中，库合约是一种特殊的合约，旨在提高代码的复用性并减少交易成本（gas 消耗）。库合约像传统的代码库一样，提供了一系列的函数，但它们与普通合约有一些显著的区别：
+- **不能存在状态变量**：库合约不能存储状态，所有的变量都是局部的。
+- **不能继承或被继承**：库合约无法继承其他合约，也不允许其他合约继承它。
+- **不能接收以太币**：库合约不能接收以太币，所有操作都是纯粹的计算。
+- **不可以被销毁**：库合约一旦部署，不可被销毁。
+- **可见性设置**：库合约的函数如果设置为 `public` 或 `external`，调用时会触发一次 `delegatecall`。而 `internal` 则不会触发 `delegatecall`，`private` 函数只能在库合约内部调用。
+
+##### 库合约的使用方法
+**3.1 使用 `using for` 指令**
+通过 `using A for B;` 可以将库合约 A 的函数附加到类型 B。使用这个指令后，库 A 中的函数会自动成为 B 类型变量的成员，可以直接调用。
+
+```solidity
+// 利用using for指令
+using Strings for uint256;
+
+function getString1(uint256 _number) public pure returns(string memory) {
+    return _number.toHexString(); // 调用库合约中的函数
+}
+```
+
+**3.2 直接通过库合约名调用**
+可以直接使用库合约的名称来调用函数，这样更为直观。
+
+```solidity
+// 直接通过库合约名调用
+function getString2(uint256 _number) public pure returns(string memory) {
+    return Strings.toHexString(_number); // 调用库合约中的函数
+}
+```
+
+##### 测验结果
+- 100/100
+
+### 2024.10.10
+#### WTF Academy Solidity 102.18 Import
 
 ##### 笔记
 
@@ -1709,8 +1746,8 @@ contract Example {
 
 ##### 测验错题
 
-### 2024.10.10
-#### WTF Academy Solidity 102.18 Import
+### 2024.10.11
+#### WTF Academy Solidity 102.19 接收ETH receive和fallback
 
 ##### 笔记
 
