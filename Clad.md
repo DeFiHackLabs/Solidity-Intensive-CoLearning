@@ -24,13 +24,8 @@ timezone: Asia/Taipei
 
 寫法
 給映射新增鍵值
-```Solidity
-function newMap(uint _value, address _address) public{
-   idToAddress[_value] = _address;
-}
-```
-
 ```solidity
+   // 此範例有兩組 mapping, 透過 writeMap() 對 idToAddress 新增鍵值 
    mapping(uint => address) public idToAddress;
    mapping(address => address) public swapPair;
 
