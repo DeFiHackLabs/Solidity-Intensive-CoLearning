@@ -49,9 +49,9 @@ payable address存在transfer和send两个成员方法，用于接收和转账?t
     1. storage
     数据存储在链上，可以认为是整个合约的全局参数
     2. memory
-    函数的入参和临时变量，一般使用memory，存储在内存中，不上链
+    函数的入参和临时变量，一般使用memory，存储在内存中，不上链。他用来修饰可变的变量。
     3. calldata
-    存储在内存中，不上链。他的特点是不可变更，多用于函数参数
+    存储在内存中，不上链。他的特点是不可变更，多用于函数参数。
 
 
 
@@ -1037,5 +1037,76 @@ contract Fauct {
 
 ###
 
+### 10.10
+
+#### 空投合约
+
+这就已经没有什么特殊的应用了，按照之前总结的
+
+1. 验证
+2. 执行
+3. 事件日志
+
+去写就行了
+
+```solidity
+// SPDX-License-Identifier: GPL-3.0
+
+pragma solidity ^0.8.2;
+
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+contract Airdrop {
+    /*
+    这个合约只是一个发放空投的行为
+    有两个发放的方案
+    1. 直接把币转给这个合约，他自己去分发 手续费= token转账费用+分发费用
+    2. 一个用户有币，授权给这个合约，合约去分发 手续费= 授权费用+分发费用
+    我可以都写来试试
+    */
+
+    event Drop(address indexed _to, address indexed _count);
+
+    address public tokenAddress;
+
+    //方案一 初始化的时候我要给这个合约要空投的代币地址 合约要能执行动作，也要给他点手续费
+    constructor(address _tokenAddress) payable {
+        tokenAddress = _tokenAddress;
+    }
+
+    function transfer1(address[] calldata _addresses,uint256[] calldata _counts) external {
+        require(_addresses.length == _counts.length,"arr not right");
+        IERC20 token = IERC20(tokenAddress);
+        require(token.balanceOf(address(this)) >= getAmount(_counts),"token not enough");
+
+        for (uint256 i =0; i<_addresses.length; i++) 
+        {
+            token.transfer(_addresses[i], _counts[i]);
+        }
+    }
+
+    function transfer2(address[] calldata _addresses,uint256[] calldata _counts) external {
+        require(_addresses.length == _counts.length,"arr not right");
+        IERC20 token = IERC20(tokenAddress);
+        require(token.allowance(msg.sender, address(this)) >= getAmount(_counts),"token not enough");
+
+        for (uint256 i =0; i<_addresses.length; i++) 
+        {
+            token.transferFrom(msg.sender, _addresses[i], _counts[i]);
+        }
+    }
+
+    //求和
+    function getAmount(uint256[] calldata _counts) private pure returns(uint256 total){
+        for (uint256 i = 0; i<_counts.length; i++) 
+        {
+            total += _counts[i];
+        }
+    }
+
+}
+```
+
+### 
 
 <!-- Content_END -->
