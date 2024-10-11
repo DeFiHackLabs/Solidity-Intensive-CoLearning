@@ -2296,5 +2296,214 @@ Airdrop空投合約邏輯非常簡單：利用循環，一筆交易將ERC20代�
         }
     }
     ```
+### 2024.10.11
+BTC 和 ETH 這類代幣都屬於同質化代幣，礦工挖出的第 1 個 BTC 與第 10000 個 BTC 是等價的，但世界上許多物品是不同質的，其中包括房產、古董、虛擬藝術品等等，這類物品無法用同質化代幣抽象化。因此，以太坊 EIP721 提出了 ERC721 標準，來抽象化非同質化的物品。今天要來理解 ERC721 標準，並利用它發行一款 NFT。
+# EIP 與 ERC
+## EIP
+EIP 全名為 Ethereum Improvement Proposals(以太坊改進建議), 是以太坊開發者社區提出的改進建議，是一系列以編號排定的文件，類似網路上 IETF 的 RFC。
+而 EIP 可以是乙太坊生態中任意領域的改進，例如新特性、ERC、協定改進、程式設計工具等等。
+## ERC
+ERC 全名為 Ethereum Request For Comment (以太坊意見徵求稿)，用來記錄以太坊上應用級的各種開發標準和協議。如典型的 Token 標準(ERC20, ERC721)、名字註冊(ERC26, ERC13)、URI範式(ERC67)、Library/Package 格式(EIP82)、包格式(EIP75,EIP85)。ERC 協議標準也是影響以太坊發展的重要因素，像 ERC20、ERC223、 ERC721、ERC777 等，都是對以太坊生態產生了很大影響。**而 EIP 包含了 ERC**。
+### ERC165
+透過 [ERC165](https://eips.ethereum.org/EIPS/eip-165) 標準，智能合約可以宣告它支援的介面，供其他合約檢查。簡單的說，ERC165 就是檢查一個智能合約是不是支援了 ERC721、ERC1155 的介面。
+IERC165 介面合約只聲明了一個 `supportsInterface` 函數，輸入要查詢的`interfaceId` 介面id，若合約實作了該介面 id，則傳回 `true`：
+```
+interface IERC165 {
+    /**
+     * @dev 如果合約實作了查詢的 `interfaceId`，則傳回 true
+     */
+    function supportsInterface(bytes4 interfaceId) external view returns (bool);
+}
+```
+然後 ERC721 實作 `supportsInterface()` 函數：
+```
+function supportsInterface(bytes4 interfaceId) external pure override returns (bool)
+{
+    return
+        interfaceId == type(IERC721).interfaceId ||
+        interfaceId == type(IERC165).interfaceId;
+}
+```
+當查詢的是 IERC721 或 IERC165 的介面 id 時，回傳 true，反之回傳 false。
+### IERC721
+IERC721 是 ERC721標準的介面合約，規定了 ERC721 要實現的基本函數。它利用 `tokenId` 來表示特定的非同質化代幣，授權或轉帳都要明確 `tokenId`；而 ERC20 只需要明確轉帳的金額即可。
+```
+/**
+ * @dev ERC721 標準介面
+ */
+interface IERC721 is IERC165 {
+    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+    event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
+    event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
 
+    function balanceOf(address owner) external view returns (uint256 balance);
+
+    function ownerOf(uint256 tokenId) external view returns (address owner);
+
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 tokenId,
+        bytes calldata data
+    ) external;
+
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 tokenId
+    ) external;
+
+    function transferFrom(
+        address from,
+        address to,
+        uint256 tokenId
+    ) external;
+
+    function approve(address to, uint256 tokenId) external;
+
+    function setApprovalForAll(address operator, bool _approved) external;
+
+    function getApproved(uint256 tokenId) external view returns (address operator);
+
+    function isApprovedForAll(address owner, address operator) external view returns (bool);
+}
+```
+#### IERC721事件
+IERC721 包含 3 個事件，其中 Transfer 和 Approval 事件在 ERC20 中也有。
+* Transfer 事件：在轉帳時被釋放，記錄代幣的發出地址 from，接收地址 to 和tokenid。
+* Approval 事件：在授權時釋放，記錄授權位址 owner，被授權位址 approved 和tokenid。
+* ApprovalForAll 事件：在批次授權時釋放，記錄批量授權的發出位址 owner，被授權位址 operator 和授權與否的 approved。
+#### IERC721 函數
+* balanceOf：傳回某位址的NFT持有量balance。
+* ownerOf：回傳某tokenId的主人owner。
+* transferFrom：普通轉賬，參數為轉出地址from，接收地址to和tokenId。
+* safeTransferFrom：安全轉帳（如果接收方是合約位址，會要求實作ERC721Receiver介面）。參數為轉出位址from，接收位址to和tokenId。
+* approve：授權另一個位址使用你的NFT。參數為被授權位址approve和tokenId。
+* getApproved：查詢tokenId被批准給了哪個位址。
+* setApprovalForAll：將自己持有的該系列NFT批次授權給某個地址operator。 
+* isApprovedForAll：查詢某個位址的NFT是否批次授權給了另一個operator位址。 
+* safeTransferFrom：安全轉帳的重載函數，參數裡麵包含了data。
+#### IERC721Receiver
+如果一個合約沒有實現 ERC721 的相關函數，轉入的 NFT 就進了黑洞，永遠轉不出來了。為了防止誤轉賬，ERC721 實作了 safeTransferFrom() 安全轉帳函數，目標合約必須實作了 IERC721Receiver 介面才能接收 ERC721 代幣，不然會 revert。 IERC721Receiver 介面只包含一個 onERC721Received() 函數。
+```
+// ERC721接收者介面：合約必須實作這個介面來透過安全轉帳接收ERC721
+interface IERC721Receiver {
+    function onERC721Received(
+        address operator,
+        address from,
+        uint tokenId,
+        bytes calldata data
+    ) external returns (bytes4);
+}
+```
+# 荷蘭拍賣
+荷蘭拍賣（Dutch Auction）是一種特殊的拍賣形式，亦稱為「減價拍賣」，它是指拍賣標的的競價由高到低依次遞減直到第一個競買人應價（達到或超過底價）時擊槌成交的一種拍賣。
+在幣圈，許多NFT透過荷蘭拍賣發售，其中包括 Azuki 和 World of Women，其中 Azuki 透過荷蘭拍賣籌集了超過 8000 枚 ETH。
+專案方非常喜歡這種拍賣形式，主要有兩個原因：
+1. 荷蘭拍賣的價格由最高慢慢下降，能讓專案方獲得最大的收入。
+2. 拍賣持續較長（通常6小時以上），可以避免 gas war。
+## DutchAuction合約
+程式碼基於 Azuki 的程式碼簡化而成。DucthAuction 合約繼承了先前介紹的 ERC721 和 Ownable 合約：
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "https://github.com/AmazingAng/WTF-Solidity/blob/main/34_ERC721/ERC721.sol";
+
+contract DutchAuction is Ownable, ERC721 {
+    uint256 public constant COLLECTOIN_SIZE = 10000; // NFT 總數
+    uint256 public constant AUCTION_START_PRICE = 1 ether; // 起拍價（最高價）
+    uint256 public constant AUCTION_END_PRICE = 0.1 ether; // 結束價(最低價/地板價)
+    uint256 public constant AUCTION_TIME = 10 minutes; // 拍賣時間，為了測試方便設為10分鐘
+    uint256 public constant AUCTION_DROP_INTERVAL = 1 minutes; // 每過多久時間，價格衰減一次
+    uint256 public constant AUCTION_DROP_PER_STEP =
+        (AUCTION_START_PRICE - AUCTION_END_PRICE) /
+        (AUCTION_TIME / AUCTION_DROP_INTERVAL); // 每次價格衰減步長
+    
+    uint256 public auctionStartTime; // 拍賣開始時間戳
+    string private _baseTokenURI;   // metadata URI
+    uint256[] private _allTokens; // 記錄所有存在的 tokenId
+```
+### DutchAuction 狀態變數
+合約中總共有 9 個狀態變數，其中有 6 個和拍賣相關：
+* COLLECTOIN_SIZE：NFT 總量。
+* AUCTION_START_PRICE：荷蘭拍賣起拍價，也是最高價。
+* AUCTION_END_PRICE：荷蘭拍賣結束價，也是最低價/地板價。
+* AUCTION_TIME：拍賣持續時長。
+* AUCTION_DROP_INTERVAL：每過多久時間，價格衰減一次。
+* auctionStartTime：拍賣起始時間（區塊鏈時間戳，`block.timestamp`）。
+### DutchAuction 函數
+荷蘭拍賣合約中共有 9 個函數，與 ERC721 相關的函數我們這裡不再重複介紹，只介紹和拍賣相關的函數。
+* 設定拍賣起始時間：我們在建構子中會宣告當前區塊時間為起始時間，專案方也可以透過 `setAuctionStartTime()` 函數來調整：
+    ```
+    constructor() ERC721("WTF Dutch Auctoin", "WTF Dutch Auctoin") {
+        auctionStartTime = block.timestamp;
+    }
+
+    // auctionStartTime setter 函數，onlyOwner
+    function setAuctionStartTime(uint32 timestamp) external onlyOwner {
+        auctionStartTime = timestamp;
+    }
+    ```
+* 取得拍賣即時價格：`getAuctionPrice()` 函數透過當前區塊時間以及拍賣相關的狀態變數來計算即時拍賣價格。
+    * 當 `block.timestamp` 小於起始時間，價格為最高價 AUCTION_START_PRICE
+    * 當 `block.timestamp` 大於結束時間，價格為最低價 AUCTION_END_PRICE
+    * 當 `block.timestamp` 處於兩者之間時，則計算出目前的衰減價格
+    ```
+        // 取得拍賣即時價格
+        function getAuctionPrice()
+            public
+            view
+            returns (uint256)
+        {
+            if (block.timestamp < auctionStartTime) {
+            return AUCTION_START_PRICE;
+            }else if (block.timestamp - auctionStartTime >= AUCTION_TIME) {
+            return AUCTION_END_PRICE;
+            } else {
+            uint256 steps = (block.timestamp - auctionStartTime) /
+                AUCTION_DROP_INTERVAL;
+            return AUCTION_START_PRICE - (steps * AUCTION_DROP_PER_STEP);
+            }
+        }
+    ```
+* 使用者拍賣並鑄造 NFT：使用者透過呼叫 `auctionMint()` 函數，支付 ETH 參加荷蘭拍賣並鑄造 NFT。
+    * 此函數首先檢查拍賣是否開始/鑄造是否超出 NFT 總量。接著，合約透過 `getAuctionPrice()` 和鑄造數量計算拍賣成本，並檢查使用者支付的 ETH 是否足夠：如果足夠，則將 NFT 鑄造給使用者，並退回超額的 ETH；反之，則回退交易。
+    ```
+        // 拍賣 mint 函數
+    function auctionMint(uint256 quantity) external payable{
+        uint256 _saleStartTime = uint256(auctionStartTime); // 建立 local 變數，減少 gas 花費
+        require(
+        _saleStartTime != 0 && block.timestamp >= _saleStartTime,
+        "sale has not started yet"
+        ); // 檢查是否設定起拍時間，拍賣是否開始
+        require(
+        totalSupply() + quantity <= COLLECTOIN_SIZE,
+        "not enough remaining reserved for auction to support desired mint amount"
+        ); // 檢查是否超過 NFT 上限
+
+        uint256 totalCost = getAuctionPrice() * quantity; // 計算 mint 成本
+        require(msg.value >= totalCost, "Need to send more ETH."); // 檢查使用者是否支付足夠 ETH
+        
+        // Mint NFT
+        for(uint256 i = 0; i < quantity; i++) {
+            uint256 mintIndex = totalSupply();
+            _mint(msg.sender, mintIndex);
+            _addTokenToAllTokensEnumeration(mintIndex);
+        }
+        // 多餘 ETH 退款
+        if (msg.value > totalCost) {
+            payable(msg.sender).transfer(msg.value - totalCost); // 注意這裡是否有重入的風險
+        }
+    }
+    ```
+* 專案方取出籌集的 ETH：專案方可以透過 `withdrawMoney()` 函數提走拍賣會籌集的 ETH
+    ```
+        // 提款函數，onlyOwner
+    function withdrawMoney() external onlyOwner {
+        (bool success, ) = msg.sender.call{value: address(this).balance}(""); // call 函數呼叫
+        require(success, "Transfer failed.");
+    }
+    ```
 <!-- Content_END -->
