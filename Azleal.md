@@ -339,6 +339,14 @@ receive()   fallback()
 2. 荷兰拍卖
 
 3. 默克尔树 Merkle Tree
+
+
+### 2024.10.10
+1. 数字签名
+
+2. NFT交易所
+
+3. 链上随机数
    
 
 <!-- Content_END -->

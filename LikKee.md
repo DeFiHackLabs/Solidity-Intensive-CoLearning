@@ -3294,6 +3294,490 @@ contract TimeLocker {
 
 ### 2024.10.11
 
+#### Chapter 46: Proxy Contract
+
+Most of the smart contracts deployed on `EVM` chain are immutable
+
+- Advantage: Predictable behaviour
+- Disadvantage: Unable to upgrade/modify/fix faulty code
+
+Proxy Pattern
+
+- Separate the data and logic into two contracts. The state variables (data) stored in the proxy contract and logic functions stored in the logic contract
+- The proxy contract (Proxy) delegates the function call to the logic contract (Implementation) through delegatecall, and then returns the final result to the caller
+- The state variable storage structure of the Logic contract and the Proxy contract must be the same, otherwise `delegatecall` will cause unexpected behavior and security risks
+- Benefits:
+  - Upgradeable: Point the proxy contract to latest deployed logic contract
+  - Gas saving: One logic contract can use by multiple proxy contracts, reduce code redundancy and deployment
+
+Proxy Contract
+
+```
+contract Proxy {
+    address public implementation; // Address of the logic contract. The data type of the implementation contract has to be the same as that of the Proxy contract at the same position or an error will occur.
+
+    constructor(address implementation_) {
+        implementation = implementation_;
+    }
+
+    /**
+     * @dev fallback function, delegates invocations of current contract to `implementation` contract
+     * with inline assembly, it gives fallback function a return value
+     */
+    fallback() external payable {
+        address _implementation = implementation;
+        assembly {
+            // copy msg.data to memory
+            // the parameters of opcode calldatacopy: start position of memory, start position of calldata, length of calldata
+            calldatacopy(0, 0, calldatasize())
+
+            // use delegatecall to call implementation contract
+            // the parameters of opcode delegatecall: gas, target contract address, start position of input memory, length of input memory, start position of output memory, length of output memory
+            // set start position of output memory and length of output memory to 0
+            // delegatecall returns 1 if success, 0 if fail
+            let result := delegatecall(gas(), _implementation, 0, calldatasize(), 0, 0)
+
+            // copy returndata to memory
+            // the parameters of opcode returndata: start position of memory, start position of returndata, length of return data
+            returndatacopy(0, 0, returndatasize())
+
+            switch result
+            // if delegate call fails, then revert
+            case 0 { revert(0, returndatasize()) }
+            // if delegate call succeeds, then return memory data(as bytes format) starting from 0 with length of returndatasize()
+            default { return(0, returndatasize()) }
+        }
+    }
+}
+```
+
+Logic Contract
+
+```
+/**
+ * @dev Logic contract, executes delegated calls
+ */
+contract Logic {
+    address public implementation; // Keep consistency with the Proxy to prevent slot collision
+    uint public x = 99;
+    event CallSuccess(); // Event emitted on successful function call
+
+    // This function emits CallSuccess event and returns a uint
+    // Function selector: 0xd09de08a
+    function increment() external returns(uint) {
+        emit CallSuccess();
+        return x + 1;
+    }
+}
+```
+
+Demo
+
+```
+// The caller can be a contract or `EOA` address
+contract Caller{
+    address public proxy; // proxy contract address
+
+    constructor(address proxy_){
+        proxy = proxy_;
+    }
+
+    // Call the increment() function using the proxy contract
+    function increment() external returns(uint) {
+        ( , bytes memory data) = proxy.call(abi.encodeWithSignature("increment()"));
+        return abi.decode(data,(uint));
+    }
+}
+```
+
+Although the proxy pattern is simple, it is always recommend to use templates, eg: [OpenZeppelin proxy](https://github.com/OpenZeppelin/openzeppelin-contracts/tree/master/contracts/proxy) for better security.
+
+#### Chapter 47: Upgradeable Contract
+
+Replace the existing logic contract by repoint the implementation address of proxy contract.
+
+Example (Proxy)
+
+```
+// SPDX-License-Identifier: MIT
+// wtf.academy
+pragma solidity ^0.8.4;
+
+// simple upgradeable contract, the admin could change the logic contract's address by calling upgrade function, thus change the contract logic
+// FOR TEACHING PURPOSE ONLY, DO NOT USE IN PRODUCTION
+contract SimpleUpgrade {
+    // logic contract's address
+    address public implementation;
+
+    // admin address
+    address public admin;
+
+    // string variable, could be changed by logic contract's function
+    string public words;
+
+    // constructor, initializing admin address and logic contract's address
+    constructor(address _implementation){
+        admin = msg.sender;
+        implementation = _implementation;
+    }
+
+    // fallback function, delegates function call to logic contract
+    fallback() external payable {
+        (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+    }
+
+    // upgrade function, changes the logic contract's address, can only by called by admin
+    function upgrade(address newImplementation) external {
+        require(msg.sender == admin);
+        implementation = newImplementation;
+    }
+}
+```
+
+Example (Logic)
+
+```
+// Logic Contract to be replace
+contract Logic1 {
+    // State variables consistent with Proxy contract to prevent slot conflicts
+    address public implementation;
+    address public admin;
+    // String that can be changed through the function of the logic contract
+    string public words;
+
+    // Change state variables in Proxy contract, selector: 0xc2985578
+    function foo() public {
+        words = "old";
+    }
+}
+
+// New Logic Contract
+contract Logic2 {
+    // State variables consistent with proxy contract to prevent slot collisions
+    address public implementation;
+    address public admin;
+    // String that can be changed through the function of the logic contract
+    string public words;
+
+    // Change state variables in Proxy contract, selector: 0xc2985578
+    function foo() public{
+        words = "new";
+    }
+}
+```
+
+How to upgrade
+
+- Deploy the `Logic2` contract
+- Calling `upgrade()` of `SimpleUpgrade` with new address
+
+This pattern has a problem of selector conflict and may cause security risks, thus introduce of `Transparent Proxy` and `UUPS`.
+
+#### Chapter 48: Transparent Proxy
+
+Selector Crash
+
+- Function selector is the first 4 bytes of hash of a function, the limited variation of hash might cause crash of selector although those two functions are different in naming or parameters
+- For example: `function mint(address,uint256)` and `function airdrop(address)` might have the same selector of `0x135b13c3`
+- If proxy contract's upgrade function having selector crash with one of the function of logic contract, calling the function will upgrade the proxy contract to a black hole contract
+
+Transparent Proxy Contract Demo
+
+```
+// FOR TEACHING PURPOSE ONLY, DO NOT USE IN PRODUCTION
+contract TransparentProxy {
+    // logic contract's address
+    address implementation;
+    // admin address
+    address admin;
+    // string variable, can be modified by calling loginc contract's function
+    string public words;
+
+    // constructor, initializing the admin address and logic contract's address
+    constructor(address _implementation){
+        admin = msg.sender;
+        implementation = _implementation;
+    }
+
+    // fallback function, delegates function call to logic contract
+    // can not be called by admin, to avoid causing unexpected beahvior due to selector clash
+    fallback() external payable {
+        require(msg.sender != admin);
+        (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+    }
+
+    // upgrade function, change logic contract's address, can only be called by admin
+    function upgrade(address newImplementation) external {
+        if (msg.sender != admin) revert();
+        implementation = newImplementation;
+    }
+}
+```
+
+- Transparent proxy solving the "selector clash" problem by restricting the admin's access to the logic contract.
+
+#### Chapter 49: Universal Upgradeable Proxy Standard (UUPS)
+
+UUPS have the upgrade function in the logic contract. And thus solved the selector crash between proxy and logic contract.
+
+UUPS Proxy Contract Demo
+
+```
+contract UUPSProxy {
+    // Address of the logic contract
+    address public implementation;
+    // Address of admin
+    address public admin;
+    // A string, which can be changed by the function of the logic contract
+    string public words;
+
+    // Constructor function, initialize admin and logic contract addresses
+    constructor(address _implementation){
+        admin = msg.sender;
+        implementation = _implementation;
+    }
+
+    // Fallback function delegates the call to the logic contract
+    fallback() external payable {
+        (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+    }
+}
+```
+
+UUPS Logic Contract Demo
+
+```
+// UUPS logic contract(upgrade function inside logic contract)
+contract UUPS1{
+    // consistent with the proxy contract and prevent slot conflicts
+    address public implementation;
+    address public admin;
+    // A string, which can be changed by the function of the logic contract
+    string public words;
+
+    // change state variable in proxy, selector: 0xc2985578
+    function foo() public{
+        words = "old";
+    }
+
+    // upgrade function, change logic contract's address, only admin is permitted to call. selector: 0x0900f010
+    // in UUPS, logic contract HAS TO include a upgrade function, otherwise it cannot be upgraded any more.
+    function upgrade(address newImplementation) external {
+        require(msg.sender == admin);
+        implementation = newImplementation;
+    }
+}
+
+// new UUPS logic contract
+contract UUPS2{
+    // consistent with the proxy contract and prevent slot conflicts
+    address public implementation;
+    address public admin;
+    // A string, which can be changed by the function of the logic contract
+    string public words;
+
+    // change state variable in proxy, selector: 0xc2985578
+    function foo() public{
+        words = "new";
+    }
+
+    // upgrade function, change logic contract's address, only admin is permitted to call. selector: 0x0900f010
+    // in UUPS, logic contract HAS TO include a upgrade function, otherwise it cannot be upgraded any more.。
+    function upgrade(address newImplementation) external {
+        require(msg.sender == admin);
+        implementation = newImplementation;
+    }
+}
+```
+
+When `admin` call `upgrade` through `UUPSProxy`, due to the nature of `delegatecall`, it carry the context of `UUPSProxy`, and the state variable `implementation` update to latest deployed address after verified `msg.sender` is same as `admin`.
+
+#### Chapter 50: Multisignature Wallet
+
+A smart contract wallet require authorization from multiple EOA to execute transactions
+
+- Can prevent single point failure like loss of private keys, individual misbehaviour, etc
+- [Safe](https://safe.global/) is widely used in Ethereum Ecosystem
+
+Core features of Multisig wallet
+
+1. Add signers and set signature threshold
+2. Initiate transaction
+3. Sign transaction
+4. Execute transaction
+5. Cancel/Invalidate transaction
+
+Multisig Wallet Demo
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.25;
+
+contract Multisig {
+    address[] public owners; // multisig owners array
+    mapping(address => bool) public isOwner; // check if an address is a multisig owner
+    uint256 public ownerCount; // the count of multisig owners
+    uint256 public threshold; // minimum number of signatures required for multisig execution
+    uint256 public nonce; // nonce，prevent signature replay attack
+
+    event ExecutionSuccess(bytes32 txHash); // succeeded transaction event
+    event ExecutionFailure(bytes32 txHash); // failed transaction event
+
+    constructor(address[] memory _owners, uint256 _threshold) {
+        _setupOwners(_owners, _threshold);
+    }
+
+    /// @dev Initialize owners, isOwner, ownerCount, threshold
+    /// @param _owners: Array of multisig owners
+    /// @param _threshold: Minimum number of signatures required for multisig execution
+    function _setupOwners(address[] memory _owners, uint256 _threshold)
+        internal
+    {
+        // If threshold was not initialized
+        require(threshold == 0, "WTF5000");
+        // multisig execution threshold is less than the number of multisig owners
+        require(_threshold <= _owners.length, "WTF5001");
+        // multisig execution threshold is at least 1
+        require(_threshold >= 1, "WTF5002");
+
+        for (uint256 i = 0; i < _owners.length; i++) {
+            address owner = _owners[i];
+            // multisig owners cannot be zero address, contract address, and cannot be repeated
+            require(
+                owner != address(0) &&
+                    owner != address(this) &&
+                    !isOwner[owner],
+                "WTF5003"
+            );
+            owners.push(owner);
+            isOwner[owner] = true;
+        }
+        ownerCount = _owners.length;
+        threshold = _threshold;
+    }
+
+    /// @dev After collecting enough signatures from the multisig, execute transaction
+    /// @param to Target contract address
+    /// @param value msg.value, ether paid
+    /// @param data calldata
+    /// @param signatures packed signatures, corresponding to the multisig address in ascending order, for easy checking ({bytes32 r}{bytes32 s}{uint8 v}) (signature of the first multisig, signature of the second multisig...)
+    function execTransaction(
+        address to,
+        uint256 value,
+        bytes memory data,
+        bytes memory signatures
+    ) public payable virtual returns (bool success) {
+        // Encode transaction data and compute hash
+        bytes32 txHash = encodeTransactionData(
+            to,
+            value,
+            data,
+            nonce,
+            block.chainid
+        );
+        // Increase nonce
+        nonce++;
+        // Check signatures
+        checkSignatures(txHash, signatures);
+        // Execute transaction using call and get transaction result
+        (success, ) = to.call{value: value}(data);
+        require(success, "WTF5004");
+        if (success) emit ExecutionSuccess(txHash);
+        else emit ExecutionFailure(txHash);
+    }
+
+    /**
+     * @dev checks if the hash of the signature and transaction data matches. if signature is invalid, transaction will revert
+     * @param dataHash hash of transaction data
+     * @param signatures bundles multiple multisig signature together
+     */
+    function checkSignatures(bytes32 dataHash, bytes memory signatures)
+        public
+        view
+    {
+        // get multisig threshold
+        uint256 _threshold = threshold;
+        require(_threshold > 0, "WTF5005");
+
+        // checks if signature length is enough
+        require(signatures.length >= _threshold * 65, "WTF5006");
+
+        // checks if collected signatures are valid
+        // procedure:
+        // 1. use ECDSA to verify if signatures are valid
+        // 2. use currentOwner > lastOwner to make sure that signatures are from different multisig owners
+        // 3. use isOwner[currentOwner] to make sure that current signature is from a multisig owner
+        address lastOwner = address(0);
+        address currentOwner;
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+        uint256 i;
+        for (i = 0; i < _threshold; i++) {
+            (v, r, s) = signatureSplit(signatures, i);
+            // use ECDSA to verify if signature is valid
+            currentOwner = ecrecover(
+                keccak256(
+                    abi.encodePacked(
+                        "\x19Ethereum Signed Message:\n32",
+                        dataHash
+                    )
+                ),
+                v,
+                r,
+                s
+            );
+            require(
+                currentOwner > lastOwner && isOwner[currentOwner],
+                "WTF5007"
+            );
+            lastOwner = currentOwner;
+        }
+    }
+
+    /// split a single signature from a packed signature.
+    /// @param signatures Packed signatures.
+    /// @param pos Index of the multisig.
+    function signatureSplit(bytes memory signatures, uint256 pos)
+        internal
+        pure
+        returns (
+            uint8 v,
+            bytes32 r,
+            bytes32 s
+        )
+    {
+        // signature format: {bytes32 r}{bytes32 s}{uint8 v}
+        assembly {
+            let signaturePos := mul(0x41, pos)
+            r := mload(add(signatures, add(signaturePos, 0x20)))
+            s := mload(add(signatures, add(signaturePos, 0x40)))
+            v := and(mload(add(signatures, add(signaturePos, 0x41))), 0xff)
+        }
+    }
+
+    /// @dev hash transaction data
+    /// @param to target contract's address
+    /// @param value msg.value eth to be paid
+    /// @param data calldata
+    /// @param _nonce nonce of the transaction
+    /// @param chainid evm chain id
+    /// @return bytes of transaction hash
+    function encodeTransactionData(
+        address to,
+        uint256 value,
+        bytes memory data,
+        uint256 _nonce,
+        uint256 chainid
+    ) public pure returns (bytes32) {
+        bytes32 safeTxHash = keccak256(
+            abi.encode(to, value, keccak256(data), _nonce, chainid)
+        );
+        return safeTxHash;
+    }
+}
+```
+
 ### 2024.10.12
 
 ### 2024.10.13

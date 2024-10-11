@@ -1357,4 +1357,51 @@ contract Facuet {
 
 课程提到最早的代币水龙头是BTC水龙头，但是那个时候还没有智能合约，所以肯定是使用 Web2 的技术栈实现的.
 
+#### 空投合约
+
+通过智能合约来发送空投，其实就是一个 for 循环来给符合条件的地址列表打固定金额的钱，转账前做参数校验:
+
+```solidity
+// 数组求和函数
+function getSum(uint256[] calldata _arr) public pure returns(uint sum){
+    for(uint i = 0; i < _arr.length; i++)
+        sum = sum + _arr[i];
+}
+
+/// @notice 向多个地址转账ERC20代币，使用前需要先授权
+///
+/// @param _token 转账的ERC20代币地址
+/// @param _addresses 空投地址数组
+/// @param _amounts 代币数量数组（每个地址的空投数量）
+function multiTransferToken(
+    address _token,
+    address[] calldata _addresses,
+    uint256[] calldata _amounts
+    ) external {
+    // 检查：_addresses和_amounts数组的长度相等
+    require(_addresses.length == _amounts.length, "Lengths of Addresses and Amounts NOT EQUAL");
+    IERC20 token = IERC20(_token); // 声明IERC合约变量
+    uint _amountSum = getSum(_amounts); // 计算空投代币总量
+    // 检查：授权代币数量 >= 空投代币总量
+    require(token.allowance(msg.sender, address(this)) >= _amountSum, "Need Approve ERC20 token");
+
+    // for循环，利用transferFrom函数发送空投
+    for (uint8 i; i < _addresses.length; i++) {
+        token.transferFrom(msg.sender, _addresses[i], _amounts[i]);
+    }
+}
+```
+
+上面的空投代码的 gas fee 会随着地址列表的增多而线性增加, 关于 gas fee, 我现在觉得是一个相当巧妙的设计:
+
+矿工（节点）的算力是相当宝贵的，但是你的代码运行在节点上，并不能像云上的虚拟机一样提供一个沙箱环境，那么对于恶意的代码，可能一个死循环就把矿工的算力给耗尽了，但是在程序运行之前，并没有办法判断代码是否可以及时返回的，可穷尽的。
+
+而引入 gas fee 就相当于把金融手段解决工程问题，死循环的代码你可以写，只要你付对应的 gas fee 就可以了，相当于每个人都用钱包为其写的代码负责。
+
+不过上面的空投代码没有做余额的检查，例如地址列表有100个，转账到99个的时候余额不足，然后回滚，但是回滚前的 gas fee 还是要照付，毕竟前面的转账矿工也干活了，不能让人家白干。
+
+> 我撸空投收获最大的一次是ENS空投，你们呢？
+
+还没有撸到过 :( 
+
 <!-- Content_END -->

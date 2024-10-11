@@ -1020,6 +1020,38 @@ function mint(address to,uint tokenId) internal  virtual{
     学习了铸币和销毁币的操作
 
 
+### 2024.10.11
+荷兰拍卖，代币的价格会随着时间从大到小依次递减
+function auctionMint(uint256 quantity) external payable{
+        uint256 _saleStartTime = uint256(auctionStartTime); // 建立local变量，减少gas花费
+        require(
+        _saleStartTime != 0 && block.timestamp >= _saleStartTime,
+        "sale has not started yet"
+        ); // 检查是否设置起拍时间，拍卖是否开始
+        require(
+        totalSupply() + quantity <= COLLECTION_SIZE,
+        "not enough remaining reserved for auction to support desired mint amount"
+        ); // 检查是否超过NFT上限
+
+        uint256 totalCost = getAuctionPrice() * quantity; // 计算mint成本
+        require(msg.value >= totalCost, "Need to send more ETH."); // 检查用户是否支付足够ETH
+        
+        // Mint NFT
+        for(uint256 i = 0; i < quantity; i++) {
+            uint256 mintIndex = totalSupply();
+            _mint(msg.sender, mintIndex);
+            _addTokenToAllTokensEnumeration(mintIndex);
+        }
+        // 多余ETH退款
+        if (msg.value > totalCost) {
+            payable(msg.sender).transfer(msg.value - totalCost); //注意一下这里是否有重入的风险
+        }
+    }
+    还可以手动设置拍卖的价格
+    function setAuctionStartTime(uint32 timestamp) external onlyOwner {
+        auctionStartTime = timestamp;
+    }
+
 
 
   

@@ -1372,5 +1372,71 @@ contract structType{
          ```
          * 如果我们给call输入的函数不存在于目标合约，那么目标合约的fallback函数会被触发。
 
+###  2024.10.10
+**Delegatecall**
+   * 与`call`类似，是Solidity中地址类型的低级成员函数。
+   * `delegate`是委托/代表的意思
+   **delegatecall委托了什么？**
+      * 用户A通过合约B来`call`合约C的时候，执行的是合约C的函数，上下文(`Context`，可以理解为包含变量和状态的环境)也是合约C的
+      * `msg.sender`是B的地址，并且如果函数改变一些状态变量，产生的效果会作用于合约C的变量上。
+     ![image](https://github.com/user-attachments/assets/f036b28b-1765-4d19-9c60-e7d68d5ccc2a)
+      * 用户A通过合约B来delegatecall合约C的时候，执行的是合约C的函数，但是上下文仍是合约B的
+      * `msg.sender`是A的地址，并且如果函数改变一些状态变量，产生的效果会作用于合约B的变量上。
+     ![image](https://github.com/user-attachments/assets/f1a07277-a996-4aad-b720-22ee03007a2b)
+   * `delegatecall`语法: `目标合约地址.delegatecall(二进制编码);`
+   * 二进制编码利用结构化编码函数`abi.encodeWithSignature`获得: `abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)`
+   * 和`call`不一样，`delegatecall`在调用合约时可以指定交易发送的gas，但不能指定发送的ETH数额
+   * **使用时要保证当前合约和目标合约的状态变量存储结构相同，并且目标合约安全，不然会造成资产损失。**
 
+**什么情况下会用到delegatecall?**
+   * 主要有两个应用场景:
+      1. 代理合约（`Proxy Contract`）: 
+         * 将智能合约的存储合约和逻辑合约分开
+         * 代理合约存储所有相关的变量，并且保存逻辑合约的地址
+         * 所有函数存在逻辑合约（`Logic Contract`）里，通过`delegatecall`执行。当升级时，只需要将代理合约指向新的逻辑合约即可。
+      2. EIP-2535 Diamonds（钻石）:
+         * 支持构建可在生产中扩展的模块化智能合约系统的标准
+         * 具有多个实施合约的代理合约
+**delegatecall例子**
+* 调用结构：你（A）通过合约B调用目标合约C。
+   * 被调用的合约C:
+      ```Solidity
+      // 被调用的合约C
+      contract C {
+          uint public num;
+          address public sender;
+      
+          function setVars(uint _num) public payable {
+              num = _num;
+              sender = msg.sender;
+          }
+      }
+      ```
+   * 发起调用的合约B: 合约B必须和目标合约C的变量存储布局必须相同，两个变量，并且顺序为num和sender
+      ```Solidity
+      contract B {
+          uint public num;
+          address public sender;
+      }
+      ```
+   * 分别用`call`和`delegatecall`来调用合约C的`setVars`函数
+      ```Solidity
+      // 通过call来调用C的setVars()函数，将改变合约C里的状态变量
+      function callSetVars(address _addr, uint _num) external payable{
+          // call setVars()
+          (bool success, bytes memory data) = _addr.call(
+              abi.encodeWithSignature("setVars(uint256)", _num)
+          );
+      }
+      ```
+   * `delegatecallSetVars`函数通过`delegatecall`来调用`setVars`
+      ```Solidity
+      // 通过delegatecall来调用C的setVars()函数，将改变合约B里的状态变量
+      function delegatecallSetVars(address _addr, uint _num) external payable{
+          // delegatecall setVars()
+          (bool success, bytes memory data) = _addr.delegatecall(
+              abi.encodeWithSignature("setVars(uint256)", _num)
+          );
+      }
+      ```
 <!-- Content_END -->

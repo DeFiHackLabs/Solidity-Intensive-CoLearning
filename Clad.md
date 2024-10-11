@@ -778,4 +778,23 @@ IERC20
   2. require 授權代幣數量 >= 空投代幣總量
   3. for 循環, 利用 transferFrom() 發送空投
 
+### 2024.10.11        
+學習內容  
+筆記:  
+
+#### ERC721
+- 用於非同質化物品, ex: NFT
+- ERC165, 檢查一個智能合約是否支援 ERC721, ERC1155 的接口
+- IERC721, 規定 ERC721 要實現的基本函數, 利用 tokenId 來表示特定的非同質化代幣, 授權和轉帳都要明確 tokenId, 包含 3 個事件, 9 個函數
+- IERC721Metadata, 實現 3 個查詢 metadata 元數據的常用函數
+- IERC721Receiver, 目標合約必須實現 IERC721Receiver 接口才能接收 ERC721 代幣, 不然會 revert
+- ERC721 主合約實現 IERC165, IERC721, IERC721Metadata 定義的所有功能, 包含 17 個函數
+
+實作一個免費鑄造的 APE  
+結構  
+- 需要設定總供給量
+- 構造函數, 調用父合約 ERC721 的構造函數, 需要傳入 NFT 的名稱 _Nname 和符號 _symbol
+- function _baseURI, 讓每個 NFT 的 tokenURI 基於 IPFS 上的資源進行生成
+- functnio mint(), 要檢查 tokenId 的範圍沒有超過總供給量, 並 mint
+  
 <!-- Content_END -->

@@ -239,5 +239,9 @@ receive()   fallback()
       OtherContract(_Address).setX(x);
    }
    ```
-
+### 2024.10.10
+學習內容: `22. Call`
++ 返回值: (bool, bytes memory)
++ 用法: `目標合約地址.call(字節碼)`，其中字節碼`abi.encodeWithSignature("函數簽名", 參數)`如`bi.encodeWithSignature("f(uint256,address)", _x, _addr)`
++ 另外call可以設定ETH數量和gas: `目標合約地址.call{value:ETH發送數量, gas:gas數量}(字節碼);`
 <!-- Content_END -->
