@@ -1740,9 +1740,48 @@ function getString2(uint256 _number) public pure returns(string memory) {
 ### 2024.10.10
 #### WTF Academy Solidity 102.18 Import
 
-##### 笔记
+#####  `import` 导入方法
+1. **通过文件相对位置导入**
+    - 使用相对路径导入本地的 Solidity 文件。这种方式常见于项目中的文件之间的引用。
+    - 例子：
+    在项目结构中，如果 `Import.sol` 和 `Yeye.sol` 位于同一目录下，则可以通过相对路径导入 `Yeye.sol` 文件中的所有内容。
+        
+        ```solidity
+        import './Yeye.sol';
+        
+        ```
+        
+2. **通过网址导入**
+    - 直接从网络上引用合约文件，例如从 GitHub 上的公开 Solidity 文件。这种方式常见于引入远程的库或合约。
+    - 例子：
+    这种引用方式非常方便，尤其是在开发过程中想要快速测试和使用现有的第三方库。
+        
+        ```solidity
+        import '<https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol>';
+        
+        ```
+        
+3. **通过 npm 导入**
+    - 这种方式通常用于导入项目依赖中的库，例如通过 npm 安装的 OpenZeppelin 库。
+    - 例子：
+    使用这种方式时，项目必须配置好 npm 依赖，例如通过 `npm install` 安装相关库。
+        
+        ```solidity
+        import '@openzeppelin/contracts/access/Ownable.sol';
+        
+        ```
+        
+4. **通过指定全局符号导入**
+    - 通过这种方式可以只导入指定的符号（例如合约、结构体等），避免导入整个文件的所有内容。这种方式适用于文件中包含多个合约或定义，但我们只需要使用其中的某一部分。
+    - 例子：
+    这样只导入 `Yeye.sol` 文件中的 `Yeye` 合约。
+        
+        ```solidity
+        import {Yeye} from './Yeye.sol';
+        ```
 
 ##### 测验结果
+- 100/100
 
 ##### 测验错题
 

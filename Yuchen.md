@@ -1817,7 +1817,189 @@ contract DeployContract {
 **總結**  
 `selfdestruct`是智能合約的緊急按钮，銷毀合約並將剩餘`ETH`轉移到指定帳戶。
 
+> 判断：所有合约创建时都必须包含“selfdestruct”的命令，否则会报错：
+>
+> A. 正确
+> B. 错误
+> B. 错误。
+>
+>并不是所有合约在创建时都必须包含 selfdestruct 命令。selfdestruct 是一种可选的功能，用于销毁合约并将剩余的以太币发送到指定的地址。如果一个合约不需要销毁功能，它可以完全不包含 selfdestruct 命令，合约依然可以正常部署和运行，不会报错。
 
+### 2024.10.11
+
+#### ABI編碼解碼
+`ABI` (Application Binary Interface，應用二進制接口)是與以太坊智能合約交互的標準。數據基於他们的類型編碼；並且由於編碼後不包含類型信息，解碼時需要注明它們的類型。
+
+Solidity中，`ABI编码`有4個函數：`abi.encode`, `abi.encodePacked`, `abi.encodeWithSignature`, `abi.encodeWithSelector`。  
+`ABI解码`有1个函數：`abi.decode`，用于解码`abi.encode`的數據。  
+这一讲，我们将学习如何使用这些函數。
+
+#### ABI編碼
+4個變量：  
+```Solidity
+uint x = 10;
+address addr = 0x7A58c0Be72BE218B41C608b7Fe7C5bB630736C71;
+string name = "0xAA";
+uint[2] array = [5, 6]; 
+```
+`abi.encode`  
+將给定参數利用[ABI規則](<https://learnblockchain.cn/docs/solidity/abi-spec.html>)编碼。`ABI`被設計出来跟智能合約交互，他將每个參數填充為32字節的數據，並拼接在一起。如果你要和合約交互，要用的就是`abi.encode`。  
+```Solidity
+function encode() public view returns(bytes memory result) {
+    result = abi.encode(x, addr, name, array);
+}
+```  
+編碼的結果為编码的结果为`0x000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000043078414100000000000000000000000000000000000000000000000000000000`，由於`abi.encode`將每個數據都填充為32字節，中間有很多`0`。
+
+`abi.encodePacked`  
+將给定参數根據其所需最低空間編碼。它類似`abi.encode`，但是會把其中填充的很多0省略。比如，只用1字節來编碼`uint8`类型。当你想省空间，并且不與合約交互的時候，可以使用`abi.encodePacked`，例如算一些數據的`hash`時。
+```Solidity
+function encodePacked() public view returns(bytes memory result) {
+    result = abi.encodePacked(x, addr, name, array);
+}
+```
+
+编码的结果为`0x000000000000000000000000000000000000000000000000000000000000000a7a58c0be72be218b41c608b7fe7c5bb630736c713078414100000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000006`，由于`abi.encodePacked`对编码进行了压缩，长度比`abi.encode`短很多。
+
+`abi.encodeWithSignature`  
+与`abi.encode`功能类似，只不过第一个参数为`函数签名`，比如`"foo(uint256,address,string,uint256[2])"`。当调用其他合约的时候可以使用。  
+```Solidity
+function encodeWithSignature() public view returns(bytes memory result) {
+    result = abi.encodeWithSignature("foo(uint256,address,string,uint256[2])", x, addr, name, array);
+}
+```
+
+编码的结果为`0xe87082f1000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000043078414100000000000000000000000000000000000000000000000000000000`，等同于在`abi.encode`编码结果前加上了4字节的`函数选择器`说明。 说明: 函数选择器就是通过函数名和参数进行签名处理(Keccak–Sha3)来标识函数，可以用于不同合约之间的函数调用
+
+`abi.encodeWithSelector`  
+与`abi.encodeWithSignature`功能类似，只不过第一个参数为`函数选择器`，为`函数签名`Keccak哈希的前4个字节。
+```Solidity
+function encodeWithSelector() public view returns(bytes memory result) {
+    result = abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array);
+}
+```  
+编码的结果为`0xe87082f1000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000043078414100000000000000000000000000000000000000000000000000000000`，与`abi.encodeWithSignature`结果一样。  
+
+
+#### ABI解碼
+`abi.decode`  
+`abi.decode`用于解码`abi.encode`生成的二进制编码，将它还原成原本的参数。  
+```Solidity
+function decode(bytes memory data) public pure returns(uint dx, address daddr, string memory dname, uint[2] memory darray) {
+    (dx, daddr, dname, darray) = abi.decode(data, (uint, address, string, uint[2]));
+}
+```  
+將`abi.encode`的二進制編碼輸入給`decode`，將解碼出原來的参數：  
+<img src="https://github.com/user-attachments/assets/e1b46761-d5a1-466b-a1a1-f7a1f2e602e1" height="200px" width="300px" />
+
+#### ABI的使用場景
+1. 在合约开发中，ABI常配合call来实现对合约的底层调用。
+```Solidity
+bytes4 selector = contract.getValue.selector;
+
+bytes memory data = abi.encodeWithSelector(selector, _x);
+(bool success, bytes memory returnedData) = address(contract).staticcall(data);
+require(success);
+
+return abi.decode(returnedData, (uint256));
+```
+
+2. ethers.js中常用ABI实现合约的导入和函数调用。
+```Solidity
+const wavePortalContract = new ethers.Contract(contractAddress, contractABI, signer);
+    /*
+    * Call the getAllWaves method from your Smart Contract
+    */
+const waves = await wavePortalContract.getAllWaves();
+```
+
+3. 对不开源合约进行反编译后，某些函数无法查到函数签名，可通过ABI进行调用。
+    * 0x533ba33a() 是一个反编译后显示的函数，只有函数编码后的结果，并且无法查到函数签名  
+    <img src="https://github.com/user-attachments/assets/48fc14e8-a0b4-4df8-aa77-9bb108adadda" height="120px" width="360px" />
+    <img src="https://github.com/user-attachments/assets/5d9aea9a-eb18-48c2-baca-7905819c76d5" height="120px" width="600px" />
+
+    * 这种情况无法通过构造interface接口或contract来进行调用  
+    <img src="https://github.com/user-attachments/assets/e397fa4b-1acc-4e12-9369-c0ba32f577f7" height="120px" width="600px" />
+
+    ```Solidity
+    bytes memory data = abi.encodeWithSelector(bytes4(0x533ba33a));
+
+    (bool success, bytes memory returnedData) = address(contract).staticcall(data);
+    require(success);
+
+    return abi.decode(returnedData, (uint256));
+    ```
+
+**總結**  
+在以太坊中，数据必须编码成字节码才能和智能合约交互。
+
+
+> 1.当我们调用智能合约时，传递给合约的数据的前若干个字节被称为“函数选择器 (Selector)”，它告诉合约我们想要调用哪个函数。假设我们想要调用的函数在智能合约中定义声明如下：
+> ```
+> function foo(uint256 n, address sender, string s) public view returns(bool b)
+> ```
+> 那么该函数对应的函数选择器为：
+>
+> A. "foo(uint256,address,string)" 
+> B. "foo(uint256 n, address sender, string s)" 
+> C. keccak256("foo(uint256,address,string)") 
+> D. keccak256("foo(uint256 n, address sender, string s)") 
+> E. bytes4(keccak256("foo(uint256,address,string)")) 
+> F. bytes4(keccak256("foo(uint256 n, address sender, string s)"))
+> 
+> Ans: E. bytes4(keccak256("foo(uint256,address,string)"))。  
+> 解釋：  
+> 當我們想要調用智能合約中的函數時，使用的函數選擇器 (Selector) 是這個函數的簽名的 Keccak256 哈希值的前 4 個字節。  
+> 函數的簽名是函數名稱和參數類型（不包括參數名稱）的組合，例如 "foo(uint256,address,string)"。  
+> 然後對該簽名進行 keccak256 哈希計算，取哈希結果的前 4 個字節作為函數選擇器。
+
+
+
+> 2.下列有关ABI编码的函数中，返回值不可能当作调用智能合约的数据的一项是：  
+> A. abi.encode 
+> B. abi.encodePacked 
+> C. abi.encodeWithSignature 
+> D. abi.encodeWithSelector
+>
+> Ans: B. abi.encodePacked。
+>
+> 解釋：  
+> `abi.encode`、`abi.encodeWithSignature`和`abi.encodeWithSelector`都會返回可以直接作為呼叫合約時的`calldata`使用的編碼結果，它們分別針對不同的情境（如指定函數簽名或函數選擇器）。  
+> `abi.encodePacked`雖然也可以進行編碼，但其返回的是緊湊型編碼（packed encoding），這種編碼方式可能導致哈希碰撞或編碼數據不完整，因此不能直接用作智能合約的`calldata`。
+
+
+> 3.函数abi.decode用于将二进制编码解码，它对应的逆向操作函数（反函数）是：
+>
+> A. abi.encode  
+> B. abi.encodePacked  
+> C. abi.encodeWithSignature  
+> D. abi.encodeWithSelector
+>
+> 正確答案是 A. abi.encode  
+> 解釋：  
+> `abi.decode` 用於將二進制數據解碼回其原始的 Solidity 資料類型。  
+> `abi.encode` 是其逆向操作，它將 Solidity 資料類型編碼為二進制形式。
+
+> 4.已知函数foo在智能合约中定义声明如下：
+> ```
+> function foo(uint256 a) public view
+> ```
+> 而字符串"foo(uint256)"的keccak256哈希值为：
+>
+> ```
+> 0x2fbebd3821c4e005fbe0a9002cc1bd25dc266d788dba1dbcb39cc66a07e7b38b
+> ```  
+> 那么，当我们希望调用函数foo()时，以下生成调用数据的写法中，正确且最节省gas的一项是：  
+>
+> A. abi.encodeWithSignature("foo(uint256)", a)  
+> B. abi.encodeWithSelector("foo(uint256)", a)  
+> C. abi.encodeWithSelector(bytes(keccak256("foo(uint256)")), a)  
+> D. abi.encodeWithSelector(bytes4(0x2fbebd38), a)
+> 
+> 正確答案是 D. abi.encodeWithSelector(bytes4(0x2fbebd38), a)  
+> 解釋：  
+> abi.encodeWithSelector 是一個有效的方法來生成函數的調用數據，其中函數的 selector（前四個 bytes 的 Keccak256 哈希值）可以被直接使用。  
+> 選項 D 使用了已知的函數 selector 0x2fbebd38，並傳遞參數 a，這樣直接使用 selector，避免了在調用中再去計算哈希值，從而節省了 gas。
 
 
 <!-- Content_END -->

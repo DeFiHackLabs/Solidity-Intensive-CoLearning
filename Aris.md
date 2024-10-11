@@ -1318,9 +1318,286 @@ timezone: Asia/Shanghai
 
 ---
 
+#### 学习内容 28. Hash
+
+1. 哈希函数
+
+    - 将任意长度的消息转换为一个固定长度的值
+
+2. hash 性质
+
+    - 单向性：从输入的消息到它的哈希的正向运算简单且唯一确定，而反过来非常难，只能靠暴力枚举。
+    - 灵敏性：输入的消息改变一点对它的哈希改变很大。
+    - 高效性：从输入的消息到哈希的运算高效。
+    - 均一性：每个哈希值被取到的概率应该基本相等。
+    - 抗碰撞性：
+        - 弱抗碰撞性：给定一个消息`x`，找到另一个消息`x'`，使得`hash(x) = hash(x')`是困难的。
+        - 强抗碰撞性：找到任意`x`和`x'`，使得`hash(x) = hash(x')`是困难的。
+
+3. hash 应用
+
+    - 生成数据唯一标识
+    - 加密签名
+    - 安全加密
+
+4. keccak256
+
+    - ```solidity
+        哈希 = keccak256(数据);
+        ```
+
+5. Keccak256和sha3
+
+    - Ethereum和Solidity智能合约代码中的SHA3是指Keccak256
+    - 不是标准的NIST-SHA3(区别:SHA3最终完成标准化时，NIST调整了填充算法)
+    - **所以SHA3就和keccak计算的结果不一样**
+
+6. 生成数据唯一标识
+
+    - ```solidity
+        function hash(
+            uint _num,
+            string memory _string,
+            address _addr
+            ) public pure returns (bytes32) {
+            return keccak256(abi.encodePacked(_num, _string, _addr));
+        }
+        ```
+
+7. 弱抗碰撞性
+
+    - 给定一个消息`x`，找到另一个消息`x'`，使得`hash(x) = hash(x')`是困难的
+
+8. 强抗碰撞性
+
+    - 任意不同的`x`和`x'`，使得`hash(x) = hash(x')`是困难的
+
+9. 合约部署
+
+    - ![image-20241010151540679](content/Aris/image-20241010151540679.png)
+
+10. 第 28 节测验得分: 100, 答案:DCDBA
+
+---
+
+#### 学习内容 29. 函数选择器Selector
+
+1. 函数选择器
+
+    - 当我们调用智能合约时，本质上是向目标合约发送了一段`calldata`
+    - `calldata`中前4个字节是`selector`（函数选择器）
+    - msg.data `0x6a6278420000000000000000000000002c44b726adf1963ca47af88b284c06f30380fc78`
+
+2. 函数的id、selector和签名
+
+    - id:`函数签名`的`Keccak`哈希后的前4个字节 
+
+        - ```solidity
+            bytes4(keccak256("mint(address)"))
+            ```
+
+    - 当`selector`与`method id`相匹配时，即表示调用该函数
+
+    - 函数签名:`函数名（逗号分隔的参数类型)`
+
+    - 在同一个智能合约中，不同的函数有不同的函数签名
+
+3. 计算`method id`时，需要通过函数名和函数的参数类型来计算
+
+    - `bytes4(keccak256("函数名(参数类型1,参数类型2,...)"))`
+    - 基础类型参数
+        - **bytes4**(keccak256("selectorElementaryParam(uint256,bool)"));
+    - 固定长度类型参数
+        - **bytes4**(keccak256("selectorFixedSizeParam(uint256[3])"));
+    - 可变长度类型参数
+        - **bytes4**(keccak256("selectorNoFixedSizeParam(uint256[],string)"));
+    - 映射类型参数
+        - **bytes4**(keccak256("selectorMappingParam(address,(uint256,bytes),uint256[],uint8)"));
+
+4. 使用selector
+
+    - ```solidity
+        (bool success1, bytes memory data1) = address(this).call(abi.encodeWithSelector(0x3ec37834, 1, 0));
+        ```
+
+5. 合约部署
+
+    - ![image-20241010171501953](content/Aris/image-20241010171501953.png)
+
+6. 第 29 节测验得分: 100, 答案:DDCBD
+
+---
+
+#### 学习内容: 30. Try Catch
+
+1. try-catch
+
+   - 只能用于 external 函数 或者 创建合约时 constructor 函数
+   - ```solidity
+     try externalContract.f() returns(returnType val){
+         // call成功的情况下 运行一些代码
+     } catch {
+         // call失败的情况下 运行一些代码
+     }
+     ```
+   - `externalContract.f()` 是某个外部合约调用,调用成功执行 try 函数体,失败 catch 函数体
+   - 也可以 this.f(),因为被视为外部调用,但是不能在构造函数中使用;
+   - 如果 f() 有返回值,必须在 后面声明 returns(类型 变量)
+
+     - try 函数体可以使用返回的变量
+     - 如果是创建合约,则返回值时合约的变量(实例)
+
+   - catch 模块支持捕获特殊的异常原因
+
+     - ```solidity
+       try externalContract.f() returns(returnType){
+           // call成功的情况下 运行一些代码
+       } catch Error(string memory /*reason*/) {
+           // 捕获revert("reasonString") 和 require(false, "reasonString")
+       } catch Panic(uint /*errorCode*/) {
+           // 捕获Panic导致的错误 例如assert失败 溢出 除零 数组访问越界
+       } catch (bytes memory /*lowLevelData*/) {
+           // 如果发生了revert且上面2个异常类型匹配都失败了 会进入该分支
+           // 例如revert() require(false) revert自定义类型的error
+       }
+       ```
+
+     - catch Error(string memory reason) 捕获revert("reasonString") 和 require(false, "reasonString")
+
+     - catch Panic(uint errorCode) 捕获Panic导致的错误 例如assert失败 溢出 除零 数组访问越界
+
+     - catch (bytes memory lowLevelData)  其他异常(兜底)
+
+2. 合约部署
+
+   - ![image-20241010205615472](./content/Aris/image-20241010205615472.png)
+   - ![image-20241010205657406](./content/Aris/image-20241010205657406.png)
+   - ![image-20241010205741049](./content/Aris/image-20241010205741049.png)
+
+3. 第 30 节测验得分: 100, 答案:DCBB (我觉得第2题的答案是 A)
+
+   - ![image-20241010212332966](./content/Aris/image-20241010212332966.png)
+   - ![image-20241010213239154](./content/Aris/image-20241010213239154.png)
+
+4. 至此 102 全部完成
+
+   - ![image-20241010211644145](./content/Aris/image-20241010211644145.png)
 
 
+---
 
+### 2024.10.11
+
+#### 学习内容 31. ERC20
+
+1. ERC20
+
+    - `ERC20`是以太坊上的代币标准
+    - 账户余额 balanceOf()
+    - 转账 transfer()
+    - 授权转账 transferFrom()
+    - 授权 approve()
+    - 代币总供给 totalSupply()
+    - 授权转账额度 allowance()
+    - 代币信息
+        - 名称,代号,小数位数
+
+2. IERC20
+
+    - `IERC20`是 `ERC20`代币标准的接口合约,规定 ERC20 代币需要实现的函数和事件(就是规范)
+
+3. 事件
+
+    - Transfer事件: 转账时释放
+
+        - ```solidity
+            /**
+             * @dev 释放条件：当 `value` 单位的货币从账户 (`from`) 转账到另一账户 (`to`)时.
+             */
+            event Transfer(address indexed from, address indexed to, uint256 value);
+            ```
+
+    - Approval事件: 授权时释放
+
+        - ```solidity
+            /**
+             * @dev 释放条件：当 `value` 单位的货币从账户 (`owner`) 授权给另一账户 (`spender`)时.
+             */
+            event Approval(address indexed owner, address indexed spender, uint256 value);
+            ```
+
+4. 函数
+
+    - totalSupply() 代币总供给 (池子总共有多少代币)
+
+        - ```solidity
+            // 返回代币总供给.
+            function totalSupply() external view returns (uint256);
+            ```
+
+    - balanceOf() 账户的代币余额 (你代币还有多少)
+
+        - ```solidity
+            // 返回账户 account 所持有的代币数.
+            function balanceOf(address account) external view returns (uint256);
+            ```
+
+    - transfer() 转账 (从你账户给 to 账户)
+
+        - ```solidity
+            /**
+             * @dev 转账 `amount` 单位代币，从调用者账户到另一账户 `to`.
+             *
+             * 如果成功，返回 `true`.
+             *
+             * 释放 {Transfer} 事件.
+             */
+            function transfer(address to, uint256 amount) external returns (bool);
+            ```
+
+    - allowance() 授权额度 (给花钱的人授权额度)
+
+        - ```solidity
+            /**
+             * @dev 返回`owner`账户授权给`spender`账户的额度，默认为0。
+             *
+             * 当{approve} 或 {transferFrom} 被调用时，`allowance`会改变.
+             */
+            function allowance(address owner, address spender) external view returns (uint256);
+            ```
+
+    - approve() 授权 (给花钱的人多少代币)
+
+        - ```solidity
+            /**
+             * @dev 调用者账户给`spender`账户授权 `amount`数量代币。
+             *
+             * 如果成功，返回 `true`.
+             *
+             * 释放 {Approval} 事件.
+             */
+            function approve(address spender, uint256 amount) external returns (bool);
+            ```
+
+    - transferFrom() 授权转账 (from 给 to 转 amount 数量代币)
+
+        - ```solidity
+            /**
+             * @dev 通过授权机制，从`from`账户向`to`账户转账`amount`数量代币。转账的部分会从调用者的`allowance`中扣除。
+             *
+             * 如果成功，返回 `true`.
+             *
+             * 释放 {Transfer} 事件.
+             */
+            function transferFrom(address from,address to,uint256 amount) external returns (bool);
+            ```
+
+5. 合约部署
+
+    - ![image-20241011135556973](content/Aris/image-20241011135556973.png)
+
+
+---
 
 
 

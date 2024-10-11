@@ -362,5 +362,7 @@ interface IERC721Receiver {
 - WETH
  - 因为eth不支持一些defi，所以包装成weth
 - 分账
-
+### 2024.10.11
+学习了线性释放，代币锁，时间锁合约，并在remix上进行了验证
+通过bytes32 txHash = getTxHash(target, value, signature, data, executeTime);来确定交易唯一
 <!-- Content_END -->
