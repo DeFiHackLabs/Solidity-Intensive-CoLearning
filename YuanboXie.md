@@ -2834,7 +2834,34 @@ import '@openzeppelin/contracts/access/Ownable.sol';
             _burn(account, amount);
         }
         ```
-- [104-S05] 整型溢出
+- [104-S05] 整型溢出(Arithmetic Over/Under Flows),这是一个比较经典的漏洞，Solidity 0.8 版本后内置了 Safemath 库，因此很少发生。
+    - 以太坊虚拟机（EVM）为整型设置了固定大小，因此它只能表示特定范围的数字。例如 uint8，只能表示 [0,255] 范围内的数字。如果给 uint8 类型变量的赋值 257，则会上溢（overflow）变为 1；如果给它赋值-1，则会下溢（underflow）变为255。
+    - 漏洞例子：
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity ^0.8.21;
+
+    contract Token {
+        mapping(address => uint) balances;
+        uint public totalSupply;
+
+        constructor(uint _initialSupply) {
+            balances[msg.sender] = totalSupply = _initialSupply;
+        }
+        
+        function transfer(address _to, uint _value) public returns (bool) {
+            unchecked{ // unchecked 关键字在代码块中临时关闭整型溢出检测
+                require(balances[msg.sender] - _value >= 0);
+                balances[msg.sender] -= _value; // 转太多会出错
+                balances[_to] += _value;
+            }
+            return true;
+        }
+        function balanceOf(address _owner) public view returns (uint balance) {
+            return balances[_owner];
+        }
+    }
+    ```
 - [104-S06] 签名重放
 
 ### 2024.10.14
