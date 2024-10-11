@@ -18,11 +18,14 @@ timezone: Asia/Taipei
 學習內容 Solidity 101  
 筆記:  
 #### Mapping
-###### 使用 mapping 的時機？
-- mapping 映射, 可以透過 key 查詢對應的 value, ex: 通過一個人的 id 查詢他的錢包地址
+功用
+- 可以透過 key 查詢對應的 value, ex: 通過一個人的 id 查詢他的錢包地址
 - mapping 的 _keyType 只能選擇 solidity 內建的直類型, _valueType 則可以自定義類型
-  
+
+寫法
+給映射新增鍵值
 ```solidity
+   // 此範例有兩組 mapping, 透過 writeMap() 對 idToAddress 新增鍵值 
    mapping(uint => address) public idToAddress;
    mapping(address => address) public swapPair;
 
@@ -758,5 +761,40 @@ IERC20
 - 狀態變數*3, 紀錄每次能提領的數量, token 合約地址, 紀錄領取過代幣的地址 
 - 事件*1, 紀錄每次提取代幣的地址和數量
 - 函數*2, 構造函數(初始化 tokenContract 狀態變數, 確定發放的 ERC20 代幣地址), requestTokens() (用戶調用, 可以領取代幣)
+  
+### 2024.10.10        
+學習內容  
+筆記:  
 
+#### 空投代幣合約
+- 邏輯: 利用循環, 讓一筆交易將 ERC20 代幣發送給多個地址
+
+結構
+- 由兩個函數組成
+- getSim() 返回 uint 數組的和
+- multiTransferToken() 發送 ERC20 代幣空
+  需要做
+  1. require 空投地址的數量組和每個地址的空投數量組長度相等
+  2. require 授權代幣數量 >= 空投代幣總量
+  3. for 循環, 利用 transferFrom() 發送空投
+
+### 2024.10.11        
+學習內容  
+筆記:  
+
+#### ERC721
+- 用於非同質化物品, ex: NFT
+- ERC165, 檢查一個智能合約是否支援 ERC721, ERC1155 的接口
+- IERC721, 規定 ERC721 要實現的基本函數, 利用 tokenId 來表示特定的非同質化代幣, 授權和轉帳都要明確 tokenId, 包含 3 個事件, 9 個函數
+- IERC721Metadata, 實現 3 個查詢 metadata 元數據的常用函數
+- IERC721Receiver, 目標合約必須實現 IERC721Receiver 接口才能接收 ERC721 代幣, 不然會 revert
+- ERC721 主合約實現 IERC165, IERC721, IERC721Metadata 定義的所有功能, 包含 17 個函數
+
+實作一個免費鑄造的 APE  
+結構  
+- 需要設定總供給量
+- 構造函數, 調用父合約 ERC721 的構造函數, 需要傳入 NFT 的名稱 _Nname 和符號 _symbol
+- function _baseURI, 讓每個 NFT 的 tokenURI 基於 IPFS 上的資源進行生成
+- functnio mint(), 要檢查 tokenId 的範圍沒有超過總供給量, 並 mint
+  
 <!-- Content_END -->

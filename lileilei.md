@@ -998,4 +998,61 @@ function _checkOnERC721Received(address from,address to,uint tokenId,bytes memor
         _checkOnERC721Received(from,to,tokenId,_data);
     }
   上边校验通过后，进行transfer操作  
+
+### 2024.10.10
+function mint(address to,uint tokenId) internal  virtual{
+        require(to != address(0),"mint to zero address"); //不可以是空的地址，不然会失败
+        require(_owners[tokenId] == address(0),"token already mint"); //第一次铸币，tokenId没有对应的地址
+        _balances[to] +=1; //更新代币地址的余额
+        _owners[tokenId] = to; //建立对应关系
+        emit Transfer(address(0),to,tokenId); //释放事件，记录日志
+    }
+
+    function burn(uint tokenId) internal  virtual{
+        address owner = ownerOf(tokenId); //根据tokenId找地址
+        require(msg.sender == owner,"must be owner");
+        _approve(owner, address(0), tokenId); //授权
+        _balances[owner] -=1; //减余额
+        delete _owners[tokenId]; //置空
+        emit Transfer(owner,address(0),tokenId);
+
+    }
+    学习了铸币和销毁币的操作
+
+
+### 2024.10.11
+荷兰拍卖，代币的价格会随着时间从大到小依次递减
+function auctionMint(uint256 quantity) external payable{
+        uint256 _saleStartTime = uint256(auctionStartTime); // 建立local变量，减少gas花费
+        require(
+        _saleStartTime != 0 && block.timestamp >= _saleStartTime,
+        "sale has not started yet"
+        ); // 检查是否设置起拍时间，拍卖是否开始
+        require(
+        totalSupply() + quantity <= COLLECTION_SIZE,
+        "not enough remaining reserved for auction to support desired mint amount"
+        ); // 检查是否超过NFT上限
+
+        uint256 totalCost = getAuctionPrice() * quantity; // 计算mint成本
+        require(msg.value >= totalCost, "Need to send more ETH."); // 检查用户是否支付足够ETH
+        
+        // Mint NFT
+        for(uint256 i = 0; i < quantity; i++) {
+            uint256 mintIndex = totalSupply();
+            _mint(msg.sender, mintIndex);
+            _addTokenToAllTokensEnumeration(mintIndex);
+        }
+        // 多余ETH退款
+        if (msg.value > totalCost) {
+            payable(msg.sender).transfer(msg.value - totalCost); //注意一下这里是否有重入的风险
+        }
+    }
+    还可以手动设置拍卖的价格
+    function setAuctionStartTime(uint32 timestamp) external onlyOwner {
+        auctionStartTime = timestamp;
+    }
+
+
+
+  
 <!-- Content_END -->

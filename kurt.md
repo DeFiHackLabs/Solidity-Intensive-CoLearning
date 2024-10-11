@@ -983,5 +983,76 @@ contract ERC721 is IERC721, IERC721Metadata{
 }
 ```
 ### 2024.10.10
+DutchAuction荷兰拍卖，递减拍卖，它是指拍卖标的的竞价由高到低依次递减直到第一个竞买人应价（达到或超过底价）时击槌成交的一种拍卖。
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.26;
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "contracts/ERC721.sol";
+contract DutchAuction is Ownable ,ERC721{
+   uint256 public constant COLLECTION_SIZE =10000;
+   uint256 public constant AUCTION_START_PRICE = 1 ether;
+   uint256 public constant AUCTION_END_PRICE = 0.1 ether;
+   uint256 public constant AUCTION_TIME = 10 minutes;
+   uint256 public constant AUCTION_DROP_INTERVAL = 1 minutes;
+   uint256 public constant AUCTION_DROP_PRE_STEP = (AUCTION_START_PRICE-AUCTION_END_PRICE)/(AUCTION_TIME/AUCTION_DROP_INTERVAL);
+   uint256 public auctionStartTime;
+   string private _baseTokenURI;
+   uint256[] private _allTokens;
+   constructor() Ownable(msg.sender) ERC721("kurt","kurt"){
+      auctionStartTime = block.timestamp;
+   }
+   function totalSupply() public view virtual returns (uint256){
+      return _allTokens.length;
+   }
+   function _addTokenToAllTokenEnumeration(uint256 tokenId) private {
+      _allTokens.push(tokenId);
+   }
+   function auctiomMint(uint256 quantity) external payable {
+      uint256 _saleStartTime = uint256(auctionStartTime);
+
+      require(_saleStartTime != 0 && block.timestamp>= _saleStartTime,"sale has not started yet");
+      require(totalSupply()+quantity <= COLLECTION_SIZE,"not enough remaining reserved for auction to support desired mint amount");
+      uint256 totalCost = getAuctionPrice() * quantity;
+      require(msg.value>totalCost,"need more token");
+      for (uint8 i =1 ; i<quantity;i++){
+         uint256 mintIndex = totalSupply();
+         _mint(msg.sender, mintIndex);
+         _addTokenToAllTokenEnumeration(mintIndex);
+      }
+      if(msg.value>totalCost){
+         payable (msg.sender).transfer(msg.value-totalCost);
+      }
+   }
+   function getAuctionPrice() public view returns (uint256){
+      if(block.timestamp<auctionStartTime){
+         return AUCTION_START_PRICE;
+      }else if(block.timestamp -auctionStartTime >= AUCTION_TIME){
+         return AUCTION_END_PRICE;
+      }else {
+         uint256 steps = (block.timestamp - auctionStartTime)/AUCTION_DROP_INTERVAL;
+         return AUCTION_START_PRICE-(steps*AUCTION_DROP_PRE_STEP);
+      }
+   }
+   function setAuctionStartTime(uint32 timestamp)external onlyOwner{
+      auctionStartTime = timestamp;
+   }
+   function _baseURI() internal view virtual override returns (string memory){
+      return _baseTokenURI;
+   }
+   function setBaseURI(string calldata baseURI) external onlyOwner{
+      _baseTokenURI = baseURI;
+   }
+   function withdrawMoney() external onlyOwner{
+      (bool success,)=msg.sender.call{value:address(this).balance}("");
+      require(success,"transfer fail");
+   }
+}
+```
+### 2024.10.11
+### 2024.10.12
+### 2024.10.13
+### 2024.10.14
+### 2024.10.15
     
 <!-- Content_END -->

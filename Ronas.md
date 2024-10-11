@@ -699,6 +699,7 @@ timezone: Asia/Shanghai
     - 檢查是否支援 ERC721, ERC1155
 
 - ERC721 非同質化代幣標準
+    > source (op): https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC721/ERC721.sol
     - `IERC721` 為對外接口 `ERC721` 為邏輯實現
     - 事件
         - `Transfer`
@@ -716,5 +717,127 @@ timezone: Asia/Shanghai
         - `isApprovedForAll()` 查詢是否批次授權
 
 - 荷蘭拍賣 (Dutch Auction)
+
+
+### 2024.10.10
+
+> 進度: Solidity 103 36~37
+
+- Merkle Tree
+    - 基於密碼學中 Hash 演算法, 又稱 Hash Tree, 可實現大型有效性與安全性驗證 (Merkle Proof)
+    - 在 N 層 Merkle Tree 中, 知道 root 後要驗證 leaf 節點, 只需要中間層的 ceil(log₂N) 個數據 (proof), leaf 透過 proof 層層運算能推導出 root 則驗證成功, 反之驗證失敗
+    - 常應用於 NFT 白名單, 空投合約
+        - example: https://github.com/carv-protocol/contracts/tree/staking/contracts/airdrop
+    - references
+        - https://github.com/merkletreejs/merkletreejs
+
+- 用錢包執行簽章
+    - 基於公鑰密碼系統數位簽章
+        - 身分驗證: 只有私鑰持有人才能進行簽章
+        - 不可否認: 簽章發送方無法否認簽章
+        - 完整性: 不可竄改
+    - 執行簽章
+        ```
+        function getMessageHash(address _account, uint256 _tokenId) public pure returns(bytes32){
+            return keccak256(abi.encodePacked(_account, _tokenId));
+        }
+
+        // EIP191 以太坊簽名消息
+        function toEthSignedMessageHash(bytes32 hash) public pure returns (bytes32) {
+            // 哈希的长度为32
+            return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash));
+        }
+        ```
+    - 驗證簽章
+        - signature 中包含三段, 分別為 r, s, v 值, 可根據這三個值及 msgHash 求得不可否認的 signer
+        - `recoverSigner`
+            ```
+            function recoverSigner(bytes32 _msgHash, bytes memory _signature) internal pure returns (address){
+                // 检查签名长度，65是标准r,s,v签名的长度
+                require(_signature.length == 65, "invalid signature length");
+                bytes32 r;
+                bytes32 s;
+                uint8 v;
+                // 目前只能用assembly (内联汇编)来从签名中获得r,s,v的值
+                assembly {
+                    /*
+                    前32 bytes存储签名的长度 (动态数组存储规则)
+                    add(sig, 32) = sig的指针 + 32
+                    等效为略过signature的前32 bytes
+                    mload(p) 载入从内存地址p起始的接下来32 bytes数据
+                    */
+                    // 读取长度数据后的32 bytes
+                    r := mload(add(_signature, 0x20))
+                    // 读取之后的32 bytes
+                    s := mload(add(_signature, 0x40))
+                    // 读取最后一个byte
+                    v := byte(0, mload(add(_signature, 0x60)))
+                }
+                // 使用ecrecover(全局函数)：利用 msgHash 和 r,s,v 恢复 signer 地址
+                return ecrecover(_msgHash, v, r, s);
+            }
+            ```
+        - `verify`
+            ```
+            function verify(bytes32 _msgHash, bytes memory _signature, address _signer) internal pure returns (bool) {
+                return recoverSigner(_msgHash, _signature) == _signer;
+            }
+            ```
+
+- 運用簽章方法分配空投
+    - 簽章線下完成, 不需耗費 gas
+    - 需中心化的接口驗證簽章, 較不去中心化
+    
+### 2024.10.11
+
+> 進度: Solidity 103 40
+
+- ERC1155
+    > source (by OP): https://github.com/OpenZeppelin/openzeppelin-contracts/tree/master/contracts/token/ERC1155
+    - 背景
+        - 問題: ERC20 (同質化代幣) 及 ERC721 (非同質化代幣), 每個代幣背後都需要有一個獨立的合約, 在許多場景將會造成管理上的困難與資源的消耗, 例如 GameFi, 想將裝備武器代幣化, 又不想管理大量的合約
+        - 解決辦法: [EIP1155](https://eips.ethereum.org/EIPS/eip-1155) 中提出 ERC1155, 允許一個合約中包含多個及多種代幣
+        - 各種功能皆會有針對單代幣及多代幣場景
+    - IERC1155
+        - 事件
+            - `TransferSingle`
+            - `TransferBatch`
+            - `ApprovalForAll`
+            - `URI`
+        - 函數
+            - `balanceOf()`
+            - `balanceOfBatch()`
+            - `setApprovalForAll()`
+            - `isApprovedForAll()`
+            - `safeTransferFrom()`
+            - `safeBatchTransferFrom()`
+
+    - IERC1155Receiver
+        - 函數
+            - `onERC1155Received()`
+            - `onERC1155BatchReceived()`
+    
+    - ERC1155
+        - 狀態變數
+            - `name`
+            - `symbol`
+            - `_balances`
+            - `_operatorApprovals`
+        - 函數 (16 個)
+            - `supportsInterface(bytes4 interfaceId)` ERC165
+            - `balanceOf(address account, uint256 id)`
+            - `balanceOfBatch(address[] memory accounts, uint256[] memory ids)`
+            - `setApprovalForAll(address operator, bool approved)`
+            - `isApprovedForAll(address account, address operator)`
+            - `safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes memory data)`
+            - `safeBatchTransferFrom(address from, address to, uint256[] memory ids, uint256[] memory amounts, bytes memory data)`
+            - `_mint(address to, uint256 id, uint256 amount, bytes memory data)`
+            - `_mintBatch(address to, uint256[] memory ids, uint256[] memory amounts, bytes memory data)`
+            - `_burn(address from, uint256 id, uint256 amount)`
+            - `_burnBatch(address from, uint256[] memory ids, uint256[] memory amounts)`
+            - `_doSafeTransferAcceptanceCheck`
+            - `_doSafeBatchTransferAcceptanceCheck`
+            - `uri(uint256 id)`
+            - `_baseURI()`
 
 <!-- Content_END -->
