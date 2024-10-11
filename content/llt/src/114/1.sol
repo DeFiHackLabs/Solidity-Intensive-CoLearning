@@ -1,9 +1,7 @@
-# 调用其他合约
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.26;
 
-调用其他合约四种写法：
-
-```
-// 写一个OtherContract供其他合约调用
+// 调用其他合约
 contract OtherContract {
     uint256 private _x = 0; // 状态变量_x
     // 收到eth的事件，记录amount和gas
@@ -48,5 +46,3 @@ contract CallContract {
         OtherContract(_address).setX{value: msg.value}(x);
     }
 }
-```
-
