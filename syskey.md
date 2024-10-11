@@ -3106,4 +3106,190 @@ timezone: Asia/Shanghai
 
         - 学习了代币锁的机制以及其应用场景。
 ###
+
+### 2024.10.11
+
+学习内容:
+1. 第四十五讲
+
+    - 时间锁合约 - 是银行金库和其他高安全性容器中常见的锁定机制。它是一种计时器，旨在防止保险箱或保险库在预设时间之前被打开，即便开锁的人知道正确密码。
+
+    - 时间锁合约逻辑
+
+        - 首先创建交易，并加入到时间锁队列中；在交易的锁定期满后，执行交易；取消时间锁队列中的的交易；
+
+    - 核心函数
+
+        - 构造函数：初始化交易锁定时间（秒）和管理员地址。
+
+        - `queueTransaction()`：创建交易并添加到时间锁队列中。
+
+            - target：目标合约地址
+
+            - value：发送ETH数额
+
+            - signature：调用的函数签名（function signature）
+
+            - data：交易的call data
+
+            - executeTime：交易执行的区块链时间戳。
+
+        注意: 调用这个函数时，要保证交易预计执行时间executeTime大于当前区块链时间戳+锁定时间delay。交易的唯一标识符为所有参数的哈希值，利用getTxHash()函数计算。进入队列的交易会更新在queuedTransactions变量中，并释放QueueTransaction事件。
+
+        - `executeTransaction()`：执行交易。它的参数与`queueTransaction()`相同。要求被执行的交易在时间锁队列中，达到交易的执行时间，且没有过期。执行交易时用到了solidity的低级成员函数call。
+
+        - `cancelTransaction()`：取消交易。它的参数与`queueTransaction()`相同。它要求被取消的交易在队列中，会更新`queuedTransactions`并释放`CancelTransaction`事件。
+
+    - 代码示例
+
+        ```Solidity
+        // SPDX-License-Identifier: MIT
+        pragma solidity ^0.8.21;
+
+        contract Timelock{
+            // 事件
+            // 交易取消事件
+            event CancelTransaction(bytes32 indexed txHash, address indexed target, uint value, string signature,  bytes data, uint executeTime);
+            // 交易执行事件
+            event ExecuteTransaction(bytes32 indexed txHash, address indexed target, uint value, string signature,  bytes data, uint executeTime);
+            // 交易创建并进入队列 事件
+            event QueueTransaction(bytes32 indexed txHash, address indexed target, uint value, string signature, bytes data, uint executeTime);
+            // 修改管理员地址的事件
+            event NewAdmin(address indexed newAdmin);
+
+            // 状态变量
+            address public admin; // 管理员地址
+            uint public constant GRACE_PERIOD = 7 days; // 交易有效期，过期的交易作废
+            uint public delay; // 交易锁定时间 （秒）
+            mapping (bytes32 => bool) public queuedTransactions; // txHash到bool，记录所有在时间锁队列中的交易
+            
+            // onlyOwner modifier
+            modifier onlyOwner() {
+                require(msg.sender == admin, "Timelock: Caller not admin");
+                _;
+            }
+
+            // onlyTimelock modifier
+            modifier onlyTimelock() {
+                require(msg.sender == address(this), "Timelock: Caller not Timelock");
+                _;
+            }
+
+            /**
+            * @dev 构造函数，初始化交易锁定时间 （秒）和管理员地址
+            */
+            constructor(uint delay_) {
+                delay = delay_;
+                admin = msg.sender;
+            }
+
+            /**
+            * @dev 改变管理员地址，调用者必须是Timelock合约。
+            */
+            function changeAdmin(address newAdmin) public onlyTimelock {
+                admin = newAdmin;
+
+                emit NewAdmin(newAdmin);
+            }
+
+            /**
+            * @dev 创建交易并添加到时间锁队列中。
+            * @param target: 目标合约地址
+            * @param value: 发送eth数额
+            * @param signature: 要调用的函数签名（function signature）
+            * @param data: call data，里面是一些参数
+            * @param executeTime: 交易执行的区块链时间戳
+            *
+            * 要求：executeTime 大于 当前区块链时间戳+delay
+            */
+            function queueTransaction(address target, uint256 value, string memory signature, bytes memory data, uint256 executeTime) public onlyOwner returns (bytes32) {
+                // 检查：交易执行时间满足锁定时间
+                require(executeTime >= getBlockTimestamp() + delay, "Timelock::queueTransaction: Estimated execution block must satisfy delay.");
+                // 计算交易的唯一识别符：一堆东西的hash
+                bytes32 txHash = getTxHash(target, value, signature, data, executeTime);
+                // 将交易添加到队列
+                queuedTransactions[txHash] = true;
+
+                emit QueueTransaction(txHash, target, value, signature, data, executeTime);
+                return txHash;
+            }
+
+            /**
+            * @dev 取消特定交易。
+            *
+            * 要求：交易在时间锁队列中
+            */
+            function cancelTransaction(address target, uint256 value, string memory signature, bytes memory data, uint256 executeTime) public onlyOwner{
+                // 计算交易的唯一识别符：一堆东西的hash
+                bytes32 txHash = getTxHash(target, value, signature, data, executeTime);
+                // 检查：交易在时间锁队列中
+                require(queuedTransactions[txHash], "Timelock::cancelTransaction: Transaction hasn't been queued.");
+                // 将交易移出队列
+                queuedTransactions[txHash] = false;
+
+                emit CancelTransaction(txHash, target, value, signature, data, executeTime);
+            }
+
+            /**
+            * @dev 执行特定交易。
+            *
+            * 要求：
+            * 1. 交易在时间锁队列中
+            * 2. 达到交易的执行时间
+            * 3. 交易没过期
+            */
+            function executeTransaction(address target, uint256 value, string memory signature, bytes memory data, uint256 executeTime) public payable onlyOwner returns (bytes memory) {
+                bytes32 txHash = getTxHash(target, value, signature, data, executeTime);
+                // 检查：交易是否在时间锁队列中
+                require(queuedTransactions[txHash], "Timelock::executeTransaction: Transaction hasn't been queued.");
+                // 检查：达到交易的执行时间
+                require(getBlockTimestamp() >= executeTime, "Timelock::executeTransaction: Transaction hasn't surpassed time lock.");
+                // 检查：交易没过期
+            require(getBlockTimestamp() <= executeTime + GRACE_PERIOD, "Timelock::executeTransaction: Transaction is stale.");
+                // 将交易移出队列
+                queuedTransactions[txHash] = false;
+
+                // 获取call data
+                bytes memory callData;
+                if (bytes(signature).length == 0) {
+                    callData = data;
+                } else {
+        // 这里如果采用encodeWithSignature的编码方式来实现调用管理员的函数，请将参数data的类型改为address。不然会导致管理员的值变为类似"0x0000000000000000000000000000000000000020"的值。其中的0x20是代表字节数组长度的意思.
+                    callData = abi.encodePacked(bytes4(keccak256(bytes(signature))), data);
+                }
+                // 利用call执行交易
+                (bool success, bytes memory returnData) = target.call{value: value}(callData);
+                require(success, "Timelock::executeTransaction: Transaction execution reverted.");
+
+                emit ExecuteTransaction(txHash, target, value, signature, data, executeTime);
+
+                return returnData;
+            }
+
+            /**
+            * @dev 获取当前区块链时间戳
+            */
+            function getBlockTimestamp() public view returns (uint) {
+                return block.timestamp;
+            }
+
+            /**
+            * @dev 将一堆东西拼成交易的标识符
+            */
+            function getTxHash(
+                address target,
+                uint value,
+                string memory signature,
+                bytes memory data,
+                uint executeTime
+            ) public pure returns (bytes32) {
+                return keccak256(abi.encode(target, value, signature, data, executeTime));
+            }
+        }
+        ```
+    - 学习总结
+
+        - 时间锁合约在一定程度上能避免被黑之后造成的资产损失。另外在使用时间锁时要确定好目标地址不是合约地址，因为在执行交易(`executeTransaction`)函数中使用了`call`调用，容易受到恶意合约的重入攻击。
+
+###
 <!-- Content_END -->
