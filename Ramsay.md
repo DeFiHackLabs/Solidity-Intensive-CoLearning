@@ -1219,7 +1219,189 @@ try externalContract.f() returns(returnType){
 
 问题就来了，为什么只支持 `external` function呢? 个人猜测是因为:
 
-external 调用不确定性更高，可能出来 gas 不够，或者是其他异常，所以需要引入 try/catch 来作异常处理。而对于合约内的调用，因为 Solidity 的异常模型是 `state-revert` exception, 所以当内部调用出现问题了(`require` 或者 `assert`)，状态就自动回滚了，无须 `try/catch` 处理
+external 调用不确定性更高，可能出来 gas 不够，或者是其他异常，所以需要引入 try/catch 来作异常处理; 而对于合约内的调用，因为 Solidity 的异常模型是 `state-revert` exception, 所以当内部调用出现问题了(`require` 或者 `assert`)，状态就自动回滚了，无须 `try/catch` 处理
 
 WTF Solidity 102 is done, I should pat myself on the back for completing this project.
+
+### 2024.10.10
+#### ERC20
+
+为了方便交互，Ethereum 基金会定义了 ERC-20 标准，只要你的合约包含如下 methods，那么你的 token 就可以作为一种标准 ERC-20 FT 被其他的钱包和交易所所支持.
+
+```solidity
+totalSupply()
+balanceOf(account)
+transfer(to, amount)
+allowance(owner, spender)
+approve(spender, amount)
+transferFrom(from, to, amount)
+```
+
+代码非常简单易懂，没有并行和并发，不需要考虑任何数据冲突。 所谓的挖矿，就是调用一下合约的 `mint` 方法，然后编辑账本，给某个地址增加一点余额。 所谓的转账，就是调用一下合约的 `transfer` 方法，然后编辑账本，给一个地址减少一点余额，给另一个地址增加一点余额。
+
+只要你的 `contract` 符合 ERC-20 标准，就可以将合约地址作为一个 FT Token，登记到任何支持 ERC-20 的平台或钱包。
+
+通过以下代码就创建了一个符合ERC20标准的Token:
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.4;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+contract ERC20Token is IERC20 {
+    mapping(address => uint256) public override balanceOf;
+    mapping(address => mapping(address => uint256)) public override allowance;
+
+    uint256 public override totalSupply; 
+
+    string public name;
+    string public symbol;
+
+    uint8 public decimals = 18;
+
+    constructor(string memory name_, string memory symbol_) {
+        name = name_;
+        symbol = symbol_;
+    }
+
+    function transfer(address recipient, uint amount) public override returns (bool){
+        balanceOf[msg.sender] -= amount;
+        balanceOf[recipient] += amount;
+        emit Transfer(msg.sender, recipient, amount);
+        return true;
+    }
+
+    function approve(address spender, uint amount) public override returns (bool) {
+        allowance[msg.sender][spender] = amount;
+        emit Approval(msg.sender, spender, amount);
+        return true ;
+    }
+
+    function transferFrom(address sender, address recipient, uint amount) public override returns (bool) {
+        allowance[sender][msg.sender] -= amount;
+        balanceOf[sender] -= amount;
+        balanceOf[recipient] += amount;
+        emit Transfer(sender, recipient, amount);
+        return true;
+    }
+
+    function mint(uint amount) external {
+        balanceOf[msg.sender] += amount;
+        totalSupply += amount;
+        emit Transfer(address(0), msg.sender, amount);
+    }
+
+    function burn(uint amount) external {
+        balanceOf[msg.sender] -= amount;
+        totalSupply -= amount;
+        emit Transfer(msg.sender, address(0), amount);
+    }
+}
+```
+
+本来打算上线测试网的，但是一直报错 `gas required exceeds allowance (85717)`, 我的 Sepolia ETH又不多，只好作罢.
+
+虽然可以通过智能合约实现一个 ERC20 的Token, 但是 `openzeppelin` 甚至把 ERC20 Token的代码都写好了，只需要继承 [`ERC20.sol`](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/ERC20.sol) 即可, 网页点击下就可以一键发币.
+
+通过继承 ERC20 来发行一个貔貅币(PIXIU Token)
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.4;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+contract PIXIU is ERC20 {
+  constructor(uint256 initialSupply) public ERC20("PIXIU", "PX") {
+	_mint(msg.sender, initialSupply);
+  }
+}
+```
+
+### 2024.10.11
+#### Faucet
+
+通过智能合约来实现简易版本的 `ERC20` 水龙头：
+
+```solidity
+pragma solidity ^0.8.4;
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+contract Facuet {
+    uint256 public amountAllowed = 100;
+    address public tokenContract;
+    mapping(address => bool) public requestedAddress;
+    event SendToken(address indexed Receiver, uint256 indexed Amount);
+    constructor (address _tokenContract) {
+        tokenContract = _tokenContract;
+    }
+
+    function requestTokens() external {
+        require(!requestedAddress[msg.sender], "Can't request multiple times!");
+        IERC20 token = IERC20(tokenContract);
+        require(token.balanceOf(address(this))>= amountAllowed, "Faucet Empty!");
+
+        token.transfer(msg.sender, amountAllowed);
+        requestedAddress[msg.sender] = true;
+
+        emit SendToken(msg.sender, amountAllowed);
+    }
+}
+```
+
+但实际的水龙头肯定会比这个复杂，因为代币数量有限，会限制每个地址领取的时间间隔（假设能重复领取的话）; 为了避免被爬虫直接把水龙头给薅光，还会加上类似 Google 的 Recaptcha 或者是 Cloudflare 的 Turnstile 人机校验服务; 更严格的还会接入链上 passport 服务，超过一定分数才能领水。
+
+这让我意识到, 即使领水是 Web3 的概念，但是水龙头的实现不能是单纯的 Solidity 智能合约，更进一步地说，如果把区块链理解成分布式的数据库，那么 Solidity 是否就算是数据库的存储过程呢？
+
+我们当然可以把逻辑计算放到存储过程，但是鉴于其成本较高（数据库的存储过程成本就是维护成本，存储成本，而区块链就是 gas fee）, 部分逻辑适合放到逻辑层（Web2），部分逻辑可以放到存储层（智能合约）
+
+课程提到最早的代币水龙头是BTC水龙头，但是那个时候还没有智能合约，所以肯定是使用 Web2 的技术栈实现的.
+
+#### 空投合约
+
+通过智能合约来发送空投，其实就是一个 for 循环来给符合条件的地址列表打固定金额的钱，转账前做参数校验:
+
+```solidity
+// 数组求和函数
+function getSum(uint256[] calldata _arr) public pure returns(uint sum){
+    for(uint i = 0; i < _arr.length; i++)
+        sum = sum + _arr[i];
+}
+
+/// @notice 向多个地址转账ERC20代币，使用前需要先授权
+///
+/// @param _token 转账的ERC20代币地址
+/// @param _addresses 空投地址数组
+/// @param _amounts 代币数量数组（每个地址的空投数量）
+function multiTransferToken(
+    address _token,
+    address[] calldata _addresses,
+    uint256[] calldata _amounts
+    ) external {
+    // 检查：_addresses和_amounts数组的长度相等
+    require(_addresses.length == _amounts.length, "Lengths of Addresses and Amounts NOT EQUAL");
+    IERC20 token = IERC20(_token); // 声明IERC合约变量
+    uint _amountSum = getSum(_amounts); // 计算空投代币总量
+    // 检查：授权代币数量 >= 空投代币总量
+    require(token.allowance(msg.sender, address(this)) >= _amountSum, "Need Approve ERC20 token");
+
+    // for循环，利用transferFrom函数发送空投
+    for (uint8 i; i < _addresses.length; i++) {
+        token.transferFrom(msg.sender, _addresses[i], _amounts[i]);
+    }
+}
+```
+
+上面的空投代码的 gas fee 会随着地址列表的增多而线性增加, 关于 gas fee, 我现在觉得是一个相当巧妙的设计:
+
+矿工（节点）的算力是相当宝贵的，但是你的代码运行在节点上，并不能像云上的虚拟机一样提供一个沙箱环境，那么对于恶意的代码，可能一个死循环就把矿工的算力给耗尽了，但是在程序运行之前，并没有办法判断代码是否可以及时返回的，可穷尽的。
+
+而引入 gas fee 就相当于把金融手段解决工程问题，死循环的代码你可以写，只要你付对应的 gas fee 就可以了，相当于每个人都用钱包为其写的代码负责。
+
+不过上面的空投代码没有做余额的检查，例如地址列表有100个，转账到99个的时候余额不足，然后回滚，但是回滚前的 gas fee 还是要照付，毕竟前面的转账矿工也干活了，不能让人家白干。
+
+> 我撸空投收获最大的一次是ENS空投，你们呢？
+
+还没有撸到过 :( 
+
 <!-- Content_END -->

@@ -977,7 +977,348 @@ timezone: Asia/Shanghai
 
 4. 第 22 节测验得分: 100, 答案: ABACAC
 
+#### 学习内容 23. Delegatecall
+
+1. Delegatecall
+    - `Solidity`中**地址类型**的低级成员函数;
+    - 当用户`A`通过合约`B`来`call`合约`C`的时候，执行的是合约`C`的函数，`上下文`(`Context`，可以理解为包含变量和状态的环境)也是合约`C`的：`msg.sender`是`B`的地址，并且如果函数改变一些状态变量，产生的效果会作用于合约`C`的变量上。
+        - ![image-20241008114054054](content/Aris/image-20241008114054054.png)
+    - 而当用户`A`通过合约`B`来`delegatecall`合约`C`的时候，执行的是合约`C`的函数，但是`上下文`仍是合约`B`的：`msg.sender`是`A`的地址，并且如果函数改变一些状态变量，产生的效果会作用于合约`B`的变量上。
+        - ![image-20241008114106345](content/Aris/image-20241008114106345.png)
+    - 语法: `目标合约地址.delegatecall(二进制编码);`
+        - 二进制编码: `abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)`
+    - 注意点:
+        - `delegatecall`在调用合约时可以指定交易发送的`gas`，但不能指定发送的`ETH`数额!
+        - `delegatecall`有安全隐患!!!
+            - 使用时要保证当前合约和目标合约的状态变量存储结构相同!!!
+            - 目标合约安全，不然会造成资产损失!!!
+2. 应用场景
+    - 代理合约（`Proxy Contract`）:将智能合约的存储合约和逻辑合约分开
+        - 代理合约（`Proxy Contract`）存储所有相关的变量，并且保存逻辑合约的地址;
+        - 所有函数存在逻辑合约（`Logic Contract`）里，通过`delegatecall`执行;
+        - 升级时，只需要将代理合约指向新的逻辑合约即可;
+    - EIP-2535 Diamonds（钻石）
+        - 一个支持构建可在生产中扩展的模块化智能合约系统的标准;
+        - 具有多个实施合约的代理合约;
+3. 合约部署
+    - ![image-20241008135635309](content/Aris/image-20241008135635309.png)
+    - ![image-20241008135843904](content/Aris/image-20241008135843904.png)
+4. 第 23 节测验得分: 100, 答案:AABBAA
+    - ![image-20241008141157764](content/Aris/image-20241008141157764.png)
+
 ---
+
+### 2024.10.09
+
+#### 学习内容 24. 在合约中创建新合约
+
+1. create
+
+    - 语法: `Contract x = new Contract{value: _value}(params)`
+        - `Contract`是要创建的合约名，`x`是合约对象（地址）
+        - 如果构造函数是`payable`，可以创建时转入`_value`数量的`ETH`(**当前合约发送给新创建的合约的 ETH**)
+        - `params`是新合约构造函数的参数
+
+2. code
+
+    - ```solidity
+        // SPDX-License-Identifier: MIT
+        pragma solidity ^0.8.22;
+        
+        contract Pair {
+            address public factory;
+            address public token0;
+            address public token1;
+        
+            constructor() payable {
+                factory = msg.sender; // 调用该构造函数的账户或合约地址!!!
+            }
+        
+            function init(address _token0, address _token1) external {
+                require(msg.sender == factory, "forbidden");
+                token0 = _token0;
+                token1 = _token1;
+            }
+        }
+        contract PairFactory {
+            mapping(address => mapping(address => address)) public getPair;
+            address[] public allPairs;
+        
+            function createPair(
+                address tokenA,
+                address tokenB
+            ) external returns (address pairAddr) {
+                Pair pair = new Pair(); // 创建币对合约(对象)
+                pair.init(tokenA, tokenB); // 调用初始化方法
+                pairAddr = address(pair); // 获得合约(对象)地址
+                allPairs.push(pairAddr);
+                getPair[tokenA][tokenB] = pairAddr;
+                getPair[tokenB][tokenA] = pairAddr;
+            }
+        }
+        ```
+
+        
+
+3. 合约部署
+
+    - ![image-20241008143151620](content/Aris/image-20241008143151620.png)
+
+4. 第 24 节测验得分: 100, 答案:DACCB
+
+---
+
+#### 学习内容 25. CREATE2
+
+1. CREATE2
+
+    - 在智能合约部署在以太坊网络之前就能预测合约的地址
+    - 让合约地址独立于未来的事件
+
+2. `CREATE`如何计算地址
+
+    - **新地址 = hash(创建者地址, nonce)**
+    - 创建者地址:通常为部署的钱包地址或者合约地址
+    - nonce:
+        - 钱包地址:发送交易的总数
+        - 合约地址:创建的合约总数(新创建一个则 nonce++)
+    - `nonce`可能会随时间而改变，因此用`CREATE`创建的合约地址不好预测
+
+3. `CREATE2`如何计算地址
+
+    - **新地址 = hash("0xFF",创建者地址, salt, initcode)**
+    - `0xFF`：一个常数，避免和`CREATE`冲突
+    - `CreatorAddress`: 调用 CREATE2 的当前合约（创建合约）地址。
+    - `salt`（盐）：一个创建者指定的`bytes32`类型的值，它的主要目的是用来影响新创建的合约的地址。
+    - `initcode`: 新合约的初始字节码（合约的Creation Code和构造函数的参数）。
+
+4. CREATE2使用
+
+    - ```solidity
+        Contract x = new Contract{salt: _salt, value: _value}(params)
+        ```
+
+    - `Contract`是要创建的合约名
+
+    - `x`是合约对象（地址）
+
+    - `_salt`是指定的盐
+
+        - ```solidity
+            bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+            ```
+
+        - 
+
+    - 如果构造函数是`payable`，可以创建时转入`_value`数量的`ETH`(**当前合约发送给新创建的合约的 ETH**)
+
+    - `params`是新合约构造函数的参数
+
+    - ```solidity
+        function calculateAddr(
+                address tokenA,
+                address tokenB
+            ) public view returns (address predicatedAddress) {
+                require(tokenA != tokenB, "identical address");
+                // 排序
+                (address token0, address token1) = tokenA < tokenB
+                    ? (tokenA, tokenB)
+                    : (tokenB, tokenA);
+                // salt
+                bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+                predicatedAddress = address(
+                    uint160(
+                        uint(
+                            keccak256(
+                                abi.encodePacked(
+                                    bytes1(0xff),
+                                    address(this),
+                                    salt,
+                                    keccak256(type(Pair).creationCode)
+                                )
+                            )
+                        )
+                    )
+                );
+            }
+        ```
+
+5. 应用场景
+
+    - 交易所为新用户预留创建钱包合约地址
+    - 减少跨合约调用
+
+6. 合约部署
+
+    - ![image-20241008160730388](content/Aris/image-20241008160730388.png)
+
+7. 第 25 节测验得分: 100, 答案:ABCE
+
+---
+
+#### 学习内容 26. 删除合约
+
+1. selfdestruct
+
+    - 删除智能合约，并将该合约剩余`ETH`转到指定地址
+    - 在一些情况下它会导致预期之外的合约语义，但由于目前还没有代替方案（有警告）
+
+2. EIP-6780
+
+    - 减少了`SELFDESTRUCT`操作码的功能
+    - 当前`SELFDESTRUCT`仅会被用来将合约中的ETH转移到指定地址
+    - 原先的删除功能只有在`合约创建-自毁`这两个操作处在同一笔交易时才能生效
+        - 已经部署的合约无法被`SELFDESTRUCT`
+        - 如果要使用原先的`SELFDESTRUCT`功能，必须在同一笔交易中创建并`SELFDESTRUCT`
+
+3. 使用
+
+    - `selfdestruct(_addr)；`
+        - 其中`_addr`是接收合约中剩余`ETH`的地址
+        - `_addr` 地址不需要有`receive()`或`fallback()`也能接收`ETH`
+
+4. 转移ETH功能
+
+    - 坎昆升级前，合约会被自毁。
+
+    - 坎昆升级后，合约依然存在，只是将合约包含的ETH转移到指定地址，而合约依然能够调用。
+
+    - ```solidity
+        function demo() public payable returns (DemoResult memory) {
+            DeleteContract del = new DeleteContract{value: msg.value}();
+            DemoResult memory res = DemoResult({
+                addr: address(del),
+                balance: del.getBalance(),
+                value: del.value()
+            });
+            del.deleteContract();
+            return res;
+        }
+        ```
+
+5. 注意点
+
+    - 对外提供合约销毁接口时，最好设置为只有合约所有者可以调用，可以使用函数修饰符`onlyOwner`进行函数声明。
+    - 当合约中有`selfdestruct`功能时常常会带来安全问题和信任问题
+    - 合约中的selfdestruct功能会为攻击者打开攻击向量
+    - 此功能还会降低用户对合约的信心
+
+6. 合约部署
+
+    - ![image-20241009171201571](content/Aris/image-20241009171201571.png)
+    - ![image-20241009171653387](content/Aris/image-20241009171653387.png)
+
+7. 第 26 节测验得分: 100, 答案: 
+
+---
+
+### 2024.10.10
+
+#### 学习内容 27. ABI编码解码
+
+1. ABI
+
+    - Application Binary Interface，应用二进制接口
+    - 与以太坊智能合约交互的标准
+    - 数据基于他们的类型编码
+    - 由于编码后不包含类型信息，解码时需要注明它们的类型
+
+2. abi编码-abi.encode
+
+    - ```solidity
+        abi.encode(x, addr, name, array)
+        ```
+
+    - 将每个参数填充为32字节的数据，并拼接在一起
+
+    - `0x000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000043078414100000000000000000000000000000000000000000000000000000000`
+
+    - abi.encode将每个数据都填充为32字节，中间有很多0
+
+3. abi编码-abi.encodePacked
+
+    - ```solidity
+        abi.encodePacked(x, addr, name, array)
+        ```
+
+    - 将给定参数根据其所需最低空间编码,会把其中填充的很多`0`省略
+
+    - 比如，只用1字节来编码`uint8`类型
+
+    - `abi.encodePacked`对编码进行了压缩，长度比`abi.encode`短很多
+
+4. abi编码-abi.encodeWithSignature
+
+    - ```solidity
+        abi.encodeWithSignature("foo(uint256,address,string,uint256[2])", x, addr, name, array)
+        ```
+
+    - 第一个参数为`函数签名`
+
+    - 同于在`abi.encode`编码结果前加上了4字节的`函数选择器`
+
+5. abi编码-abi.encodeWithSelector
+
+    - ```solidity
+        abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array)
+        ```
+
+    - 第一个参数为`函数选择器`,是`函数签名`Keccak哈希的前4个字节
+
+    - 结果与`abi.encodeWithSignature`结果一样
+
+6. abi解码-abi.decode
+
+    - ```solidity
+        (dx, daddr, dname, darray) = abi.decode(data, (uint, address, string, uint[2]));
+        ```
+
+    - 解码时需要注明对应顺序和类型!!!
+
+7. 使用场景
+
+    - 合约开发,ABI常配合call来实现对合约的底层调用;
+
+        - ```solidity
+            bytes4 selector = contract.getValue.selector;
+            
+            bytes memory data = abi.encodeWithSelector(selector, _x);
+            (bool success, bytes memory returnedData) = address(contract).staticcall(data);
+            require(success);
+            
+            return abi.decode(returnedData, (uint256));
+            ```
+
+    - ethers.js中常用ABI实现合约的导入和函数调用;
+
+        - ```javascript
+            const wavePortalContract = new ethers.Contract(contractAddress, contractABI, signer);
+            const waves = await wavePortalContract.getAllWaves();
+            ```
+
+    - 对不开源合约进行反编译后，某些函数无法查到函数签名，可通过ABI进行调用;
+
+        - ```solidity
+            bytes memory data = abi.encodeWithSelector(bytes4(0x533ba33a));
+            
+            (bool success, bytes memory returnedData) = address(contract).staticcall(data);
+            require(success);
+            
+            return abi.decode(returnedData, (uint256));
+            ```
+
+8. 合约部署
+
+    - ![image-20241010142845934](content/Aris/image-20241010142845934.png)
+
+9. 第 27 节测验得分: 100, 答案: EBAD
+
+    - ![image-20241010145110306](content/Aris/image-20241010145110306.png)
+
+
+---
+
+
 
 
 

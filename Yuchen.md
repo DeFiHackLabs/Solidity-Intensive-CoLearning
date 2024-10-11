@@ -1596,6 +1596,228 @@ Pair pair = new Pair();
 ```
 WBNB地址: 0x2c44b726ADF1963cA47Af88B284C06f30380fC78
 BSC链上的PEOPLE地址: 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c
+```
+
+### 2024.10.09
+
+#### Create2
+`create2`使在智慧合約部署在乙太坊網路之前就能預測合約的地址。而`CREATE`在部署合約前無法確定其具體地址。  
+`CREATE2`可以根據一組已知的參數來生成一個確定的合約地址，這樣的特性被廣泛應用於去中心化應用中，特別是像`Uniswap`，用來創建`Pair`合約。
+
+**為什麼使用 `CREATE2`？**  
+* 預測合約地址：CREATE2 能夠預測合約的最終部署地址，這在構建去中心化應用時具有極大的優勢。開發者可以提前知道合約地址，並進行相關的鏈上交互。
+* 可重複部署：由於合約地址是基於一些固定參數計算出的，如果之前的合約被刪除，可以在同樣的地址重新部署合約。
+* 提高確定性：能夠在不部署合約的情況下進行地址計算，有助於提升合約開發與部署的確定性和靈活性。
+
+#### CREATE 如何計算地址
+當使用`CREATE`部署新合約時，合約的地址是基於以下兩個參數計算的：  
+1. 部署者地址：發起合約創建的 EOA 或合約的地址。
+2. 部署者的`nonce`：部署者的交易計數，表示該部署者在當前狀態下發送的交易數量。  
+這兩個參數會通過 Ethereum 的哈希函數`keccak256`進行哈希，得出合約的最終地址。  
+```
+新地址 = hash(創建者地址, nonce)
+```
+創建者地址不會變，但`nonce`可能隨時間而改變，因此用`CREATE`創建的合約地址不好預測。
+
+#### CREATE2 如何計算地址
+`CREATE2`的合約地址是根據以下四個因素計算得出的：  
+1. `0xFF`：一个常數，避免和`CREATE`冲突。
+2. `CreatorAddress`(合約部署者地址)：調用`CREATE2`的當前合約（創建合約）地址。
+3. `salt`（鹽值）：一個隨機數(`bytes32`)，通常用於生成獨特的合約地址。
+4. `initcode`：新合約的初始字節碼，用來創建合約的編碼數據。
+```
+新地址 = hash("0xFF",创建者地址, salt, initcode)
+```
+其中`0xff`是一個常數，用來區分`CREATE2`生成的地址和`CREATE`生成的地址。  
+`CREATE2`確保若使用者使用`CREATE2`和提供的`salt`部署給定的合約`initcode`，將儲存在`新地址`中。
+
+#### 如何使用`CREATE2`
+其中`Contract`是要創建的合約名，`x`是合約對象（地址），`_salt`是指定的鹽；如果構造函數是`payable`，可以創建時轉入`_value`數量的ETH，`params`是`新合約構造函數的参數。
+```Solidity
+Contract x = new Contract{salt: _salt, value: _value}(params)
+```
+
+#### 極簡Uniswap2
+用`CREATE2`實現。  
+`Pair`  
+```Solidity
+contract Pair{
+    address public factory; // 工厂合约地址
+    address public token0; // 代币1
+    address public token1; // 代币2
+
+    constructor() payable {
+        factory = msg.sender;
+    }
+
+    // called once by the factory at time of deployment
+    function initialize(address _token0, address _token1) external {
+        require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
+        token0 = _token0;
+        token1 = _token1;
+    }
+}
+```
+
+`PairFactory2`  
+```Solidity
+contract PairFactory2{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair2(address tokenA, address tokenB) external returns (address pairAddr) {
+        require(tokenA != tokenB, 'IDENTICAL_ADDRESSES'); //避免tokenA和tokenB相同产生的冲突
+        // 用tokenA和tokenB地址计算salt
+        (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); //将tokenA和tokenB按大小排序
+        bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+        // 用create2部署新合约
+        Pair pair = new Pair{salt: salt}(); 
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+}
+```
+
+工廠合約（`PairFactory2`）有兩個狀態變量`getPair`是兩個代幣地址到幣對地址的`map`，方便根據代幣找到幣對地址；`allPairs`是幣對地址的數組，存儲了所有幣對地址。  
+`PairFactory2`合約只有一个`createPair2`函數，使用`CREATE2`根據輸入的兩個代幣地址`tokenA`和`tokenB`來創建新的`Pair`合約。其中
+```Solidity
+Pair pair = new Pair{salt: salt}(); 
 ```  
+就是利用`CREATE2`創建合約的代碼，非常簡單，而`salt`為`token1`和`token2`的`hash`：  
+```Solidity
+bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+```  
+
+#### 事先计算`Pair`地址  
+```Solidity
+// 提前计算pair合约地址
+function calculateAddr(address tokenA, address tokenB) public view returns(address predictedAddress){
+    require(tokenA != tokenB, 'IDENTICAL_ADDRESSES'); //避免tokenA和tokenB相同产生的冲突
+    // 计算用tokenA和tokenB地址计算salt
+    (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); //将tokenA和tokenB按大小排序
+    bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+    // 计算合约地址方法 hash()
+    predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+        bytes1(0xff),
+        address(this),
+        salt,
+        keccak256(type(Pair).creationCode)
+        )))));
+}
+```
+
+```Solidity
+WBNB地址: 0x2c44b726ADF1963cA47Af88B284C06f30380fC78
+BSC链上的PEOPLE地址: 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c
+```
+**如果部署合約構造函數中存在参數**
+```
+Pair pair = new Pair{salt: salt}(address(this));
+```
+計算時，需要將參數和`initcode`一起打包：  
+```
+keccak256(type(Pair).creationCode) => keccak256(abi.encodePacked(type(Pair).creationCode, abi.encode(address(this))))
+```
+
+```Solidity
+predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+                bytes1(0xff),
+                address(this),
+                salt,
+                keccak256(abi.encodePacked(type(Pair).creationCode, abi.encode(address(this))))
+            )))));
+```
+#### 驗證  
+1. 首先用WBNB和PEOPLE的地址哈希作为salt来计算出Pair合约的地址
+2. 调用PairFactory2.createPair2传入参数为WBNB和PEOPLE的地址，获取出创建的pair合约地址
+3. 对比合约地址  
+<img src="https://github.com/user-attachments/assets/7d4d71a9-8713-4bfd-90b4-16f10509de14" height="340px" width="600px" />  
+
+
+### 2024.10.10
+
+#### 刪除合約
+
+`selfdestruct`
+* 此命令用來刪除智能合約，並將該合約剩餘`ETH`轉到指定地址。
+* 是為了應對合約出錯的極端情況而設計的。  
+
+1. 已经部署的合约无法被SELFDESTRUCT了。
+2. 如果要使用原先的SELFDESTRUCT功能，必须在同一笔交易中创建并SELFDESTRUCT。
+
+#### 如何使用`selfdestruct`：
+```Solidity
+selfdestruct(_addr)；
+```  
+其中_addr是接收合约中剩余ETH的地址。_addr 地址不需要有receive()或fallback()也能接收ETH。
+
+#### Demo-转移ETH功能
+當調用`deleteContract()`函數，合約將觸發`selfdestruct`操作。在坎昆升級前，合約會被自毁。但是在升級後，合約依然存在，只是將合約包含的ETH轉移到指定地址，而合約依然能够調用。    
+```Solidity
+contract DeleteContract {
+
+    uint public value = 10;
+
+    constructor() payable {}
+
+    receive() external payable {}
+
+    // 调用selfdestruct销毁合约，并把剩余的ETH转给msg.sender
+    function deleteContract() external {
+        selfdestruct(payable(msg.sender));
+    }
+
+    function getBalance() external view returns(uint balance){
+        balance = address(this).balance;
+    }
+}
+```
+
+
+**Demo-同笔交易内实现合约创建-自毁**  
+根据提案，原先的删除功能只有在合约创建-自毁这两个操作处在同一笔交易时才能生效。所以我们需要通过另一个合约进行控制。
+
+```Solidity
+contract DeployContract {
+
+    struct DemoResult {
+        address addr;
+        uint balance;
+        uint value;
+    }
+
+    constructor() payable {}
+
+    function getBalance() external view returns(uint balance){
+        balance = address(this).balance;
+    }
+
+    function demo() public payable returns (DemoResult memory){
+        DeleteContract del = new DeleteContract{value:msg.value}();
+        DemoResult memory res = DemoResult({
+            addr: address(del),
+            balance: del.getBalance(),
+            value: del.value()
+        });
+        del.deleteContract();
+        return res;
+    }
+}
+```
+
+**※注意：**  
+1. 对外提供合约销毁接口时，最好设置为只有合约所有者可以调用，可以使用函数修饰符onlyOwner进行函数声明。
+2. 当合约中有selfdestruct功能时常常会带来安全问题和信任问题，合约中的selfdestruct功能会为攻击者打开攻击向量(例如使用selfdestruct向一个合约频繁转入token进行攻击，这将大大节省了GAS的费用，虽然很少人这么做)，此外，此功能还会降低用户对合约的信心。
+
+**總結**  
+`selfdestruct`是智能合約的緊急按钮，銷毀合約並將剩餘`ETH`轉移到指定帳戶。
+
+
+
 
 <!-- Content_END -->

@@ -600,4 +600,202 @@ timezone: Asia/Shanghai
 - Try Cache
     - since v6.0
 
+### 2024.10.08
+
+> 進度: Solidity 103 31~32
+
+- ERC20
+    - `IERC20` 為對外接口 `ERC20` 為邏輯實現
+    - 事件
+        - `Transfer`
+        - `Approval`
+    - 函數
+        - `totalSupply()` 代幣總供應量
+        - `balanceOf()` 取得餘額
+        - `transfer()` 移轉代幣
+        - `allowance()` 查詢授權額度
+        - `approve()` 授權
+        - `transferFrom()` 授權移轉代幣
+
+- ERC20 Token Faucet
+    - 狀態變數
+        - `amountAllowed`: 每次能領取數量
+        - `tokenContract`: 代幣地址
+        - `requestedAddress`: 領取過的地址
+    - 事件 
+        - `SendToken`: 於 `requestToken()` 中 emit
+    - 函數
+        - 建構函數設定代幣地址
+            ```
+            constructor(address _tokenContract) {
+                tokenContract = _tokenContract; // set token contract
+            }
+            ```
+        - `requestToken()`
+            ```
+            function requestTokens() external {
+                require(!requestedAddress[msg.sender], "Can't Request Multiple Times!"); // 每个地址只能领一次
+                IERC20 token = IERC20(tokenContract); // 创建IERC20合约对象
+                require(token.balanceOf(address(this)) >= amountAllowed, "Faucet Empty!"); // 水龙头空了
+
+                token.transfer(msg.sender, amountAllowed); // 发送token
+                requestedAddress[msg.sender] = true; // 记录领取地址 
+                
+                emit SendToken(msg.sender, amountAllowed); // 释放SendToken事件
+            }
+            ```
+
+### 2024.10.09
+
+> 進度: Solidity 103 33~35
+
+- 空投合約 (Airdrop)
+    - 分送代幣給多個合約
+    - 函數
+        - `getSum()`
+            ```
+            function getSum(uint256[] calldata _arr) public pure returns(uint sum){
+                for(uint i = 0; i < _arr.length; i++)
+                    sum = sum + _arr[i];
+            }
+            ```
+        - `multiTransferToken()`
+            ```
+            // @notice 向多个地址转账ERC20代币，使用前需要先授权
+            ///
+            /// @param _token 转账的ERC20代币地址
+            /// @param _addresses 空投地址数组
+            /// @param _amounts 代币数量数组（每个地址的空投数量）
+            function multiTransferToken(
+                address _token,
+                address[] calldata _addresses,
+                uint256[] calldata _amounts
+                ) external {
+                // 检查：_addresses和_amounts数组的长度相等
+                require(_addresses.length == _amounts.length, "Lengths of Addresses and Amounts NOT EQUAL");
+                IERC20 token = IERC20(_token); // 声明IERC合约变量
+                uint _amountSum = getSum(_amounts); // 计算空投代币总量
+                // 检查：授权代币数量 >= 空投代币总量
+                require(token.allowance(msg.sender, address(this)) >= _amountSum, "Need Approve ERC20 token");
+
+                // for循环，利用transferFrom函数发送空投
+                for (uint8 i; i < _addresses.length; i++) {
+                    token.transferFrom(msg.sender, _addresses[i], _amounts[i]);
+                }
+            }
+            ```
+
+- ERC165
+    ```
+    interface IERC165 {
+        /**
+        * @dev 如果合约实现了查询的`interfaceId`，则返回true
+        * 规则详见：https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[EIP section]
+        *
+        */
+        function supportsInterface(bytes4 interfaceId) external view returns (bool);
+    }
+    ```
+    - 檢查是否支援 ERC721, ERC1155
+
+- ERC721 非同質化代幣標準
+    > source (op): https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC721/ERC721.sol
+    - `IERC721` 為對外接口 `ERC721` 為邏輯實現
+    - 事件
+        - `Transfer`
+        - `Approval`
+        - `ApprovalForAll`
+    - 函數
+        - `balanceOf()` 取得餘額
+        - `ownerOf()` 取得所有人
+        - `transferFrom()` 授權移轉代幣
+        - `safeTransferFrom(from, to, tokenId)` 安全授權移轉代幣
+        - `safeTransferFrom(data)` 
+        - `approve()` 授權
+        - `getApproved()` 查詢 tokenId 被批准給哪個地址
+        - `setApprovalForAll()` 批次授權給某個 operator
+        - `isApprovedForAll()` 查詢是否批次授權
+
+- 荷蘭拍賣 (Dutch Auction)
+
+
+### 2024.10.10
+
+> 進度: Solidity 103 36~37
+
+- Merkle Tree
+    - 基於密碼學中 Hash 演算法, 又稱 Hash Tree, 可實現大型有效性與安全性驗證 (Merkle Proof)
+    - 在 N 層 Merkle Tree 中, 知道 root 後要驗證 leaf 節點, 只需要中間層的 ceil(log₂N) 個數據 (proof), leaf 透過 proof 層層運算能推導出 root 則驗證成功, 反之驗證失敗
+    - 常應用於 NFT 白名單, 空投合約
+        - example: https://github.com/carv-protocol/contracts/tree/staking/contracts/airdrop
+    - references
+        - https://github.com/merkletreejs/merkletreejs
+
+- 用錢包執行簽章
+    - 基於公鑰密碼系統數位簽章
+        - 身分驗證: 只有私鑰持有人才能進行簽章
+        - 不可否認: 簽章發送方無法否認簽章
+        - 完整性: 不可竄改
+    - 執行簽章
+        ```
+        function getMessageHash(address _account, uint256 _tokenId) public pure returns(bytes32){
+            return keccak256(abi.encodePacked(_account, _tokenId));
+        }
+
+        // EIP191 以太坊簽名消息
+        function toEthSignedMessageHash(bytes32 hash) public pure returns (bytes32) {
+            // 哈希的长度为32
+            return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash));
+        }
+        ```
+    - 驗證簽章
+        - signature 中包含三段, 分別為 r, s, v 值, 可根據這三個值及 msgHash 求得不可否認的 signer
+        - `recoverSigner`
+            ```
+            function recoverSigner(bytes32 _msgHash, bytes memory _signature) internal pure returns (address){
+                // 检查签名长度，65是标准r,s,v签名的长度
+                require(_signature.length == 65, "invalid signature length");
+                bytes32 r;
+                bytes32 s;
+                uint8 v;
+                // 目前只能用assembly (内联汇编)来从签名中获得r,s,v的值
+                assembly {
+                    /*
+                    前32 bytes存储签名的长度 (动态数组存储规则)
+                    add(sig, 32) = sig的指针 + 32
+                    等效为略过signature的前32 bytes
+                    mload(p) 载入从内存地址p起始的接下来32 bytes数据
+                    */
+                    // 读取长度数据后的32 bytes
+                    r := mload(add(_signature, 0x20))
+                    // 读取之后的32 bytes
+                    s := mload(add(_signature, 0x40))
+                    // 读取最后一个byte
+                    v := byte(0, mload(add(_signature, 0x60)))
+                }
+                // 使用ecrecover(全局函数)：利用 msgHash 和 r,s,v 恢复 signer 地址
+                return ecrecover(_msgHash, v, r, s);
+            }
+            ```
+        - `verify`
+            ```
+            function verify(bytes32 _msgHash, bytes memory _signature, address _signer) internal pure returns (bool) {
+                return recoverSigner(_msgHash, _signature) == _signer;
+            }
+            ```
+
+- 運用簽章方法分配空投
+    - 簽章線下完成, 不需耗費 gas
+    - 需中心化的接口驗證簽章, 較不去中心化
+    
+### 2024.10.11
+
+> 進度: Solidity 103 40
+
+- ERC1155
+    - 背景
+        - 問題: ERC20 (同質化代幣) 及 ERC721 (非同質化代幣), 每個代幣背後都需要有一個獨立的合約, 在許多場景將會造成管理上的困難與資源的消耗, 例如 GameFi, 想將裝備武器代幣化, 又不想管理大量的合約
+        - 解決辦法: [EIP1155](https://eips.ethereum.org/EIPS/eip-1155) 中提出 ERC1155, 允許一個合約中包含多個及多種代幣
+    - TODO
+
 <!-- Content_END -->
