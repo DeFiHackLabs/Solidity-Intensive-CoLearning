@@ -824,6 +824,20 @@ timezone: Asia/Shanghai
             - `_balances`
             - `_operatorApprovals`
         - 函數 (16 個)
-            - `supportsInterface()`
+            - `supportsInterface(bytes4 interfaceId)` ERC165
+            - `balanceOf(address account, uint256 id)`
+            - `balanceOfBatch(address[] memory accounts, uint256[] memory ids)`
+            - `setApprovalForAll(address operator, bool approved)`
+            - `isApprovedForAll(address account, address operator)`
+            - `safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes memory data)`
+            - `safeBatchTransferFrom(address from, address to, uint256[] memory ids, uint256[] memory amounts, bytes memory data)`
+            - `_mint(address to, uint256 id, uint256 amount, bytes memory data)`
+            - `_mintBatch(address to, uint256[] memory ids, uint256[] memory amounts, bytes memory data)`
+            - `_burn(address from, uint256 id, uint256 amount)`
+            - `_burnBatch(address from, uint256[] memory ids, uint256[] memory amounts)`
+            - `_doSafeTransferAcceptanceCheck`
+            - `_doSafeBatchTransferAcceptanceCheck`
+            - `uri(uint256 id)`
+            - `_baseURI()`
 
 <!-- Content_END -->
