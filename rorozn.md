@@ -1483,7 +1483,164 @@ interface IERC721Metadata is IERC721 {
 
 ### 2024.10.10
 
+35. 荷兰拍卖
+
+- 亦称“减价拍卖”，它是指拍卖标的的竞价由高到低依次递减直到第一个竞买人应价（达到或超过底价）时击槌成交的一种拍卖
+- 基于 Azuki 代码简化
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "https://github.com/AmazingAng/WTF-Solidity/blob/main/34_ERC721/ERC721.sol";
+
+contract DutchAuction is Ownable, ERC721 {
+    uint256 public constant COLLECTOIN_SIZE = 10000; // NFT总数
+    uint256 public constant AUCTION_START_PRICE = 1 ether; // 起拍价(最高价)
+    uint256 public constant AUCTION_END_PRICE = 0.1 ether; // 结束价(最低价/地板价)
+    uint256 public constant AUCTION_TIME = 10 minutes; // 拍卖时间，为了测试方便设为10分钟
+    uint256 public constant AUCTION_DROP_INTERVAL = 1 minutes; // 每过多久时间，价格衰减一次
+    uint256 public constant AUCTION_DROP_PER_STEP =
+        (AUCTION_START_PRICE - AUCTION_END_PRICE) /
+        (AUCTION_TIME / AUCTION_DROP_INTERVAL); // 每次价格衰减步长
+
+    uint256 public auctionStartTime; // 拍卖开始时间戳
+    string private _baseTokenURI;   // metadata URI
+    uint256[] private _allTokens; // 记录所有存在的tokenId
+
+    constructor() ERC721("WTF Dutch Auctoin", "WTF Dutch Auctoin") {
+        auctionStartTime = block.timestamp;
+    }
+
+    //··· 忽略ERC721相关函数
+
+    // 设定起拍时间 auctionStartTime setter函数，onlyOwner
+    function setAuctionStartTime(uint32 timestamp) external onlyOwner {
+        auctionStartTime = timestamp;
+    }
+
+    // 获取拍卖实时价格
+    function getAuctionPrice() public view returns (uint256){
+        if (block.timestamp < auctionStartTime) {
+        return AUCTION_START_PRICE;
+        }else if (block.timestamp - auctionStartTime >= AUCTION_TIME) {
+        return AUCTION_END_PRICE;
+        } else {
+        uint256 steps = (block.timestamp - auctionStartTime) /
+            AUCTION_DROP_INTERVAL;
+        return AUCTION_START_PRICE - (steps * AUCTION_DROP_PER_STEP);
+        }
+    }
+
+    //用户拍卖并铸造NFT：用户通过调用auctionMint()函数，支付ETH参加荷兰拍卖并铸造NFT
+    function auctionMint(uint256 quantity) external payable{
+        uint256 _saleStartTime = uint256(auctionStartTime); // 建立local变量，减少gas花费
+        require(
+            // 检查是否设置起拍时间，拍卖是否开始
+            _saleStartTime != 0 && block.timestamp >= _saleStartTime,"sale has not started yet"
+        );
+        require(
+            // 检查是否超过NFT上限
+            totalSupply() + quantity <= COLLECTOIN_SIZE,
+            "not enough remaining reserved for auction to support desired mint amount"
+        );
+
+        uint256 totalCost = getAuctionPrice() * quantity; // 计算mint成本
+        require(msg.value >= totalCost, "Need to send more ETH."); // 检查用户是否支付足够ETH
+
+        // Mint NFT
+        for(uint256 i = 0; i < quantity; i++) {
+            uint256 mintIndex = totalSupply();
+            _mint(msg.sender, mintIndex);
+            _addTokenToAllTokensEnumeration(mintIndex);
+        }
+        // 多余ETH退款
+        if (msg.value > totalCost) {
+            payable(msg.sender).transfer(msg.value - totalCost); //注意一下这里是否有重入的风险
+        }
+    }
+
+    // 项目方取出拍卖款函数，onlyOwner
+    function withdrawMoney() external onlyOwner {
+        (bool success, ) = msg.sender.call{value: address(this).balance}(""); // call函数的调用方式详见第22讲
+        require(success, "Transfer failed.");
+    }
+}
+```
+
 ### 2024.10.11
+
+36. 默克尔树
+
+- 空投白名单
+  一份拥有 800 个地址的白名单，更新一次所需的 gas fee 很容易超过 1 个 ETH。而由于 Merkle Tree 验证时，leaf 和 proof 可以存在后端，链上仅需存储一个 root 的值，非常节省 gas，项目方经常用它来发放白名单。很多 ERC721 标准的 NFT 和 ERC20 标准代币的白名单/空投都是利用 Merkle Tree 发出的，比如 optimism 的空投。
+
+```solidity
+library MerkleProof { //默克尔树库
+    /**
+     * @dev 当通过`proof`和`leaf`重建出的`root`与给定的`root`相等时，返回`true`，数据有效。
+     * 在重建时，叶子节点对和元素对都是排序过的。
+     */
+    function verify(
+        bytes32[] memory proof,
+        bytes32 root,
+        bytes32 leaf
+    ) internal pure returns (bool) {
+        return processProof(proof, leaf) == root;
+    }
+
+    /**
+     * @dev Returns 通过Merkle树用`leaf`和`proof`计算出`root`. 当重建出的`root`和给定的`root`相同时，`proof`才是有效的。
+     * 在重建时，叶子节点对和元素对都是排序过的。
+     */
+    function processProof(bytes32[] memory proof, bytes32 leaf) internal pure returns (bytes32) {
+        bytes32 computedHash = leaf;
+        for (uint256 i = 0; i < proof.length; i++) {
+            computedHash = _hashPair(computedHash, proof[i]);
+        }
+        return computedHash;
+    }
+
+    // Sorted Pair Hash
+    function _hashPair(bytes32 a, bytes32 b) private pure returns (bytes32) {
+        return a < b ? keccak256(abi.encodePacked(a, b)) : keccak256(abi.encodePacked(b, a));
+    }
+}
+
+
+contract MerkleTree is ERC721 {
+    bytes32 immutable public root; // Merkle树的根
+    mapping(address => bool) public mintedAddress;   // 记录已经mint的地址
+
+    // 构造函数，初始化NFT合集的名称、代号、Merkle树的根
+    constructor(string memory name, string memory symbol, bytes32 merkleroot)
+    ERC721(name, symbol){
+        root = merkleroot;
+    }
+
+    // 利用Merkle树验证地址并完成mint
+    function mint(address account, uint256 tokenId, bytes32[] calldata proof) external{
+        require(_verify(_leaf(account), proof), "Invalid merkle proof");
+         // Merkle检验通过
+        require(!mintedAddress[account], "Already minted!");
+         // 地址没有mint过
+
+        _mint(account, tokenId); // mint
+        mintedAddress[account] = true; // 记录mint过的地址
+    }
+
+    // 计算Merkle树叶子的哈希值
+    function _leaf(address account) internal pure returns (bytes32){
+        return keccak256(abi.encodePacked(account));
+    }
+
+    // Merkle树验证，调用MerkleProof库的verify()函数
+    function _verify(bytes32 leaf, bytes32[] memory proof) internal view returns (bool){
+        return MerkleProof.verify(proof, root, leaf);
+    }
+}
+```
 
 ### 2024.10.12
 

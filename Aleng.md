@@ -116,4 +116,9 @@ mapping的初步認識與儲存數據之方式，並且了解了其他學員提�
 筆記 : [2024.10.10學習筆記 31 單元](https://hackmd.io/@82tWd8u0TI6fMRC9VG6JXw/SJ5Lz17ykx)
 
 ERC20與IERC20的不同，並理解其推出的意義。
+### 2024.10.11
+#### 學習筆記
+筆記 : [2024.10.11學習筆記](https://hackmd.io/@82tWd8u0TI6fMRC9VG6JXw/ByzBkTVkJl)
+
+紀錄一些註解用途與方式
 <!-- Content_END -->

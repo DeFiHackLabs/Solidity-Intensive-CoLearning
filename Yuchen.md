@@ -1817,7 +1817,13 @@ contract DeployContract {
 **總結**  
 `selfdestruct`是智能合約的緊急按钮，銷毀合約並將剩餘`ETH`轉移到指定帳戶。
 
-
+> 判断：所有合约创建时都必须包含“selfdestruct”的命令，否则会报错：
+>
+> A. 正确
+> B. 错误
+> B. 错误。
+>
+>并不是所有合约在创建时都必须包含 selfdestruct 命令。selfdestruct 是一种可选的功能，用于销毁合约并将剩余的以太币发送到指定的地址。如果一个合约不需要销毁功能，它可以完全不包含 selfdestruct 命令，合约依然可以正常部署和运行，不会报错。
 
 
 <!-- Content_END -->

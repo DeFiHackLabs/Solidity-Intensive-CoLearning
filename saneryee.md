@@ -50,6 +50,238 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 ## Notes
 
 <!-- Content_START -->
+### 2024.10.11
+
+Day 15
+
+WTF Academy Solidity 101 46_ProxyContract, 47_Upgrade
+
+**Deep dive into proxy contracts**
+
+Procee of WTF Proxy Example code
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant Proxy
+    participant Logic
+    
+    Caller->>Proxy: 1. call(abi.encodeWithSignature("increment()"))
+    Note over Proxy: 2. Trigger fallback() function
+    Note over Proxy: 3. execute _delegate()
+    Proxy-->>Logic: 4. delegatecall
+    Note over Logic: 5. execute increment() 
+    Note over Logic: 6. change state variables in  Proxy contract
+    Logic-->>Proxy: 7. return result
+    Proxy-->>Caller: 8. return data
+```
+1. Initially, the Caller contract calls the increase() function.
+2. The call is forwarded to the Proxy contract. Since the Proxy doesn't have an increment() function, the fallback() function is triggered.
+3. The _delegate() function uses inline assembly to perform the following:
+   - Reads the logic contract address (implementation).
+   - Copies the call data (calldatacopy).
+   - Calls the logic contract using delegatecall.
+   - Processes the return data.
+
+**Slots in Proxy contract**
+```solidity
+contract Proxy {
+    address public implementation; // Slot 0
+    // Slot 1: Undeclared but exist and available
+}
+
+contract Logic {
+    address public implementation; // Slot 0
+    uint public x = 99;           // Slot 1
+}
+```
+
+Process and Slots
+
+```mermaid
+graph TD
+    subgraph "Proxy Contract Storage"
+        PS0[Slot 0: implementation address]
+        PS1[Slot 1: x value]
+    end
+    
+    subgraph "Logic Contract Code"
+        LC0[Slot 0: implementation]
+        LC1[Slot 1: x = 99]
+        LC2[Code: increment function]
+    end
+    
+    LC2 -- "delegatecall" --> PS1
+    note["Note: Data is stored in the Proxy, <br/>but the code logic is implemented in the Logic."]
+```
+
+Slot mapping
+```mermaid
+graph TD
+    subgraph "Proxy Contract Storage Slots"
+        PS0[Slot 0: implementation address<br/>0x123...]
+        PS1[Slot 1: Undeclared but available<br/>Store x ]
+    end
+    
+    subgraph "Logic Contract Layout"
+        LS0[Slot 0: implementation<br/>map to Proxy Slot 0]
+        LS1[Slot 1: x = 99<br/>map to Proxy Slot 1]
+    end
+    
+    LS0 -.mapping.-> PS0
+    LS1 -.mapping.-> PS1
+```
+
+Process of Proxy contract
+
+```mermaid
+sequenceDiagram
+    participant C as Caller
+    participant P as Proxy 
+    participant L as Logic (x=88)
+    
+    Note over L: x = 88 when contract deploy 
+    C->>P: increase()
+    Note over P: call fallback()
+    P->>L: delegatecall(increment())
+    Note over L: read x (from Proxy contract slot)
+    Note over L: return x + 1
+    L-->>P: Return 1 (0 + 1)
+    P-->>C: Return 1
+```
+
+**About Data and Logic sparate using Proxy contract pattern**
+
+```solidity
+// Logic Contract A
+contract LogicA {
+    address public implementation;
+    uint public x;
+    mapping(address => uint) public balances; 
+
+    function initialize() external {
+        x = 88;
+        // Although the initialization logic is here
+        // the data is actually stored in the Proxy's storage
+    }
+    
+    function deposit() external payable {
+        balances[msg.sender] += msg.value;
+        // The data for this mapping is also stored in the Proxy.
+    }
+}
+
+// Logic contract B (upgraded new logic)
+contract LogicB {
+    address public implementation;
+    uint public x;
+    mapping(address => uint) public balances;
+    
+    function withdraw(uint amount) external {
+        require(balances[msg.sender] >= amount, "Insufficient balance");
+        balances[msg.sender] -= amount;
+        payable(msg.sender).transfer(amount);
+        // Note: The data read and modified here is still stored in the Proxy's storage
+    }
+}
+
+// Proxy 合约
+contract Proxy {
+    address public implementation;
+    // The actual storage space is here
+    // Even though it's not explicitly declared, both x and balances data are stored here.
+}
+```
+
+**Key Points of Data and Logic Separation**
+
+1. Storage Location
+   * All data is actually stored in the storage of the Proxy contract.*
+   * The Logic contract merely provides instructions on how to manipulate this data.*
+
+2. Data Persistence
+```
+// Assuming the following operations:
+1. A user deposits 100 ETH via the Proxy by calling deposit()
+2. The admin upgrades the implementation to LogicB
+3. A user withdraws their funds via the Proxy by calling withdraw()
+// The user's balance data remains in the Proxy's storage, even though the logic contract has changed.
+```
+
+1. How Storage Actually Works
+```
+contract Proxy {
+    // The storage layout is as follows:
+    // slot0: implementation address
+    // slot1: x
+    // slot2-n: mapping data for balances
+    // Although these variables are not explicitly declared, the storage is indeed present.
+}
+```
+
+1. Tracking Data Flow with an Example
+```
+// 1. User calls deposit
+User -> Proxy.fallback() -> LogicA.deposit()
+// Data is written to: Proxy's storage
+
+// 2. Contract upgrade
+Admin -> Proxy.upgrade(LogicB_address)
+// Data remains unchanged, only the implementation address is modified
+
+// 3. User calls withdraw
+User -> Proxy.fallback() -> LogicB.withdraw()
+// Data is read from: Still the Proxy's storage
+```
+
+Summary
+
+1. The Proxy contract provides the storage space to hold all state data.
+2. The Logic contract provides the methods to operate on this data.
+3. Through delegatecall, the Logic contract's code executes in the context of the Proxy's storage.
+4. The Logic contract can be replaced to change how the data is manipulated without affecting the data itself.
+
+Key Points Explained:
+* Data and logic separation: The Proxy contract stores the data, while the Logic contracts define how to interact with that data.
+* Data persistence: Once data is stored in the Proxy, it remains there even if the Logic contract is upgraded.
+* Storage layout: The Proxy contract has a specific storage layout to store the implementation address and other data.
+* Delegatecall: This mechanism allows the Logic contract to execute in the context of the Proxy, providing access to the Proxy's storage.
+* Upgradeability: By changing the implementation address, the behavior of the contract can be modified without deploying a new contract.
+
+**47_Upgrade**
+
+An other important upgrade contract protocol
+
+[Diamonds, Multi-Facet Proxy (EIP-2535)](https://eips.ethereum.org/EIPS/eip-2535)
+
+[Diamond Implementations](https://github.com/mudgen/Diamond)
+
+```mermaid
+graph TB
+    C[Client] --> D[Diamond Proxy]
+    
+    subgraph Facets
+        F1[Facet A<br/>User Management]
+        F2[Facet B<br/>Tokens Logic]
+        F3[Facet C<br/>Governance Logic]
+        F4[Facet D<br/>Staking Logic]
+    end
+    
+    D --> F1
+    D --> F2
+    D --> F3
+    D --> F4
+    
+    S[Storage Contract]
+    
+    F1 -.-> S
+    F2 -.-> S
+    F3 -.-> S
+    F4 -.-> S
+    
+    note["Diamond the addresses of all Facets and routes function calls to the appropriate Facet based on the function selector."]
+```
+
+---
 ### 2024.10.10
 
 Day 14
@@ -1111,7 +1343,8 @@ WTF Academy Solidity 101 13-15
     
      Abstract
 
-     - At least oun unimplemented function (empty in `{}` )
+     - At least one unimplemented function (empty in `{}` )
+     - A contract can be marked as abstract even if all functions have implementations
      
      Interface
 

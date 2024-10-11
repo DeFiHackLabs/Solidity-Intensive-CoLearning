@@ -160,14 +160,29 @@ initcode: 新合约的初始字节码（合约的Creation Code和构造函数的
 WTF solidity34-35
 1. [ERC721](https://eips.ethereum.org/EIPS/eip-165)
 2. [openzeppelin erc721实现](https://github.com/OpenZeppelin/openzeppelin-contracts/tree/master/contracts/token/ERC721)
-3. [ERC165](https://eips.ethereum.org/EIPS/eip-165)
-4. 荷兰拍卖合约实现
+3. IERC721函数
+- `balanceOf`：返回某地址的NFT持有量`balance`。
+- `ownerOf`：返回某`tokenId`的主人`owner`。
+- `transferFrom`：普通转账，参数为转出地址`from`，接收地址`to`和`tokenId`。
+- `safeTransferFrom`：安全转账（如果接收方是合约地址，会要求实现`ERC721Receiver`接口）。参数为转出地址`from`，接收地址`to`和`tokenId`。
+- `approve`：授权另一个地址使用你的NFT。参数为被授权地址`approve`和`tokenId`。
+- `getApproved`：查询`tokenId`被批准给了哪个地址。
+- `setApprovalForAll`：将自己持有的该系列NFT批量授权给某个地址`operator`。
+- `isApprovedForAll`：查询某地址的NFT是否批量授权给了另一个`operator`地址。
+- `safeTransferFrom`：安全转账的重载函数，参数里面包含了`data`。 
+4. [ERC165](https://eips.ethereum.org/EIPS/eip-165)
+5. 荷兰拍卖合约实现
 ### 2024.09.29
-WTF solidity38-40
+WTF solidity41
+1. WETH
+   合约将用户传来的Eth转换为wrapped eth,即符合ERC20标准的代币，方便用户交互DAPP。用户也可销毁存储在合约中的WETH来换取eth  
 ### 2024.09.30
-WTF solidity41-43
+WTF solidity42
+1. PaymentSplit  
+   分账合约，通过构造器初始化各个账户所在份额，用户根据份额可通过合约将收益进行提款   
 ### 2024.10.01
-WTF solidity43-45
+WTF solidity43-44
+1. 实现锁仓合约tokenLocker和tokenvest合约
 ### 2024.10.02
 WTF solidity46-50
 ### 2024.10.03
@@ -334,15 +349,22 @@ WTF solidity29-30
    后通过 keccak256 hash后的前四个字节
 2. 计算method id -> `bytes4(keccak256("函数名(参数类型1,参数类型2,...)"))`
    - 基础类型参数中uint需写成uint256，int为int256
-   - 固定长度类型参数 如uint8[3]写为uint[8]
+   - 固定长度类型参数 如uint8[3]写为uint8[3]
    - 可变长度类型参数 如address[]写为address[]
    - 映射类型参数 合约对象需转成address，结构体为(成员类型1,成员类型2,...)，枚举为uint8
 3. try/catch     
 ### 2024.10.08
 WTF solidity31-33
-1. [ERC-20](https://eips.ethereum.org/EIPS/eip-20)
+1. [ERC-20](https://eips.ethereum.org/EIPS/eip-20)  
    [OpenZeppelin实现](https://github.com/OpenZeppelin/openzeppelin-contracts/tree/master/contracts/token/ERC20)
-2. 两个简单的ERC20应用合约faucet和airdrop   
+2. IERC721函数
+- `totalSupply`：返回代币总供给
+- `balanceOf`：返回账户余额
+- `transfer`：转账
+- `allowance`：返回授权额度
+- `approve`：授权
+- `transferFrom`：授权转账 
+3. 两个简单的ERC20应用合约faucet和airdrop   
 ### 2024.10.09
 WTF solidity36-37
 #### 以太坊中密码学应用
@@ -350,5 +372,44 @@ WTF solidity36-37
    节点由hash关联，父节点为孩子节点的hash。其特征方便证明一个值是否存在于merkle tree当中，只需要提供merkle proof即可。比特币和以太坊
    中应用其验证交易是否存在
 2. 签名
-      
+   以太坊中采用双椭圆曲线数字签名算法（ECDSA）
+   1. 先将需要签名的信息进行`abi.encodePacked()`编码，再用`keccak256`进行hash
+   2. 将处理过的信息前加上`"\x19Ethereum Signed Message:\n32"`字符，再用`keccak256`进行hash
+   3. 将处理后的信息利用钱包和私钥进行签名
+   4. 通过签名和处理后的信息获取公钥
+      ``` solidity
+      // @dev 从_msgHash和签名_signature中恢复signer地址
+      function recoverSigner(bytes32 _msgHash, bytes memory _signature) internal pure returns (address){
+        // 检查签名长度，rsv格式签名一般长度为65位，r32位，s32位，v1位
+        require(_signature.length == 65, "invalid signature length");
+        bytes32 r;
+        bytes32 s;
+        uint8 v;
+        // 目前只能用assembly (内联汇编)来从签名中获得r,s,v的值
+        assembly {
+            /*
+            solidity中动态数组前32字节存的是数组的长度
+            add(sig, 32) = sig的指针 + 32
+            等效为略过signature的前32 bytes
+            mload(p) 载入从内存地址p起始的接下来32 bytes数据
+            */
+            // 略过前32位获取r
+            r := mload(add(_signature, 0x20))
+            // 略过前64位获取r
+            s := mload(add(_signature, 0x40))
+            // 最后一个byte为v
+            v := byte(0, mload(add(_signature, 0x60)))
+        }
+        // 使用ecrecover(全局函数)：利用 msgHash 和 r,s,v 恢复 signer 地址
+        return ecrecover(_msgHash, v, r, s);
+      }
+      ```
+### 2024.10.10
+WTF solidity38-39 
+1. nftswap合约实现
+### 2024.10.11
+WTF solidity40
+1. ERC1155
+   较ERC20和ERC721不同，ERC1155标准允许一个合约中包含多个同质化和非同质化代币，每一种代币有一个id来标识。`mapping(uint256 => mapping(address => uint256)) private _balances`
+
 <!-- Content_END -->
