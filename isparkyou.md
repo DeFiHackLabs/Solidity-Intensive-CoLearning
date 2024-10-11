@@ -6179,10 +6179,175 @@ console.log(ethers.parseEther("1.0").toString());
 console.groupEnd();
 ```
 
-### 
+### 2024.10.10
+### StaticCall
+在发送交易之前检查交易是否会失败，节省大量gas。
+在 ethers.js 中，你可以使用 contract.函数名.staticCall() 方法来模拟执行一个可能会改变状态的函数，但不实际向区块链提交这个状态改变。这相当于调用以太坊节点的 eth_call。这通常用于模拟状态改变函数的结果。如果函数调用成功，它将返回函数本身的返回值；如果函数调用失败，它将抛出异常。
+```
+    const tx = await contract.函数名.staticCall( 参数, {override})
+    console.log(`交易会成功吗？：`, tx)
+    ```
+####用StaticCall模拟DAI转账
+```
+import { ethers } from "ethers";
+
+//准备 alchemy API 可以参考https://github.com/AmazingAng/WTFSolidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md 
+const ALCHEMY_MAINNET_URL = 'https://eth-mainnet.g.alchemy.com/v2/oKmOQKbneVkxgHZfibs-iFhIlIAl6HDN';
+const provider = new ethers.JsonRpcProvider(ALCHEMY_MAINNET_URL);
+
+// 利用私钥和provider创建wallet对象
+const privateKey = '0x227dbb8586117d55284e26620bc76534dfbd2394be34cf4a09cb775d593b6f2b'
+const wallet = new ethers.Wallet(privateKey, provider)
+// DAI的ABI
+const abiDAI = [
+    "function balanceOf(address) public view returns(uint)",
+    "function transfer(address, uint) public returns (bool)",
+];
+// DAI合约地址（主网）
+const addressDAI = '0x6B175474E89094C44Da98b954EedeAC495271d0F' // DAI Contract
+// 创建DAI合约实例
+const contractDAI = new ethers.Contract(addressDAI, abiDAI, provider)
+const address = await wallet.getAddress()
+console.log("\n1. 读取测试钱包的DAI余额")
+const balanceDAI = await contractDAI.balanceOf(address)
+console.log(`DAI持仓: ${ethers.formatEther(balanceDAI)}\n`)
+console.log("\n2.  用staticCall尝试调用transfer转账1 DAI，msg.sender为Vitalik地址")
+// 发起交易
+const tx = await contractDAI.transfer.staticCall("vitalik.eth", ethers.parseEther("1"), {from:  await provider.resolveName("vitalik.eth")})
+console.log(`交易会成功吗？：`, tx)
+console.log("\n3.  用staticCall尝试调用transfer转账10000 DAI，msg.sender为测试钱包地址")
+const tx2 = await contractDAI.transfer.staticCall("vitalik.eth", ethers.parseEther("10000"), {from: address})
+console.log(`交易会成功吗？：`, tx2)
+```
+
+### 识别ERC721合约
+#### ERC165
+通过ERC165标准，智能合约可以声明它支持的接口，供其他合约检查。
+```
+interface IERC165 {
+    /**
+     * @dev 如果合约实现了查询的`interfaceId`，则返回true
+     * 规则详见：https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[EIP section]
+     *
+     */
+    function supportsInterface(bytes4 interfaceId) external view returns (bool);
+}
 
 
+   function supportsInterface(bytes4 interfaceId)
+        external
+        pure
+        override
+        returns (bool)
+    {
+        return
+            interfaceId == type(IERC721).interfaceId 
+    }
+```
 
+#### 识别ERC721
+```
+//准备 alchemy API 可以参考https://github.com/AmazingAng/WTFSolidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md 
+const ALCHEMY_MAINNET_URL = 'https://eth-mainnet.g.alchemy.com/v2/oKmOQKbneVkxgHZfibs-iFhIlIAl6HDN';
+const provider = new ethers.JsonRpcProvider(ALCHEMY_MAINNET_URL);
+// 合约abi
+const abiERC721 = [
+    "function name() view returns (string)",
+    "function symbol() view returns (string)",
+    "function supportsInterface(bytes4) public view returns(bool)",
+];
+// ERC721的合约地址，这里用的BAYC
+const addressBAYC = "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d"
+// 创建ERC721合约实例
+const contractERC721 = new ethers.Contract(addressBAYC, abiERC721, provider)
+
+// 1. 读取ERC721合约的链上信息
+const nameERC721 = await contractERC721.name()
+const symbolERC721 = await contractERC721.symbol()
+console.log("\n1. 读取ERC721合约信息")
+console.log(`合约地址: ${addressBAYC}`)
+console.log(`名称: ${nameERC721}`)
+console.log(`代号: ${symbolERC721}`)
+
+// 2. 利用ERC165的supportsInterface，确定合约是否为ERC721标准
+// ERC721接口的ERC165 identifier
+const selectorERC721 = "0x80ac58cd"
+const isERC721 = await contractERC721.supportsInterface(selectorERC721)
+console.log("\n2. 利用ERC165的supportsInterface，确定合约是否为ERC721标准")
+console.log(`合约是否为ERC721标准: ${isERC721}`)
+```
+
+### 编码calldata
+#### 接口类Interface
+ethers.js的接口类抽象了与以太坊网络上的合约交互所需的ABI编码和解码。ABI（Application Binary Interface）与API类似，是一格式，用于对合约可以处理的各种类型的数据进行编码，以便它们可以交互。
+```
+// 利用abi生成
+const interface = ethers.Interface(abi)
+// 直接从contract中获取
+const interface2 = contract.interface
+interface.getSighash("balanceOf");
+// '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
+interface.encodeDeploy("Wrapped ETH", "WETH");
+interface.encodeFunctionData("balanceOf", ["0xc778417e063141139fce010982780140aa0cd5ab"]);
+interface.decodeFunctionResult("balanceOf", resultData)
+```
+
+#### 例子：与测试网WETH合约交互
+```
+//准备 alchemy API 可以参考https://github.com/AmazingAng/WTFSolidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md 
+const ALCHEMY_GOERLI_URL = 'https://eth-rinkeby.alchemyapi.io/v2/GlaeWuylnNM3uuOo-SAwJxuwTdqHaY5l';
+const provider = new ethers.JsonRpcProvider(ALCHEMY_GOERLI_URL);
+
+// 利用私钥和provider创建wallet对象
+const privateKey = '0x227dbb8586117d55284e26620bc76534dfbd2394be34cf4a09cb775d593b6f2b'
+const wallet = new ethers.Wallet(privateKey, provider)
+
+// WETH的ABI
+const abiWETH = [
+    "function balanceOf(address) public view returns(uint)",
+    "function deposit() public payable",
+];
+// WETH合约地址（Goerli测试网）
+const addressWETH = '0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6'
+// 声明WETH合约
+const contractWETH = new ethers.Contract(addressWETH, abiWETH, wallet)
+
+const address = await wallet.getAddress()
+// 1. 读取WETH合约的链上信息（WETH abi）
+console.log("\n1. 读取WETH余额")
+// 编码calldata
+const param1 = contractWETH.interface.encodeFunctionData(
+    "balanceOf",
+    [address]
+  );
+console.log(`编码结果： ${param1}`)
+// 创建交易
+const tx1 = {
+    to: addressWETH,
+    data: param1
+}
+// 发起交易，可读操作（view/pure）可以用 provider.call(tx)
+const balanceWETH = await provider.call(tx1)
+console.log(`存款前WETH持仓: ${ethers.formatEther(balanceWETH)}\n`)
+// 编码calldata
+const param2 = contractWETH.interface.encodeFunctionData(
+    "deposit"          
+    );
+console.log(`编码结果： ${param2}`)
+// 创建交易
+const tx2 = {
+    to: addressWETH,
+    data: param2,
+    value: ethers.parseEther("0.001")}
+// 发起交易，写入操作需要 wallet.sendTransaction(tx)
+const receipt1 = await wallet.sendTransaction(tx2)
+// 等待交易上链
+await receipt1.wait()
+console.log(`交易详情：`)
+console.log(receipt1)
+const balanceWETH_deposit = await contractWETH.balanceOf(address)
+console.log(`存款后WETH持仓: ${ethers.formatEther(balanceWETH_deposit)}\n`)
+```
 
 
 

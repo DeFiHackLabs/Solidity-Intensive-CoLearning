@@ -1702,15 +1702,91 @@ contract Example {
 ### 2024.10.09
 #### WTF Academy Solidity 102.17 库合约
 
+##### 库合约（Library Contract）
 
-##### 笔记
+在 Solidity 中，库合约是一种特殊的合约，旨在提高代码的复用性并减少交易成本（gas 消耗）。库合约像传统的代码库一样，提供了一系列的函数，但它们与普通合约有一些显著的区别：
+- **不能存在状态变量**：库合约不能存储状态，所有的变量都是局部的。
+- **不能继承或被继承**：库合约无法继承其他合约，也不允许其他合约继承它。
+- **不能接收以太币**：库合约不能接收以太币，所有操作都是纯粹的计算。
+- **不可以被销毁**：库合约一旦部署，不可被销毁。
+- **可见性设置**：库合约的函数如果设置为 `public` 或 `external`，调用时会触发一次 `delegatecall`。而 `internal` 则不会触发 `delegatecall`，`private` 函数只能在库合约内部调用。
+
+##### 库合约的使用方法
+**3.1 使用 `using for` 指令**
+通过 `using A for B;` 可以将库合约 A 的函数附加到类型 B。使用这个指令后，库 A 中的函数会自动成为 B 类型变量的成员，可以直接调用。
+
+```solidity
+// 利用using for指令
+using Strings for uint256;
+
+function getString1(uint256 _number) public pure returns(string memory) {
+    return _number.toHexString(); // 调用库合约中的函数
+}
+```
+
+**3.2 直接通过库合约名调用**
+可以直接使用库合约的名称来调用函数，这样更为直观。
+
+```solidity
+// 直接通过库合约名调用
+function getString2(uint256 _number) public pure returns(string memory) {
+    return Strings.toHexString(_number); // 调用库合约中的函数
+}
+```
 
 ##### 测验结果
-
-##### 测验错题
+- 100/100
 
 ### 2024.10.10
 #### WTF Academy Solidity 102.18 Import
+
+#####  `import` 导入方法
+1. **通过文件相对位置导入**
+    - 使用相对路径导入本地的 Solidity 文件。这种方式常见于项目中的文件之间的引用。
+    - 例子：
+    在项目结构中，如果 `Import.sol` 和 `Yeye.sol` 位于同一目录下，则可以通过相对路径导入 `Yeye.sol` 文件中的所有内容。
+        
+        ```solidity
+        import './Yeye.sol';
+        
+        ```
+        
+2. **通过网址导入**
+    - 直接从网络上引用合约文件，例如从 GitHub 上的公开 Solidity 文件。这种方式常见于引入远程的库或合约。
+    - 例子：
+    这种引用方式非常方便，尤其是在开发过程中想要快速测试和使用现有的第三方库。
+        
+        ```solidity
+        import '<https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol>';
+        
+        ```
+        
+3. **通过 npm 导入**
+    - 这种方式通常用于导入项目依赖中的库，例如通过 npm 安装的 OpenZeppelin 库。
+    - 例子：
+    使用这种方式时，项目必须配置好 npm 依赖，例如通过 `npm install` 安装相关库。
+        
+        ```solidity
+        import '@openzeppelin/contracts/access/Ownable.sol';
+        
+        ```
+        
+4. **通过指定全局符号导入**
+    - 通过这种方式可以只导入指定的符号（例如合约、结构体等），避免导入整个文件的所有内容。这种方式适用于文件中包含多个合约或定义，但我们只需要使用其中的某一部分。
+    - 例子：
+    这样只导入 `Yeye.sol` 文件中的 `Yeye` 合约。
+        
+        ```solidity
+        import {Yeye} from './Yeye.sol';
+        ```
+
+##### 测验结果
+- 100/100
+
+##### 测验错题
+
+### 2024.10.11
+#### WTF Academy Solidity 102.19 接收ETH receive和fallback
 
 ##### 笔记
 
