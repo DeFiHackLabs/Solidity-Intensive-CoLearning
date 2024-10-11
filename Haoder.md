@@ -116,4 +116,10 @@ LFG～～～～～ 會完成的
 
 [**WTF Solidity 極簡入門：33. 空投合約**](<content/Haoder/md/333.md>)
 
+### 2024.10.11
+
+[**WTF Solidity 極簡入門：34. ERC721**](<content/Haoder/md/334.md>)
+
+[**WTF Solidity 極簡入門：35. 荷蘭拍賣**](<content/Haoder/md/333.md>)
+
 <!-- Content_END -->

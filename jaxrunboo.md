@@ -1109,4 +1109,53 @@ contract Airdrop {
 
 ### 
 
+### 10.11
+
+#### WETH
+
+WETH相当于用erc20把eth重新包了一层。给eth提供了erc20的属性。怪不得在uniswap的交易日志中都是weth的交换行为。
+
+写这个逻辑的时候我的观念发生了变化，合约本身是可以没有eth作为手续费的，执行人提供手续费就可以了，合约完全可以看做一个可外部调用的方法。
+
+```solidity
+// SPDX-License-Identifier: GPL-3.0
+
+pragma solidity ^0.8.2;
+
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+contract WETH is ERC20 {
+
+    event Deposit(address indexed account,uint256 indexed count);
+    event WithDraw(address indexed account,uint256 indexed count);
+
+    constructor () ERC20("WETH","WETH") payable  {
+
+    }
+
+    fallback() external payable { 
+        deposit();
+    }
+
+    receive() external payable { 
+        deposit();
+    }
+
+    function deposit() payable  public  {
+        _mint(msg.sender, msg.value);
+        emit Deposit(msg.sender, msg.value);
+    }
+
+    function widthdraw(uint256 _amount) public {
+        require(balanceOf(msg.sender) >= _amount,"not enough weth");
+        _burn(msg.sender, _amount);
+        payable(msg.sender).transfer(_amount);
+        emit WithDraw(msg.sender, _amount);
+    }
+
+
+}
+```
+
+###
 <!-- Content_END -->

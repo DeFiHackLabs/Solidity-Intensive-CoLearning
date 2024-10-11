@@ -19,7 +19,7 @@ timezone: Asia/Shanghai
 
 #### Chapter 1: Introduction
 
-- `Solidity` is a programming language for Smart Contract development on EVM (Ethereum Virtual Machine).
+- `Solidity` is a programming language for Smart Contract development on EVM (Ethereum Virtual Machine);
 - `Remix` is a browser-based IDE (Integrated Development Environment) for Solidity development, it have file management, compiler, deployment, interaction and various plugins available.
 - A Solidity Smart Contract consists of 3 parts: License type, Solidity version and contract logics.
 
@@ -892,7 +892,7 @@ contract Target {
 
 contract Source {
   function callToAddress(address _target) external view returns (bool) {
-    return Target(_target).echo();
+    return Target(_target);echo();
   }
 
   function callToContract(Target _target) external view returns (bool) {
@@ -905,7 +905,7 @@ contract Source {
   }
 
   function callToPayable(address _target) external payable {
-    Target(_target).deposit{value: msg.value}("");
+    Target(_target);deposit{value: msg.value}("");
   }
 }
 ```
@@ -1022,7 +1022,7 @@ address predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
         bytes1(0xff),
         address(this),
         salt,
-        keccak256(type(NewContract).creationCode)
+        keccak256(type(NewContract);creationCode)
         )))));
 ```
 
@@ -1037,7 +1037,7 @@ address predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
         bytes1(0xff),
         address(this),
         salt,
-        keccak256(abi.encodePacked(type(NewContract).creationCode, abi.encode(constructorParams...)))
+        keccak256(abi.encodePacked(type(NewContract);creationCode, abi.encode(constructorParams...)))
         )))));
 ```
 
@@ -1108,7 +1108,7 @@ Use cases:
 bytes4 selector = someContract.doSomething.selector;
 
 bytes memory data = abi.encodeWithSelector(selector, _x);
-(bool success, bytes memory returnedData) = address(someContract).staticcall(data);
+(bool success, bytes memory returnedData) = address(someContract);staticcall(data);
 ```
 
 - Used in ethers.js to implement contract imports and function calls
@@ -1123,7 +1123,7 @@ const res = await someContract.doSomething();
 ```
 bytes memory data = abi.encodeWithSelector(bytes4(0x533ba33a));
 
-(bool success, bytes memory returnedData) = address(someContract).staticcall(data);
+(bool success, bytes memory returnedData) = address(someContract);staticcall(data);
 require(success);
 ```
 
@@ -1172,7 +1172,7 @@ functionSignatureHash = keccak256(functionSignature);
 selectorOrMethodId = bytes4(functionSignatureHash);
 
 // To call someFunction
-(bool success1, bytes memory data1) = address(this).call(abi.encodeWithSelector(selectorOrMethodId, 1, true));
+(bool success1, bytes memory data1) = address(this);call(abi.encodeWithSelector(selectorOrMethodId, 1, true));
 ```
 
 #### Chapter 30: Try catch
@@ -1422,8 +1422,8 @@ interface IERC165 {
 // ERC721 implemented ERC165
 function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
   return
-    interfaceId == type(IERC721).interfaceId ||
-    interfaceId == type(IERC165).interfaceId;
+    interfaceId == type(IERC721);interfaceId ||
+    interfaceId == type(IERC165);interfaceId;
 }
 ```
 
@@ -1473,7 +1473,7 @@ IERC721
     ) private returns (bool) {
         if (to.isContract()) {
             return
-                IERC721Receiver(to).onERC721Received(
+                IERC721Receiver(to);onERC721Received(
                     msg.sender,
                     from,
                     tokenId,
@@ -1530,9 +1530,9 @@ constructor(string memory name_, string memory symbol_) {
 // Implements the supportsInterface of IERC165
 function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
   return
-    interfaceId == type(IERC721).interfaceId ||
-    interfaceId == type(IERC165).interfaceId ||
-    interfaceId == type(IERC721Metadata).interfaceId;
+    interfaceId == type(IERC721);interfaceId ||
+    interfaceId == type(IERC165);interfaceId ||
+    interfaceId == type(IERC721Metadata);interfaceId;
 }
 
 // Implements the balanceOf function of IERC721, which uses `_balances` variable to check the balance of tokens in `owner`'s account.
@@ -1661,7 +1661,7 @@ function _burn(uint tokenId) internal virtual {
 // It invokes IERC721Receiver-onERC721Received when `to` address is a contract to prevent `tokenId` from being forever locked.
 function _checkOnERC721Received(address from, address to, uint tokenId, bytes memory _data) private returns (bool) {
   if (to.isContract()) {
-    return IERC721Receiver(to).onERC721Received(msg.sender, from, tokenId,_data) == IERC721Receiver.onERC721Received.selector;
+    return IERC721Receiver(to);onERC721Received(msg.sender, from, tokenId,_data) == IERC721Receiver.onERC721Received.selector;
   } else {
     return true;
   }
@@ -1672,7 +1672,7 @@ function tokenURI(uint256 tokenId) public view virtual override returns (string 
   require(_owners[tokenId] != address(0), "Token Not Exist");
 
   string memory baseURI = _baseURI();
-  return bytes(baseURI).length > 0 ? string(abi.encodePacked(baseURI, tokenId.toString())) : "";
+  return bytes(baseURI);length > 0 ? string(abi.encodePacked(baseURI, tokenId.toString())) : "";
 }
 
 // Base URI for computing {tokenURI}, which is the combination of `baseURI` and `tokenId`. Developers should rewrite this function accordingly.
@@ -1760,13 +1760,13 @@ contract DutchAuction is Ownable, ERC721 {
         }
         // refund excess ETH
         if (msg.value > totalCost) {
-            payable(msg.sender).transfer(msg.value - totalCost); //please check is there any risk of reentrancy attack
+            payable(msg.sender);transfer(msg.value - totalCost); //please check is there any risk of reentrancy attack
         }
     }
 
     // the withdraw function, onlyOwner modifier
     function withdrawMoney() external onlyOwner {
-        (bool success, ) = msg.sender.call{value: address(this).balance}(""); // how to use call function please see lession #22
+        (bool success, ) = msg.sender.call{value: address(this);balance}(""); // how to use call function please see lession #22
         require(success, "Transfer failed.");
     }
 }
@@ -2075,8 +2075,8 @@ function revoke(address _nftAddr, uint256 _tokenId) public {
         // Transfer the NFT to the buyer
         _nft.safeTransferFrom(address(this), msg.sender, _tokenId);
         // Transfer ETH to the seller, refund any excess ETH to the buyer
-        payable(_order.owner).transfer(_order.price);
-        payable(msg.sender).transfer(msg.value-_order.price);
+        payable(_order.owner);transfer(_order.price);
+        payable(msg.sender);transfer(msg.value-_order.price);
 
         delete nftList[_nftAddr][_tokenId]; // Delete order
 
@@ -2390,9 +2390,9 @@ contract ERC1155 is IERC165, IERC1155, IERC1155MetadataURI {
         bytes4 interfaceId
     ) public view virtual override returns (bool) {
         return
-            interfaceId == type(IERC1155).interfaceId ||
-            interfaceId == type(IERC1155MetadataURI).interfaceId ||
-            interfaceId == type(IERC165).interfaceId;
+            interfaceId == type(IERC1155);interfaceId ||
+            interfaceId == type(IERC1155MetadataURI);interfaceId ||
+            interfaceId == type(IERC165);interfaceId;
     }
 
     /**
@@ -2673,7 +2673,7 @@ contract ERC1155 is IERC165, IERC1155, IERC1155MetadataURI {
     ) private {
         if (to.isContract()) {
             try
-                IERC1155Receiver(to).onERC1155Received(
+                IERC1155Receiver(to);onERC1155Received(
                     operator,
                     from,
                     id,
@@ -2703,7 +2703,7 @@ contract ERC1155 is IERC165, IERC1155, IERC1155MetadataURI {
     ) private {
         if (to.isContract()) {
             try
-                IERC1155Receiver(to).onERC1155BatchReceived(
+                IERC1155Receiver(to);onERC1155BatchReceived(
                     operator,
                     from,
                     ids,
@@ -2732,7 +2732,7 @@ contract ERC1155 is IERC165, IERC1155, IERC1155MetadataURI {
     ) public view virtual override returns (string memory) {
         string memory baseURI = _baseURI();
         return
-            bytes(baseURI).length > 0
+            bytes(baseURI);length > 0
                 ? string(abi.encodePacked(baseURI, id.toString()))
                 : "";
     }
@@ -2787,7 +2787,7 @@ contract WETH is ERC20 {
     function withdraw(uint amount) public {
         require(balanceOf(msg.sender) >= amount);
         _burn(msg.sender, amount);
-        payable(msg.sender).transfer(amount);
+        payable(msg.sender);transfer(amount);
         emit Withdrawal(msg.sender, amount);
     }
 }
@@ -2822,7 +2822,7 @@ contract PaymentSplit {
 
 
     /**
-     * @dev Constructor to initialize the payees array (_payees) and their shares (_shares).
+     * @dev Constructor to initialize the payees array (_payees) and their shares (_shares);
      *      The length of both arrays cannot be 0 and must be equal.
             Each element in the _shares array must be greater than 0,
             and each address in _payees must not be a zero address and must be unique.
@@ -2872,7 +2872,7 @@ contract PaymentSplit {
      */
     function releasable(address _account) public view returns (uint256) {
         // Calculate the total income of the profit-sharing contract
-        uint256 totalReceived = address(this).balance + totalReleased;
+        uint256 totalReceived = address(this);balance + totalReleased;
         // Call _pendingPayment to calculate the amount of ETH that account is entitled to
         return pendingPayment(_account, totalReceived, released[_account]);
     }
@@ -2962,7 +2962,7 @@ contract TokenVesting {
         erc20Released[token] += releasable;
         // Transfers the tokens to the beneficiary.
         emit ERC20Released(token, releasable);
-        IERC20(token).transfer(beneficiary, releasable);
+        IERC20(token);transfer(beneficiary, releasable);
     }
 
     /**
@@ -2975,7 +2975,7 @@ contract TokenVesting {
         uint256 timestamp
     ) public view returns (uint256) {
         // Total amount of tokens received in the contract (current balance + withdrawn)
-        uint256 totalAllocation = IERC20(token).balanceOf(address(this)) +
+        uint256 totalAllocation = IERC20(token);balanceOf(address(this)) +
             erc20Released[token];
         // According to the linear release formula, calculate the released quantity
         if (timestamp < start) {
@@ -3239,7 +3239,7 @@ contract TimeLocker {
 
         // get callData
         bytes memory callData;
-        if (bytes(signature).length == 0) {
+        if (bytes(signature);length == 0) {
             callData = data;
         } else {
             callData = abi.encodePacked(
@@ -3294,14 +3294,1261 @@ contract TimeLocker {
 
 ### 2024.10.11
 
+#### Chapter 46: Proxy Contract
+
+Most of the smart contracts deployed on `EVM` chain are immutable
+
+- Advantage: Predictable behaviour
+- Disadvantage: Unable to upgrade/modify/fix faulty code
+
+Proxy Pattern
+
+- Separate the data and logic into two contracts. The state variables (data) stored in the proxy contract and logic functions stored in the logic contract
+- The proxy contract (Proxy) delegates the function call to the logic contract (Implementation) through delegatecall, and then returns the final result to the caller
+- The state variable storage structure of the Logic contract and the Proxy contract must be the same, otherwise `delegatecall` will cause unexpected behavior and security risks
+- Benefits:
+  - Upgradeable: Point the proxy contract to latest deployed logic contract
+  - Gas saving: One logic contract can use by multiple proxy contracts, reduce code redundancy and deployment
+
+Proxy Contract
+
+```
+contract Proxy {
+    address public implementation; // Address of the logic contract. The data type of the implementation contract has to be the same as that of the Proxy contract at the same position or an error will occur.
+
+    constructor(address implementation_) {
+        implementation = implementation_;
+    }
+
+    /**
+     * @dev fallback function, delegates invocations of current contract to `implementation` contract
+     * with inline assembly, it gives fallback function a return value
+     */
+    fallback() external payable {
+        address _implementation = implementation;
+        assembly {
+            // copy msg.data to memory
+            // the parameters of opcode calldatacopy: start position of memory, start position of calldata, length of calldata
+            calldatacopy(0, 0, calldatasize())
+
+            // use delegatecall to call implementation contract
+            // the parameters of opcode delegatecall: gas, target contract address, start position of input memory, length of input memory, start position of output memory, length of output memory
+            // set start position of output memory and length of output memory to 0
+            // delegatecall returns 1 if success, 0 if fail
+            let result := delegatecall(gas(), _implementation, 0, calldatasize(), 0, 0)
+
+            // copy returndata to memory
+            // the parameters of opcode returndata: start position of memory, start position of returndata, length of return data
+            returndatacopy(0, 0, returndatasize())
+
+            switch result
+            // if delegate call fails, then revert
+            case 0 { revert(0, returndatasize()) }
+            // if delegate call succeeds, then return memory data(as bytes format) starting from 0 with length of returndatasize()
+            default { return(0, returndatasize()) }
+        }
+    }
+}
+```
+
+Logic Contract
+
+```
+/**
+ * @dev Logic contract, executes delegated calls
+ */
+contract Logic {
+    address public implementation; // Keep consistency with the Proxy to prevent slot collision
+    uint public x = 99;
+    event CallSuccess(); // Event emitted on successful function call
+
+    // This function emits CallSuccess event and returns a uint
+    // Function selector: 0xd09de08a
+    function increment() external returns(uint) {
+        emit CallSuccess();
+        return x + 1;
+    }
+}
+```
+
+Demo
+
+```
+// The caller can be a contract or `EOA` address
+contract Caller{
+    address public proxy; // proxy contract address
+
+    constructor(address proxy_){
+        proxy = proxy_;
+    }
+
+    // Call the increment() function using the proxy contract
+    function increment() external returns(uint) {
+        ( , bytes memory data) = proxy.call(abi.encodeWithSignature("increment()"));
+        return abi.decode(data,(uint));
+    }
+}
+```
+
+Although the proxy pattern is simple, it is always recommend to use templates, eg: [OpenZeppelin proxy](https://github.com/OpenZeppelin/openzeppelin-contracts/tree/master/contracts/proxy) for better security.
+
+#### Chapter 47: Upgradeable Contract
+
+Replace the existing logic contract by repoint the implementation address of proxy contract.
+
+Example (Proxy)
+
+```
+// SPDX-License-Identifier: MIT
+// wtf.academy
+pragma solidity ^0.8.4;
+
+// simple upgradeable contract, the admin could change the logic contract's address by calling upgrade function, thus change the contract logic
+// FOR TEACHING PURPOSE ONLY, DO NOT USE IN PRODUCTION
+contract SimpleUpgrade {
+    // logic contract's address
+    address public implementation;
+
+    // admin address
+    address public admin;
+
+    // string variable, could be changed by logic contract's function
+    string public words;
+
+    // constructor, initializing admin address and logic contract's address
+    constructor(address _implementation){
+        admin = msg.sender;
+        implementation = _implementation;
+    }
+
+    // fallback function, delegates function call to logic contract
+    fallback() external payable {
+        (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+    }
+
+    // upgrade function, changes the logic contract's address, can only by called by admin
+    function upgrade(address newImplementation) external {
+        require(msg.sender == admin);
+        implementation = newImplementation;
+    }
+}
+```
+
+Example (Logic)
+
+```
+// Logic Contract to be replace
+contract Logic1 {
+    // State variables consistent with Proxy contract to prevent slot conflicts
+    address public implementation;
+    address public admin;
+    // String that can be changed through the function of the logic contract
+    string public words;
+
+    // Change state variables in Proxy contract, selector: 0xc2985578
+    function foo() public {
+        words = "old";
+    }
+}
+
+// New Logic Contract
+contract Logic2 {
+    // State variables consistent with proxy contract to prevent slot collisions
+    address public implementation;
+    address public admin;
+    // String that can be changed through the function of the logic contract
+    string public words;
+
+    // Change state variables in Proxy contract, selector: 0xc2985578
+    function foo() public{
+        words = "new";
+    }
+}
+```
+
+How to upgrade
+
+- Deploy the `Logic2` contract
+- Calling `upgrade()` of `SimpleUpgrade` with new address
+
+This pattern has a problem of selector conflict and may cause security risks, thus introduce of `Transparent Proxy` and `UUPS`.
+
+#### Chapter 48: Transparent Proxy
+
+Selector Crash
+
+- Function selector is the first 4 bytes of hash of a function, the limited variation of hash might cause crash of selector although those two functions are different in naming or parameters
+- For example: `function mint(address,uint256)` and `function airdrop(address)` might have the same selector of `0x135b13c3`
+- If proxy contract's upgrade function having selector crash with one of the function of logic contract, calling the function will upgrade the proxy contract to a black hole contract
+
+Transparent Proxy Contract Demo
+
+```
+// FOR TEACHING PURPOSE ONLY, DO NOT USE IN PRODUCTION
+contract TransparentProxy {
+    // logic contract's address
+    address implementation;
+    // admin address
+    address admin;
+    // string variable, can be modified by calling loginc contract's function
+    string public words;
+
+    // constructor, initializing the admin address and logic contract's address
+    constructor(address _implementation){
+        admin = msg.sender;
+        implementation = _implementation;
+    }
+
+    // fallback function, delegates function call to logic contract
+    // can not be called by admin, to avoid causing unexpected beahvior due to selector clash
+    fallback() external payable {
+        require(msg.sender != admin);
+        (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+    }
+
+    // upgrade function, change logic contract's address, can only be called by admin
+    function upgrade(address newImplementation) external {
+        if (msg.sender != admin) revert();
+        implementation = newImplementation;
+    }
+}
+```
+
+- Transparent proxy solving the "selector clash" problem by restricting the admin's access to the logic contract.
+
+#### Chapter 49: Universal Upgradeable Proxy Standard (UUPS)
+
+UUPS have the upgrade function in the logic contract. And thus solved the selector crash between proxy and logic contract.
+
+UUPS Proxy Contract Demo
+
+```
+contract UUPSProxy {
+    // Address of the logic contract
+    address public implementation;
+    // Address of admin
+    address public admin;
+    // A string, which can be changed by the function of the logic contract
+    string public words;
+
+    // Constructor function, initialize admin and logic contract addresses
+    constructor(address _implementation){
+        admin = msg.sender;
+        implementation = _implementation;
+    }
+
+    // Fallback function delegates the call to the logic contract
+    fallback() external payable {
+        (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+    }
+}
+```
+
+UUPS Logic Contract Demo
+
+```
+// UUPS logic contract(upgrade function inside logic contract)
+contract UUPS1{
+    // consistent with the proxy contract and prevent slot conflicts
+    address public implementation;
+    address public admin;
+    // A string, which can be changed by the function of the logic contract
+    string public words;
+
+    // change state variable in proxy, selector: 0xc2985578
+    function foo() public{
+        words = "old";
+    }
+
+    // upgrade function, change logic contract's address, only admin is permitted to call. selector: 0x0900f010
+    // in UUPS, logic contract HAS TO include a upgrade function, otherwise it cannot be upgraded any more.
+    function upgrade(address newImplementation) external {
+        require(msg.sender == admin);
+        implementation = newImplementation;
+    }
+}
+
+// new UUPS logic contract
+contract UUPS2{
+    // consistent with the proxy contract and prevent slot conflicts
+    address public implementation;
+    address public admin;
+    // A string, which can be changed by the function of the logic contract
+    string public words;
+
+    // change state variable in proxy, selector: 0xc2985578
+    function foo() public{
+        words = "new";
+    }
+
+    // upgrade function, change logic contract's address, only admin is permitted to call. selector: 0x0900f010
+    // in UUPS, logic contract HAS TO include a upgrade function, otherwise it cannot be upgraded any more.。
+    function upgrade(address newImplementation) external {
+        require(msg.sender == admin);
+        implementation = newImplementation;
+    }
+}
+```
+
+When `admin` call `upgrade` through `UUPSProxy`, due to the nature of `delegatecall`, it carry the context of `UUPSProxy`, and the state variable `implementation` update to latest deployed address after verified `msg.sender` is same as `admin`.
+
+#### Chapter 50: Multisignature Wallet
+
+A smart contract wallet require authorization from multiple EOA to execute transactions
+
+- Can prevent single point failure like loss of private keys, individual misbehaviour, etc
+- [Safe](https://safe.global/) is widely used in Ethereum Ecosystem
+
+Core features of Multisig wallet
+
+1. Add signers and set signature threshold
+2. Initiate transaction
+3. Sign transaction
+4. Execute transaction
+5. Cancel/Invalidate transaction
+
+Multisig Wallet Demo
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.25;
+
+contract Multisig {
+    address[] public owners; // multisig owners array
+    mapping(address => bool) public isOwner; // check if an address is a multisig owner
+    uint256 public ownerCount; // the count of multisig owners
+    uint256 public threshold; // minimum number of signatures required for multisig execution
+    uint256 public nonce; // nonce，prevent signature replay attack
+
+    event ExecutionSuccess(bytes32 txHash); // succeeded transaction event
+    event ExecutionFailure(bytes32 txHash); // failed transaction event
+
+    constructor(address[] memory _owners, uint256 _threshold) {
+        _setupOwners(_owners, _threshold);
+    }
+
+    /// @dev Initialize owners, isOwner, ownerCount, threshold
+    /// @param _owners: Array of multisig owners
+    /// @param _threshold: Minimum number of signatures required for multisig execution
+    function _setupOwners(address[] memory _owners, uint256 _threshold)
+        internal
+    {
+        // If threshold was not initialized
+        require(threshold == 0, "WTF5000");
+        // multisig execution threshold is less than the number of multisig owners
+        require(_threshold <= _owners.length, "WTF5001");
+        // multisig execution threshold is at least 1
+        require(_threshold >= 1, "WTF5002");
+
+        for (uint256 i = 0; i < _owners.length; i++) {
+            address owner = _owners[i];
+            // multisig owners cannot be zero address, contract address, and cannot be repeated
+            require(
+                owner != address(0) &&
+                    owner != address(this) &&
+                    !isOwner[owner],
+                "WTF5003"
+            );
+            owners.push(owner);
+            isOwner[owner] = true;
+        }
+        ownerCount = _owners.length;
+        threshold = _threshold;
+    }
+
+    /// @dev After collecting enough signatures from the multisig, execute transaction
+    /// @param to Target contract address
+    /// @param value msg.value, ether paid
+    /// @param data calldata
+    /// @param signatures packed signatures, corresponding to the multisig address in ascending order, for easy checking ({bytes32 r}{bytes32 s}{uint8 v}) (signature of the first multisig, signature of the second multisig...)
+    function execTransaction(
+        address to,
+        uint256 value,
+        bytes memory data,
+        bytes memory signatures
+    ) public payable virtual returns (bool success) {
+        // Encode transaction data and compute hash
+        bytes32 txHash = encodeTransactionData(
+            to,
+            value,
+            data,
+            nonce,
+            block.chainid
+        );
+        // Increase nonce
+        nonce++;
+        // Check signatures
+        checkSignatures(txHash, signatures);
+        // Execute transaction using call and get transaction result
+        (success, ) = to.call{value: value}(data);
+        require(success, "WTF5004");
+        if (success) emit ExecutionSuccess(txHash);
+        else emit ExecutionFailure(txHash);
+    }
+
+    /**
+     * @dev checks if the hash of the signature and transaction data matches. if signature is invalid, transaction will revert
+     * @param dataHash hash of transaction data
+     * @param signatures bundles multiple multisig signature together
+     */
+    function checkSignatures(bytes32 dataHash, bytes memory signatures)
+        public
+        view
+    {
+        // get multisig threshold
+        uint256 _threshold = threshold;
+        require(_threshold > 0, "WTF5005");
+
+        // checks if signature length is enough
+        require(signatures.length >= _threshold * 65, "WTF5006");
+
+        // checks if collected signatures are valid
+        // procedure:
+        // 1. use ECDSA to verify if signatures are valid
+        // 2. use currentOwner > lastOwner to make sure that signatures are from different multisig owners
+        // 3. use isOwner[currentOwner] to make sure that current signature is from a multisig owner
+        address lastOwner = address(0);
+        address currentOwner;
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+        uint256 i;
+        for (i = 0; i < _threshold; i++) {
+            (v, r, s) = signatureSplit(signatures, i);
+            // use ECDSA to verify if signature is valid
+            currentOwner = ecrecover(
+                keccak256(
+                    abi.encodePacked(
+                        "\x19Ethereum Signed Message:\n32",
+                        dataHash
+                    )
+                ),
+                v,
+                r,
+                s
+            );
+            require(
+                currentOwner > lastOwner && isOwner[currentOwner],
+                "WTF5007"
+            );
+            lastOwner = currentOwner;
+        }
+    }
+
+    /// split a single signature from a packed signature.
+    /// @param signatures Packed signatures.
+    /// @param pos Index of the multisig.
+    function signatureSplit(bytes memory signatures, uint256 pos)
+        internal
+        pure
+        returns (
+            uint8 v,
+            bytes32 r,
+            bytes32 s
+        )
+    {
+        // signature format: {bytes32 r}{bytes32 s}{uint8 v}
+        assembly {
+            let signaturePos := mul(0x41, pos)
+            r := mload(add(signatures, add(signaturePos, 0x20)))
+            s := mload(add(signatures, add(signaturePos, 0x40)))
+            v := and(mload(add(signatures, add(signaturePos, 0x41))), 0xff)
+        }
+    }
+
+    /// @dev hash transaction data
+    /// @param to target contract's address
+    /// @param value msg.value eth to be paid
+    /// @param data calldata
+    /// @param _nonce nonce of the transaction
+    /// @param chainid evm chain id
+    /// @return bytes of transaction hash
+    function encodeTransactionData(
+        address to,
+        uint256 value,
+        bytes memory data,
+        uint256 _nonce,
+        uint256 chainid
+    ) public pure returns (bytes32) {
+        bytes32 safeTxHash = keccak256(
+            abi.encode(to, value, keccak256(data), _nonce, chainid)
+        );
+        return safeTxHash;
+    }
+}
+```
+
 ### 2024.10.12
+
+#### Chapter 51: ERC4626 Tokenized Vault Standard
+
+DeFi nowadays mostly worked across different protocols, from lending, swap, stake, stablecoin and more, we named it Lego. However there is still lack of interopability standard, ERC20 are widely used but not enough yet.
+
+Token Vault
+
+- Vault Contract is the basic layer of DeFi, it stored tokens and generate yield for owners
+- Yield-farming: Yearn Finance
+- Lending: AAVE
+- Staking: Lido
+
+ERC4626 Features
+
+- Tokenization: ERC4626 inherit the ERC20, users receive ERC20-compliant Vault Shares after deposit asset to Vault, eg: ETH -> stETH in Lido
+- Liquidity: Vault Shares can be trade freely without first redeem the underlying asset, eg: Swap stETH to USDC, ETH in UniSwap
+- Composability: Reduce the friction to integrate other protocols using same set of interface
+
+IERC4626
+
+```// SPDX-License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v5.0.0) (interfaces/IERC4626.sol)
+
+pragma solidity ^0.8.20;
+
+import {IERC20} from "../token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "../token/ERC20/extensions/IERC20Metadata.sol";
+
+/**
+ * @dev Interface of the ERC-4626 "Tokenized Vault Standard", as defined in
+ * https://eips.ethereum.org/EIPS/eip-4626[ERC-4626].
+ */
+interface IERC4626 is IERC20, IERC20Metadata {
+    event Deposit(address indexed sender, address indexed owner, uint256 assets, uint256 shares);
+
+    event Withdraw(
+        address indexed sender,
+        address indexed receiver,
+        address indexed owner,
+        uint256 assets,
+        uint256 shares
+    );
+
+    /**
+     * @dev Returns the address of the underlying token used for the Vault for accounting, depositing, and withdrawing.
+     *
+     * - MUST be an ERC-20 token contract.
+     * - MUST NOT revert.
+     */
+    function asset() external view returns (address assetTokenAddress);
+
+    /**
+     * @dev Returns the total amount of the underlying asset that is “managed” by Vault.
+     *
+     * - SHOULD include any compounding that occurs from yield.
+     * - MUST be inclusive of any fees that are charged against assets in the Vault.
+     * - MUST NOT revert.
+     */
+    function totalAssets() external view returns (uint256 totalManagedAssets);
+
+    /**
+     * @dev Returns the amount of shares that the Vault would exchange for the amount of assets provided, in an ideal
+     * scenario where all the conditions are met.
+     *
+     * - MUST NOT be inclusive of any fees that are charged against assets in the Vault.
+     * - MUST NOT show any variations depending on the caller.
+     * - MUST NOT reflect slippage or other on-chain conditions, when performing the actual exchange.
+     * - MUST NOT revert.
+     *
+     * NOTE: This calculation MAY NOT reflect the “per-user” price-per-share, and instead should reflect the
+     * “average-user’s” price-per-share, meaning what the average user should expect to see when exchanging to and
+     * from.
+     */
+    function convertToShares(uint256 assets) external view returns (uint256 shares);
+
+    /**
+     * @dev Returns the amount of assets that the Vault would exchange for the amount of shares provided, in an ideal
+     * scenario where all the conditions are met.
+     *
+     * - MUST NOT be inclusive of any fees that are charged against assets in the Vault.
+     * - MUST NOT show any variations depending on the caller.
+     * - MUST NOT reflect slippage or other on-chain conditions, when performing the actual exchange.
+     * - MUST NOT revert.
+     *
+     * NOTE: This calculation MAY NOT reflect the “per-user” price-per-share, and instead should reflect the
+     * “average-user’s” price-per-share, meaning what the average user should expect to see when exchanging to and
+     * from.
+     */
+    function convertToAssets(uint256 shares) external view returns (uint256 assets);
+
+    /**
+     * @dev Returns the maximum amount of the underlying asset that can be deposited into the Vault for the receiver,
+     * through a deposit call.
+     *
+     * - MUST return a limited value if receiver is subject to some deposit limit.
+     * - MUST return 2 ** 256 - 1 if there is no limit on the maximum amount of assets that may be deposited.
+     * - MUST NOT revert.
+     */
+    function maxDeposit(address receiver) external view returns (uint256 maxAssets);
+
+    /**
+     * @dev Allows an on-chain or off-chain user to simulate the effects of their deposit at the current block, given
+     * current on-chain conditions.
+     *
+     * - MUST return as close to and no more than the exact amount of Vault shares that would be minted in a deposit
+     *   call in the same transaction. I.e. deposit should return the same or more shares as previewDeposit if called
+     *   in the same transaction.
+     * - MUST NOT account for deposit limits like those returned from maxDeposit and should always act as though the
+     *   deposit would be accepted, regardless if the user has enough tokens approved, etc.
+     * - MUST be inclusive of deposit fees. Integrators should be aware of the existence of deposit fees.
+     * - MUST NOT revert.
+     *
+     * NOTE: any unfavorable discrepancy between convertToShares and previewDeposit SHOULD be considered slippage in
+     * share price or some other type of condition, meaning the depositor will lose assets by depositing.
+     */
+    function previewDeposit(uint256 assets) external view returns (uint256 shares);
+
+    /**
+     * @dev Mints shares Vault shares to receiver by depositing exactly amount of underlying tokens.
+     *
+     * - MUST emit the Deposit event.
+     * - MAY support an additional flow in which the underlying tokens are owned by the Vault contract before the
+     *   deposit execution, and are accounted for during deposit.
+     * - MUST revert if all of assets cannot be deposited (due to deposit limit being reached, slippage, the user not
+     *   approving enough underlying tokens to the Vault contract, etc).
+     *
+     * NOTE: most implementations will require pre-approval of the Vault with the Vault’s underlying asset token.
+     */
+    function deposit(uint256 assets, address receiver) external returns (uint256 shares);
+
+    /**
+     * @dev Returns the maximum amount of the Vault shares that can be minted for the receiver, through a mint call.
+     * - MUST return a limited value if receiver is subject to some mint limit.
+     * - MUST return 2 ** 256 - 1 if there is no limit on the maximum amount of shares that may be minted.
+     * - MUST NOT revert.
+     */
+    function maxMint(address receiver) external view returns (uint256 maxShares);
+
+    /**
+     * @dev Allows an on-chain or off-chain user to simulate the effects of their mint at the current block, given
+     * current on-chain conditions.
+     *
+     * - MUST return as close to and no fewer than the exact amount of assets that would be deposited in a mint call
+     *   in the same transaction. I.e. mint should return the same or fewer assets as previewMint if called in the
+     *   same transaction.
+     * - MUST NOT account for mint limits like those returned from maxMint and should always act as though the mint
+     *   would be accepted, regardless if the user has enough tokens approved, etc.
+     * - MUST be inclusive of deposit fees. Integrators should be aware of the existence of deposit fees.
+     * - MUST NOT revert.
+     *
+     * NOTE: any unfavorable discrepancy between convertToAssets and previewMint SHOULD be considered slippage in
+     * share price or some other type of condition, meaning the depositor will lose assets by minting.
+     */
+    function previewMint(uint256 shares) external view returns (uint256 assets);
+
+    /**
+     * @dev Mints exactly shares Vault shares to receiver by depositing amount of underlying tokens.
+     *
+     * - MUST emit the Deposit event.
+     * - MAY support an additional flow in which the underlying tokens are owned by the Vault contract before the mint
+     *   execution, and are accounted for during mint.
+     * - MUST revert if all of shares cannot be minted (due to deposit limit being reached, slippage, the user not
+     *   approving enough underlying tokens to the Vault contract, etc).
+     *
+     * NOTE: most implementations will require pre-approval of the Vault with the Vault’s underlying asset token.
+     */
+    function mint(uint256 shares, address receiver) external returns (uint256 assets);
+
+    /**
+     * @dev Returns the maximum amount of the underlying asset that can be withdrawn from the owner balance in the
+     * Vault, through a withdraw call.
+     *
+     * - MUST return a limited value if owner is subject to some withdrawal limit or timelock.
+     * - MUST NOT revert.
+     */
+    function maxWithdraw(address owner) external view returns (uint256 maxAssets);
+
+    /**
+     * @dev Allows an on-chain or off-chain user to simulate the effects of their withdrawal at the current block,
+     * given current on-chain conditions.
+     *
+     * - MUST return as close to and no fewer than the exact amount of Vault shares that would be burned in a withdraw
+     *   call in the same transaction. I.e. withdraw should return the same or fewer shares as previewWithdraw if
+     *   called
+     *   in the same transaction.
+     * - MUST NOT account for withdrawal limits like those returned from maxWithdraw and should always act as though
+     *   the withdrawal would be accepted, regardless if the user has enough shares, etc.
+     * - MUST be inclusive of withdrawal fees. Integrators should be aware of the existence of withdrawal fees.
+     * - MUST NOT revert.
+     *
+     * NOTE: any unfavorable discrepancy between convertToShares and previewWithdraw SHOULD be considered slippage in
+     * share price or some other type of condition, meaning the depositor will lose assets by depositing.
+     */
+    function previewWithdraw(uint256 assets) external view returns (uint256 shares);
+
+    /**
+     * @dev Burns shares from owner and sends exactly assets of underlying tokens to receiver.
+     *
+     * - MUST emit the Withdraw event.
+     * - MAY support an additional flow in which the underlying tokens are owned by the Vault contract before the
+     *   withdraw execution, and are accounted for during withdraw.
+     * - MUST revert if all of assets cannot be withdrawn (due to withdrawal limit being reached, slippage, the owner
+     *   not having enough shares, etc).
+     *
+     * Note that some implementations will require pre-requesting to the Vault before a withdrawal may be performed.
+     * Those methods should be performed separately.
+     */
+    function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares);
+
+    /**
+     * @dev Returns the maximum amount of Vault shares that can be redeemed from the owner balance in the Vault,
+     * through a redeem call.
+     *
+     * - MUST return a limited value if owner is subject to some withdrawal limit or timelock.
+     * - MUST return balanceOf(owner) if owner is not subject to any withdrawal limit or timelock.
+     * - MUST NOT revert.
+     */
+    function maxRedeem(address owner) external view returns (uint256 maxShares);
+
+    /**
+     * @dev Allows an on-chain or off-chain user to simulate the effects of their redeemption at the current block,
+     * given current on-chain conditions.
+     *
+     * - MUST return as close to and no more than the exact amount of assets that would be withdrawn in a redeem call
+     *   in the same transaction. I.e. redeem should return the same or more assets as previewRedeem if called in the
+     *   same transaction.
+     * - MUST NOT account for redemption limits like those returned from maxRedeem and should always act as though the
+     *   redemption would be accepted, regardless if the user has enough shares, etc.
+     * - MUST be inclusive of withdrawal fees. Integrators should be aware of the existence of withdrawal fees.
+     * - MUST NOT revert.
+     *
+     * NOTE: any unfavorable discrepancy between convertToAssets and previewRedeem SHOULD be considered slippage in
+     * share price or some other type of condition, meaning the depositor will lose assets by redeeming.
+     */
+    function previewRedeem(uint256 shares) external view returns (uint256 assets);
+
+    /**
+     * @dev Burns exactly shares from owner and sends assets of underlying tokens to receiver.
+     *
+     * - MUST emit the Withdraw event.
+     * - MAY support an additional flow in which the underlying tokens are owned by the Vault contract before the
+     *   redeem execution, and are accounted for during redeem.
+     * - MUST revert if all of shares cannot be redeemed (due to withdrawal limit being reached, slippage, the owner
+     *   not having enough shares, etc).
+     *
+     * NOTE: some implementations will require pre-requesting to the Vault before a withdrawal may be performed.
+     * Those methods should be performed separately.
+     */
+    function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets);
+}
+```
+
+ERC4626 Demo
+
+```
+// SPDX-License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v5.0.0) (token/ERC20/extensions/ERC4626.sol)
+
+pragma solidity ^0.8.20;
+
+import {IERC20, IERC20Metadata, ERC20} from "../ERC20.sol";
+import {SafeERC20} from "../utils/SafeERC20.sol";
+import {IERC4626} from "../../../interfaces/IERC4626.sol";
+import {Math} from "../../../utils/math/Math.sol";
+
+abstract contract ERC4626 is ERC20, IERC4626 {
+    using Math for uint256;
+
+    IERC20 private immutable _asset;
+    uint8 private immutable _underlyingDecimals;
+
+    /**
+     * @dev Attempted to deposit more assets than the max amount for `receiver`.
+     */
+    error ERC4626ExceededMaxDeposit(address receiver, uint256 assets, uint256 max);
+
+    /**
+     * @dev Attempted to mint more shares than the max amount for `receiver`.
+     */
+    error ERC4626ExceededMaxMint(address receiver, uint256 shares, uint256 max);
+
+    /**
+     * @dev Attempted to withdraw more assets than the max amount for `receiver`.
+     */
+    error ERC4626ExceededMaxWithdraw(address owner, uint256 assets, uint256 max);
+
+    /**
+     * @dev Attempted to redeem more shares than the max amount for `receiver`.
+     */
+    error ERC4626ExceededMaxRedeem(address owner, uint256 shares, uint256 max);
+
+    /**
+     * @dev Set the underlying asset contract. This must be an ERC20-compatible contract (ERC-20 or ERC-777).
+     */
+    constructor(IERC20 asset_) {
+        (bool success, uint8 assetDecimals) = _tryGetAssetDecimals(asset_);
+        _underlyingDecimals = success ? assetDecimals : 18;
+        _asset = asset_;
+    }
+
+    /**
+     * @dev Attempts to fetch the asset decimals. A return value of false indicates that the attempt failed in some way.
+     */
+    function _tryGetAssetDecimals(IERC20 asset_) private view returns (bool ok, uint8 assetDecimals) {
+        (bool success, bytes memory encodedDecimals) = address(asset_).staticcall(
+            abi.encodeCall(IERC20Metadata.decimals, ())
+        );
+        if (success && encodedDecimals.length >= 32) {
+            uint256 returnedDecimals = abi.decode(encodedDecimals, (uint256));
+            if (returnedDecimals <= type(uint8).max) {
+                return (true, uint8(returnedDecimals));
+            }
+        }
+        return (false, 0);
+    }
+
+    /**
+     * @dev Decimals are computed by adding the decimal offset on top of the underlying asset's decimals. This
+     * "original" value is cached during construction of the vault contract. If this read operation fails (e.g., the
+     * asset has not been created yet), a default of 18 is used to represent the underlying asset's decimals.
+     *
+     * See {IERC20Metadata-decimals}.
+     */
+    function decimals() public view virtual override(IERC20Metadata, ERC20) returns (uint8) {
+        return _underlyingDecimals + _decimalsOffset();
+    }
+
+    /** @dev See {IERC4626-asset}. */
+    function asset() public view virtual returns (address) {
+        return address(_asset);
+    }
+
+    /** @dev See {IERC4626-totalAssets}. */
+    function totalAssets() public view virtual returns (uint256) {
+        return _asset.balanceOf(address(this));
+    }
+
+    /** @dev See {IERC4626-convertToShares}. */
+    function convertToShares(uint256 assets) public view virtual returns (uint256) {
+        return _convertToShares(assets, Math.Rounding.Floor);
+    }
+
+    /** @dev See {IERC4626-convertToAssets}. */
+    function convertToAssets(uint256 shares) public view virtual returns (uint256) {
+        return _convertToAssets(shares, Math.Rounding.Floor);
+    }
+
+    /** @dev See {IERC4626-maxDeposit}. */
+    function maxDeposit(address) public view virtual returns (uint256) {
+        return type(uint256).max;
+    }
+
+    /** @dev See {IERC4626-maxMint}. */
+    function maxMint(address) public view virtual returns (uint256) {
+        return type(uint256).max;
+    }
+
+    /** @dev See {IERC4626-maxWithdraw}. */
+    function maxWithdraw(address owner) public view virtual returns (uint256) {
+        return _convertToAssets(balanceOf(owner), Math.Rounding.Floor);
+    }
+
+    /** @dev See {IERC4626-maxRedeem}. */
+    function maxRedeem(address owner) public view virtual returns (uint256) {
+        return balanceOf(owner);
+    }
+
+    /** @dev See {IERC4626-previewDeposit}. */
+    function previewDeposit(uint256 assets) public view virtual returns (uint256) {
+        return _convertToShares(assets, Math.Rounding.Floor);
+    }
+
+    /** @dev See {IERC4626-previewMint}. */
+    function previewMint(uint256 shares) public view virtual returns (uint256) {
+        return _convertToAssets(shares, Math.Rounding.Ceil);
+    }
+
+    /** @dev See {IERC4626-previewWithdraw}. */
+    function previewWithdraw(uint256 assets) public view virtual returns (uint256) {
+        return _convertToShares(assets, Math.Rounding.Ceil);
+    }
+
+    /** @dev See {IERC4626-previewRedeem}. */
+    function previewRedeem(uint256 shares) public view virtual returns (uint256) {
+        return _convertToAssets(shares, Math.Rounding.Floor);
+    }
+
+    /** @dev See {IERC4626-deposit}. */
+    function deposit(uint256 assets, address receiver) public virtual returns (uint256) {
+        uint256 maxAssets = maxDeposit(receiver);
+        if (assets > maxAssets) {
+            revert ERC4626ExceededMaxDeposit(receiver, assets, maxAssets);
+        }
+
+        uint256 shares = previewDeposit(assets);
+        _deposit(_msgSender(), receiver, assets, shares);
+
+        return shares;
+    }
+
+    /** @dev See {IERC4626-mint}. */
+    function mint(uint256 shares, address receiver) public virtual returns (uint256) {
+        uint256 maxShares = maxMint(receiver);
+        if (shares > maxShares) {
+            revert ERC4626ExceededMaxMint(receiver, shares, maxShares);
+        }
+
+        uint256 assets = previewMint(shares);
+        _deposit(_msgSender(), receiver, assets, shares);
+
+        return assets;
+    }
+
+    /** @dev See {IERC4626-withdraw}. */
+    function withdraw(uint256 assets, address receiver, address owner) public virtual returns (uint256) {
+        uint256 maxAssets = maxWithdraw(owner);
+        if (assets > maxAssets) {
+            revert ERC4626ExceededMaxWithdraw(owner, assets, maxAssets);
+        }
+
+        uint256 shares = previewWithdraw(assets);
+        _withdraw(_msgSender(), receiver, owner, assets, shares);
+
+        return shares;
+    }
+
+    /** @dev See {IERC4626-redeem}. */
+    function redeem(uint256 shares, address receiver, address owner) public virtual returns (uint256) {
+        uint256 maxShares = maxRedeem(owner);
+        if (shares > maxShares) {
+            revert ERC4626ExceededMaxRedeem(owner, shares, maxShares);
+        }
+
+        uint256 assets = previewRedeem(shares);
+        _withdraw(_msgSender(), receiver, owner, assets, shares);
+
+        return assets;
+    }
+
+    /**
+     * @dev Internal conversion function (from assets to shares) with support for rounding direction.
+     */
+    function _convertToShares(uint256 assets, Math.Rounding rounding) internal view virtual returns (uint256) {
+        return assets.mulDiv(totalSupply() + 10 ** _decimalsOffset(), totalAssets() + 1, rounding);
+    }
+
+    /**
+     * @dev Internal conversion function (from shares to assets) with support for rounding direction.
+     */
+    function _convertToAssets(uint256 shares, Math.Rounding rounding) internal view virtual returns (uint256) {
+        return shares.mulDiv(totalAssets() + 1, totalSupply() + 10 ** _decimalsOffset(), rounding);
+    }
+
+    /**
+     * @dev Deposit/mint common workflow.
+     */
+    function _deposit(address caller, address receiver, uint256 assets, uint256 shares) internal virtual {
+        // If _asset is ERC-777, `transferFrom` can trigger a reentrancy BEFORE the transfer happens through the
+        // `tokensToSend` hook. On the other hand, the `tokenReceived` hook, that is triggered after the transfer,
+        // calls the vault, which is assumed not malicious.
+        //
+        // Conclusion: we need to do the transfer before we mint so that any reentrancy would happen before the
+        // assets are transferred and before the shares are minted, which is a valid state.
+        // slither-disable-next-line reentrancy-no-eth
+        SafeERC20.safeTransferFrom(_asset, caller, address(this), assets);
+        _mint(receiver, shares);
+
+        emit Deposit(caller, receiver, assets, shares);
+    }
+
+    /**
+     * @dev Withdraw/redeem common workflow.
+     */
+    function _withdraw(
+        address caller,
+        address receiver,
+        address owner,
+        uint256 assets,
+        uint256 shares
+    ) internal virtual {
+        if (caller != owner) {
+            _spendAllowance(owner, caller, shares);
+        }
+
+        // If _asset is ERC-777, `transfer` can trigger a reentrancy AFTER the transfer happens through the
+        // `tokensReceived` hook. On the other hand, the `tokensToSend` hook, that is triggered before the transfer,
+        // calls the vault, which is assumed not malicious.
+        //
+        // Conclusion: we need to do the transfer after the burn so that any reentrancy would happen after the
+        // shares are burned and after the assets are transferred, which is a valid state.
+        _burn(owner, shares);
+        SafeERC20.safeTransfer(_asset, receiver, assets);
+
+        emit Withdraw(caller, receiver, owner, assets, shares);
+    }
+
+    function _decimalsOffset() internal view virtual returns (uint8) {
+        return 0;
+    }
+}
+```
+
+#### Chapter 52: EIP712 Typed structured data hashing and signing
+
+EIP712 introduce a structured signature for complex data
+
+- Security: User can see clearly the data type and values instead of a hash of data
+
+Off-chain signature
+
+```
+// Compulsory field
+EIP712Domain: [
+    { name: "name", type: "string" },
+    { name: "version", type: "string" },
+    { name: "chainId", type: "uint256" },
+    { name: "verifyingContract", type: "address" },
+]
+
+// Data structure to sign
+const types = {
+    Storage: [
+        { name: "spender", type: "address" },
+        { name: "number", type: "uint256" },
+    ],
+};
+
+// Data sample
+const domain = {
+    name: "EIP712Storage",
+    version: "1",
+    chainId: "1",
+    verifyingContract: "0xf8e81D47203A594245E36C48e151709F0C19fBe8",
+};
+const types = {
+    Storage: [
+        { name: "spender", type: "address" },
+        { name: "number", type: "uint256" },
+    ],
+};
+const message = {
+    spender: "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4",
+    number: "100",
+};
+
+// Sign with Javascript library/Wallet extension
+const provider = new ethers.BrowserProvider(window.ethereum);
+const signature = await signer.signTypedData(domain, types, message);
+console.log("Signature:", signature);
+```
+
+On-chain signature verification
+
+```
+// SPDX-License-Identifier: MIT
+// By 0xAA
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+
+contract EIP712Storage {
+    using ECDSA for bytes32;
+
+    bytes32 private constant EIP712DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+    bytes32 private constant STORAGE_TYPEHASH = keccak256("Storage(address spender,uint256 number)");
+    bytes32 private DOMAIN_SEPARATOR;
+    uint256 number;
+    address owner;
+
+    constructor(){
+        DOMAIN_SEPARATOR = keccak256(abi.encode(
+            EIP712DOMAIN_TYPEHASH, // type hash
+            keccak256(bytes("EIP712Storage")), // name
+            keccak256(bytes("1")), // version
+            block.chainid, // chain id
+            address(this) // contract address
+        ));
+        owner = msg.sender;
+    }
+
+    /**
+     * @dev Store value in variable after verified the signature
+     */
+    function permitStore(uint256 _num, bytes memory _signature) public {
+        require(_signature.length == 65, "invalid signature length");
+        bytes32 r;
+        bytes32 s;
+        uint8 v;
+        assembly {
+            r := mload(add(_signature, 0x20))
+            s := mload(add(_signature, 0x40))
+            v := byte(0, mload(add(_signature, 0x60)))
+        }
+
+        bytes32 digest = keccak256(abi.encodePacked(
+            "\x19\x01",
+            DOMAIN_SEPARATOR,
+            keccak256(abi.encode(STORAGE_TYPEHASH, msg.sender, _num))
+        ));
+
+        address signer = digest.recover(v, r, s);
+        require(signer == owner, "EIP712Storage: Invalid signature");
+
+        number = _num;
+    }
+
+    /**
+     * @dev Return value
+     * @return value of 'number'
+     */
+    function retrieve() public view returns (uint256){
+        return number;
+    }
+}
+```
+
+This standard is widely used nowadays, in Metamask and dApps to secure user's assets.
+
+#### Chapter 53: ERC2612 ERC20Permit
+
+An extension to ERC20 to support permit signature
+
+- Allow user to create a signature for an action, eg: Approve other address to spend an amount of ERC20
+- The signature can also send to 3rd party to perform other action
+- Reduce transaction cost, it is significant especially when gas is high
+
+IERC20Permit
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+/**
+ * @dev Interface of the ERC-20 Permit extension allowing approvals to be made via signatures, as defined in
+ * https://eips.ethereum.org/EIPS/eip-2612[ERC-2612].
+ */
+interface IERC20Permit {
+    /**
+     * @dev Sets `value` as the allowance of `spender` over ``owner``'s tokens, given ``owner``'s signed approval.
+     */
+    function permit(
+        address owner,
+        address spender,
+        uint256 value,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external;
+
+    /**
+     * @dev Returns the current nonce for `owner`. This value must be included whenever a signature is generated for {permit}.
+     */
+    function nonces(address owner) external view returns (uint256);
+
+    /**
+     * @dev Returns the domain separator used in the encoding of the signature for {permit}, as defined by {EIP712}.
+     */
+    // solhint-disable-next-line func-name-mixedcase
+    function DOMAIN_SEPARATOR() external view returns (bytes32);
+}
+```
+
+ERC20Permit
+
+```
+// SPDX-License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v5.0.0) (token/ERC20/extensions/ERC20Permit.sol)
+
+pragma solidity ^0.8.20;
+
+import {IERC20Permit} from "./IERC20Permit.sol";
+import {ERC20} from "../ERC20.sol";
+import {ECDSA} from "../../../utils/cryptography/ECDSA.sol";
+import {EIP712} from "../../../utils/cryptography/EIP712.sol";
+import {Nonces} from "../../../utils/Nonces.sol";
+
+/**
+ * @dev Implementation of the ERC-20 Permit extension allowing approvals to be made via signatures, as defined in
+ * https://eips.ethereum.org/EIPS/eip-2612[ERC-2612].
+ *
+ * Adds the {permit} method, which can be used to change an account's ERC-20 allowance (see {IERC20-allowance}) by
+ * presenting a message signed by the account. By not relying on `{IERC20-approve}`, the token holder account doesn't
+ * need to send a transaction, and thus is not required to hold Ether at all.
+ */
+contract ERC20Permit is ERC20, IERC20Permit, EIP712, Nonces {
+    bytes32 private constant PERMIT_TYPEHASH =
+        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+
+    /**
+     * @dev Permit deadline has expired.
+     */
+    error ERC2612ExpiredSignature(uint256 deadline);
+
+    /**
+     * @dev Mismatched signature.
+     */
+    error ERC2612InvalidSigner(address signer, address owner);
+
+    /**
+     * @dev Initializes the {EIP712} domain separator using the `name` parameter, and setting `version` to `"1"`.
+     *
+     * It's a good idea to use the same `name` that is defined as the ERC-20 token name.
+     */
+    constructor(string memory name, string memory symbol) EIP712(name, "1") ERC20(name, symbol){}
+
+    /**
+     * @inheritdoc IERC20Permit
+     */
+    function permit(
+        address owner,
+        address spender,
+        uint256 value,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) public virtual {
+        if (block.timestamp > deadline) {
+            revert ERC2612ExpiredSignature(deadline);
+        }
+
+        bytes32 structHash = keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, value, _useNonce(owner), deadline));
+
+        bytes32 hash = _hashTypedDataV4(structHash);
+
+        address signer = ECDSA.recover(hash, v, r, s);
+        if (signer != owner) {
+            revert ERC2612InvalidSigner(signer, owner);
+        }
+
+        _approve(owner, spender, value);
+    }
+
+    /**
+     * @inheritdoc IERC20Permit
+     */
+    function nonces(address owner) public view virtual override(IERC20Permit, Nonces) returns (uint256) {
+        return super.nonces(owner);
+    }
+
+    /**
+     * @inheritdoc IERC20Permit
+     */
+    // solhint-disable-next-line func-name-mixedcase
+    function DOMAIN_SEPARATOR() external view virtual returns (bytes32) {
+        return _domainSeparatorV4();
+    }
+}
+```
+
+Safety Note
+
+- ERC20Permit uses off-chain signatures for authorization, which brings convenience to users, but also brings risks. Some hackers will use this feature to conduct phishing attacks, defraud users of signatures and steal assets
+- Some contracts will also bring the risk of DoS (denial of service) when integrating permit. Because permit will use up the current nonce value when executing, if the contract function contains permit operations, the attacker can execute permit by preemptively running, causing the target transaction to roll back because the nonce is occupied
 
 ### 2024.10.13
 
+#### Chapter 54: Bridge
+
 ### 2024.10.14
+
+#### Chapter 55: Multicall
 
 ### 2024.10.15
 
+#### Chapter 56: Decentralized Exchange
+
 ### 2024.10.16
+
+#### Chapter 57: Flashloan
 
 <!-- Content_END -->

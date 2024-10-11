@@ -2440,4 +2440,81 @@ contract AddOne {
 1. **`require`**：適合用於檢查外部輸入條件和狀態，如參數有效性、餘額檢查、授權驗證等。當條件不成立時，它會回滾交易並退還剩餘 Gas。
 2. **`assert`**：主要用於檢查代碼中的不變性條件，如數學錯誤、邏輯漏洞等。如果條件不成立，則表明代碼出現了嚴重錯誤，所有的 Gas 都會被消耗掉。
 3. **自定義 `error`**：允許開發者使用更加節省 Gas 的方式來報告錯誤，並且可以帶有參數來提供更豐富的上下文信息。這是提高 Gas 效率的一種方式，尤其是在複雜合約中使用大量錯誤檢查時。
+
+### 2024.10.11
+#### 函數重載(overloading)
+- 指在同一個合約中，允許定義**多個名稱相同但參數不同**的函數
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.13;
+
+contract Demo{
+  function DoSomething() external pure returns(string memory){
+    return ("Do nothing");
+  }
+
+  function DoSomething(string memory something) external pure returns(string memory){
+    return something;
+  }
+}
+```
+
+- 參數可以在**數量**或**類型**上有所不同，合約根據傳遞的參數來調用正確的函數實現。
+    
+    ![image](https://github.com/user-attachments/assets/c16cda86-f532-4dbe-945b-f0b9b59c2258)
+
+    
+- 和**函數選擇器（function selector）** 是相關的概念
+    - 每個 Solidity 函數都有一個**函數選擇器**
+    - 函數的**名稱和參數類型 → 4 bytes Hash(8個 16進制)**
+        
+        ```solidity
+        function transfer(address recipient, uint256 amount) public returns (bool);
+        
+        keccak256("transfer(address,uint256)") => 0xa9059cbb
+        ```
+        
+    - 對於重載函數，每一個都有不同的函數簽名和函數選擇器，因為參數列表不同。
+
+### 函數重載特點：
+
+- 函數名稱相同，但參數的數量或類型不同。
+- Solidity 根據傳入參數自動選擇合適的函數實現。
+- 重載函數可以返回不同類型的數據，但參數列表必須唯一，以便區分不同的重載版本。
+- 注意：Solidity 不允許修飾器(modifier)重載
+- 注意：無法辨識的參數匹配（**Argument Matching）**
+    - 當參數帶進去都可以，編譯後不知道你要調用哪一個
+        
+        ```solidity
+        // SPDX-License-Identifier: MIT
+        pragma solidity ^0.8.13;
+        
+        contract Demo{
+          function f(uint8 _in) public pure returns (uint8 out) {
+            out = _in;
+          }
+        
+          function f(uint256 _in) public pure returns (uint256 out) {
+              out = _in;
+          }
+        
+          function callF() public pure returns (uint256 result){
+            return f(50);
+          }
+        }
+        ```
+        
+        ![image](https://github.com/user-attachments/assets/fe2936a5-ba25-4170-a24a-c52371adfa47)
+
+        
+
+p.s.容易混淆的概念：
+
+1. 覆寫(Override)
+    - 子類別可以覆寫父類別的方法內容，使該方法擁有不同於父類別的行為。
+2. 多載(Overload)
+    - 一個類別(class)中，定義多個名稱相同，但參數(Parameter)不同的方法(Method)。
+3. 多型(Polymorphism)
+    - 父類別可透過子類別衍伸成多種型態，而父類別為子類別的通用型態，再透過子類別可覆寫父類別的方法來達到多型的效果，也就是同樣的方法名稱會有多種行為。
 <!-- Content_END -->

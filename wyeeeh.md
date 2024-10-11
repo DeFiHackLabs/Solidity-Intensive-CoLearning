@@ -1740,14 +1740,180 @@ function getString2(uint256 _number) public pure returns(string memory) {
 ### 2024.10.10
 #### WTF Academy Solidity 102.18 Import
 
+#####  `import` 导入方法
+1. **通过文件相对位置导入**
+    - 使用相对路径导入本地的 Solidity 文件。这种方式常见于项目中的文件之间的引用。
+    - 例子：
+    在项目结构中，如果 `Import.sol` 和 `Yeye.sol` 位于同一目录下，则可以通过相对路径导入 `Yeye.sol` 文件中的所有内容。
+        
+        ```solidity
+        import './Yeye.sol';
+        
+        ```
+        
+2. **通过网址导入**
+    - 直接从网络上引用合约文件，例如从 GitHub 上的公开 Solidity 文件。这种方式常见于引入远程的库或合约。
+    - 例子：
+    这种引用方式非常方便，尤其是在开发过程中想要快速测试和使用现有的第三方库。
+        
+        ```solidity
+        import '<https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol>';
+        
+        ```
+        
+3. **通过 npm 导入**
+    - 这种方式通常用于导入项目依赖中的库，例如通过 npm 安装的 OpenZeppelin 库。
+    - 例子：
+    使用这种方式时，项目必须配置好 npm 依赖，例如通过 `npm install` 安装相关库。
+        
+        ```solidity
+        import '@openzeppelin/contracts/access/Ownable.sol';
+        
+        ```
+        
+4. **通过指定全局符号导入**
+    - 通过这种方式可以只导入指定的符号（例如合约、结构体等），避免导入整个文件的所有内容。这种方式适用于文件中包含多个合约或定义，但我们只需要使用其中的某一部分。
+    - 例子：
+    这样只导入 `Yeye.sol` 文件中的 `Yeye` 合约。
+        
+        ```solidity
+        import {Yeye} from './Yeye.sol';
+        ```
+
+##### 测验结果
+- 100/100
+
+### 2024.10.11
+#### WTF Academy Solidity 102.19 接收ETH receive和fallback
+
+##### `receive`函数
+`receive()` 函数专门用于处理合约收到ETH的情况。当合约接收到ETH并且 `msg.data` 为空时（即没有调用任何函数），如果存在 `receive()` 函数，它就会被触发。
+- **`receive()` 函数的触发条件**：
+    - 当合约接收ETH，且 `msg.data` 为空时会触发 `receive()`。
+    - 在上述例子中，当有人向合约发送ETH时（例如通过钱包的发送功能），`receive()` 会被调用，并触发 `Received` 事件。
+- **语法规则**：
+    - 一个合约最多有一个`receive()`函数
+    - 声明方式与一般函数不一样，不需要`function`关键字：`receive() external payable { ... }`。
+    - `receive()`函数不能有任何的参数，不能返回任何值，必须包含`external`和`payable`。
+- **逻辑简单**：为了避免超过 `gas` 限制，`receive()` 函数最好尽量简单，在这里我们仅仅记录ETH发送者和金额。
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract ReceiveExample {
+    event Received(address sender, uint value);
+
+    // receive 函数，用于接收ETH
+    receive() external payable {
+        emit Received(msg.sender, msg.value); // 触发事件记录发送者和金额
+    }
+
+    // 用于查询合约的余额
+    function getBalance() public view returns (uint) {
+        return address(this).balance;
+    }
+}
+
+```
+
+##### `fallback`函数
+`fallback()` 函数在两个主要场景下被调用：
+1. 当调用一个不存在的函数时。
+2. 当向合约发送ETH且 `msg.data` 不为空，或者合约没有定义 `receive()` 函数时。
+- **`fallback()` 函数的触发条件**：
+    - 当调用合约中不存在的函数时，或者向合约发送ETH但 `msg.data` 不为空时，`fallback()` 会被触发。
+    - 在这个例子中，我们定义了一个 `fallback()` 函数，当它被触发时，记录发送者、金额和 `msg.data`。
+- **`payable` 修饰符**：为了确保 `fallback()` 能够接收ETH，它通常也会使用 `payable` 修饰符。
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract FallbackExample {
+    event FallbackCalled(address sender, uint value, bytes data);
+
+    // fallback 函数，用于接收ETH或处理不存在的函数调用
+    fallback() external payable {
+        emit FallbackCalled(msg.sender, msg.value, msg.data); // 触发事件记录发送者、金额和data
+    }
+
+    // 用于查询合约的余额
+    function getBalance() public view returns (uint) {
+        return address(this).balance;
+    }
+}
+
+```
+##### `receive`和`fallback`的区别
+
+| 触发条件 | `receive()` | `fallback()` |
+| --- | --- | --- |
+| 接收ETH，且 `msg.data` 为空 | 触发 | 不触发 |
+| 接收ETH，且 `msg.data` 不为空 | 不触发 | 触发（如果存在） |
+| 调用不存在的函数 | 不触发 | 触发 |
+| 合约没有 `receive()`，接收ETH | 不触发 | 触发 |
+
+```text
+触发fallback() 还是 receive()?
+           接收ETH
+              |
+         msg.data是空？
+            /  \
+          是    否
+          /      \
+receive()存在?   fallback()
+        / \
+       是  否
+      /     \
+receive()   fallback()
+```
+##### 同时实现`receive`和`fallback`
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract ReceiveFallbackExample {
+    event Received(address sender, uint value);
+    event FallbackCalled(address sender, uint value, bytes data);
+
+    // receive 函数
+    receive() external payable {
+        emit Received(msg.sender, msg.value);
+    }
+
+    // fallback 函数
+    fallback() external payable {
+        emit FallbackCalled(msg.sender, msg.value, msg.data);
+    }
+
+    // 查询合约余额
+    function getBalance() public view returns (uint) {
+        return address(this).balance;
+    }
+}
+
+```
+
+在这个合约中：
+- 如果向合约发送ETH而不附带数据，则 `receive()` 函数会被触发。
+- 如果向合约发送ETH并附带数据，或者调用了一个不存在的函数，`fallback()` 函数会被触发。
+
+##### 测验结果
+- 100/100
+
+### 2024.10.12
+#### WTF Academy Solidity 102.20 发送ETH
+
 ##### 笔记
 
 ##### 测验结果
 
 ##### 测验错题
 
-### 2024.10.11
-#### WTF Academy Solidity 102.19 接收ETH receive和fallback
+
+### 2024.10.13
+#### WTF Academy Solidity 102.21 调用其他合约
 
 ##### 笔记
 

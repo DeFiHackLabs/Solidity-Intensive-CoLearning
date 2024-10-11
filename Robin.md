@@ -924,4 +924,29 @@ contract ContractB{
         }
         ```
     - 注意：只能被用于external函数或创建合约时constructor（被视为external函数）的调用
+
+### 2024.10.11
+
+學習內容:
+
+- [x] ERC20 以太坊上的代币标注，实现代币基本逻辑
+     - 账户余额 `balanceOf()`
+     - 转账 `transfer()`
+     - 授权转账`transferFrom()`
+     - 授权`approve()`
+     - 代币总供给`totalSupply()`
+     - 授权转账额度`allowance()`
+     - 代币信息（可选）：名称、符号、小数位数
+- [x] IERC20：ERC20标准的接口定义
+  - 两个事件
+    - 转账事件 Transfer `event Transfer(address indexed from, address indexed to, uint256 value);`
+    - 授权事件 Approval `event Approval(address indexed owner, address indexed spender, uint256 value);`
+  - 六个函数
+     - 返回代币总供给`function totalSupply() external view returns (uint256);`
+     - 返回账户余额`function balanceOf(address account) external view returns (uint256);`
+     - 返回授权转账额度`function allowance(address owner, address spender) external view returns (uint256);`
+     - 转账`function transfer(address recipient, uint256 amount) external returns (bool);`
+     - 授权转账` function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);`
+     - 授权`function approve(address spender, uint256 amount) external returns (bool);`
+
 <!-- Content_END -->
