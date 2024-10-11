@@ -38,7 +38,10 @@ timezone: Asia/Shanghai
       4. Fixed-size byte arrays
       5. Enumeration
    - Reference
-   - Mapping
+      1. String
+      2. Array
+      3. Struct
+      4. Mapping
    - Function
 
 - Integers
@@ -275,4 +278,140 @@ do {
       owner = _newOwner; // only owner address can run this function and change owner
    }
    ```
+
+### 2024.10.10
+
+#### Chapter 12: Constructor & Modifier
+
+```solidity
+contract Events {
+   // define _balances mapping variable to record number of tokens held at each address
+   mapping(address => uint256) public _balances;
+
+   // define Transfer event to record transfer address, receiving address and transfer number of a transfer transaction
+   event Transfer(address indexed from, address indexed to, uint256 value);
+
+   // define _transfer function, execute transfer logic
+   function _transfer(
+      address from,
+      address to,
+      uint256 amount
+   ) external {
+      _balances[from] = 1000000; // give some initial tokens to transfer address
+      _balances[from] -= amount; // "from" address minus the number of transfer
+      _balances[to] += amount; // "to" address adds the number of transfer
+      emit Transfer(from, to, amount); // trigger the event
+   }
+}
+```
+
+- topic (`indexed`)
+   - at most 4
+   - for easy queries
+   - first index is hash of function name `keccak256("Transfer(addrses,address,uint256)")`
+   - each index 32 bytes, hash of that variable stored if its size > 32 bytes
+   - structs can't be indexed
+- data
+   - can store larger size
+   - consume less gas than topic
+
+#### Chapter 13: Inheritance
+
+```Solidity
+/* Inheritance tree visualized：
+  God
+ /  \
+Adam Eve
+ \  /
+people
+Linearized order: people --> Eve --> Adam --> God
+*/
+contract God {
+   event Log(string message);
+   function foo() public virtual {
+      emit Log("God.foo called");
+   }
+   function bar() public virtual {
+      emit Log("God.bar called");
+   }
+}
+contract Adam is God {
+   function foo() public virtual override {
+      emit Log("Adam.foo called");
+      God.foo();
+   }
+   function bar() public virtual override {
+      emit Log("Adam.bar called");
+      super.bar();
+   }
+}
+contract Eve is God {
+   function foo() public virtual override {
+      emit Log("Eve.foo called");
+      God.foo();
+   }
+   function bar() public virtual override {
+      emit Log("Eve.bar called");
+      super.bar(); // This calls Adam.bar because of L3 linearization rule
+   }
+}
+contract people is Adam, Eve { // multiple inheritance, search from right to left
+   function foo() public override(Adam, Eve) { // log Eve.foo, God.foo
+      super.foo();
+   }
+   function bar() public override(Adam, Eve) { // log Eve.bar, Adam.bar, God.bar
+      super.bar();
+   }
+}
+```
+
+- multiple inheritance must follows seniority, e.g. `contract people is God, Adam`
+
+#### Chapter 14: Abstract and Interface
+
+- Abstract
+   - must contains the keyword `virtual`
+   - e.g. `abstract contract A { function foo(uint a) internal virtual returns(uint); } `
+- Interface
+   - must contain `external`
+   - e.g. `interface IERC721 {function balanceOf(address owner) external view returns (uint256 balance);}`
+
+#### Chapter 15: Errors
+
+- Error (cheapest gas)
+   ```solidity
+   error TransferNotOwner(); // custom error
+   revert TransferNotOwner();
+   ```
+- Require
+   ```solidity
+   require(condition, "error message");
+   ```
+- Assert
+   ```solidity
+   assert(condition);
+   ```
+
+### 2024.10.11
+
+#### Chapter 16: Overloading
+
+- Same function name but different input parameters
+- Can't overload modifier
+- Achievable because selector becomes different
+
+#### Chapter 17: Library
+
+- Method 1
+   ```solidity
+   using Strings for uint256;
+   _number.toHexString(); // automatically becomes Strings.toHexString(_number);
+   ```
+
+- Method 2
+   ```solidity
+   Strings.toHexString(_number);
+   ```
+
+
 <!-- Content_END -->

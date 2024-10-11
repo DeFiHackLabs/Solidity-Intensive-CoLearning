@@ -105,10 +105,20 @@ mapping的初步認識與儲存數據之方式，並且了解了其他學員提�
 #### 學習筆記
 筆記 : [2024.10.08學習筆記 27 ~ 29 單元](https://hackmd.io/@82tWd8u0TI6fMRC9VG6JXw/B1aUGw-1Jg)
 
-分清楚abi與keccak的差別
+分清楚abi與keccak的差別。
 ### 2024.10.09
 #### 學習筆記
 筆記 : [2024.10.09學習筆記 30 單元](https://hackmd.io/@82tWd8u0TI6fMRC9VG6JXw/Hyzx2sz1ke)
 
-其他語言與Solidity不同，所以特別獨立出來以免混淆
+其他語言與Solidity不同，所以特別獨立出來以免混淆。
+### 2024.10.10
+#### 學習筆記
+筆記 : [2024.10.10學習筆記 31 單元](https://hackmd.io/@82tWd8u0TI6fMRC9VG6JXw/SJ5Lz17ykx)
+
+ERC20與IERC20的不同，並理解其推出的意義。
+### 2024.10.11
+#### 學習筆記
+筆記 : [2024.10.11學習筆記](https://hackmd.io/@82tWd8u0TI6fMRC9VG6JXw/ByzBkTVkJl)
+
+紀錄一些註解用途與方式
 <!-- Content_END -->

@@ -1068,6 +1068,40 @@ C. 如果实现了所有函数的子合约已经被部署，则该合约能被�
 
 今天主要学习了异常处理机制
 
+### 2024.10.09
+#### 学习笔记
+
+
+error TransferNotOwner(); // 自定义error
+
+
+### 2024.10.10
+#### 学习笔记
+
+
+### Error 
+
+Error 的使用格式类似于 event，是分离使用的。必须先定义一个 error，然后再去配个 revert 一起使用。并且error的的预先定义也和event类似，预先定义的错误提示并没有实际的内容，只是定义了一个错误的大的类似于函数名的外部格式
+
+```
+error TransferNotOwner();
+
+
+
+function transferOwner1(uint256 tokenId, address newOwner) public {
+    if(_owners[tokenId] != msg.sender){
+        revert TransferNotOwner();
+        // revert TransferNotOwner(msg.sender);
+    }
+    _owners[tokenId] = newOwner;
+}
+```
+### 2024.10.11
+#### 学习笔记
+
+## import
+库合约本质是一个特殊的智能合约，设计出来就是被当作工具的。本身是包含了一些常用的功能。
+而 import 则是一种代码模块化的方式，在各种编程语言当中均有涉及，当然，也可以使用 import 导入库合约。
 
 
    
