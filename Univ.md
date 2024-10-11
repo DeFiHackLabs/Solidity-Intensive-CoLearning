@@ -877,6 +877,165 @@ ERC20 事件
 IERC20 接口 : 是 ERC20 標準的接口，規定了代幣所需實現的函數和事件。<br>這是 ERC20 的協議部分，用來保證所有 ERC20 代幣的函數和參數結構保持一致。
 
 ### 2024.10.11
+## 32_Faucet
+#### 代幣水龍頭概述
+代幣水龍頭是一個應用，讓用戶能夠免費領取少量的代幣。最早的代幣水龍頭是比特幣BTC水龍頭，當時比特幣的價格很低，Gavin Andresen創建了這個水龍頭來鼓勵更多人使用比特幣。現代的區塊鏈項目，也經常通過水龍頭向用戶免費發放測試或推廣用的代幣。
+
+#### ERC20 水龍頭合約
+ERC20 水龍頭合約允許用戶從一個合約中領取免費的 ERC20 代幣，並且每個地址只能領一次。這個合約簡單易用，下面將介紹它的邏輯和實現。
+
+#### 合約的狀態變量
+`amountAllowed`：設定每個用戶每次能領取的代幣數量，默認為100單位。<br>
+`tokenContract`：記錄需要發放的 ERC20 代幣合約的地址。<br>
+`requestedAddress`：通過一個mapping來記錄哪些地址已經領取過代幣，確保每個地址只能領取一次。<br>
+```solidity
+uint256 public amountAllowed = 100; // 每次領取100單位代幣
+address public tokenContract;       // ERC20代幣合約地址
+mapping(address => bool) public requestedAddress; // 記錄已領取的地址
+```
+#### 事件
+合約定義了一個事件 SendToken，每次成功領取代幣後，這個事件會記錄領取的地址和數量，方便追蹤操作。
+```solidity
+event SendToken(address indexed Receiver, uint256 indexed Amount);
+```
+#### 函數
+##### 構造函數
+在合約部署時，將 ERC20 代幣合約的地址傳入，並初始化 tokenContract 變量。
+```solidity
+constructor(address _tokenContract) {
+    tokenContract = _tokenContract; // 設定發放的ERC20代幣合約
+}
+```
+##### requestTokens() 函數
+用戶調用此函數來領取代幣。<br>該函數包含幾個關鍵步驟：
+1. 檢查用戶是否已經領取過代幣，若已領取則拋出錯誤。
+2. 確認水龍頭合約中是否還有足夠的代幣。
+3. 使用 IERC20 的 transfer 函數將代幣轉帳給調用者。
+4. 記錄調用者地址，防止重複領取。
+5. 釋放 SendToken 事件。
+```solidity
+function requestTokens() external {
+    require(!requestedAddress[msg.sender], "Can't Request Multiple Times!");
+    IERC20 token = IERC20(tokenContract);
+    require(token.balanceOf(address(this)) >= amountAllowed, "Faucet Empty!");
+    token.transfer(msg.sender, amountAllowed);
+    requestedAddress[msg.sender] = true;
+    emit SendToken(msg.sender, amountAllowed);
+}
+```
+## 33_Airdrop
+#### ERC20 空投合約
+主要用於批量發送 ERC20 代幣 或 ETH，具有以下功能：
+- 利用循環批量發送代幣。
+- 利用 IERC20 接口和 transferFrom 函數實現代幣轉帳。
+- 批量發送 ETH，避免重複調用。
+
+`getSum()`：計算array內所有元素的總和
+```solidity
+function getSum(uint256[] calldata _arr) public pure returns(uint sum){
+    for(uint i = 0; i < _arr.length; i++)
+        sum = sum + _arr[i];
+}
+```
+`multiTransferToken()`：
+   - 參數
+      - _token: 代幣的合約地址。
+      - _addresses: 接收空投的用戶地址數組。
+      - _amounts: 對應每個地址的代幣數量。
+   - 包含兩個檢查：
+      - 檢查地址數組和代幣數量數組是否長度一致。
+      - 檢查發送的代幣總量是否小於或等於授權的代幣數量。
+`multiTransferETH()`：<br>
+   - `_addresses`: 接收空投 ETH 的用戶地址數組。<br>
+   - `_amounts`: 對應每個地址的 ETH 數量。
+
+## 34_ERC721
+ERC721 是一個用於在以太坊上實現非同質化代幣（NFT）的標準協議，它允許每一個代幣都擁有獨特的屬性，因此無法互換。
+#### ERC 與 EIP 的區別
+EIP (Ethereum Improvement Proposals) 是以太坊改進建議，ERC (Ethereum Request for Comment) 是 EIP 中針對應用級別的標準提案。ERC 包含代幣標準，如 ERC20 和 ERC721。
+
+#### ERC165 — 用於檢查合約接口
+ERC165 定義了一個標準方法來檢查合約是否實現了某個接口。<br>這樣可以確保合約是否符合某些標準，比如 ERC721。ERC165 的核心功能是 supportsInterface()，用來返回合約是否支持特定的接口。
+
+#### ERC721 — NFT 標準
+ERC721 是 ERC165 的擴展，用來定義 NFT 的操作規範。<br>ERC721 使用 tokenId 來標識每個唯一的代幣，這與 ERC20 代幣不同。<br>
+以下是 ERC721 的主要功能：
+- balanceOf(): 返回某地址擁有的 NFT 數量。
+- ownerOf(): 返回某個 tokenId 的擁有者。
+- transferFrom(): 將 tokenId 從一個地址轉移到另一個地址。
+- safeTransferFrom(): 進行安全的代幣轉移，如果接收方是合約則必須實現 IERC721Receiver 接口。
+- approve(): 授權另一個地址管理特定的 tokenId。
+- setApprovalForAll(): 批量授權管理所有代幣。
+
+## 35_DutchAuction
+- 價格下降：價格從起拍價逐漸下降，直到達到最低價格或被購買為止。
+- 避免Gas War：由於拍賣時間較長，競爭者不用在同一時間搶購，從而減少網絡擁堵。
+---
+1. 設置拍賣時間：
+```solidity
+function setAuctionStartTime(uint32 timestamp) external onlyOwner {
+    auctionStartTime = timestamp;
+}
+```
+---
+2. 計算當前拍賣價格：<br>
+   getAuctionPrice() 根據當前時間來計算價格是起始價、結束價還是處於兩者之間的衰減價格：
+```solidity
+function getAuctionPrice() public view returns (uint256) {
+    if (block.timestamp < auctionStartTime) {
+        return AUCTION_START_PRICE;
+    } else if (block.timestamp - auctionStartTime >= AUCTION_TIME) {
+        return AUCTION_END_PRICE;
+    } else {
+        uint256 steps = (block.timestamp - auctionStartTime) / AUCTION_DROP_INTERVAL;
+        return AUCTION_START_PRICE - (steps * AUCTION_DROP_PER_STEP);
+    }
+}
+```
+---
+3. 鑄造NFT：<br>
+   用戶可以通過auctionMint() 支付當前價格來購買NFT，並進行鑄造。該函數會根據用戶支付的ETH來進行鑄造操作，並退還多餘的ETH：
+```solidity
+function auctionMint(uint256 quantity) external payable {
+    require(block.timestamp >= auctionStartTime, "sale has not started yet");
+    require(totalSupply() + quantity <= COLLECTOIN_SIZE, "not enough remaining reserved for auction");
+    uint256 totalCost = getAuctionPrice() * quantity;
+    require(msg.value >= totalCost, "Need to send more ETH.");
+
+    for (uint256 i = 0; i < quantity; i++) {
+        _mint(msg.sender, totalSupply());
+    }
+
+    if (msg.value > totalCost) {
+        payable(msg.sender).transfer(msg.value - totalCost);
+    }
+}
+```
+---
+4. 項目方提取ETH：<br>
+   用戶支付的ETH可以通過withdrawMoney()由項目方提取到其個人地址：
+```solidity
+function withdrawMoney() external onlyOwner {
+    (bool success, ) = msg.sender.call{value: address(this).balance}("");
+    require(success, "Transfer failed.");
+}
+```
+---
+## 36_MerkleTree
+默克爾樹或哈希樹
+- 是區塊鏈技術中的重要加密結構
+- 自下而上構建的樹狀數據結構，葉子節點是數據的哈希值
+- 每個非葉子節點是其子節點的哈希值
+- Merkle Tree 的主要用途是快速驗證某一數據是否存在於特定的數據集內
+---
+- 可以用merkletreejs來生成 Merkle Tree
+- 每個地址生成一個哈希值作為葉子節點，通過哈希操作計算出根節點，並從中獲得每個葉子節點的 Proof。
+---
+- 利用 Merkle Tree 發放 NFT 白名單
+- 只需存儲一個 root 值，用戶提供 proof 和地址即可驗證是否在白名單中。
+
+## 37_Signature
+
 
 ### 2024.10.12
 
