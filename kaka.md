@@ -400,7 +400,49 @@ npm install --save-dev @nomicfoundation/hardhat-toolbox  // 安装
 require("@nomicfoundation/hardhat-toolbox");
 ```
 
+### 2024.10.08
+**学习内容：**<br>
+配置环境变量：
+
+```
+npx hardhat vars set TEST_API_KEY // 设置环境变量
+npx hardhat vars get TEST_API_KEY  // 获取
+npx hardhat vars list   // 列出所有变量
+npx hardhat vars deletes TEST_API_KEY  // 删除
+npx hardhat vars setup  // 列出所有
+```
 
 
+
+创建智能合约：
+
+新建`contracts`目录，用于存放.sol合约文件。
+
+在项目根目录执行：`npx hardhat compile`进行编译。
+
+### 2024.10.09
+**学习内容：**<br>
+`IERC721`是`ERC721`标准的接口合约，规定了`ERC721`要实现的基本函数。它利用`tokenId`来表示特定的非同质化代币，授权或转账都要明确`tokenId`；而`ERC20`只需要明确转账的数额即可。
+
+在编写和部署 ERC721 合约时，使用 OpenZeppelin 的实现可以简化很多工作，因为它们已经实现了 IERC721、IERC721Receiver 和 IERC721Metadata 接口。
+
+- **IERC721Receiver**：用于处理 ERC721 代币的安全转账。如果接收方是合约，必须实现这个接口来接受代币。
+- **IERC721Metadata**：扩展了 ERC721 标准，允许设置代币的名称、符号和每个代币的 URI。
+
+### 2024.10.10
+**学习内容：**<br>
+ Gas 优化：
+
+Solidity 中的 Gas 是针对可能导致以太坊网络资源耗尽的攻击的一种防御措施。由于以太坊在去中心化平台上运行智能合约，因此恶意人士可能会试图耗尽所有资源来干扰网络。为了防止这种情况发生，以太坊网络使用一种称为“gas”的系统来限制在单个交易或函数执行中可以完成的工作量。
+
+存储优化：
+
+1. 最小化链上数据：减少存储在合约变量中的数据量。
+2. 变量打包：尽可能地将多个变量合并到一个存储槽中。（通过struct）
+
+退款：
+
+1. 释放存储槽：当不在需要存储槽时，将其值设置为零可导致大量gas退款。
+2. 使用自毁：Solidity中的`selfdestruct`操作码可用于从区块链中删除合约。使用此操作码销毁合约时，会退还24,000gas。
 
 <!-- Content_END -->

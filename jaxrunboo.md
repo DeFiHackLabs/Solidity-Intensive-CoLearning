@@ -49,9 +49,9 @@ payable address存在transfer和send两个成员方法，用于接收和转账?t
     1. storage
     数据存储在链上，可以认为是整个合约的全局参数
     2. memory
-    函数的入参和临时变量，一般使用memory，存储在内存中，不上链
+    函数的入参和临时变量，一般使用memory，存储在内存中，不上链。他用来修饰可变的变量。
     3. calldata
-    存储在内存中，不上链。他的特点是不可变更，多用于函数参数
+    存储在内存中，不上链。他的特点是不可变更，多用于函数参数。
 
 
 
@@ -851,5 +851,262 @@ catch Error(string memory reason){
 ```
 
 ###
+
+### 10.08
+
+#### ERC20
+
+一个标准的代币规范
+
+```solidity
+// SPDX-License-Identifier: GPL-3.0
+
+pragma solidity ^0.8.2;
+
+interface Token {
+
+    /// @param _owner The address from which the balance will be retrieved
+    /// @return balance the balance
+    function balanceOf(address _owner) external view returns (uint256 balance);
+
+    /// @notice send `_value` token to `_to` from `msg.sender`
+    /// @param _to The address of the recipient
+    /// @param _value The amount of token to be transferred
+    /// @return success Whether the transfer was successful or not
+    function transfer(address _to, uint256 _value)  external returns (bool success);
+
+    /// @notice send `_value` token to `_to` from `_from` on the condition it is approved by `_from`
+    /// @param _from The address of the sender
+    /// @param _to The address of the recipient
+    /// @param _value The amount of token to be transferred
+    /// @return success Whether the transfer was successful or not
+    function transferFrom(address _from, address _to, uint256 _value) external returns (bool success);
+
+    /// @notice `msg.sender` approves `_addr` to spend `_value` tokens
+    /// @param _spender The address of the account able to transfer the tokens
+    /// @param _value The amount of wei to be approved for transfer
+    /// @return success Whether the approval was successful or not
+    function approve(address _spender  , uint256 _value) external returns (bool success);
+
+    /// @param _owner The address of the account owning tokens
+    /// @param _spender The address of the account able to transfer the tokens
+    /// @return remaining Amount of remaining tokens allowed to spent
+    function allowance(address _owner, address _spender) external view returns (uint256 remaining);
+
+    event Transfer(address indexed _from, address indexed _to, uint256 _value);
+    event Approval(address indexed _owner, address indexed _spender, uint256 _value);
+}
+
+contract TestErc20 is Token {
+    uint256 constant private MAX_UINT256 = 2**256 - 1;
+    mapping (address => uint256) public balances; // 账户的代币数据
+    mapping (address => mapping (address => uint256)) public allowed; // 账户的授权数量
+    uint256 public totalSupply; // 释放代币总量
+    /*
+    NOTE:
+    The following variables are OPTIONAL vanities. One does not have to include them.
+    They allow one to customise the token contract & in no way influences the core functionality.
+    Some wallets/interfaces might not even bother to look at this information.
+    */
+    string public name;                   //fancy name: eg Simon Bucks
+    uint8 public decimals;                //How many decimals to show.
+    string public symbol;                 //An identifier: eg SBX
+
+    constructor(uint256 _initialAmount, string memory _tokenName, uint8 _decimalUnits, string  memory _tokenSymbol) {
+        balances[msg.sender] = _initialAmount;               // Give the creator all initial tokens
+        totalSupply = _initialAmount;                        // Update total supply
+        name = _tokenName;                                   // Set the name for display purposes
+        decimals = _decimalUnits;                            // Amount of decimals for display purposes
+        symbol = _tokenSymbol;                               // Set the symbol for display purposes
+    }
+
+    //直接进行代币划转
+    function transfer(address _to, uint256 _value) public override returns (bool success) {
+        //1. 合理性验证 账户代币余额充足
+        require(balances[msg.sender] >= _value, "token balance is lower than the value requested");
+        //2. 数据变更
+        balances[msg.sender] -= _value;
+        balances[_to] += _value;
+        //3. 事件日志
+        emit Transfer(msg.sender, _to, _value); //solhint-disable-line indent, no-unused-vars
+        return true;
+    }
+
+    //授权后的代币划转 
+    function transferFrom(address _from, address _to, uint256 _value) public override returns (bool success) {
+        uint256 allowance = allowed[_from][msg.sender];
+        //1. 合理性验证 账户代币余额充足，授权账户的授权代币数量充足
+        require(balances[_from] >= _value && allowance >= _value, "token balance or allowance is lower than amount requested");
+        //2. 数据变更 
+        balances[_to] += _value;
+        balances[_from] -= _value;
+        if (allowance < MAX_UINT256) { //可能是安全上限 防止溢出
+            allowed[_from][msg.sender] -= _value;
+        }
+        //3. 日志记录
+        emit Transfer(_from, _to, _value); //solhint-disable-line indent, no-unused-vars
+        return true;
+    }
+
+    function balanceOf(address _owner) public override view returns (uint256 balance) {
+        return balances[_owner];
+    }
+
+    // 基于代理账户授权数量，代理账户可以进行转出
+    // 看这个意思，授权的数量是可以被覆盖的
+    function approve(address _spender, uint256 _value) public override returns (bool success) {
+        //授权无需进行合理性验证，因为在转出的时候，如果授权方没有足够的代币数量，一样是无法转出
+        allowed[msg.sender][_spender] = _value;
+        emit Approval(msg.sender, _spender, _value); //solhint-disable-line indent, no-unused-vars
+        return true;
+    }
+
+    function allowance(address _owner, address _spender) public override view returns (uint256 remaining) {
+        return allowed[_owner][_spender];
+    }
+
+    function mint(uint256 count) external {
+        balances[msg.sender] += count;
+        totalSupply += count;
+        emit Transfer(address(0), msg.sender, count);
+    }
+
+    function burn(uint256 count) external {
+        balances[msg.sender]-= count;
+        totalSupply -= count;
+        emit Transfer(msg.sender, address(0), count);
+    }
+
+}
+
+```
+
+#### 水龙头合约
+
+跟其他语言比对起来还是有很多区别的
+
+1. 数据的函数有限，没有低时间复杂度的查询方法，因此很多情况需要采用map的形式
+2. 接口的声明，不能使用new语句
+
+> 使用起来还是有规律的，比如要有明确的事件定义，要尽量早的做数据合理性判断，数据更新要考虑全面，结束后要发出事件
+
+```solidity
+// SPDX-License-Identifier: GPL-3.0
+
+pragma solidity ^0.8.2;
+
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+contract Fauct {
+    /*
+    0. 分发事件记录
+    1. 代币合约地址
+    2. 已领取地址map
+    3. 每次领取限制 这个限制对精度的影响需要确认
+    */
+
+    event SendToken(address indexed to);
+
+    address public tokenAddress;
+    //有点疑惑的是，我是不是可以只用一个数组表示，因为只要记录了就说明已经领取了，没有其他情况
+    mapping (address => bool) public requestedAddressMap;
+    //address[] public requestedAddressArr;
+    //实际使用的时候发现，数组没有像其他高级语言一样有类似contain的时间复杂度O(1)的用法，所有只能循环查询，时间复杂度为O(n)
+
+    uint256 public limit = 1000;
+
+    constructor(address _tokenAddress){
+        tokenAddress = _tokenAddress;
+    }
+
+    function GetToken() external {
+        require(!requestedAddressMap[msg.sender],"has get");
+        //接口实现不能使用new? 又是跟正常语言不同的内容
+        IERC20 token = IERC20(tokenAddress);
+        require(token.balanceOf(tokenAddress) >= limit,"address has not token");
+        token.transfer(msg.sender, limit);
+
+        //token发送完后要修改当前的水龙头状态
+        requestedAddressMap[msg.sender] = true;
+        //日志记录
+        emit SendToken(msg.sender);
+    }
+
+}
+```
+
+###
+
+### 10.10
+
+#### 空投合约
+
+这就已经没有什么特殊的应用了，按照之前总结的
+
+1. 验证
+2. 执行
+3. 事件日志
+
+去写就行了
+
+```solidity
+// SPDX-License-Identifier: GPL-3.0
+
+pragma solidity ^0.8.2;
+
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+contract Airdrop {
+    /*
+    这个合约只是一个发放空投的行为
+    有两个发放的方案
+    1. 直接把币转给这个合约，他自己去分发 手续费= token转账费用+分发费用
+    2. 一个用户有币，授权给这个合约，合约去分发 手续费= 授权费用+分发费用
+    我可以都写来试试
+    */
+
+    event Drop(address indexed _to, address indexed _count);
+
+    address public tokenAddress;
+
+    //方案一 初始化的时候我要给这个合约要空投的代币地址 合约要能执行动作，也要给他点手续费
+    constructor(address _tokenAddress) payable {
+        tokenAddress = _tokenAddress;
+    }
+
+    function transfer1(address[] calldata _addresses,uint256[] calldata _counts) external {
+        require(_addresses.length == _counts.length,"arr not right");
+        IERC20 token = IERC20(tokenAddress);
+        require(token.balanceOf(address(this)) >= getAmount(_counts),"token not enough");
+
+        for (uint256 i =0; i<_addresses.length; i++) 
+        {
+            token.transfer(_addresses[i], _counts[i]);
+        }
+    }
+
+    function transfer2(address[] calldata _addresses,uint256[] calldata _counts) external {
+        require(_addresses.length == _counts.length,"arr not right");
+        IERC20 token = IERC20(tokenAddress);
+        require(token.allowance(msg.sender, address(this)) >= getAmount(_counts),"token not enough");
+
+        for (uint256 i =0; i<_addresses.length; i++) 
+        {
+            token.transferFrom(msg.sender, _addresses[i], _counts[i]);
+        }
+    }
+
+    //求和
+    function getAmount(uint256[] calldata _counts) private pure returns(uint256 total){
+        for (uint256 i = 0; i<_counts.length; i++) 
+        {
+            total += _counts[i];
+        }
+    }
+
+}
+```
+
+### 
 
 <!-- Content_END -->

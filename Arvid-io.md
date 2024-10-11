@@ -1408,4 +1408,383 @@ resultdelegatecall.png
 总结
 这一讲我们介绍了Solidity中的另一个低级函数delegatecall。与call类似，它可以用来调用其他合约；不同点在于运行的上下文，B call C，上下文为C；而B delegatecall C，上下文为B。目前delegatecall最大的应用是代理合约和EIP-2535 Diamonds（钻石）。
 
+
+### 2024.10.08
+
+```solidity
+contract Pair {
+    address public factory;
+    address public token0;
+    address public token1;
+```
+
+- contract named `pair` is defined.
+- 3 address variables that named `factory`, `token0`, `token1`.
+
+```solidity
+    constructor() payable {
+        factory = msg.sender;
+    }
+```
+
+- `constructor` runs once when the contract is deployed.
+- The `factory` variable above is set to `msg.sender` , the address of the entity that deployed this `pair` contract.
+- What’s a `msg.sender`?
+    
+    **If an external user** (like you, using MetaMask) calls a function, `msg.sender` will be **your Ethereum address**.
+    
+
+```solidity
+function initialize(address _token0, address _token1) external {
+    require(msg.sender == factory, 'UniswapV2: FORBIDDEN');
+    token0 = _token0;
+    token1 = _token1;
+}
+```
+
+- `require(msg.sender == factory` ensures that only the factory contract can call this function.
+
+By restricting access to the factory contract, this prevents unauthorized parties from initializing the pair with their own tokens. It maintains control over the system and ensures the integrity of the token pairs created.
+
+- 1. How to Identify if a Function is Called at or After Deployment?
+    
+    **Constructor**: called at deployment
+    
+    **Regular funtions**: called after deployment (either public, external, internal, or private) that require explicit invoation by someone. 
+    
+- 2. Why Does a Function Parameter Have a Name Like `_token0`?
+    - Distinguishing Between Function Parameters and State Variables
+    - Naming Convention and Clarity
+- 3. What Does Initializing Mean? Where Does This Command Appear in the `initialize` Function?
+    
+    **In the `initialize` function**, initializing refers to assigning values to the state variables `token0` and `token1` after the contract has been deployed. This is necessary because, at deployment, these variables don't have the token addresses set yet. By calling `initialize`, you "initialize" the contract with the token pair addresses.
+    
+
+```solidity
+mapping(address => mapping(address => address)) public getPair;
+address[] public allPairs;
+```
+
+- State Variables:
+    - `getPair`: helps you look up the `pair`contract for a given pair of tokens.
+    - The double mapping `mapping(address => mapping(address => address))` means:
+        - Given `tokenA` and `tokenB`, you can retrieve the corresponding `Pair` contract address that manages that token pair.
+        - Example: `getPair[tokenA][tokenB]` would return the `Pair` contract address for swapping between `tokenA` and `tokenB`.
+    - **`allPairs`:**
+        - This is an array that stores the addresses of **all created `Pair` contracts**.
+        - It keeps track of all the liquidity pools that have been created through this factory.
+- The **`createPair`** function is the core of the `PairFactory` contract. It handles the creation of new `Pair` contracts (for token pairs like ETH/DAI) and keeps track of them. Let’s go through the steps:
+    1. **Create a New `Pair` Contract**:
+    
+    ```solidity
+    Pair pair = new Pair();
+    ```
+    
+    - This line deploys a new instance of the `Pair` contract. It creates a new smart contract on the blockchain specifically for managing the liquidity pool between `tokenA` and `tokenB`.
+    - The `Pair` contract is deployed using its default constructor.
+    1. **Call the `initialize` Method on the New `Pair` Contract**:
+    
+    ```solidity
+    pair.initialize(tokenA, tokenB);
+    ```
+    
+    - After creating the `Pair` contract, the factory contract calls the `initialize` function of the newly created `Pair`.
+    - It passes `tokenA` and `tokenB` as arguments, which will set the two tokens (like ETH and DAI) in the `Pair` contract.
+    - This ensures that the `Pair` contract is now ready to handle swaps between `tokenA` and `tokenB`.
+    1. **Update the `Pair` Address Mapping**:
+    
+    ```solidity
+    pairAddr = address(pair);
+    allPairs.push(pairAddr);
+    getPair[tokenA][tokenB] = pairAddr;
+    getPair[tokenB][tokenA] = pairAddr;
+    ```
+    
+    - The `pairAddr` variable is set to the address of the newly created `Pair` contract using `address(pair)`.
+    - This address is added to the `allPairs` array to keep track of all the liquidity pools created.
+    - The `getPair` mapping is updated twice:
+        - `getPair[tokenA][tokenB] = pairAddr`: This lets you query the `Pair` contract for the token pair `tokenA` and `tokenB`.
+        - `getPair[tokenB][tokenA] = pairAddr`: This ensures you can also query the pair using the tokens in reverse order (i.e., from `tokenB` to `tokenA`).
+    
+    This double mapping makes it easy to look up the `Pair` contract regardless of the order of the token addresses.
+
+### 2024.10.10
+
+### Reference Types in Solidity
+
+Reference types in Solidity include arrays and structs. Since these variables are more complex and take up more storage space, we must specify the **data location** when using them.
+
+---
+
+### Data Locations
+
+There are three types of data locations in Solidity: `storage`, `memory`, and `calldata`. Different storage locations have different gas costs. Data in `storage` is stored on the blockchain (similar to a computer's hard drive) and consumes more gas, while `memory` and `calldata` are temporary, residing in memory and consuming less gas.
+
+- **storage**: State variables within the contract are stored in `storage` by default, meaning they are stored on the blockchain.
+- **memory**: Used for function parameters and temporary variables that only exist during function execution and do not persist on the blockchain. When returning dynamic data types (like strings, bytes, arrays, or custom structs), you must use the `memory` keyword.
+- **calldata**: Similar to `memory` but the key difference is that `calldata` variables are immutable (cannot be modified). It’s generally used for function parameters.
+
+Example:
+
+```solidity
+solidity
+複製程式碼
+function fCalldata(uint[] calldata _x) public pure returns(uint[] calldata){
+    // _x is a calldata array and cannot be modified
+    // _x[0] = 0; // This would throw an error
+    return _x;
+}
+
+```
+
+---
+
+### Data Location and Assignment Rules
+
+When assigning between different data locations, sometimes an independent copy is created (modifying the new variable does not affect the original), while other times a reference is created (modifying the new variable will affect the original). The rules are as follows:
+
+- **Assignment creates a reference**: Modifying the reference or the original will reflect the changes in both.
+
+For example:
+
+- Assigning a `storage` state variable to another `storage` variable creates a reference. Changing the new variable will affect the original.
+
+```solidity
+solidity
+複製程式碼
+uint[] x = [1, 2, 3]; // State variable x (in storage)
+
+function fStorage() public {
+    // Declare a storage variable xStorage that points to x
+    // Modifying xStorage will also affect x
+    uint[] storage xStorage = x;
+    xStorage[0] = 100;
+}
+
+```
+
+Example:
+
+![5-2.png](5-2.png)
+
+- **Memory to memory assignment creates a reference**: Modifying the new variable will affect the original.
+
+In other cases, assignment creates a copy, meaning changes to one will not affect the other.
+
+---
+
+### Variable Scopes
+
+Solidity variables can be categorized into three types based on their scope: **state variables**, **local variables**, and **global variables**.
+
+### 1. **State Variables**
+
+State variables are stored on the blockchain and can be accessed by all functions within the contract. They are costly in terms of gas. State variables are declared within the contract but outside of functions:
+
+```solidity
+solidity
+複製程式碼
+contract Variables {
+    uint public x = 1;
+    uint public y;
+    string public z;
+}
+
+```
+
+You can modify the value of state variables within functions:
+
+```solidity
+solidity
+複製程式碼
+function foo() external {
+    // State variables can be modified inside a function
+    x = 5;
+    y = 2;
+    z = "0xAA";
+}
+
+```
+
+### 2. **Local Variables**
+
+Local variables only exist during the function's execution and are not stored on the blockchain. They are cheaper in terms of gas. Local variables are declared inside functions:
+
+```solidity
+solidity
+複製程式碼
+function bar() external pure returns(uint) {
+    uint xx = 1;
+    uint yy = 3;
+    uint zz = xx + yy;
+    return zz;
+}
+
+```
+
+### 3. **Global Variables**
+
+Global variables are predefined by Solidity and can be used anywhere within the contract without declaration. They provide information about the blockchain and the transaction.
+
+```solidity
+solidity
+複製程式碼
+function global() external view returns(address, uint, bytes memory) {
+    address sender = msg.sender;
+    uint blockNum = block.number;
+    bytes memory data = msg.data;
+    return (sender, blockNum, data);
+}
+
+```
+
+In this example, three common global variables are used: `msg.sender`, `block.number`, and `msg.data`, which represent the sender’s address, the current block number, and the request data, respectively.
+
+Some other commonly used global variables include:
+
+- `blockhash(uint blockNumber)`: Returns the hash of a given block – only works for the most recent 256 blocks.
+- `block.coinbase`: The address of the current block’s miner.
+- `block.gaslimit`: The gas limit for the current block.
+- `block.number`: The current block number.
+- `block.timestamp`: The current block’s timestamp (seconds since the Unix epoch).
+- `gasleft()`: The remaining gas for the current transaction.
+- `msg.data`: The complete calldata.
+- `msg.sender`: The address of the caller.
+- `msg.sig`: The first four bytes of the calldata (function identifier).
+- `msg.value`: The amount of wei sent with the current transaction.
+
+### 2024.10.11
+
+我最近在重新学 Solidity，巩固一下细节，也写一个“WTF Solidity极简入门”，供小白们使用（编程大佬可以另找教程），每周更新 1-3 讲。
+
+推特：@0xAA_Science｜@WTFAcademy_
+
+社区：Discord｜微信群｜官网 wtf.academy
+
+所有代码和教程开源在 github: github.com/AmazingAng/WTF-Solidity
+
+这一讲，我们将介绍映射（Mapping）类型，Solidity中存储键值对的数据结构，可以理解为哈希表。
+
+映射Mapping
+在映射中，人们可以通过键（Key）来查询对应的值（Value），比如：通过一个人的id来查询他的钱包地址。
+
+声明映射的格式为mapping(_KeyType => _ValueType)，其中_KeyType和_ValueType分别是Key和Value的变量类型。例子：
+
+mapping(uint => address) public idToAddress; // id映射到地址
+mapping(address => address) public swapPair; // 币对的映射，地址到地址
+
+Copy
+映射的规则
+规则1：映射的_KeyType只能选择Solidity内置的值类型，比如uint，address等，不能用自定义的结构体。而_ValueType可以使用自定义的类型。下面这个例子会报错，因为_KeyType使用了我们自定义的结构体：
+
+// 我们定义一个结构体 Struct
+struct Student{
+    uint256 id;
+    uint256 score; 
+}
+mapping(Student => uint) public testVar;
+
+Copy
+规则2：映射的存储位置必须是storage，因此可以用于合约的状态变量，函数中的storage变量和library函数的参数（见例子）。不能用于public函数的参数或返回结果中，因为mapping记录的是一种关系 (key - value pair)。
+
+规则3：如果映射声明为public，那么Solidity会自动给你创建一个getter函数，可以通过Key来查询对应的Value。
+
+规则4：给映射新增的键值对的语法为_Var[_Key] = _Value，其中_Var是映射变量名，_Key和_Value对应新增的键值对。例子：
+
+function writeMap (uint _Key, address _Value) public{
+    idToAddress[_Key] = _Value;
+}
+
+Copy
+映射的原理
+原理1: 映射不储存任何键（Key）的资讯，也没有length的资讯。
+
+原理2: 映射使用keccak256(abi.encodePacked(key, slot))当成offset存取value，其中slot是映射变量定义所在的插槽位置。
+
+原理3: 因为Ethereum会定义所有未使用的空间为0，所以未赋值（Value）的键（Key）初始值都是各个type的默认值，如uint的默认值是0。
+
+在Remix上验证 (以 Mapping.sol为例)
+映射示例 1 部署
+
+7-1
+
+映射示例 2 初始值
+
+7-2
+
+映射示例 3 key-value pair
+
+7-3
+
+总结
+这一讲，我们介绍了Solidity中哈希表——映射（Mapping）的用法。至此，我们已经学习了所有常用变量种类，之后我们会学习控制流if-else，while等。
+变量初始值
+在Solidity中，声明但没赋值的变量都有它的初始值或默认值。这一讲，我们将介绍常用变量的初始值。
+
+值类型初始值
+boolean: false
+string: ""
+int: 0
+uint: 0
+enum: 枚举中的第一个元素
+address: 0x0000000000000000000000000000000000000000 (或 address(0))
+function
+internal: 空白函数
+external: 空白函数
+可以用public变量的getter函数验证上面写的初始值是否正确：
+
+bool public _bool; // false
+string public _string; // ""
+int public _int; // 0
+uint public _uint; // 0
+address public _address; // 0x0000000000000000000000000000000000000000
+
+enum ActionSet { Buy, Hold, Sell}
+ActionSet public _enum; // 第1个内容Buy的索引0
+
+function fi() internal{} // internal空白函数
+function fe() external{} // external空白函数 
+
+Copy
+引用类型初始值
+映射mapping: 所有元素都为其默认值的mapping
+结构体struct: 所有成员设为其默认值的结构体
+数组array
+动态数组: []
+静态数组（定长）: 所有成员设为其默认值的静态数组
+可以用public变量的getter函数验证上面写的初始值是否正确：
+
+// Reference Types
+uint[8] public _staticArray; // 所有成员设为其默认值的静态数组[0,0,0,0,0,0,0,0]
+uint[] public _dynamicArray; // `[]`
+mapping(uint => address) public _mapping; // 所有元素都为其默认值的mapping
+// 所有成员设为其默认值的结构体 0, 0
+struct Student{
+    uint256 id;
+    uint256 score; 
+}
+Student public student;
+
+Copy
+delete操作符
+delete a会让变量a的值变为初始值。
+
+// delete操作符
+bool public _bool2 = true; 
+function d() external {
+    delete _bool2; // delete 会让_bool2变为默认值，false
+}
+
+Copy
+在remix上验证
+部署合约查看值类型、引用类型的初始值
+
+8-1.png
+
+值类型、引用类型delete操作后的默认值
+
+8-2.png
+
+总结
+这一讲，我们介绍了Solidity中变量的初始值。变量被声明但没有赋值的时候，它的值默认为初始值。不同类型的变量初始值不同，delete操作符可以删除一个变量的值并代替为初始值。
 <!-- Content_END -->

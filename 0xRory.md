@@ -102,6 +102,36 @@ timezone: Asia/Taipei
   day16:
 
   [WTF Academy Solidity 103 36 MerkleTree Note](/content/0xRory/115-MerkleTree/115-MerkleTree.md)
+
   [WTF Academy Solidity 103 37 數位簽章 Note](/content/0xRory/115-數位簽章/signature.md)
+
   [WTF Academy Solidity 103 38 NFTSwap Note](/content/0xRory/115-NFTSwap/NFTSwap.md)
+
+### 2024.10.09
+  day17:
+
+  [WTF Academy Solidity 103 39 鏈上隨機數 Note](/content/0xRory/115-鏈上隨機數/115-鏈上隨機數.md)
+
+  [WTF Academy Solidity 103 40 ERC1155 Note](/content/0xRory/116-ERC1155/116-ERC1155.md)
+
+  [WTF Academy Solidity 103 41 WETH Note](/content/0xRory/116-WETH/WETH.md)
+
+### 2024.10.10
+  day18:
+
+  [WTF Academy Solidity 103 42 分帳 Note](/content/0xRory/116-分帳/PaymentSplit.md)
+
+  [WTF Academy Solidity 103 43 線性釋放 Note](/content/0xRory/116-TokenVesting/TokenVesting.md)
+
+  [WTF Academy Solidity 103 44 代幣鎖 Note](/content/0xRory/117-TokenLocker/TokenLocker.md)
+
+  [WTF Academy Solidity 103 45 時間鎖 Note](/content/0xRory/117-TimeLock/TimeLock.md)
+
+### 2024.10.11
+  day19:
+
+  [WTF Academy Solidity 103 46 Proxy Note](/content/0xRory/117-ProxyContract/ProxyContract.md)
+
+  [WTF Academy Solidity 103 47 Upgradeable Note](/content/0xRory/117-Upgradeable/Upgradeable.md)
+
 <!-- Content_END -->

@@ -482,4 +482,15 @@ but, I don't want to miss the daily check-in,
 and, I will start to make up my study records.
 
 
+
+### 2024.10.08
+
+I should focus on cultivating a feeling：Facing Challenges Head-On. 
+
+
+### 2024.10.09
+
+### 2024.10.10
+
+
 <!-- Content_END -->

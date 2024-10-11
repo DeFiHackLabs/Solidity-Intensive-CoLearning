@@ -698,12 +698,344 @@ fallback() external payable {
 - 如果要調用的合約函數是 payable，可以在函數調用時發送 ETH 給目標合約。
 
 ### 2024.10.08
+## 22_Call
+#### 目標合約 OtherContract
+- getBalance()：返回合約的 ETH 餘額。
+- setX(uint256)：設置狀態變量 x，同時允許發送 ETH。
+- getX()：讀取變量 x 的值。
+#### 利用 call 調用目標合約
+- 定義 Response 事件： 用於輸出 call 的結果，顯示 success（成功與否）和 data（返回值）。
+- 調用 setX 函數： 使用 call 調用目標合約的 setX() 函數，並發送 ETH。若成功，會觸發 Response 事件。
+- 調用 getX 函數： 使用 call 調用 getX()，返回變量 x 的值，並用 abi.decode 解碼返回的 data
+- 調用不存在的函數： 如果 call 輸入了一個不存在的函數簽名，那麼目標合約的 fallback 函數會被觸發。
 
 ### 2024.10.09
+## 23_Delegatecall
+#### call 與 delegatecall 的區別
+- call：執行目標合約的函數，上下文是目標合約。
+   - msg.sender 是發起合約。
+   - 狀態變量的修改會作用於目標合約。
+- delegatecall：執行目標合約的函數，上下文是發起合約。
+   - msg.sender 是發起調用的外部地址。
+   - 狀態變量的修改作用於發起合約。
+目前，delegatecall 最常見的應用場景是Proxy Contract和EIP-2535 Diamonds。
+
+## 24_Create
+#### 動態創建新合約
+```solidity
+Contract x = new Contract{value: _value}(params);
+```
+#### Uniswap
+- Uniswap 是去中心化交易所的代表性項目，它通過工廠合約 (Factory Contract) 創建各種幣對合約來管理流動性池。
+##### Pair 合約
+- Pair 合約的作用是管理代幣對，包含三個主要狀態變量：
+   - factory: 記錄創建它的工廠合約地址。
+   - token0 和 token1: 這對應於代幣對的兩種代幣地址。
+- 初始化時，factory 記錄為創建它的合約地址，並且 initialize 函數在合約部署後被手動調用，用來設置兩個代幣的地址。
+##### PairFactory 合約
+- PairFactory 是工廠合約，負責創建新的代幣對 (Pair) 合約。工廠合約的主要功能是：
+   - getPair: 一個mapping，允許通過兩個代幣地址查找對應的代幣對合約地址。
+   - allPairs: 存儲所有創建的代幣對合約地址。
+
+## 24_Create
+`CREATE2 是一個以太坊操作碼，用於在智能合約部署之前就能預測合約的地址。這與 CREATE 操作碼不同，CREATE2 允許我們生成可預測的合約地址，無論未來的事件如何變化。`
+#### CREATE 和 CREATE2 地址計算的區別
+#### CREATE 地址計算
+- CREATE 操作碼的合約地址由以下內容決定：
+   - 創建者的地址（可以是外部帳戶或合約地址）。
+   - 創建者的 nonce（代表該地址發出的交易或合約創建的次數）。
+   - 由於 nonce 隨時間增加，因此很難預測未來使用 CREATE 創建的合約地址。   
+#### CREATE2 地址計算
+- CREATE2 提供了一種方式，可以在合約部署之前計算出地址，無需依賴未來的 nonce 或事件。<br>CREATE2 計算合約地址時，使用的是：
+   - 0xFF（一個常數）。
+   - 創建合約的地址。
+   - salt（由創建者指定的值，通常是 bytes32）。
+   - 合約的 initcode（合約的創建代碼）。
+```solidity
+//CREATE
+新地址 = keccak256(rlp.encode([創建者地址, nonce]))
+//CREATE2
+新地址 = keccak256(abi.encodePacked(0xFF, 創建者地址, salt, keccak256(initcode)))
+```
+- CREATE2 保證了只要提供相同的 salt 和 initcode，即使在不同的時間段，合約的地址都是相同且可預測的。
+### CREATE2 用法
+- CREATE2 的語法與 CREATE 類似，但多了一個 salt 參數，用來確定合約地址：
+```solidity
+Contract x = new Contract{salt: _salt, value: _value}(params);
+```
+_salt 是用來影響合約地址的參數。<br>
+_value 是創建時轉入的 ETH（如果構造函數是 payable）。
+- CREATE2 的實際應用場景
+   - 交易所錢包地址預留
+   - Uniswap V2 的交易對創建
+
+## 26_DeleteContract
+`用於刪除智能合約，並將合約中剩餘的 ETH 轉移到指定地址。`
+最早被命名為 suicide，後來改名為 selfdestruct 以避免敏感詞。<br>指令的初衷是為了應對合約運行中的緊急情況<br>例如合約發生嚴重錯誤時，可以自毀來停止進一步的運行
+- 已經部署的合約無法被 selfdestruct 完全刪除。
+- 只有在同一筆交易中創建和銷毀的合約才能真正被刪除。
+```solidity
+selfdestruct(_addr);
+```
+_addr 是接收合約中剩餘 ETH 的地址。<br>這個地址不需要具備 receive() 或 fallback() 函數來接收 ETH，selfdestruct 會自動轉移資金。
+## 27_ABIEncode
+### ABI 編碼函數
+1. abi.encode 用於將給定參數按照 ABI 規則進行編碼，每個參數會填充為 32 字節長度的數據，這是與合約交互時使用的主要方法。<br>編碼的結果每個變量會填充為 32 字節，適合與智能合約進行交互。
+```solidity
+function encode() public view returns(bytes memory result) {
+    result = abi.encode(x, addr, name, array);
+}
+```
+
+2. abi.encodePacked
+   - abi.encodePacked 和 abi.encode 類似，但會將填充的 0 省略，緊湊地編碼數據。這對於節省空間和計算哈希特別有用，但不適合與合約直接交互，因為缺少具體的填充。
+```solidity
+function encodePacked() public view returns(bytes memory result) {
+    result = abi.encodePacked(x, addr, name, array);
+}
+```
+3. abi.encodeWithSignature
+   - abi.encodeWithSignature 與 abi.encode 類似，但第一個參數是函數的簽名 (函數名稱和參數類型)，適合用於調用合約中的具體函數。
+```solidity
+function encodeWithSignature() public view returns(bytes memory result) {
+    result = abi.encodeWithSignature("foo(uint256,address,string,uint256[2])", x, addr, name, array);
+}
+```
+4. abi.encodeWithSelector
+   - abi.encodeWithSelector 類似於 abi.encodeWithSignature，但第一個參數是具體的函數選擇器，可以通過 Keccak 哈希計算得到。
+```solidity
+function encodeWithSelector() public view returns(bytes memory result) {
+    result = abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array);
+}
+```
+### ABI 解碼函數
+#### abi.decode
+- abi.decode 用於解碼使用 abi.encode 編碼的數據，將其還原為原始的參數。使用時需要指定數據的類型，以正確還原數據。
+```solidity
+function decode(bytes memory data) public pure returns(uint dx, address daddr, string memory dname, uint[2] memory darray) {
+    (dx, daddr, dname, darray) = abi.decode(data, (uint, address, string, uint[2]));
+}
+```
+## 28_Hash
+一種密碼學概念，能夠將任意長度的輸入數據轉換成一個固定長度的哈希值。
+#### Keccak256 是 Solidity 中最常用的哈希函數
+在 Ethereum 和 Solidity 開發時，使用的是 Keccak，而不是 NIST 標準的 SHA3。<br>為了避免混淆，在 Solidity 中使用 Keccak256 函數。
+#### 使用 Keccak256 生成數據唯一標識
+有一組不同類型的數據（如uint，string 和 address）<br>可以先用 abi.encodePacked 將數據打包，然後再用 keccak256 計算其唯一標識。
+#### 弱抗碰撞性
+```solidity
+function weak(
+    string memory string1
+    )public view returns (bool){
+    return keccak256(abi.encodePacked(string1)) == _msg;
+}
+```
+#### 強抗碰撞性
+```solidity
+function weak(
+    string memory string1
+    )public view returns (bool){
+    return keccak256(abi.encodePacked(string1)) == _msg;
+}
+```
+## 29_Selector
+當我們在以太坊上調用智能合約的函數時，實際上是發送了一段 calldata 給合約。<br>這段 calldata 中包含了函數選擇器 (selector) 和傳遞的參數，用於告訴智能合約調用哪個函數和使用什麼參數。
+#### msg.data 和 calldata
+msg.data 是 Solidity 中的一個全局變量，表示交易的完整 calldata。<br>當調用合約中的函數時，calldata 中的前 4 個字節是函數選擇器，剩下的部分是函數的參數。
+- 前 4 個字節 (0x6a627842) 是函數選擇器 (selector)。
+- 後面的字節 是參數 (0x2c44b726adf1963ca47af88b284c06f30380fc78)。
+#### 函數簽名和函數選擇器
+函數選擇器是根據函數簽名生成的。函數簽名的格式是 "函數名(參數類型1,參數類型2,...)"。<br>函數選擇器是函數簽名的 Keccak 哈希的前 4 個字節。
+#### 函數參數類型
+1. 基礎類型參數
+2. 固定長度類型參數
+3. 可變長度類型參數
+4. 映射類型參數
+#### 使用函數選擇器調用函數
+使用函數選擇器來調用目標函數，通過 abi.encodeWithSelector 將選擇器與參數打包傳遞給合約進行低級調用
+
+## 30_TryCatch
+```solidity
+try externalContract.f() {
+    // 成功時運行的代碼
+} catch {
+    // 失敗時運行的代碼
+}
+```
 
 ### 2024.10.10
+核心功能
+- balanceOf
+- transfer
+- transferFrom
+- approve
+- allowance
+- totalSupply
+ERC20 事件
+- Transfer 事件
+- Approval 事件
+IERC20 接口 : 是 ERC20 標準的接口，規定了代幣所需實現的函數和事件。<br>這是 ERC20 的協議部分，用來保證所有 ERC20 代幣的函數和參數結構保持一致。
 
 ### 2024.10.11
+## 32_Faucet
+#### 代幣水龍頭概述
+代幣水龍頭是一個應用，讓用戶能夠免費領取少量的代幣。最早的代幣水龍頭是比特幣BTC水龍頭，當時比特幣的價格很低，Gavin Andresen創建了這個水龍頭來鼓勵更多人使用比特幣。現代的區塊鏈項目，也經常通過水龍頭向用戶免費發放測試或推廣用的代幣。
+
+#### ERC20 水龍頭合約
+ERC20 水龍頭合約允許用戶從一個合約中領取免費的 ERC20 代幣，並且每個地址只能領一次。這個合約簡單易用，下面將介紹它的邏輯和實現。
+
+#### 合約的狀態變量
+`amountAllowed`：設定每個用戶每次能領取的代幣數量，默認為100單位。<br>
+`tokenContract`：記錄需要發放的 ERC20 代幣合約的地址。<br>
+`requestedAddress`：通過一個mapping來記錄哪些地址已經領取過代幣，確保每個地址只能領取一次。<br>
+```solidity
+uint256 public amountAllowed = 100; // 每次領取100單位代幣
+address public tokenContract;       // ERC20代幣合約地址
+mapping(address => bool) public requestedAddress; // 記錄已領取的地址
+```
+#### 事件
+合約定義了一個事件 SendToken，每次成功領取代幣後，這個事件會記錄領取的地址和數量，方便追蹤操作。
+```solidity
+event SendToken(address indexed Receiver, uint256 indexed Amount);
+```
+#### 函數
+##### 構造函數
+在合約部署時，將 ERC20 代幣合約的地址傳入，並初始化 tokenContract 變量。
+```solidity
+constructor(address _tokenContract) {
+    tokenContract = _tokenContract; // 設定發放的ERC20代幣合約
+}
+```
+##### requestTokens() 函數
+用戶調用此函數來領取代幣。<br>該函數包含幾個關鍵步驟：
+1. 檢查用戶是否已經領取過代幣，若已領取則拋出錯誤。
+2. 確認水龍頭合約中是否還有足夠的代幣。
+3. 使用 IERC20 的 transfer 函數將代幣轉帳給調用者。
+4. 記錄調用者地址，防止重複領取。
+5. 釋放 SendToken 事件。
+```solidity
+function requestTokens() external {
+    require(!requestedAddress[msg.sender], "Can't Request Multiple Times!");
+    IERC20 token = IERC20(tokenContract);
+    require(token.balanceOf(address(this)) >= amountAllowed, "Faucet Empty!");
+    token.transfer(msg.sender, amountAllowed);
+    requestedAddress[msg.sender] = true;
+    emit SendToken(msg.sender, amountAllowed);
+}
+```
+## 33_Airdrop
+#### ERC20 空投合約
+主要用於批量發送 ERC20 代幣 或 ETH，具有以下功能：
+- 利用循環批量發送代幣。
+- 利用 IERC20 接口和 transferFrom 函數實現代幣轉帳。
+- 批量發送 ETH，避免重複調用。
+
+`getSum()`：計算array內所有元素的總和
+```solidity
+function getSum(uint256[] calldata _arr) public pure returns(uint sum){
+    for(uint i = 0; i < _arr.length; i++)
+        sum = sum + _arr[i];
+}
+```
+`multiTransferToken()`：
+   - 參數
+      - _token: 代幣的合約地址。
+      - _addresses: 接收空投的用戶地址數組。
+      - _amounts: 對應每個地址的代幣數量。
+   - 包含兩個檢查：
+      - 檢查地址數組和代幣數量數組是否長度一致。
+      - 檢查發送的代幣總量是否小於或等於授權的代幣數量。
+`multiTransferETH()`：<br>
+   - `_addresses`: 接收空投 ETH 的用戶地址數組。<br>
+   - `_amounts`: 對應每個地址的 ETH 數量。
+
+## 34_ERC721
+ERC721 是一個用於在以太坊上實現非同質化代幣（NFT）的標準協議，它允許每一個代幣都擁有獨特的屬性，因此無法互換。
+#### ERC 與 EIP 的區別
+EIP (Ethereum Improvement Proposals) 是以太坊改進建議，ERC (Ethereum Request for Comment) 是 EIP 中針對應用級別的標準提案。ERC 包含代幣標準，如 ERC20 和 ERC721。
+
+#### ERC165 — 用於檢查合約接口
+ERC165 定義了一個標準方法來檢查合約是否實現了某個接口。<br>這樣可以確保合約是否符合某些標準，比如 ERC721。ERC165 的核心功能是 supportsInterface()，用來返回合約是否支持特定的接口。
+
+#### ERC721 — NFT 標準
+ERC721 是 ERC165 的擴展，用來定義 NFT 的操作規範。<br>ERC721 使用 tokenId 來標識每個唯一的代幣，這與 ERC20 代幣不同。<br>
+以下是 ERC721 的主要功能：
+- balanceOf(): 返回某地址擁有的 NFT 數量。
+- ownerOf(): 返回某個 tokenId 的擁有者。
+- transferFrom(): 將 tokenId 從一個地址轉移到另一個地址。
+- safeTransferFrom(): 進行安全的代幣轉移，如果接收方是合約則必須實現 IERC721Receiver 接口。
+- approve(): 授權另一個地址管理特定的 tokenId。
+- setApprovalForAll(): 批量授權管理所有代幣。
+
+## 35_DutchAuction
+- 價格下降：價格從起拍價逐漸下降，直到達到最低價格或被購買為止。
+- 避免Gas War：由於拍賣時間較長，競爭者不用在同一時間搶購，從而減少網絡擁堵。
+---
+1. 設置拍賣時間：
+```solidity
+function setAuctionStartTime(uint32 timestamp) external onlyOwner {
+    auctionStartTime = timestamp;
+}
+```
+---
+2. 計算當前拍賣價格：<br>
+   getAuctionPrice() 根據當前時間來計算價格是起始價、結束價還是處於兩者之間的衰減價格：
+```solidity
+function getAuctionPrice() public view returns (uint256) {
+    if (block.timestamp < auctionStartTime) {
+        return AUCTION_START_PRICE;
+    } else if (block.timestamp - auctionStartTime >= AUCTION_TIME) {
+        return AUCTION_END_PRICE;
+    } else {
+        uint256 steps = (block.timestamp - auctionStartTime) / AUCTION_DROP_INTERVAL;
+        return AUCTION_START_PRICE - (steps * AUCTION_DROP_PER_STEP);
+    }
+}
+```
+---
+3. 鑄造NFT：<br>
+   用戶可以通過auctionMint() 支付當前價格來購買NFT，並進行鑄造。該函數會根據用戶支付的ETH來進行鑄造操作，並退還多餘的ETH：
+```solidity
+function auctionMint(uint256 quantity) external payable {
+    require(block.timestamp >= auctionStartTime, "sale has not started yet");
+    require(totalSupply() + quantity <= COLLECTOIN_SIZE, "not enough remaining reserved for auction");
+    uint256 totalCost = getAuctionPrice() * quantity;
+    require(msg.value >= totalCost, "Need to send more ETH.");
+
+    for (uint256 i = 0; i < quantity; i++) {
+        _mint(msg.sender, totalSupply());
+    }
+
+    if (msg.value > totalCost) {
+        payable(msg.sender).transfer(msg.value - totalCost);
+    }
+}
+```
+---
+4. 項目方提取ETH：<br>
+   用戶支付的ETH可以通過withdrawMoney()由項目方提取到其個人地址：
+```solidity
+function withdrawMoney() external onlyOwner {
+    (bool success, ) = msg.sender.call{value: address(this).balance}("");
+    require(success, "Transfer failed.");
+}
+```
+---
+## 36_MerkleTree
+默克爾樹或哈希樹
+- 是區塊鏈技術中的重要加密結構
+- 自下而上構建的樹狀數據結構，葉子節點是數據的哈希值
+- 每個非葉子節點是其子節點的哈希值
+- Merkle Tree 的主要用途是快速驗證某一數據是否存在於特定的數據集內
+---
+- 可以用merkletreejs來生成 Merkle Tree
+- 每個地址生成一個哈希值作為葉子節點，通過哈希操作計算出根節點，並從中獲得每個葉子節點的 Proof。
+---
+- 利用 Merkle Tree 發放 NFT 白名單
+- 只需存儲一個 root 值，用戶提供 proof 和地址即可驗證是否在白名單中。
+
+## 37_Signature
+
 
 ### 2024.10.12
 
