@@ -38,7 +38,10 @@ timezone: Asia/Shanghai
       4. Fixed-size byte arrays
       5. Enumeration
    - Reference
-   - Mapping
+      1. String
+      2. Array
+      3. Struct
+      4. Mapping
    - Function
 
 - Integers
@@ -388,5 +391,27 @@ contract people is Adam, Eve { // multiple inheritance, search from right to lef
    ```solidity
    assert(condition);
    ```
+
+### 2024.10.11
+
+#### Chapter 16: Overloading
+
+- Same function name but different input parameters
+- Can't overload modifier
+- Achievable because selector becomes different
+
+#### Chapter 17: Library
+
+- Method 1
+   ```solidity
+   using Strings for uint256;
+   _number.toHexString(); // automatically becomes Strings.toHexString(_number);
+   ```
+
+- Method 2
+   ```solidity
+   Strings.toHexString(_number);
+   ```
+
 
 <!-- Content_END -->
