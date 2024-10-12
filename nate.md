@@ -184,7 +184,7 @@ WTF solidity42
 WTF solidity43-44
 1. 实现锁仓合约tokenLocker和tokenvest合约
 ### 2024.10.02
-WTF solidity46-50
+WTF solidity45
 ### 2024.10.03
 WTF solidity16-18   
 1. 库合约和普通合约区别：  
@@ -411,5 +411,16 @@ WTF solidity38-39
 WTF solidity40
 1. ERC1155
    较ERC20和ERC721不同，ERC1155标准允许一个合约中包含多个同质化和非同质化代币，每一种代币有一个id来标识。`mapping(uint256 => mapping(address => uint256)) private _balances`
-
+### 2024.10.12
+WTF solidity46-50
+1. 代理模式
+   合约在部署之后无法修改，为了更改和升级可采用代理模式。代理模式将合约数据和逻辑分开，数据存在代理合约中，逻辑则写在
+   逻辑合约里，用户直接调用代理合约，代理合约再通过delegate call调用逻辑合约
+2. 合约升级
+   升级合约只需要管理者调用升级函数修改代理合约里的逻辑合约地址即可
+3. 相关问题
+   由于代理合约和逻辑为不同合约，所以两个合约可能产生选择器冲突问题，即用户在调用逻辑合约中相关函数，由于该函数的method id和代理合约中的函数的method id相同。解决方案（针对代理合约中升级函数和逻辑合约中的函数选择器冲突）：
+   - `透明代理`代理合约里的升级函数智能管理员调用，管理员不可以调用逻辑合约里的函数
+   - `可升级代理（uups，universal upgradeable proxy standard）`将升级函数写在逻辑合约中
+4. 实现多签钱包合约      
 <!-- Content_END -->
