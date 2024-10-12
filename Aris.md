@@ -1594,7 +1594,260 @@ timezone: Asia/Shanghai
 
 5. 合约部署
 
+    - 下面图片中的 transferFrom()方法错了,应该是
+
+    - ```solidity
+        function transferFrom(
+            address from,
+            address to,
+            uint256 amount
+        ) external override returns (bool) {
+            allowance[from][msg.sender] -= amount;
+            balanceOf[from] -= amount;
+            balanceOf[to] += amount;
+            emit Transfer(from, to, amount);
+            return true;
+        }
+        ```
+
     - ![image-20241011135556973](content/Aris/image-20241011135556973.png)
+
+
+---
+
+#### 学习内容32. 代币水龙头
+
+1. 代币水龙头
+
+    - 代币水龙头就是让用户免费领代币的网站/应用
+
+2. ERC20水龙头合约
+
+    - ```solidity
+        // SPDX-License-Identifier: MIT
+        pragma solidity ^0.8.22;
+        import "./lib/IERC20.sol";
+        
+        contract Faucet {
+            uint256 public amountAllowed = 100;
+            address public tokenAddress;
+            mapping(address => bool) public requestedAddress;
+            event SendToken(address indexed receiver, uint256 indexed amount);
+        
+            constructor(address _token) {
+                tokenAddress = _token;
+            }
+        
+            function requestTokens() external {
+                require(
+                    !requestedAddress[msg.sender],
+                    "Each address can only be collected once."
+                );
+                IERC20 token = IERC20(tokenAddress); // 创建合约对象
+                bool valid = token.balanceOf(address(this)) >= amountAllowed;
+                require(valid, "Faucet is Empty.");
+                token.transfer(msg.sender, amountAllowed); // 领水
+                requestedAddress[msg.sender] = true; // 记录
+                emit SendToken(msg.sender, amountAllowed); // 释放事件
+            }
+        }
+        ```
+
+    - 状态变量
+
+        - uint256 public amountAllowed = 100; // 一次领多少个
+        - address public tokenAddress; // token 代币合约地址
+        - mapping(address => bool) public requestedAddress; // 记录已领取的钱包地址
+
+    - 事件
+
+        - event SendToken(address indexed receiver, uint256 indexed amount); // 领水事件
+
+    - 函数
+
+        - requestTokens()
+        - 检查 1: 不能多次领水
+        - 检查 2: 水龙头合约的持有代币睡了要足够领水
+
+3. 合约部署
+
+    - 先部署31 课的 ERC20 合约,得到地址后,再部署 faucet 合约
+        - ERC20:`0x36C32B5bc196DFB77C4A123Ec9C9E49356Cca07B`
+        - faucet: `0xE58469710853b35Dae8635EDA1484D4f404eaEa0`
+        - 合约部署者: `0x5B38Da6a701c568545dCfcB03FcB875f56beddC4`
+        - 领水者: `0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2`
+    - 先在 `ERC20` 合约中 `mint` 10000 个给合约部署者
+    - 接着,在 `ERC20` 合约中 `transfer` 1000 个给 faucet 合约
+    - 然后,领水者调用`faucet`合约 的领水函数 `requestTokens()`
+    - 最后,在`ERC20` 合约中领水者调用 `balanceOf()` 检查自己的代币数量
+    - 数量为 100,则领水成功!
+    - ![image-20241011143539265](content/Aris/image-20241011143539265.png)
+
+---
+
+#### 学习内容33. 空投合约
+
+1. 空投 Arisdrop
+
+    - 空投是币圈中一种营销策略，项目方将代币免费发放给特定用户群体。
+    - 为了拿到空投资格，用户通常需要完成一些简单的任务，如测试产品、分享新闻、介绍朋友等。
+    - 项目方通过空投可以获得种子用户，而用户可以获得一笔财富，两全其美。
+    - 利用智能合约批量发放`ERC20`代币，可以显著提高空投效率。
+
+2. 代码
+
+    1. multiTransferToken() 空投代币
+
+        - ```solidity
+            // 多个地址转账 ERC20 代币
+            function multiTransferToken(
+                address _token,
+                address[] calldata _addresses,
+                uint256[] calldata _amounts
+            ) external {
+                // 1. 检查 二者长度
+                require(_addresses.length == _amounts.length, "Addresses and amounts arrays are not equal in length.");
+                // 2. 检查 授权额度
+                IERC20 token = IERC20(_token);
+                uint sum = getSum(_amounts);
+                require(token.allowance(msg.sender, address(this)) >= sum, "ERC20 token authorization amount is insufficient.");
+                // 3. 遍历转账代币(空投 代币)
+                for (uint i = 0; i < _addresses.length; i++) {
+                    token.transferFrom(msg.sender, _addresses[i], _amounts[i]);
+                }
+            
+            }
+            ```
+
+    2. multiTransferETH() 空投 ETH
+
+        - ```solidity
+            // 多个地址转账 ETH (payable)
+            function multiTransferETH(
+                address[] calldata _addresses,
+                uint256[] calldata _amounts
+            ) external payable {
+                // 1. 检查 二者长度
+                require(_addresses.length == _amounts.length, "Addresses and amounts arrays are not equal in length.");
+                // 2. 检查 转入 ETH数量与要发送的 ETH 总数量 是否相等 (少了不行,多了浪费)
+                uint sum = getSum(_amounts);
+                require(msg.value == sum, "Transfer amount error");
+                // 3. 遍历 转入 ETH (空投 EHT)
+                for (uint i = 0; i < _addresses.length; i++) {
+                    // 转账ETH 的方法有 transfer,send,call 推荐用 call (第 20 节课 SendETH)
+                    (bool success, ) = _addresses[i].call{value: _amounts[i]}("");
+                    if (!success) {
+                        failTransferList[_addresses[i]] = _amounts[i]; // 记录转账失败的地址 (人性化一点!!!)
+                    }
+                }
+            }
+            ```
+
+3. 合约部署
+
+    - 先部署31 课的 ERC20 合约,得到地址后,再部署 airdrop 合约
+        - 部署者:0x5B38Da6a701c568545dCfcB03FcB875f56beddC4
+        - ERC20 合约: 0xd20977056F58b3Fb3533b7C2b9028a19Fbcd2358
+        - airdrop 合约 0x9Dfc8C3143E01cA01A90c3E313bA31bFfD9C1BA9
+        - 领空投地址: ["0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2", "0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"]
+        - 领 EHT 地址: ["0x5c6B0f7Bf3E7ce046039Bd8FABdfD3f9F5021678", "0x03C6FcED478cBbC9a4FAB34eF9f40767739D1Ff7"]
+    - 部署者在 ERC20合约 mint 10000 代币,然后授权 10000 代币给airdrop合约
+    - 部署者调用 airdrop multiTransferToken()方法 空投代币
+    - 部署者调用 airdrop multiTransferETH()方法 空投ETH
+    - ![image-20241011164412936](content/Aris/image-20241011164412936.png)
+    - ![image-20241011165818980](content/Aris/image-20241011165818980.png)
+    - ![image-20241011165916810](content/Aris/image-20241011165916810.png)
+    - ![image-20241011165141503](content/Aris/image-20241011165141503.png)
+
+---
+
+### 2024.10.12
+
+#### 学习内容 34. ERC721
+
+1. ERC721
+
+    - `BTC`和`ETH`这类代币都属于同质化代币
+    - 世界中很多物品是不同质的，其中包括房产、古董、虚拟艺术品等等，这类物品无法用同质化代币抽象
+    - `ERC721`标准，来抽象非同质化的物品
+    - NFT:`Non-Fungible Token`
+
+2. EIP与ERC
+
+    - EIP: 以太坊改进建议 `Ethereum Improvement Proposals`
+    - ERC: 以太坊意见征求稿 `Ethereum Request For Comment`
+    - EIP包含ERC
+
+3. ERC165
+
+    - 智能合约可以声明它支持的接口，供其他合约检查
+
+    - ```solidity
+        interface IERC165 {
+            /**
+             * @dev 如果合约实现了查询的`interfaceId`，则返回true
+             * 规则详见：https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[EIP section]
+             *
+             */
+            function supportsInterface(bytes4 interfaceId) external view returns (bool);
+        }
+        ```
+
+    - ```solidity
+        function supportsInterface(bytes4 interfaceId) external pure override returns (bool)
+        {
+            return
+                interfaceId == type(IERC721).interfaceId ||
+                interfaceId == type(IERC165).interfaceId;
+        }
+        ```
+
+4. IERC721事件
+
+    - `Transfer`事件：在转账时被释放，记录代币的发出地址`from`，接收地址`to`和`tokenid`。
+    - `Approval`事件：在授权时释放，记录授权地址`owner`，被授权地址`approved`和`tokenid`。
+    - `ApprovalForAll`事件：在批量授权时释放，记录批量授权的发出地址`owner`，被授权地址`operator`和授权与否的`approved`。
+
+5. IERC721函数
+
+    - `balanceOf`：返回某地址的NFT持有量`balance`。
+    - `ownerOf`：返回某`tokenId`的主人`owner`。
+    - `transferFrom`：普通转账，参数为转出地址`from`，接收地址`to`和`tokenId`。
+    - `safeTransferFrom`：安全转账（如果接收方是合约地址，会要求实现`ERC721Receiver`接口）。参数为转出地址`from`，接收地址`to`和`tokenId`。
+    - `approve`：授权另一个地址使用你的NFT。参数为被授权地址`approve`和`tokenId`。
+    - `getApproved`：查询`tokenId`被批准给了哪个地址。
+    - `setApprovalForAll`：将自己持有的该系列NFT批量授权给某个地址`operator`。
+    - `isApprovedForAll`：查询某地址的NFT是否批量授权给了另一个`operator`地址。
+    - `safeTransferFrom`：安全转账的重载函数，参数里面包含了`data`。
+
+6. IERC721Receiver
+
+    - NFT 可以转给钱包也可以转给合约
+
+    - 接收 NFT 合约必须实现IERC721Receiver接口,防止转入黑洞
+
+    - ```solidity
+        // ERC721接收者接口：合约必须实现这个接口来通过安全转账接收ERC721
+        interface IERC721Receiver {
+            function onERC721Received(
+                address operator,
+                address from,
+                uint tokenId,
+                bytes calldata data
+            ) external returns (bytes4);
+        }
+        ```
+
+7. IERC721Metadata
+
+    - `ERC721`的拓展接口
+    - `name()`：返回代币名称。
+    - `symbol()`：返回代币代号。
+    - `tokenURI()`：通过`tokenId`查询`metadata`的链接`url`，`ERC721`特有的函数。
+
+8. 合约部署 
+
+    - ![image-20241012112136518](content/Aris/image-20241012112136518.png)
 
 
 ---

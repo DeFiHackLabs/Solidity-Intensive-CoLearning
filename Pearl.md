@@ -1439,4 +1439,56 @@ contract structType{
           );
       }
       ```
+###  2024.10.11
+**去中心化交易所uniswap**
+   * `create`: `Contract x = new Contract{value: _value}(params)`
+   * 如果构造函数是`payable`，可以创建时转入`_value`数量的`ETH`，`params`是新合约构造函数的参数。
+**极简Uniswap**
+   * `Uniswap V2`核心合约中包含两个合约
+     1. UniswapV2Pair: 币对合约，用于管理币对地址、流动性、买卖。
+     2. UniswapV2Factory: 工厂合约，用于创建新的币对，并管理币对地址。
+   * `Pair`合约
+   ```Solidity
+   contract Pair{
+       address public factory; // 工厂合约地址
+       address public token0; // 代币1
+       address public token1; // 代币2
+   
+       constructor() payable {
+           factory = msg.sender;
+       }
+   
+       // called once by the factory at time of deployment
+       function initialize(address _token0, address _token1) external {
+           require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
+           token0 = _token0;
+           token1 = _token1;
+       }
+   }
+   ```
+   * 构造函数`constructor`在部署时将`factory`赋值为工厂合约地址。`initialize`函数会由工厂合约在部署完成后手动调用以初始化代币地址，将`token0`和`token1`更新为币对中两种代币的地址。
+      * 为什么`uniswap`不在`constructor`中将`token0`和`token1`地址更新好？
+      * 因为`uniswap`使用的是`create2`创建合约，生成的合约地址可以实现预测
+        
+   * `PairFactory`
+   ```Solidity
+   contract PairFactory{
+       mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+       address[] public allPairs; // 保存所有Pair地址
+   
+       function createPair(address tokenA, address tokenB) external returns (address pairAddr) {
+           // 创建新合约
+           Pair pair = new Pair(); 
+           // 调用新合约的initialize方法
+           pair.initialize(tokenA, tokenB);
+           // 更新地址map
+           pairAddr = address(pair);
+           allPairs.push(pairAddr);
+           getPair[tokenA][tokenB] = pairAddr;
+           getPair[tokenB][tokenA] = pairAddr;
+       }
+   }
+   ```
+   * `getPair`是两个代币地址到币对地址的`map`，方便根据代币找到币对地址；`allPairs`是币对地址的数组，存储了所有代币地址。
+   * `PairFactory`合约只有一个`createPair`函数，根据输入的两个代币地址`tokenA`和`tokenB`来创建新的`Pair`合约。
 <!-- Content_END -->

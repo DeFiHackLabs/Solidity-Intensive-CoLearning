@@ -244,4 +244,18 @@ receive()   fallback()
 + 返回值: (bool, bytes memory)
 + 用法: `目標合約地址.call(字節碼)`，其中字節碼`abi.encodeWithSignature("函數簽名", 參數)`如`bi.encodeWithSignature("f(uint256,address)", _x, _addr)`
 + 另外call可以設定ETH數量和gas: `目標合約地址.call{value:ETH發送數量, gas:gas數量}(字節碼);`
+
+
+### 2024.10.11
+學習內容: `23. Delegatecall`
++ 與call類似，是委託/代表的意思。
++ 與call不同處:
+   - 舉例: 用戶A透過合約B來callㄥdelegatecall合約C。
+   - call: 執行的是合約C的函數，上下文也是合約C的。
+   - delegatecall:  執行的是合約C的函數，上下文卻是合約B的。
++ 何時用到delegatecall?
+  1. Proxy Contact
+  2. EIP-2535 Diamonds
+
+
 <!-- Content_END -->

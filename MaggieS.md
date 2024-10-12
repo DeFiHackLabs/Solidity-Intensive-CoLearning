@@ -492,5 +492,20 @@ I should focus on cultivating a feeling：Facing Challenges Head-On.
 
 ### 2024.10.10
 
+### 2024.10.11
+
+Find a little bug~ that the English version in Solidity 102 in WTF Academy website couldn't be displayed well.
+
+### 2024.10.12 
+
+Q1: Every contract in Solidity requires using ABI coding，it's true?
+
+    If not, in what kind of special circumstances do we need to use ABI?
+
+Q2: What means proxy contract?
+    
+    why it needs to deal with function calls that do not exist in the proxy contract?
+
+    
 
 <!-- Content_END -->

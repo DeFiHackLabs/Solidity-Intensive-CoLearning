@@ -177,12 +177,12 @@ WTF solidity41
 1. WETH
    合约将用户传来的Eth转换为wrapped eth,即符合ERC20标准的代币，方便用户交互DAPP。用户也可销毁存储在合约中的WETH来换取eth  
 ### 2024.09.30
-WTF solidity42-43
+WTF solidity42
 1. PaymentSplit  
-   分账合约，通过构造器初始化各个账户所在份额，用户根据份额可通过合约将收益进行提款
-2.    
+   分账合约，通过构造器初始化各个账户所在份额，用户根据份额可通过合约将收益进行提款   
 ### 2024.10.01
-WTF solidity43-45
+WTF solidity43-44
+1. 实现锁仓合约tokenLocker和tokenvest合约
 ### 2024.10.02
 WTF solidity46-50
 ### 2024.10.03

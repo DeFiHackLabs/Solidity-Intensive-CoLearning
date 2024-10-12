@@ -840,4 +840,51 @@ timezone: Asia/Shanghai
             - `uri(uint256 id)`
             - `_baseURI()`
 
+### 2024.10.12
+
+> 進度: Solidity 103 38~39
+
+- NFT 交易所
+    - 角色
+        - 買家
+        - 賣家
+        - 訂單
+    - 功能
+        - 創建訂單 (list)
+        - 撤單 (revoke)
+        - 購買 (purchase)
+        - 修改價格 (update)
+    - 實作
+        - 訂單
+            ```
+            struct Order {
+                address owner;
+                uint256 price;
+            }
+
+            // tokenId => Order
+            mapping(address => mapping(uint256 => Order)) public nftList;
+            ```
+        - 事件
+            - List
+            - Purchase
+            - Revoke
+            - Update
+        - 函數
+            - `fallback` function
+                ```
+                fallback() external payable{}
+                ```
+            - `onERC721Received`
+            - `list`
+            - `purchase`
+            - `revoke`
+            - `update`
+- 鏈上隨機數
+    - 鏈上直接使用 hash 函數生成 (不安全, 可預測)
+        ```
+        bytes32 randomBytes = keccak256(abi.encodePacked(block.timestamp, msg.sender, blockhash(block.number-1)));
+        ```
+    - [Chainlink VRF](https://vrf.chain.link/)
+
 <!-- Content_END -->
