@@ -182,4 +182,8 @@ Add source codes for 25.Create2 and its tests
 
 Add source codes for 13.Inheritance and its tests
 
+### 2024.10.12
+
+Add source codes for 27.ABIEncode and its tests
+
 <!-- Content_END -->
