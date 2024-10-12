@@ -42,9 +42,9 @@ contract HelloWorld { }
 <value types> {internal|public|private} <_value name>;
 <value types> {internal|public|private} <_value name> = 數值、字串或判斷式;
 ```
-狀態變量不能使用 external！\
-如果狀態變數是 external，那麼就不能在合約內部被讀取，這違背了狀態變數的基本用途。\
-external 僅用於函數，表示只能從合約外部調用\
+狀態變量不能使用 external！  
+如果狀態變數是 external，那麼就不能在合約內部被讀取，這違背了狀態變數的基本用途。  
+external 僅用於函數，表示只能從合約外部調用  
 
 如果寫public，會自動產生getter函數(可以理解成自動產生一個查找對應數值的函數功能)，寫其他或不寫可見性說明符，就不會有自動生成getter函數，會需要自己寫getter函數才能查找對應數值。
 
@@ -1466,7 +1466,7 @@ function callETH(address payable _to, uint256 amount) external payable{
 
 總結  
 * call：最靈活，無gas限制，推薦使用
-* transfer：有2300 gas限制，失敗自動revert，次優選擇\
+* transfer：有2300 gas限制，失敗自動revert，次優選擇
 * send：有2300 gas限制，失敗不自動revert，不推薦使用
 注意：發送ETH時，確保amount <= msg.value，否則交易會失敗。
 
@@ -2046,7 +2046,19 @@ contract Factory {
 
 `create`和`create2`都是Solidity中創建新合約的重要方法。`create`提供了簡單直接的部署方式,而`create2`則為開發者提供了更多的靈活性和可預測性。選擇使用哪種方法取決於具體的應用場景和需求。理解這兩種方法的差異和適用場景,對於開發高效且安全的智能合約至關重要。
 
+### 2024.10.12
 #### 26_DeleteContract
+坎昆升級後的變化
+* 主要功能：僅用於將合約中的ETH轉移到指定地址
+* 刪除功能限制：只有在同一筆交易中創建並SELFDESTRUCT時才能生效
+* 已部署的合約無法被SELFDESTRUCT
+
+使用方法
+```solidity
+selfdestruct(_addr);
+_addr：接收剩餘ETH的地址（不需要有receive()或fallback()函數）
+```
+
 #### 27_ABIEncode
 #### 28_Hash
 #### 29_Selector
