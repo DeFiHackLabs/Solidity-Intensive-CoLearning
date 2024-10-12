@@ -120,6 +120,18 @@ LFG～～～～～ 會完成的
 
 [**WTF Solidity 極簡入門：34. ERC721**](<content/Haoder/md/334.md>)
 
-[**WTF Solidity 極簡入門：35. 荷蘭拍賣**](<content/Haoder/md/333.md>)
+[**WTF Solidity 極簡入門：35. 荷蘭拍賣**](<content/Haoder/md/335.md>)
+
+### 2024.10.12
+
+[**WTF Solidity 極簡入門：36. 默克爾樹**](<content/Haoder/md/336.md>)
+
+[**WTF Solidity 極簡入門：37. 數字簽名**](<content/Haoder/md/337.md>)
+
+[**WTF Solidity 極簡入門：38. NFT 交易所**](<content/Haoder/md/338.md>)
+
+[**WTF Solidity 極簡入門：39. 鏈上隨機數**](<content/Haoder/md/339.md>)
+
+[**WTF Solidity 極簡入門：40. ERC1155**](<content/Haoder/md/340.md>)
 
 <!-- Content_END -->

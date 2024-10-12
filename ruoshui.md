@@ -2810,4 +2810,168 @@ contract Timelock{
 }
 ```
 
+### 2024.10.12
+
+1、代理合约（Proxy Contract），由 OpenZeppelin 的 [Proxy合约](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/proxy/Proxy.sol) 简化而来
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+/**
+ * @dev Proxy合约的所有调用都通过`delegatecall`操作码委托给另一个合约执行。后者被称为逻辑合约（Implementation）。
+ *
+ * 委托调用的返回值，会直接返回给Proxy的调用者
+ */
+contract Proxy {
+    address public implementation; // 逻辑合约地址。implementation合约同一个位置的状态变量类型必须和Proxy合约的相同，不然会报错。
+
+    /**
+     * @dev 初始化逻辑合约地址
+     */
+    constructor(address implementation_){
+        implementation = implementation_;
+    }
+
+    /**
+     * @dev 回调函数，调用`_delegate()`函数将本合约的调用委托给 `implementation` 合约
+     */
+    fallback() external payable {
+        _delegate();
+    }
+
+    receive() external payable { }
+
+    /**
+     * @dev 将调用委托给逻辑合约运行
+     */
+    function _delegate() internal {
+        assembly {
+            // Copy msg.data. We take full control of memory in this inline assembly
+            // block because it will not return to Solidity code. We overwrite the
+            // 读取位置为0的storage，也就是implementation地址。
+            let _implementation := sload(0)
+
+            calldatacopy(0, 0, calldatasize())
+
+            // 利用delegatecall调用implementation合约
+            // delegatecall操作码的参数分别为：gas, 目标合约地址，input mem起始位置，input mem长度，output area mem起始位置，output area mem长度
+            // output area起始位置和长度位置，所以设为0
+            // delegatecall成功返回1，失败返回0
+            let result := delegatecall(gas(), _implementation, 0, calldatasize(), 0, 0)
+
+            // 将起始位置为0，长度为returndatasize()的returndata复制到mem位置0
+            returndatacopy(0, 0, returndatasize())
+
+            switch result
+            // 如果delegate call失败，revert
+            case 0 {
+                revert(0, returndatasize())
+            }
+            // 如果delegate call成功，返回mem起始位置为0，长度为returndatasize()的数据（格式为bytes）
+            default {
+                return(0, returndatasize())
+            }
+        }
+    }
+}
+
+/**
+ * @dev 逻辑合约，执行被委托的调用
+ */
+contract Logic {
+    address public implementation; // 与Proxy保持一致，防止插槽冲突
+    uint public x = 99; 
+    event CallSuccess();
+
+    // 这个函数会释放LogicCalled并返回一个uint。
+    // 函数selector: 0xd09de08a
+    function increment() external returns(uint) {
+        emit CallSuccess();
+        return x + 1;
+    }
+}
+
+/**
+ * @dev Caller合约，调用代理合约，并获取执行结果
+ */
+contract Caller{
+    address public proxy; // 代理合约地址
+
+    constructor(address proxy_){
+        proxy = proxy_;
+    }
+
+    // 通过代理合约调用 increase()函数
+    function increase() external returns(uint) {
+        ( , bytes memory data) = proxy.call(abi.encodeWithSignature("increment()"));
+        return abi.decode(data,(uint));
+    }
+}
+```
+2、可升级合约
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+import "@openzeppelin/contracts/proxy/Proxy.sol";
+
+// 简单的可升级合约，管理员可以通过升级函数更改逻辑合约地址，从而改变合约的逻辑。
+// 教学演示用，不要用在生产环境
+contract SimpleUpgrade is Proxy{
+    address public implementation; // 逻辑合约地址
+    address public admin; // admin地址
+    string public words; // 字符串，可以通过逻辑合约的函数改变
+
+    // 构造函数，初始化admin和逻辑合约地址
+    constructor(address implementation_){
+        admin = msg.sender;
+        implementation = implementation_;
+    }
+
+    function _implementation() internal view override  returns (address){
+        return implementation;
+    }
+
+    // fallback函数，将调用委托给逻辑合约
+    // fallback() external payable {
+    //     (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+    // }
+
+    receive() external payable { }
+
+    // 升级函数，改变逻辑合约地址，只能由admin调用
+    function upgrade(address newImplementation) external {
+        require(msg.sender == admin);
+        implementation = newImplementation;
+    }
+}
+
+// 逻辑合约1
+contract Logic1 {
+    // 状态变量和proxy合约一致，防止插槽冲突
+    address public implementation; 
+    address public admin; 
+    string public words; // 字符串，可以通过逻辑合约的函数改变
+
+    // 改变proxy中状态变量，选择器： 0xc2985578
+    function foo() public{
+        words = "old";
+    }
+}
+
+// 逻辑合约2
+contract Logic2 {
+    // 状态变量和proxy合约一致，防止插槽冲突
+    address public implementation; 
+    address public admin; 
+    string public words; // 字符串，可以通过逻辑合约的函数改变
+
+    // 改变proxy中状态变量，选择器：0xc2985578
+    function foo() public{
+        words = "new";
+    }
+}
+```
+
 <!-- Content_END -->

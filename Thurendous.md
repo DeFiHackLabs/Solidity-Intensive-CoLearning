@@ -2065,6 +2065,98 @@ function removeLiquidity(uint liquidity) external returns (uint amount0, uint am
 }
 ```
 
+### 2024.10.12
+
+(Day 17)
+
+学习笔记
+
+- 交易
+
+swap合约中，我们可以一种代币交易另一种代币。我们使用Δx单位的 token0，可以交换多少单位的 token1 ？
+
+根据恒定乘积公式：
+
+k = x * y
+
+交易后有：
+
+(x + Δx) * (y - Δy) = k
+
+交易的前后k的值都不变。联立方程后，得到：
+
+Δy = y - k / (x + Δx)
+带入k = x * y 得到：
+Δy = k/x - k/(x + Δx)
+
+
+因此可以交换到的代币的数量为Δy是是由Δx, x, y决定的。
+
+Δx和Δy的值符号是相反的，也就是说，Δx增加，Δy减少，反之亦然。
+
+```solidity
+// 给定一个资产的数量和代币对的储备，计算交换另一个代币的数量
+function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) public pure returns (uint amountOut) {
+    require(amountIn > 0, 'INSUFFICIENT_AMOUNT');
+    require(reserveIn > 0 && reserveOut > 0, 'INSUFFICIENT_LIQUIDITY');
+    amountOut = amountIn * reserveOut / (reserveIn + amountIn);
+}
+```
+
+有了这个核心的公式之后，我们就可以来使用swap函数来实现交易代币的功能了。
+
+主要步骤：
+
+1. 用户在调用函数时，制定用户交换的代币数量，交换的代币的地址，以及换出另一种代币的最低数量。
+2. 判断token0和token1的交换是用谁换谁。
+3. 利用公式计算交换出的代币的数量
+4. 判断交换出的代币是否达到了用户指定的最低数量，这里类似于交易的滑点
+5. 讲用户代币转入合约
+6. 将交换的代币从合约转给用户
+7. 更新合约的代币储备粮
+8. 释放swap
+
+```solidity
+// swap代币
+// @param amountIn 用于交换的代币数量
+// @param tokenIn 用于交换的代币合约地址
+// @param amountOutMin 交换出另一种代币的最低数量
+function swap(uint amountIn, IERC20 tokenIn, uint amountOutMin) external returns (uint amountOut, IERC20 tokenOut){
+    require(amountIn > 0, 'INSUFFICIENT_OUTPUT_AMOUNT');
+    require(tokenIn == token0 || tokenIn == token1, 'INVALID_TOKEN');
+    
+    uint balance0 = token0.balanceOf(address(this));
+    uint balance1 = token1.balanceOf(address(this));
+
+    if(tokenIn == token0){
+        // 如果是token0交换token1
+        tokenOut = token1;
+        // 计算能交换出的token1数量
+        amountOut = getAmountOut(amountIn, balance0, balance1);
+        require(amountOut > amountOutMin, 'INSUFFICIENT_OUTPUT_AMOUNT');
+        // 进行交换
+        tokenIn.transferFrom(msg.sender, address(this), amountIn);
+        tokenOut.transfer(msg.sender, amountOut);
+    }else{
+        // 如果是token1交换token0
+        tokenOut = token0;
+        // 计算能交换出的token1数量
+        amountOut = getAmountOut(amountIn, balance1, balance0);
+        require(amountOut > amountOutMin, 'INSUFFICIENT_OUTPUT_AMOUNT');
+        // 进行交换
+        tokenIn.transferFrom(msg.sender, address(this), amountIn);
+        tokenOut.transfer(msg.sender, amountOut);
+    }
+
+    // 更新储备量
+    reserve0 = token0.balanceOf(address(this));
+    reserve1 = token1.balanceOf(address(this));
+
+    emit Swap(msg.sender, amountIn, address(tokenIn), amountOut, address(tokenOut));
+}
+```
+
+
 
 
 

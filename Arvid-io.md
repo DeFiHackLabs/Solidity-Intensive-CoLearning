@@ -1787,4 +1787,80 @@ Copy
 
 总结
 这一讲，我们介绍了Solidity中变量的初始值。变量被声明但没有赋值的时候，它的值默认为初始值。不同类型的变量初始值不同，delete操作符可以删除一个变量的值并代替为初始值。
+
+### 2024.10.12
+
+另外學了Mapping和array。
+Mapping，就相當於給每個value 一個 key
+每個Array都有對應的從0開始的Index. 
+以上。
+
+
+昨天忘記更新，今天補上，今天嘗試理解了以下的代碼:
+```
+// SPDX-License-Identifier: GPL-3.0
+
+pragma solidity >=0.8.2 <0.9.0;
+
+contract Twitter {
+
+    //mapping address to string and call it tweets
+    mapping(address => string[]) public tweets;
+
+    function createTwitter (string memory _tweet) public {
+    // memory means store as temporary memory
+        tweets[msg.sender].push(_tweet);
+    }
+    // mapping is both key and value, could be addresses to names. So you can find name by address 
+
+    function getTweet(address _owner, uint _i) public view returns (string memory){
+        return tweets[_owner][_i];
+        // view is more gas efficient
+    }
+
+    function getAllTweets(address _owner) public view returns (string[] memory){
+        return tweets[_owner];
+    }
+```
+
+今天學了function, event, static variables, 還有好像是qualifier一樣的東西，constant, internal, private, public。 
+function還有modifier，可以設置啟動某function的條件。
+還學到了boollean和一些運算式，很多都是比以前學過的東西。
+現在就算小小複習一下，明天會更認真學！
+
+Copy
+映射的原理
+原理1: 映射不储存任何键（Key）的资讯，也没有length的资讯。
+
+原理2: 映射使用keccak256(abi.encodePacked(key, slot))当成offset存取value，其中slot是映射变量定义所在的插槽位置。
+
+原理3: 因为Ethereum会定义所有未使用的空间为0，所以未赋值（Value）的键（Key）初始值都是各个type的默认值，如uint的默认值是0。
+
+在Remix上验证 (以 Mapping.sol为例)
+映射示例 1 部署
+
+7-1
+
+映射示例 2 初始值
+
+7-2
+
+映射示例 3 key-value pair
+
+7-3
+
+总结
+这一讲，我们介绍了Solidity中哈希表——映射（Mapping）的用法。至此，我们已经学习了所有常用变量种类，之后我们会学习控制流if-else，while等。
+变量初始值
+在Solidity中，声明但没赋值的变量都有它的初始值或默认值。这一讲，我们将介绍常用变量的初始值。
+
+值类型初始值
+boolean: false
+string: ""
+int: 0
+uint: 0
+enum: 枚举中的第一个元素
+address: 0x0000000000000000000000000000000000000000 (或 address(0))
+function
+internal: 空白函数
 <!-- Content_END -->
