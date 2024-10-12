@@ -2695,7 +2695,7 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     ```
     - AAVE 也差不多。AAVE V3闪电贷的手续费默认为每笔0.05%，比Uniswap的要低。
 
-<!-- Content_END -->
+
 ### 2024.10.12
 
 - [104-S01] 重入攻击
@@ -2802,6 +2802,7 @@ import '@openzeppelin/contracts/access/Ownable.sol';
         - 使用多签钱包管理国库和控制合约参数。为了兼顾效率和去中心化，可以选择 4/7 或 6/9 多签。
         - 多签的持有人要多样化，分散在创始团队、投资人、社区领袖之间，并且不要相互授权签名。
         - 使用时间锁控制合约，在黑客或项目内鬼修改合约参数/盗取资产时，项目方和社区有一些时间来应对，将损失最小化。
+
 ### 2024.10.13
 
 - [104-S04] 权限管理漏洞
@@ -2942,3 +2943,5 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 - [104-S15] 操纵预言机
 - [104-S16] NFT重入攻击
 - [104-S17] “跨服”重入攻击
+
+<!-- Content_END -->
