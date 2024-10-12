@@ -817,4 +817,36 @@ contract Timelock{
 
 ### 
 
+### 2024.10.8
+
+#### [代理合约](./content/0xfu/ProxyContract.md)
+
+### 
+
+### 2024.10.9
+
+#### [可升级合约](./content/0xfu/UpgradeContract.md)
+
+### 
+
+### 2024.10.10
+
+#### [透明代理](./content/0xfu/TransparentProxy.md)
+
+### 
+ 
+### 2024.10.11
+
+#### [多签钱包](./content/0xfu/MultisigWallet.md)
+
+### 
+
+
+### 2024.10.12
+
+#### [ERC4626](./content/0xfu/ERC4626.md)
+
+### 
+
+
 <!-- Content_END -->

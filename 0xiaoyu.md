@@ -1118,5 +1118,449 @@ EVM 日志包含两部分：
 
 
 
+### 2024.10.08
+
+學習內容: 
+
+- [solidity-102 第十六课  函数重载](https://www.wtf.academy/docs/solidity-102/Overloading/)
+- [solidity-102 第十七课  库](https://www.wtf.academy/docs/solidity-102/Library/)
+
+笔记
+
+
+#### 函数重载
+
+Solidity 允许函数重载，即同名但参数不同的函数可以共存。重载函数在编译后会有不同的函数选择器。
+
+##### 示例
+```solidity
+function saySomething() public pure returns(string memory){
+    return("Nothing");
+}
+
+function saySomething(string memory something) public pure returns(string memory){
+    return(something);
+}
+```
+
+##### 实参匹配
+调用重载函数时，编译器会尝试匹配参数类型。如果多个函数匹配，会报错。
+
+```solidity
+function f(uint8 _in) public pure returns (uint8 out) {
+    out = _in;
+}
+
+function f(uint256 _in) public pure returns (uint256 out) {
+    out = _in;
+}
+```
+
+调用 `f(50)` 会报错，因为 50 既可以是 uint8 也可以是 uint256。
+
+#### 库合约
+
+库合约是特殊的合约，用于提高代码复用性和减少 gas 消耗。它们与普通合约的主要区别：
+1. 不能存在状态变量
+2. 不能继承或被继承
+3. 不能接收以太币
+4. 不可被销毁
+
+##### Strings 库合约示例
+```solidity
+library Strings {
+    function toString(uint256 value) public pure returns (string memory) {
+        // 实现细节...
+    }
+
+    function toHexString(uint256 value) public pure returns (string memory) {
+        // 实现细节...
+    }
+}
+```
+
+##### 使用库合约的方法
+1. 使用 `using for` 指令：
+   ```solidity
+   using Strings for uint256;
+   function getString1(uint256 _number) public pure returns(string memory){
+       return _number.toHexString();
+   }
+   ```
+
+2. 直接通过库合约名调用：
+   ```solidity
+   function getString2(uint256 _number) public pure returns(string memory){
+       return Strings.toHexString(_number);
+   }
+   ```
+
+#### 思考与解答
+
+1. 函数重载的优势和潜在风险是什么？
+   - 优势：
+     - 提高代码可读性，允许使用相同的函数名处理不同类型的输入。
+     - 增加代码的灵活性，可以为不同情况提供专门的实现。
+   - 潜在风险：
+     - 可能导致函数调用的歧义，特别是在参数类型相近时。
+     - 增加代码复杂性，可能使调试变得困难。
+
+2. 为什么库合约不能有状态变量？这种限制带来了什么好处？
+   - 解答：库合约不能有状态变量是为了保持其无状态性和可重用性。这种限制带来的好处包括：
+     - 降低 gas 消耗，因为不需要存储状态。
+     - 提高代码的可移植性和复用性，因为库函数不依赖于特定的状态。
+     - 简化了库的使用和维护，因为不需要考虑状态管理的问题。
+
+3. 在实际开发中，如何选择使用普通函数、重载函数或库函数？
+   - 解答：选择取决于具体需求：
+     - 普通函数：用于一般的功能实现，适合大多数情况。
+     - 重载函数：当需要处理不同类型的输入，但逻辑相似时使用。
+     - 库函数：对于常用的、通用的功能，特别是那些不需要访问合约状态的功能，使用库函数可以提高代码复用性和 gas 效率。
+
+
+### 2024.10.09
+
+學習內容: 
+
+- [solidity-102 第十八课  Import](https://www.wtf.academy/docs/solidity-102/Import/)
+- [solidity-102 第十九课  接收ETH receive和fallback](https://www.wtf.academy/docs/solidity-102/Fallback/)
+
+笔记
+
+
+#### Import
+
+##### 导入方法
+1. 通过源文件相对位置导入
+   ```solidity
+   import './Yeye.sol';
+   ```
+
+2. 通过源文件网址导入
+   ```solidity
+   import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+   ```
+
+3. 通过 npm 目录导入
+   ```solidity
+   import '@openzeppelin/contracts/access/Ownable.sol';
+   ```
+
+4. 导入特定的全局符号
+   ```solidity
+   import {Yeye} from './Yeye.sol';
+   ```
+
+##### 注意事项
+- import 语句应放在版本声明之后，其他代码之前。
+
+#### Receive 和 Fallback 函数
+
+##### Receive 函数
+- 用于接收 ETH
+- 声明方式：`receive() external payable { ... }`
+- 不能有参数和返回值
+- 每个合约最多有一个 receive 函数
+
+##### Fallback 函数
+- 在调用不存在的函数时触发
+- 也可用于接收 ETH
+- 声明方式：`fallback() external payable { ... }`
+- 可以没有 payable 修饰符
+
+##### 触发规则
+```
+接收ETH
+   |
+msg.data是空？
+ /        \
+是         否
+ |          |
+receive()存在？ fallback()
+ /       \
+是        否
+ |         |
+receive()  fallback()
+```
+
+#### 思考与解答
+
+1. Import 的不同方式有什么优缺点？
+   - 解答：
+     - 相对路径导入：简单直接，但可能导致路径问题。
+     - 网址导入：方便引用公共库，但依赖网络连接。
+     - npm 导入：适合使用包管理，但需要设置项目环境。
+     - 特定符号导入：可以减少命名冲突，但可能降低代码可读性。
+
+2. 为什么 receive 函数不能有参数和返回值？
+   - 解答：receive 函数设计用于简单接收 ETH。无参数和返回值可以：
+     - 简化函数调用过程
+     - 减少 gas 消耗
+     - 避免与其他函数签名冲突
+     - 确保兼容性，因为发送 ETH 的交易可能没有额外数据
+
+3. 在什么情况下应该使用 fallback 而不是 receive？
+   - 解答：应在以下情况使用 fallback：
+     - 需要处理带有数据的 ETH 转账
+     - 实现代理合约功能
+     - 需要在调用不存在的函数时执行特定逻辑
+     - 不想区分纯 ETH 转账和带数据的调用时
+
+
+
+### 2024.10.10
+
+學習內容: 
+
+- [solidity-102 第二十课  发送ETH](https://www.wtf.academy/docs/solidity-102/SendETH/)
+- [solidity-102 第二十一课  调用其他合约](https://www.wtf.academy/docs/solidity-102/CallContract/)
+
+笔记
+
+
+#### 发送ETH
+
+Solidity 提供三种方法发送 ETH：`transfer()`、`send()` 和 `call()`。
+
+##### transfer()
+- 用法：`接收方地址.transfer(发送ETH数额)`
+- gas 限制：2300
+- 失败时自动 revert
+
+```solidity
+function transferETH(address payable _to, uint256 amount) external payable {
+    _to.transfer(amount);
+}
+```
+
+##### send()
+- 用法：`接收方地址.send(发送ETH数额)`
+- gas 限制：2300
+- 返回 bool 值表示成功或失败
+
+```solidity
+function sendETH(address payable _to, uint256 amount) external payable {
+    bool success = _to.send(amount);
+    if(!success){
+        revert SendFailed();
+    }
+}
+```
+
+##### call()
+- 用法：`接收方地址.call{value: 发送ETH数额}("")`
+- 无 gas 限制
+- 返回 (bool, bytes)
+
+```solidity
+function callETH(address payable _to, uint256 amount) external payable {
+    (bool success,) = _to.call{value: amount}("");
+    if(!success){
+        revert CallFailed();
+    }
+}
+```
+
+#### 调用其他合约
+
+##### 方法1：传入合约地址
+```solidity
+function callSetX(address _Address, uint256 x) external {
+    OtherContract(_Address).setX(x);
+}
+```
+
+##### 方法2：传入合约变量
+```solidity
+function callGetX(OtherContract _Address) external view returns(uint x) {
+    x = _Address.getX();
+}
+```
+
+##### 方法3：创建合约变量
+```solidity
+function callGetX2(address _Address) external view returns(uint x) {
+    OtherContract oc = OtherContract(_Address);
+    x = oc.getX();
+}
+```
+
+##### 方法4：调用合约并发送ETH
+```solidity
+function setXTransferETH(address otherContract, uint256 x) payable external {
+    OtherContract(otherContract).setX{value: msg.value}(x);
+}
+```
+
+#### 思考与解答
+
+1. 为什么 `call()` 被推荐用于发送 ETH？
+   - 解答：
+     - 灵活性：`call()` 没有 gas 限制，可以执行更复杂的逻辑。
+     - 安全性：返回值可以让我们处理失败情况，避免静默失败。
+     - 兼容性：适用于不同版本的 Solidity。
+     - 可扩展性：可以调用任意函数，不仅限于发送 ETH。
+
+2. 在调用其他合约时，传入合约地址和传入合约变量有什么区别？
+   - 解答：
+     - 传入合约地址更灵活，可以在运行时决定调用哪个合约。
+     - 传入合约变量在编译时提供类型检查，可以增加代码的安全性。
+     - 传入合约变量可以提高代码可读性，明确表示期望的合约类型。
+     - 底层实现上，两者都是传递地址，但合约变量提供了额外的类型信息。
+
+3. 在实际开发中，如何选择合适的跨合约调用方式？
+   - 解答：选择取决于具体需求：
+     - 如果需要高度灵活性，使用传入地址的方法。
+     - 如果强调类型安全和代码可读性，使用合约变量。
+     - 如果需要频繁调用同一合约，可以创建合约变量以提高效率。
+     - 如果需要同时转账和调用函数，使用 `call()` 方法。
+
+
+
+### 2024.10.11
+
+- [solidity-102 第二十二课  Call](https://www.wtf.academy/docs/solidity-102/Call/)
+- [solidity-102 第二十三课  Delegatecall](https://www.wtf.academy/docs/solidity-102/Delegatecall/)
+
+笔记
+
+
+#### Call
+
+`call` 是 `address` 类型的低级成员函数，用于与其他合约交互。
+
+##### 特点：
+- 返回值为 `(bool, bytes memory)`，分别表示调用是否成功和目标函数的返回值。
+- 推荐用于发送 ETH 和触发 `fallback` 或 `receive` 函数。
+- 不推荐用于调用其他合约的常规函数。
+
+##### 使用语法：
+```solidity
+目标合约地址.call{value: 发送数额, gas: gas数额}(abi.encodeWithSignature("函数签名", 参数1, 参数2, ...));
+```
+
+##### 示例：
+```solidity
+function callSetX(address payable _addr, uint256 x) public payable {
+    (bool success, bytes memory data) = _addr.call{value: msg.value}(
+        abi.encodeWithSignature("setX(uint256)", x)
+    );
+    emit Response(success, data);
+}
+```
+
+#### Delegatecall
+
+`delegatecall` 是一种特殊的函数调用，它在调用者的上下文中执行目标合约的代码。
+
+##### 特点：
+- 执行目标合约的代码，但在调用合约的上下文中。
+- 状态变更影响调用合约，而不是目标合约。
+- `msg.sender` 保持为原始调用者。
+
+##### 使用语法：
+```solidity
+目标合约地址.delegatecall(abi.encodeWithSignature("函数签名", 参数1, 参数2, ...));
+```
+
+##### 示例：
+```solidity
+function delegatecallSetVars(address _addr, uint _num) external payable {
+    (bool success, bytes memory data) = _addr.delegatecall(
+        abi.encodeWithSignature("setVars(uint256)", _num)
+    );
+}
+```
+
+#### 思考与解答
+
+1. `call` 和 `delegatecall` 的主要区别是什么？
+   - 解答：
+     - `call` 在目标合约的上下文中执行，而 `delegatecall` 在调用合约的上下文中执行。
+     - `call` 改变目标合约的状态，`delegatecall` 改变调用合约的状态。
+     - `call` 中 `msg.sender` 是调用合约地址，`delegatecall` 中保持为原始调用者地址。
+     - `call` 可以发送 ETH，而 `delegatecall` 不能。
+
+2. 为什么 `delegatecall` 在使用时需要特别小心？
+   - 解答：
+     - 存储布局必须匹配：调用合约和目标合约的状态变量结构必须相同，否则可能导致意外的状态更改。
+     - 安全风险：如果目标合约不安全或被恶意修改，可能导致调用合约的状态被破坏。
+     - 升级风险：在代理模式中使用时，新版本合约必须保持与旧版本兼容的存储布局。
+
+3. 在实际开发中，`call` 和 `delegatecall` 的主要应用场景是什么？
+   - 解答：
+     - `call` 主要用于：
+       1. 发送 ETH 到其他合约。
+       2. 调用未知合约或无 ABI 的合约函数。
+       3. 处理低级别的交互，如触发 fallback 函数。
+     - `delegatecall` 主要用于：
+       1. 实现代理合约模式，支持合约逻辑的可升级性。
+       2. 实现库合约，允许代码重用而不复制代码。
+       3. 在 DApp 中实现模块化和可扩展的智能合约系统（如 EIP-2535 Diamonds）。
+
+### 2024.10.12 
+
+- [solidity-102 第二十四课  在合约中创建新合约](https://www.wtf.academy/docs/solidity-102/Create/)
+- [solidity-102 第二十五课  CREATE2](https://www.wtf.academy/docs/solidity-102/Create2/)
+
+笔记
+
+#### CREATE方法
+
+-  用途：在合约中创建新的合约
+- 语法：`Contract x = new Contract{value: _value}(params)`
+- 地址计算：新地址 = hash(创建者地址, nonce)
+- 特点：地址不可预测，因为nonce会随时间变化
+
+#### CREATE2方法
+
+- 目的：让合约地址独立于未来事件，可以预先计算
+- 语法：`Contract x = new Contract{salt: _salt, value: _value}(params)`
+- 地址计算：新地址 = hash("0xFF", 创建者地址, salt, initcode)
+- 组成部分：
+  - 0xFF：常数，避免与CREATE冲突
+  - 创建者地址：调用CREATE2的当前合约地址
+  - salt：创建者指定的bytes32类型值
+  - initcode：新合约的初始字节码
+
+
+
+#### 极简Uniswap实现
+
+- Pair合约：管理币对地址
+- PairFactory合约：创建新币对，管理币对地址
+- CREATE2在PairFactory中的应用：
+  - 使用token地址计算salt
+  - 使用CREATE2部署Pair合约
+  - 初始化Pair合约并更新地址映射
+
+
+
+#### 思考与解答
+
+为什么Uniswap不在constructor中更新token0和token1地址？
+
+- 解答：因为Uniswap使用CREATE2创建合约，这样可以实现地址预测。如果在constructor中更新，就无法预先知道确切的合约字节码，从而影响地址预测的准确性。
+
+
+CREATE2的优势是什么？
+
+- 解答：可以预先计算合约地址，无论未来区块链上发生什么
+- 使得合约部署更加灵活和可控
+- 在某些场景下，可以优化gas使用（如Uniswap V2中减少了跨合约调用）
+
+
+CREATE2的实际应用场景：
+
+- 交易所为新用户预留钱包合约地址
+- 在Uniswap V2中，用于创建交易对，实现确定性的pair地址计算
+
+
+在使用CREATE2时，如何处理构造函数带参数的情况？
+
+- 解答：需要将参数和initcode一起打包进行哈希计算
+- 示例：`keccak256(abi.encodePacked(type(Pair).creationCode, abi.encode(address(this))))`
+
+
 
 <!-- Content_END -->

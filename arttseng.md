@@ -107,5 +107,20 @@ https://www.youtube.com/playlist?list=PLFcDwmPMBkzu5xMbFh3Vi1COI3bAoBaSI
 ### 2024.10.08
 import和 receive
 
+### 2024.10.09
+調用其他合約和詳解call
+一個合約錢包預設即有 receive和send功能
+
+### 2024.10.10
+在合約中創建合約 is done.
+
+### 2024.10.11
+`create`的合約地址不好預測
+
+CREATE2的目的是为了让合约地址独立于未来的事件。不管未来区块链上发生了什么，你都可以把合约部署在事先计算好的地址上。用CREATE2创建的合约地址由4个部分决定：
+新地址 = hash("0xFF",创建者地址, salt, initcode)
+
+### 2024.10.12
+內容候補，預計102課程finish
 
 <!-- Content_END -->

@@ -1383,7 +1383,6 @@ interface IERC721 {
     function ownerOf(uint256 tokenId) external view returns (address owner);
     function safeTransferFrom(address from, address to, uint256 tokenId) external;
 }
-
 ```
 
 - **事件**：`Transfer` 事件记录 NFT 的转账操作，`from` 是发送方，`to` 是接收方，`tokenId` 是 NFT 的 ID。
@@ -1635,23 +1634,286 @@ class MyTokenAssert:
 ### 2024.10.08
 #### WTF Academy Solidity 102.16 函数重载
 
-##### 笔记
+##### 函数重载`overloading`
+Solidity允许函数重载（Overloading），即定义多个同名函数，但具有不同参数类型或参数数量。
+需要注意的是，Solidity 不允许修饰器进行重载。修饰器与函数的语法不同，它们在逻辑上更像是对函数的封装，而不是不同的实现。因此，当使用修饰器时，函数的名称必须是唯一的。
+
+**不同参数类型**
+
+```solidity
+pragma solidity ^0.8.0;
+
+contract OverloadExample {
+    function saySomething() public pure returns (string memory) {
+        return "Nothing"; // 没有参数的函数
+    }
+
+    function saySomething(string memory something) public pure returns (string memory) {
+        return something; // 带一个字符串参数的函数
+    }
+}
+```
+
+**不同参数数量**
+
+```solidity
+pragma solidity ^0.8.0;
+
+contract OverloadExample {
+    function add(uint a, uint b) public pure returns (uint) {
+        return a + b; // 两个参数的加法
+    }
+
+    function add(uint a, uint b, uint c) public pure returns (uint) {
+        return a + b + c; // 三个参数的加法
+    }
+}
+```
+###### 函数选择
+在 Solidity 中，重载函数的名称相同，但由于参数类型的不同，它们被编译成不同的函数选择器。函数选择器是根据函数的签名生成的前四个字节，签名包括函数名称及其参数类型。例如：
+
+- `saySomething()` 的选择器是根据函数签名 `"saySomething()"` 生成的。
+- `saySomething(string memory)` 的选择器是根据签名 `"saySomething(string)"` 生成的。
+
+##### 实参匹配（Argument Matching）
+当调用重载函数时，Solidity 会尝试根据提供的实参（实际参数）来匹配最适合的重载函数，。如果传入的参数能够匹配多个重载函数，将会导致编译错误，因此必须确保传入的实参能明确匹配某一个重载函数。
+```solidity
+pragma solidity ^0.8.0;
+
+contract Example {
+    function f(uint8 _in) public pure returns (uint8) {
+        return _in; // uint8 的 f 函数
+    }
+
+    function f(uint256 _in) public pure returns (uint256) {
+        return _in; // uint256 的 f 函数
+    }
+}
+
+// 当调用 f(50) 时，会报错：
+// TypeError: Function call argument type mismatch.
+```
+
+在这个例子中，如果调用 `f(50)`，编译器会发现 `50` 同时可以被视为 `uint8` 和 `uint256`，因为它可以在这两种类型之间进行转换。这时，编译器无法确定调用哪个版本的 `f()` 函数，因此会报错。
 
 ##### 测验结果
-
-##### 测验错题
+- 100/100
 
 ### 2024.10.09
 #### WTF Academy Solidity 102.17 库合约
 
+##### 库合约（Library Contract）
+
+在 Solidity 中，库合约是一种特殊的合约，旨在提高代码的复用性并减少交易成本（gas 消耗）。库合约像传统的代码库一样，提供了一系列的函数，但它们与普通合约有一些显著的区别：
+- **不能存在状态变量**：库合约不能存储状态，所有的变量都是局部的。
+- **不能继承或被继承**：库合约无法继承其他合约，也不允许其他合约继承它。
+- **不能接收以太币**：库合约不能接收以太币，所有操作都是纯粹的计算。
+- **不可以被销毁**：库合约一旦部署，不可被销毁。
+- **可见性设置**：库合约的函数如果设置为 `public` 或 `external`，调用时会触发一次 `delegatecall`。而 `internal` 则不会触发 `delegatecall`，`private` 函数只能在库合约内部调用。
+
+##### 库合约的使用方法
+**3.1 使用 `using for` 指令**
+通过 `using A for B;` 可以将库合约 A 的函数附加到类型 B。使用这个指令后，库 A 中的函数会自动成为 B 类型变量的成员，可以直接调用。
+
+```solidity
+// 利用using for指令
+using Strings for uint256;
+
+function getString1(uint256 _number) public pure returns(string memory) {
+    return _number.toHexString(); // 调用库合约中的函数
+}
+```
+
+**3.2 直接通过库合约名调用**
+可以直接使用库合约的名称来调用函数，这样更为直观。
+
+```solidity
+// 直接通过库合约名调用
+function getString2(uint256 _number) public pure returns(string memory) {
+    return Strings.toHexString(_number); // 调用库合约中的函数
+}
+```
+
+##### 测验结果
+- 100/100
+
+### 2024.10.10
+#### WTF Academy Solidity 102.18 Import
+
+#####  `import` 导入方法
+1. **通过文件相对位置导入**
+    - 使用相对路径导入本地的 Solidity 文件。这种方式常见于项目中的文件之间的引用。
+    - 例子：
+    在项目结构中，如果 `Import.sol` 和 `Yeye.sol` 位于同一目录下，则可以通过相对路径导入 `Yeye.sol` 文件中的所有内容。
+        
+        ```solidity
+        import './Yeye.sol';
+        
+        ```
+        
+2. **通过网址导入**
+    - 直接从网络上引用合约文件，例如从 GitHub 上的公开 Solidity 文件。这种方式常见于引入远程的库或合约。
+    - 例子：
+    这种引用方式非常方便，尤其是在开发过程中想要快速测试和使用现有的第三方库。
+        
+        ```solidity
+        import '<https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol>';
+        
+        ```
+        
+3. **通过 npm 导入**
+    - 这种方式通常用于导入项目依赖中的库，例如通过 npm 安装的 OpenZeppelin 库。
+    - 例子：
+    使用这种方式时，项目必须配置好 npm 依赖，例如通过 `npm install` 安装相关库。
+        
+        ```solidity
+        import '@openzeppelin/contracts/access/Ownable.sol';
+        
+        ```
+        
+4. **通过指定全局符号导入**
+    - 通过这种方式可以只导入指定的符号（例如合约、结构体等），避免导入整个文件的所有内容。这种方式适用于文件中包含多个合约或定义，但我们只需要使用其中的某一部分。
+    - 例子：
+    这样只导入 `Yeye.sol` 文件中的 `Yeye` 合约。
+        
+        ```solidity
+        import {Yeye} from './Yeye.sol';
+        ```
+
+##### 测验结果
+- 100/100
+
+### 2024.10.11
+#### WTF Academy Solidity 102.19 接收ETH receive和fallback
+
+##### `receive`函数
+`receive()` 函数专门用于处理合约收到ETH的情况。当合约接收到ETH并且 `msg.data` 为空时（即没有调用任何函数），如果存在 `receive()` 函数，它就会被触发。
+- **`receive()` 函数的触发条件**：
+    - 当合约接收ETH，且 `msg.data` 为空时会触发 `receive()`。
+    - 在上述例子中，当有人向合约发送ETH时（例如通过钱包的发送功能），`receive()` 会被调用，并触发 `Received` 事件。
+- **语法规则**：
+    - 一个合约最多有一个`receive()`函数
+    - 声明方式与一般函数不一样，不需要`function`关键字：`receive() external payable { ... }`。
+    - `receive()`函数不能有任何的参数，不能返回任何值，必须包含`external`和`payable`。
+- **逻辑简单**：为了避免超过 `gas` 限制，`receive()` 函数最好尽量简单，在这里我们仅仅记录ETH发送者和金额。
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract ReceiveExample {
+    event Received(address sender, uint value);
+
+    // receive 函数，用于接收ETH
+    receive() external payable {
+        emit Received(msg.sender, msg.value); // 触发事件记录发送者和金额
+    }
+
+    // 用于查询合约的余额
+    function getBalance() public view returns (uint) {
+        return address(this).balance;
+    }
+}
+
+```
+
+##### `fallback`函数
+`fallback()` 函数在两个主要场景下被调用：
+1. 当调用一个不存在的函数时。
+2. 当向合约发送ETH且 `msg.data` 不为空，或者合约没有定义 `receive()` 函数时。
+- **`fallback()` 函数的触发条件**：
+    - 当调用合约中不存在的函数时，或者向合约发送ETH但 `msg.data` 不为空时，`fallback()` 会被触发。
+    - 在这个例子中，我们定义了一个 `fallback()` 函数，当它被触发时，记录发送者、金额和 `msg.data`。
+- **`payable` 修饰符**：为了确保 `fallback()` 能够接收ETH，它通常也会使用 `payable` 修饰符。
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract FallbackExample {
+    event FallbackCalled(address sender, uint value, bytes data);
+
+    // fallback 函数，用于接收ETH或处理不存在的函数调用
+    fallback() external payable {
+        emit FallbackCalled(msg.sender, msg.value, msg.data); // 触发事件记录发送者、金额和data
+    }
+
+    // 用于查询合约的余额
+    function getBalance() public view returns (uint) {
+        return address(this).balance;
+    }
+}
+
+```
+##### `receive`和`fallback`的区别
+
+| 触发条件 | `receive()` | `fallback()` |
+| --- | --- | --- |
+| 接收ETH，且 `msg.data` 为空 | 触发 | 不触发 |
+| 接收ETH，且 `msg.data` 不为空 | 不触发 | 触发（如果存在） |
+| 调用不存在的函数 | 不触发 | 触发 |
+| 合约没有 `receive()`，接收ETH | 不触发 | 触发 |
+
+```text
+触发fallback() 还是 receive()?
+           接收ETH
+              |
+         msg.data是空？
+            /  \
+          是    否
+          /      \
+receive()存在?   fallback()
+        / \
+       是  否
+      /     \
+receive()   fallback()
+```
+##### 同时实现`receive`和`fallback`
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract ReceiveFallbackExample {
+    event Received(address sender, uint value);
+    event FallbackCalled(address sender, uint value, bytes data);
+
+    // receive 函数
+    receive() external payable {
+        emit Received(msg.sender, msg.value);
+    }
+
+    // fallback 函数
+    fallback() external payable {
+        emit FallbackCalled(msg.sender, msg.value, msg.data);
+    }
+
+    // 查询合约余额
+    function getBalance() public view returns (uint) {
+        return address(this).balance;
+    }
+}
+
+```
+
+在这个合约中：
+- 如果向合约发送ETH而不附带数据，则 `receive()` 函数会被触发。
+- 如果向合约发送ETH并附带数据，或者调用了一个不存在的函数，`fallback()` 函数会被触发。
+
+##### 测验结果
+- 100/100
+
+### 2024.10.12
+#### WTF Academy Solidity 102.20 发送ETH
+
 ##### 笔记
 
 ##### 测验结果
 
 ##### 测验错题
 
-### 2024.10.10
-#### WTF Academy Solidity 102.18 Import
+
+### 2024.10.13
+#### WTF Academy Solidity 102.21 调用其他合约
 
 ##### 笔记
 

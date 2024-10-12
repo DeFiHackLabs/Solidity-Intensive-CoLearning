@@ -322,5 +322,45 @@ receive()   fallback()
 2. 选择器`selector`
    - method id定义为函数签名的`Keccak`哈希后的前4个字节，当`selector`与method id相匹配时，即表示调用该函数
    - `bytes4(keccak256("mint(address)"));` 其中`"mint(address)"`为方法签名
+  
+### 2024.10.08
+1. ERC20: 是以太坊上的代币标准，来自[EIP20](https://eips.ethereum.org/EIPS/eip-20)
+   - 基本逻辑: 账户余额(balanceOf());转账(transfer());授权转账(transferFrom());授权(approve());代币总供给(totalSupply());授权转账额度(allowance());代币信息（可选）：名称(name())，代号(symbol())，小数位数(decimals())
+2. IERC20: ERC20的接口
+   - 事件
+   - 函数
+3. 代币水龙头
+   
+4. 空投合约
+
+### 2024.10.09
+1. ERC721
+
+2. 荷兰拍卖
+
+3. 默克尔树 Merkle Tree
+
+
+### 2024.10.10
+1. 数字签名
+
+2. NFT交易所
+
+3. 链上随机数
+
+### 2024.10.11
+1. ERC1155
+
+2. WETH
+
+3. 分账
+
+### 2024.10.12
+1. 线性释放
+
+2. 代币锁
+
+3. 时间锁
+   
 
 <!-- Content_END -->

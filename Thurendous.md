@@ -1749,7 +1749,416 @@ function strong(
     return keccak256(abi.encodePacked(string1)) == keccak256(abi.encodePacked(string2));
 }
 ```
-安全加密
+
+
+### 2024.10.9
+
+(Day 14)
+
+学习笔记
+
+#### 函数选择器
+
+当呼叫一个合约的时候，会发送一个calldata。本质上合约的交互就是这样进行的。
+
+calldata的前四个字节是函数的签名的selector（函数选择器）。
+
+msg.data的前四个字节是函数选择器。
+
+```solidity
+// event 返回msg.data
+event Log(bytes data);
+
+function mint(address to) external{
+    emit Log(msg.data);
+}
+```
+
+当参数为0x2c44b726ADF1963cA47Af88B284C06f30380fC78的时候，输出calldata就是：
+
+```text
+0x6a6278420000000000000000000000002c44b726adf1963ca47af88b284c06f30380fc78
+```
+
+这段字节码可以这么理解：
+
+```text
+前4个字节为函数选择器selector：
+0x6a627842
+
+后面32个字节为输入的参数：
+0x0000000000000000000000002c44b726adf1963ca47af88b284c06f30380fc78
+```
+
+其实calldata就是告诉智能合约，我要调用哪个函数，以及参数是什么。
+
+```solidity
+// elementary（基础）类型参数selector
+// 输入：param1: 1，param2: 0
+// elementaryParamSelector(uint256,bool) : 0x3ec37834
+function elementaryParamSelector(uint256 param1, bool param2) external returns(bytes4 selectorWithElementaryParam){
+  emit SelectorEvent(this.elementaryParamSelector.selector);
+  return bytes4(keccak256("elementaryParamSelector(uint256,bool)"));
+}
+
+// fixed size（固定长度）类型参数selector
+// 输入： param1: [1,2,3]
+// fixedSizeParamSelector(uint256[3]) : 0xead6b8bd
+function fixedSizeParamSelector(uint256[3] memory param1) external returns(bytes4 selectorWithFixedSizeParam){
+    emit SelectorEvent(this.fixedSizeParamSelector.selector);
+    return bytes4(keccak256("fixedSizeParamSelector(uint256[3])"));
+}
+
+// non-fixed size（可变长度）类型参数selector
+// 输入： param1: [1,2,3]， param2: "abc"
+// nonFixedSizeParamSelector(uint256[],string) : 0xf0ca01de
+function nonFixedSizeParamSelector(uint256[] memory param1,string memory param2) external returns(bytes4 selectorWithNonFixedSizeParam){
+    emit SelectorEvent(this.nonFixedSizeParamSelector.selector);
+    return bytes4(keccak256("nonFixedSizeParamSelector(uint256[],string)"));
+}
+
+contract DemoContract {
+    // empty contract
+}
+
+contract Selector{
+    // Struct User
+    struct User {
+        uint256 uid;
+        bytes name;
+    }
+    // Enum School
+    enum School { SCHOOL1, SCHOOL2, SCHOOL3 }
+    ...
+    // mapping（映射）类型参数selector
+    // 输入：demo: 0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99， user: [1, "0xa0b1"], count: [1,2,3], mySchool: 1
+    // mappingParamSelector(address,(uint256,bytes),uint256[],uint8) : 0xe355b0ce
+    function mappingParamSelector(DemoContract demo, User memory user, uint256[] memory count, School mySchool) external returns(bytes4 selectorWithMappingParam){
+        emit SelectorEvent(this.mappingParamSelector.selector);
+        return bytes4(keccak256("mappingParamSelector(address,(uint256,bytes),uint256[],uint8)"));
+    }
+    ...
+}
+
+
+```
+
+- 使用selector来调用函数
+
+```solidity
+    // 使用selector来调用函数
+    function callWithSignature() external{
+    ...
+        // 调用elementaryParamSelector函数
+        (bool success1, bytes memory data1) = address(this).call(abi.encodeWithSelector(0x3ec37834, 1, 0));
+    ...
+    }
+```
+
+#### try catch
+
+在Solidity中，try-catch只能被用于external函数或创建合约时constructor（被视为external函数）的调用。基本语法如下：
+
+```solidity
+try {
+    // 尝试执行的代码
+} catch {
+    // 捕获异常后的处理代码
+}
+```
+
+其中externalContract.f()是某个外部合约的函数调用，try模块在调用成功的情况下运行，而catch模块则在调用失败时运行。
+
+catch还支持部或特殊的异常的原因：
+
+```solidity
+try externalContract.f() returns(returnType){
+    // call成功的情况下 运行一些代码
+} catch Error(string memory /*reason*/) {
+    // 捕获revert("reasonString") 和 require(false, "reasonString")
+} catch Panic(uint /*errorCode*/) {
+    // 捕获Panic导致的错误 例如assert失败 溢出 除零 数组访问越界
+} catch (bytes memory /*lowLevelData*/) {
+    // 如果发生了revert且上面2个异常类型匹配都失败了 会进入该分支
+    // 例如revert() require(false) revert自定义类型的error
+}
+```
+
+### 2024.10.10
+
+(Day 15)
+
+学习笔记
+
+#### 56. 去中心化交易所
+
+恒定乘积做市商。也叫做Constant Product Automated Market Maker(CPAMM)。它是去中心化交易所的核心的机制。
+
+被Uniswap, PancakeSwap, SushiSwap等DEX采用。我们实现一个简单的[Uniswap V2](https://github.com/Uniswap/v2-core)的合约。
+
+自动做市商是一种算法，是在区块链上运行的智能合约。它允许数字资产之间的交易。AMM打开了一种全新的交易模式。无需传统的买家和卖家进行匹配，而是通过一种预设的数学公式（比如，常数乘积公式）创建了一个流动性池子。使得用户可以随时进行讲交易。
+
+x：可乐
+
+y：美元
+
+Δx和Δy：交易对中两种资产的变化量。
+
+L和ΔL：流动性池中总流动性的数量和变化量。
+
+- 恒定总和做市商
+
+恒定总和做市商(Constant Sum Automated Market Maker, CSAMM)是最简单的做市商模型。我们从他开始。
+
+他在交易的时候的约束是：
+
+x + y = k
+
+k是一个常数。
+
+也就是说，在交易的前后市场中，可乐和美元的数量的总和不变。举个例子，市场中流动性有10瓶可乐和10美元。此时k=20。如果一个用户想买可乐，这时k=20，价格是1美元/瓶，这个做市商需要卖出1美元，那么他卖出1美元后，市场中就只有9美元和11瓶可乐。此时保持k=20，价格还是1美元/瓶。没有变化。
+
+这个就是最简单的恒定总和做市商。
+
+CSAMM的优点是可以保证代币的相对价格的不变。这点在稳定币兑换中很重要，大家都希望1USDT总是能够兑换1USDC。它的缺点也很明显了，就是他的流动性非常容易耗尽。我只需要10美元就可以把这个池子的流动性耗尽。其他用户就没发交易然后喝可乐了。
+
+- 恒定乘积做市商
+
+恒定乘积做市商(Constant Product Automated Market Maker, CPAMM)是Uniswap采用的模型。
+
+在CPAMM中，交易对中两种资产的数量乘积总是保持不变。
+
+x * y = k
+
+k是一个常数。
+
+举个例子，市场中流动性有10瓶可乐和10美元。此时k=100。如果一个用户想买可乐，这时k=100，价格是1美元/瓶，这个做市商需要卖出1美元，那么他卖出1美元后，市场中就只有9美元和11瓶可乐。此时保持k=100，价格还是1美元/瓶。没有变化。
+
+这个就是最简单的恒定乘积做市商。
+
+CPAMM的优点是他的流动性不容易耗尽。因为他的流动性是基于两种资产的数量乘积来决定的。
+
+比如，同样的例子，市场中有10瓶可乐和10美元。此时k=100。按照之前的恒定总和的做市商的话，如果一个用户想要买可乐，他买了2瓶可乐。那么市场中就只有8瓶可乐和12美元。此时k=96。常数k不守恒了，所以不对了，所以我们其实是这样计算的，
+
+如果买了两瓶可乐的话，那么，x*y=k还是总是保持不变，那么，x*y=10*10=100，那么，y=100/8=12.5。也就是说，卖出了两瓶可乐的话，那么需要支付的金额是2.5美元。
+
+- 去中心化交易所
+
+下面我们实现一个简单的去中心化交易所。
+
+```solidity
+contract SimpleSwap is ERC20 {
+    // 代币合约
+    IERC20 public token0;
+    IERC20 public token1;
+
+    // 代币储备量
+    uint public reserve0;
+    uint public reserve1;
+    
+    // 构造器，初始化代币地址
+    constructor(IERC20 _token0, IERC20 _token1) ERC20("SimpleSwap", "SS") {
+        token0 = _token0;
+        token1 = _token1;
+    }
+}
+```
+
+交易所主要有两类参与者：流动性提供者（Liquidity Provider，LP）和交易者（Trader）。下面我们分别实现这两部分的功能。
+
+- 流动性提供
+
+流动性的提供者是给市场提供流动性的人。他们向池子中注入两种资产，成为流动性提供者。
+
+他们提供流动性，并且获得手续费。
+
+我们需要实现这个流动性提供的功能。
+
+根据uniswap v2的实现，LP份额的计算公式是：
+
+![img](./content/Thurendous/01-AMM.png)
+
+因为SimpleSwap合约继承了ERC20合约，所以在计算好了LP份额以后，可以将份额以代币形式铸造给用户。
+
+下面的 addLiquidity() 函数实现了添加流动性的功能，主要步骤如下：
+
+- 将用户添加的代币转入合约，需要用户事先给合约授权。
+- 根据公式计算添加的流动性份额，并检查铸造的LP数量。
+- 更新合约的代币储备量。
+- 给流动性提供者铸造LP代币。
+- 释放 Mint 事件。
+
+```solidity
+event Mint(address indexed sender, uint amount0, uint amount1);
+
+// 添加流动性，转进代币，铸造LP
+// @param amount0Desired 添加的token0数量
+// @param amount1Desired 添加的token1数量
+function addLiquidity(uint amount0Desired, uint amount1Desired) public returns(uint liquidity){
+    // 将添加的流动性转入Swap合约，需事先给Swap合约授权
+    token0.transferFrom(msg.sender, address(this), amount0Desired);
+    token1.transferFrom(msg.sender, address(this), amount1Desired);
+    // 计算添加的流动性
+    uint _totalSupply = totalSupply();
+    if (_totalSupply == 0) {
+        // 如果是第一次添加流动性，铸造 L = sqrt(x * y) 单位的LP（流动性提供者）代币
+        liquidity = sqrt(amount0Desired * amount1Desired);
+    } else {
+        // 如果不是第一次添加流动性，按添加代币的数量比例铸造LP，取两个代币更小的那个比例
+        liquidity = min(amount0Desired * _totalSupply / reserve0, amount1Desired * _totalSupply /reserve1);
+    }
+
+    // 检查铸造的LP数量
+    require(liquidity > 0, 'INSUFFICIENT_LIQUIDITY_MINTED');
+
+    // 更新储备量
+    reserve0 = token0.balanceOf(address(this));
+    reserve1 = token1.balanceOf(address(this));
+
+    // 给流动性提供者铸造LP代币，代表他们提供的流动性
+    _mint(msg.sender, liquidity);
+    
+    emit Mint(msg.sender, amount0Desired, amount1Desired);
+}
+```
+
+- 移除流动性
+
+流动性提供者可以随时移除他们的流动性。
+
+![img](./content/Thurendous/02-AMM.png)
+
+下边的removeLiquidity()函数实现了移除流动性的功能，主要步骤如下：
+
+- 获取合约中的代币余额。
+- 按LP的比例计算要转出的代币数量。
+- 检查代币数量。
+- 销毁LP份额。
+- 将相应的代币转账给用户。
+- 更新储备量。
+- 释放 Burn 事件。
+
+```solidity
+// 移除流动性，销毁LP，转出代币
+// 转出数量 = (liquidity / totalSupply_LP) * reserve
+// @param liquidity 移除的流动性数量
+function removeLiquidity(uint liquidity) external returns (uint amount0, uint amount1) {
+    // 获取余额
+    uint balance0 = token0.balanceOf(address(this));
+    uint balance1 = token1.balanceOf(address(this));
+    // 按LP的比例计算要转出的代币数量
+    uint _totalSupply = totalSupply();
+    amount0 = liquidity * balance0 / _totalSupply;
+    amount1 = liquidity * balance1 / _totalSupply;
+    // 检查代币数量
+    require(amount0 > 0 && amount1 > 0, 'INSUFFICIENT_LIQUIDITY_BURNED');
+    // 销毁LP
+    _burn(msg.sender, liquidity);
+    // 转出代币
+    token0.transfer(msg.sender, amount0);
+    token1.transfer(msg.sender, amount1);
+    // 更新储备量
+    reserve0 = token0.balanceOf(address(this));
+    reserve1 = token1.balanceOf(address(this));
+
+    emit Burn(msg.sender, amount0, amount1);
+}
+```
+
+### 2024.10.12
+
+(Day 17)
+
+学习笔记
+
+- 交易
+
+swap合约中，我们可以一种代币交易另一种代币。我们使用Δx单位的 token0，可以交换多少单位的 token1 ？
+
+根据恒定乘积公式：
+
+k = x * y
+
+交易后有：
+
+(x + Δx) * (y - Δy) = k
+
+交易的前后k的值都不变。联立方程后，得到：
+
+Δy = y - k / (x + Δx)
+带入k = x * y 得到：
+Δy = k/x - k/(x + Δx)
+
+
+因此可以交换到的代币的数量为Δy是是由Δx, x, y决定的。
+
+Δx和Δy的值符号是相反的，也就是说，Δx增加，Δy减少，反之亦然。
+
+```solidity
+// 给定一个资产的数量和代币对的储备，计算交换另一个代币的数量
+function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) public pure returns (uint amountOut) {
+    require(amountIn > 0, 'INSUFFICIENT_AMOUNT');
+    require(reserveIn > 0 && reserveOut > 0, 'INSUFFICIENT_LIQUIDITY');
+    amountOut = amountIn * reserveOut / (reserveIn + amountIn);
+}
+```
+
+有了这个核心的公式之后，我们就可以来使用swap函数来实现交易代币的功能了。
+
+主要步骤：
+
+1. 用户在调用函数时，制定用户交换的代币数量，交换的代币的地址，以及换出另一种代币的最低数量。
+2. 判断token0和token1的交换是用谁换谁。
+3. 利用公式计算交换出的代币的数量
+4. 判断交换出的代币是否达到了用户指定的最低数量，这里类似于交易的滑点
+5. 讲用户代币转入合约
+6. 将交换的代币从合约转给用户
+7. 更新合约的代币储备粮
+8. 释放swap
+
+```solidity
+// swap代币
+// @param amountIn 用于交换的代币数量
+// @param tokenIn 用于交换的代币合约地址
+// @param amountOutMin 交换出另一种代币的最低数量
+function swap(uint amountIn, IERC20 tokenIn, uint amountOutMin) external returns (uint amountOut, IERC20 tokenOut){
+    require(amountIn > 0, 'INSUFFICIENT_OUTPUT_AMOUNT');
+    require(tokenIn == token0 || tokenIn == token1, 'INVALID_TOKEN');
+    
+    uint balance0 = token0.balanceOf(address(this));
+    uint balance1 = token1.balanceOf(address(this));
+
+    if(tokenIn == token0){
+        // 如果是token0交换token1
+        tokenOut = token1;
+        // 计算能交换出的token1数量
+        amountOut = getAmountOut(amountIn, balance0, balance1);
+        require(amountOut > amountOutMin, 'INSUFFICIENT_OUTPUT_AMOUNT');
+        // 进行交换
+        tokenIn.transferFrom(msg.sender, address(this), amountIn);
+        tokenOut.transfer(msg.sender, amountOut);
+    }else{
+        // 如果是token1交换token0
+        tokenOut = token0;
+        // 计算能交换出的token1数量
+        amountOut = getAmountOut(amountIn, balance1, balance0);
+        require(amountOut > amountOutMin, 'INSUFFICIENT_OUTPUT_AMOUNT');
+        // 进行交换
+        tokenIn.transferFrom(msg.sender, address(this), amountIn);
+        tokenOut.transfer(msg.sender, amountOut);
+    }
+
+    // 更新储备量
+    reserve0 = token0.balanceOf(address(this));
+    reserve1 = token1.balanceOf(address(this));
+
+    emit Swap(msg.sender, amountIn, address(tokenIn), amountOut, address(tokenOut));
+}
+```
+
+
+
+
 
 
 <!-- Content_END -->

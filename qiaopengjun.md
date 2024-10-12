@@ -660,23 +660,149 @@ Merkle Tree是一种自下而上构建的加密树，每个叶子是对应数据
 
 ### 2024.10.08
 
-笔记内容
+金库合约是 DeFi 乐高中的基础，它允许你把基础资产（代币）质押到合约中，换取一定收益，包括以下应用场景:
+
+收益农场: 在 Yearn Finance 中，你可以质押 USDT 获取利息。
+借贷: 在 AAVE 中，你可以出借 ETH 获取存款利息和贷款。
+质押: 在 Lido 中，你可以质押 ETH 参与 ETH 2.0 质押，得到可以生息的 stETH。
+
+ERC4626 代币化金库标准（Tokenized Vault Standard）横空出世，使得 DeFi 能够轻松扩展。它具有以下优点:
+
+代币化: ERC4626 继承了 ERC20，向金库存款时，将得到同样符合 ERC20 标准的金库份额，比如质押 ETH，自动获得 stETH。
+
+更好的流通性: 由于代币化，你可以在不取回基础资产的情况下，利用金库份额做其他事情。拿 Lido 的 stETH 为例，你可以用它在 Uniswap 上提供流动性或交易，而不需要取出其中的 ETH。
+
+更好的可组合性: 有了标准之后，用一套接口可以和所有 ERC4626 金库交互，让基于金库的应用、插件、工具开发更容易。
+
+ERC4626 为 DeFi 提升流动性和可组合性
 
 ### 2024.10.09
 
-笔记内容
+代币锁(Token Locker)是一种简单的时间锁合约，它可以把合约中的代币锁仓一段时间，受益人在锁仓期满后可以取走代币。
+代币锁一般是用来锁仓流动性提供者LP代币的。
+
+区块链中，用户在去中心化交易所DEX上交易代币，例如Uniswap交易所。
+DEX和中心化交易所(CEX)不同，去中心化交易所使用自动做市商(AMM)机制，需要用户或项目方提供资金池，以使得其他用户能够即时买卖。
+简单来说，用户/项目方需要质押相应的币对（比如ETH/DAI）到资金池中，
+作为补偿，DEX会给他们铸造相应的流动性提供者LP代币凭证，证明他们质押了相应的份额，供他们收取手续费。
+
+如果项目方毫无征兆的撤出流动性池中的LP代币，那么投资者手中的代币就无法变现，直接归零了。这种行为也叫rug-pull，仅2021年，各种rug-pull骗局从投资者那里骗取了价值超过28亿美元的加密货币。
+
+但是如果LP代币是锁仓在代币锁合约中，在锁仓期结束以前，项目方无法撤出流动性池，也没办法rug pull。因此代币锁可以防止项目方过早跑路（要小心锁仓期满跑路的情况）。
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "./IERC20.sol";
+
+contract TokenLocker {
+    // 被锁仓的ERC20代币合约
+    IERC20 public immutable token;
+    // 受益人地址
+    address public immutable beneficiary;
+    // 锁仓时间(秒)
+    uint256 public immutable lockTime;
+    // 锁仓起始时间戳(秒)
+    uint256 public immutable startTime;
+
+    // 事件
+    event TokenLockStart(address indexed beneficiary, address indexed token, uint256 startTime, uint256 lockTime);
+    event Release(address indexed beneficiary, address indexed token, uint256 releaseTime, uint256 amount);
+
+    /**
+     * @dev 部署时间锁合约，初始化代币合约地址，受益人地址和锁仓时间。
+     * @param token_: 被锁仓的ERC20代币合约
+     * @param beneficiary_: 受益人地址
+     * @param lockTime_: 锁仓时间(秒)
+     */
+    constructor(IERC20 token_, address beneficiary_, uint256 lockTime_) {
+        require(lockTime_ > 0, "TokenLock: lock time should greater than 0");
+        token = token_;
+        beneficiary = beneficiary_;
+        lockTime = lockTime_;
+        startTime = block.timestamp;
+
+        emit TokenLockStart(beneficiary_, address(token_), block.timestamp, lockTime_);
+    }
+
+    /**
+     * @dev 在锁仓时间过后，将代币释放给受益人。
+     */
+    function release() public {
+        require(block.timestamp >= startTime + lockTime, "TokenLock: current time is before release time");
+
+        uint256 amount = token.balanceOf(address(this));
+        require(amount > 0, "TokenLock: no tokens to release");
+
+        token.transfer(beneficiary, amount);
+
+        emit Release(msg.sender, address(token), block.timestamp, amount);
+    }
+}
+
+```
 
 ### 2024.10.10
 
-笔记内容
+通证化的现实世界资产（RWAs）是基于区块链的数字通证，代表实物和传统金融资产，如现金、商品、股票、债券、信贷、艺术品和知识产权。RWA 的通证化标志着这些资产的获取、交换和管理方式的重大转变，在区块链驱动的金融服务，以及由密码学和去中心化共识支持的广泛非金融应用场景中，创造了一系列新机遇。
+
+将现实世界资产通证化是指将资产的所有权以链上通证的形式表示。在此过程中，创建了底层资产的数字表现，实现了资产所有权的链上管理，有助于弥合实物资产与数字资产之间的鸿沟。
+
+通证化现实世界资产的过程涉及多个步骤：
+
+资产选择：确定要通证化的现实世界资产。
+
+通证规范：确定通证的类型（同质化或非同质化）、要使用的代币标准（如ERC20、ERC721或ERC1155）以及其他代币的基本特征。
+
+区块链选择：选择在哪个公共或私有区块链网络上发行通证。集成Chainlink跨链互操作性协议（CCIP）有助于将代币化的RWA在任何区块链上实现可用。
+
+链下连通：大多数通证化资产需要来自安全可靠预言机服务的高质量链下数据。使用可信的验证机制来确认支持 RWA 代币的资产对于保持用户透明度至关重要。这通常涉及使用信誉良好的服务，如Chainlink。
+
+发行：在选定的网络上部署智能合约、铸造通证并使其可供使用。
+
+通证化是指通过发行区块链代币创造现金、商品、债务、金融工具及房地产等实物资产的数字化表现形式。由此产生的代币化资产可获取更多实用性，并接入公共和私有区块链上的全球金融服务生态。
+
+将资产通证化，即在区块链上将资产作为代币创建其数字表现形式，这是必要的。
+
+资产通证化是指在区块链上创建代表现实世界中资产的数字代币。通过通证化，可以将资产的所有权，如艺术品或公司股份，转化为存储在区块链上的数字通证。这个通证代表了基础资产，可以用于追踪和转移其所有权。
+
+资产通证化是将实体资产转换为区块链上的数字通证的过程
+
+1. 选择待通证化的资产
+2. 定义通证类型
+3. 选择发行通证的区块链
+4. 选择第三方审计机构核实链下资产
+5. 利用 Chainlink Proof of Reserve 保障通证铸造的安全
 
 ### 2024.10.11
 
-笔记内容
+时间锁（Timelock）是银行金库和其他高安全性容器中常见的锁定机制。它是一种计时器，旨在防止保险箱或保险库在预设时间之前被打开，即便开锁的人知道正确密码。
+时间锁主要有三个功能：
+
+创建交易，并加入到时间锁队列。
+在交易的锁定期满后，执行交易。
+后悔了，取消时间锁队列中的某些交易。
+项目方一般会把时间锁合约设为重要合约的管理员，例如金库合约，再通过时间锁操作他们。
+
+时间锁合约的管理员一般为项目的多签钱包，保证去中心化。
+代理模式将合约数据和逻辑分开，分别保存在不同合约中
 
 ### 2024.10.12
 
-笔记内容
+代理合约（Proxy）通过delegatecall，将函数调用全权委托给逻辑合约（Implementation）执行，再把最终的结果返回给调用者（Caller）。
+代理模式主要有两个好处：
+
+可升级：当我们需要升级合约的逻辑时，只需要将代理合约指向新的逻辑合约。
+省gas：如果多个合约复用一套逻辑，我们只需部署一个逻辑合约，然后再部署多个只保存数据的代理合约，指向逻辑合约。
+
+代理合约利用delegatecall将函数调用委托给了另一个逻辑合约，使得数据和逻辑分别由不同合约负责。
+并且，它利用内联汇编黑魔法，让没有返回值的回调函数也可以返回数据。
+
+跨链桥是一种区块链协议，它允许在两个或多个区块链之间移动数字资产和信息。
+例如，一个在以太坊主网上运行的ERC20代币，可以通过跨链桥转移到其他兼容以太坊的侧链或独立链。
+
+同时，跨链桥不是区块链原生支持的，跨链操作需要可信第三方来执行，这也带来了风险。
 
 ### 2024.10.13
 

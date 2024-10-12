@@ -406,4 +406,14 @@ error statement is a new feature in solidity 0.8. It saves gas and informs users
   day13:
   [WTF Academy Solidity 102 19 Note](/content/jackchou/102new.md)
 ###
+### 2024.10.09
+  
+  day13:
+  [WTF Academy Solidity 102 19 Note](/content/jackchou/102new.md)
+###
+### 2024.10.10
+  
+  day13:
+  [WTF Academy Solidity 102 19 Note](/content/jackchou/102new.md)
+###
 <!-- Content_END -->

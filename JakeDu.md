@@ -124,4 +124,39 @@ day02
 
 [WTF Academy Solidity 103 Note 33](/content/JakeDu/15.md)
 <br>
+
+### 2024.10.08
+
+学习103的三十四课
+
+[WTF Academy Solidity 103 Note 34](/content/JakeDu/16.md)
+<br>
+
+### 2024.10.09
+
+学习103的三十五课
+
+[WTF Academy Solidity 103 Note 35](/content/JakeDu/17.md)
+<br>
+
+### 2024.10.10
+
+学习103的三十六课和三十七课
+
+[WTF Academy Solidity 103 Note 36-37](/content/JakeDu/18.md)
+<br>
+
+### 2024.10.11
+
+学习103的三十八课和四十课
+
+[WTF Academy Solidity 103 Note 38-40](/content/JakeDu/19.md)
+<br>
+
+### 2024.10.12
+
+学习103的三十九课和四十七课
+
+[WTF Academy Solidity 103 Note 39-47](/content/JakeDu/20.md)
+<br>
 <!-- Content_END -->

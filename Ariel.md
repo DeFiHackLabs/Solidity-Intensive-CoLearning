@@ -779,12 +779,186 @@ function deleteContract() external {
 5. 当合约中有selfdestruct功能时常常会带来安全问题和信任问题，合约中的selfdestruct功能会为攻击者打开攻击向量(例如使用selfdestruct向一个合约频繁转入token进行攻击，这将大大节省了GAS的费用，虽然很少人这么做)，此外，此功能还会降低用户对合约的信心。
 
 
-### 2024.10.0
+### 2024.10.11
 
-學習內容: WTF 27
+學習內容: WTF 27~30
 
-# 27:
+# 27:ABI
+ABI (Application Binary Interface，应用二进制接口)是与以太坊智能合约交互的标准。
+数据基于他们的类型编码；并且由于编码后不包含类型信息，解码时需要注明它们的类型。
+
+ABI编码有4个函数：abi.encode, abi.encodePacked, abi.encodeWithSignature, abi.encodeWithSelector。
+而ABI解码有1个函数：abi.decode，用于解码abi.encode的数据。这一讲，我们将学习如何使用这些函数。
+
+ABI编码
+我们将编码4个变量，他们的类型分别是uint256（别名 uint）, address, string, uint256[2]：
+
+         uint x = 10;
+         address addr = 0x7A58c0Be72BE218B41C608b7Fe7C5bB630736C71;
+         string name = "0xAA";
+         uint[2] array = [5, 6]; 
+
+abi.encode:将给定参数利用ABI规则编码。ABI被设计出来跟智能合约交互，他将每个参数填充为32字节的数据，并拼接在一起。如果你要和合约交互，你要用的就是abi.encode。将给定参数根据其所需最低空间编码。当调用其他合约的时候可以使用。
+
+abi.encodePacked类似 abi.encode，但是会把其中填充的很多0省略。比如，只用1字节来编码uint8类型。当你想省空间，并且不与合约交互的时候，可以使用abi.encodePacked，例如算一些数据的hash时。
+
+abi.encodeWithSignature
+与abi.encode功能类似，只不过第一个参数为函数签名，比如"foo(uint256,address,string,uint256[2])"。当调用其他合约的时候可以使用。
 
 
+abi.encodeWithSelector
+与abi.encodeWithSignature功能类似，只不过第一个参数为函数选择器，为函数签名Keccak哈希的前4个字节。当调用其他合约的时候可以使用。
 
+abi.decode
+abi.decode用于解码abi.encode生成的二进制编码，将它还原成原本的参数。
+
+ABI的使用场景
+在合约开发中，ABI常配合call来实现对合约的底层调用。
+
+      bytes4 selector = contract.getValue.selector;
+      
+      bytes memory data = abi.encodeWithSelector(selector, _x);
+      (bool success, bytes memory returnedData) = address(contract).staticcall(data);
+      require(success);
+      
+      return abi.decode(returnedData, (uint256));
+
+
+ethers.js中常用ABI实现合约的导入和函数调用。
+
+      const wavePortalContract = new ethers.Contract(contractAddress, contractABI, signer);
+      /*
+          * Call the getAllWaves method from your Smart Contract
+          */
+      const waves = await wavePortalContract.getAllWaves();
+
+
+对不开源合约进行反编译后，某些函数无法查到函数签名，可通过ABI进行调用。
+
+# 28 HASH
+哈希函数应该具有以下几个特性：
+
+单向性：从输入的消息到它的哈希的正向运算简单且唯一确定，而反过来非常难，只能靠暴力枚举。
+灵敏性：输入的消息改变一点对它的哈希改变很大。
+高效性：从输入的消息到哈希的运算高效。
+均一性：每个哈希值被取到的概率应该基本相等。
+抗碰撞性：
+      弱抗碰撞性：给定一个消息x，找到另一个消息x'，使得hash(x) = hash(x')是困难的。
+      强抗碰撞性：找到任意x和x'，使得hash(x) = hash(x')是困难的。
+
+Hash的应用
+   生成数据唯一标识
+   加密签名
+   安全加密
+Keccak256是Solidity中最常用的哈希函数﹔哈希 = keccak256(数据);
+
+Keccak256和sha3
+这是一个很有趣的事情：
+
+sha3由k
+eccak标准化而来，在很多场合下Keccak和SHA3是同义词，但在2015年8月SHA3最终完成标准化时，NIST调整了填充算法。所以SHA3就和keccak计算的结果不一样，这点在实际开发中要注意。
+以太坊在开发的时候sha3还在标准化中，所以采用了keccak，所以Ethereum和Solidity智能合约代码中的SHA3是指Keccak256，而不是标准的NIST-SHA3，为了避免混淆，直接在合约代码中写成Keccak256是最清晰的
+我们可以利用keccak256来生成一些数据的唯一标识。比如我们有几个不同类型的数据：uint，string，address，我们可以先用abi.encodePacked方法将他们打包编码，然后再用keccak256来生成唯一标识
+
+# 29；函数选择器
+当我们调用智能合约时，本质上是向目标合约发送了一段calldata(input)，前4个字节是selector（函数选择器）
+
+在下面的代码中，我们可以通过Log事件来输出调用mint函数的calldata：
+
+      // event 返回msg.data
+      event Log(bytes data);
+      
+      function mint(address to) external{
+          emit Log(msg.data);
+      }
+
+0x6a6278420000000000000000000000002c44b726adf1963ca47af88b284c06f30380fc78
+可以分成两部分：
+
+//前4个字节为函数选择器selector：0x6a627842
+//后面32个字节为输入的参数：0x0000000000000000000000002c44b726adf1963ca47af88b284c06f30380fc78
+其实calldata就是告诉智能合约，我要调用哪个函数，以及参数是什么。
+
+method id、selector和函数签名
+   method id定义为函数签名的Keccak哈希后的前4个字节，当selector与method id相匹配时，即表示调用该函数，那么函数签名是什么？
+   其实在第21讲中，我们简单介绍了函数签名，为"函数名（逗号分隔的参数类型)"。举个例子，上面代码中mint的函数签名为"mint(address)"。在同一个智能合约中，不同的函数有不同的函数签名，因此我们可以通过函数签名来确定要调用哪个函数。
+
+注意，在函数签名中，uint和int要写为uint256和int256。
+
+我们写一个函数，来验证mint函数的method id是否为0x6a627842。大家可以运行下面的函数，看看结果。
+
+      function mintSelector() external pure returns(bytes4 mSelector){
+          return bytes4(keccak256("mint(address)"));
+      }
+
+结果正是0x6a627842
+
+
+基础类型的参数有：uint256(uint8, ... , uint256)、bool, address等。在计算method id时，只需要计算bytes4(keccak256("函数名(参数类型1,参数类型2,...)"))。例如，如下函数，函数名为elementaryParamSelector，参数类型分别为uint256和bool。所以，只需要计算bytes4(keccak256("elementaryParamSelector(uint256,bool)"))便可得到此函数的method id。
+固定长度类型参数
+固定长度的参数类型通常为固定长度的数组，例如：uint256[5]等。例如，如下函数fixedSizeParamSelector的参数为uint256[3]。因此，在计算该函数的method id时，只需要通过bytes4(keccak256("fixedSizeParamSelector(uint256[3])"))即可。
+可变长度类型参数
+可变长度参数类型通常为可变长的数组，例如：address[]、uint8[]、string等。例如，如下函数nonFixedSizeParamSelector的参数为uint256[]和string。因此，在计算该函数的method id时，只需要通过bytes4(keccak256("nonFixedSizeParamSelector(uint256[],string)"))即可。
+映射类型参数
+映射类型参数通常有：contract、enum、struct等。在计算method id时，需要将该类型转化成为ABI类型。
+
+例如，如下函数mappingParamSelector中DemoContract需要转化为address，结构体User需要转化为tuple类型(uint256,bytes)，枚举类型School需要转化为uint8。因此，计算该函数的method id的代码为bytes4(keccak256("mappingParamSelector(address,(uint256,bytes),uint256[],uint8)"))。
+
+我们可以利用selector来调用目标函数。例如我想调用elementaryParamSelector函数，我只需要利用abi.encodeWithSelector将elementaryParamSelector函数的method id作为selector和参数打包编码，传给call函数：
+
+    // 使用selector来调用函数
+    function callWithSignature() external{
+    ...
+        // 调用elementaryParamSelector函数
+        (bool success1, bytes memory data1) = address(this).call(abi.encodeWithSelector(0x3ec37834, 1, 0));
+    ...
+    }
+
+# 30: Try Catch
+
+try-catch是现代编程语言几乎都有的处理异常的一种标准方式，Solidity0.6版本也添加了它。这一讲，我们将介绍如何利用try-catch处理智能合约中的异常。
+
+try-catch
+在Solidity中，try-catch只能被用于external函数或创建合约时constructor（被视为external函数）的调用。基本语法如下：
+
+      try externalContract.f() {
+          // call成功的情况下 运行一些代码
+      } catch {
+          // call失败的情况下 运行一些代码
+      }
+
+其中externalContract.f()是某个外部合约的函数调用，try模块在调用成功的情况下运行，而catch模块则在调用失败时运行。
+
+同样可以使用this.f()来替代externalContract.f()，this.f()也被视作为外部调用，但不可在构造函数中使用，因为此时合约还未创建。
+
+如果调用的函数有返回值，那么必须在try之后声明returns(returnType val)，并且在try模块中可以使用返回的变量；如果是创建合约，那么返回值是新创建的合约变量。
+
+      try externalContract.f() returns(returnType val){
+          // call成功的情况下 运行一些代码
+      } catch {
+          // call失败的情况下 运行一些代码
+      }
+
+另外，catch模块支持捕获特殊的异常原因：
+
+      try externalContract.f() returns(returnType){
+          // call成功的情况下 运行一些代码
+      } catch Error(string memory /*reason*/) {
+          // 捕获revert("reasonString") 和 require(false, "reasonString")
+      } catch Panic(uint /*errorCode*/) {
+          // 捕获Panic导致的错误 例如assert失败 溢出 除零 数组访问越界
+      } catch (bytes memory /*lowLevelData*/) {
+          // 如果发生了revert且上面2个异常类型匹配都失败了 会进入该分支
+          // 例如revert() require(false) revert自定义类型的error
+      }
+
+### 2024.10.12
+
+學習內容: WTF 31 1/2 +複習1-5
+
+複習第1-5章和看完31（需要再看一次）
+
+### 2024.10.
+
+學習內容: WTF 31+複習
 <!-- Content_END -->

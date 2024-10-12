@@ -2337,4 +2337,274 @@ contract ExampleContract {
     
     - **安全性和可靠性**：像 OpenZeppelin 這樣的庫經過了廣泛的審計和測試，確保了代幣合約的安全性和可靠性。使用這些庫可以減少代幣合約出錯的風險。
     - **快速開發**：由於所有標準的 ERC-20 函數都已經實現，你只需要關注代幣的額外功能（如總供應量、代幣鑄造等），不需要重新實現所有標準函數。
+
+### 2024.10.10
+#### 異常
+- 利用異常可以限制函數的調用
+- Solidity 中三種異常：`error`, `require`, `assert`
+- `error` 最省 gas fee，且可同時拋出異常＆攜帶參數
+
+---
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.13;
+
+error NotOwner();
+
+contract AddOne {
+  uint public balance = 0;
+  address owner = 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4;
+
+  function A() public {
+    if (msg.sender != owner){
+      revert NotOwner();
+    }
+    balance ++;
+  } 
+
+  function B() public {
+    require(msg.sender == owner, "Not owner");
+    balance ++;
+  }
+
+  function C() public {
+    assert(msg.sender == owner);
+    balance ++;
+  }
+}
+```
+
+- 使用 revert `error`: gas fee 最少
+    
+    ![image](https://github.com/user-attachments/assets/19813688-125e-4b3f-9059-14def250266f)
+
+    
+    ![image](https://github.com/user-attachments/assets/58d70e05-5b87-45d7-913d-f758c60fc4a5)
+
+    
+    - 當 `error` 條件不成立時：
+        - 會回滾交易，與 `require` 相同。
+        - 允許定義自訂錯誤並攜帶參數，便於調試和診斷。
+- 使用`require`
+    
+    ![image](https://github.com/user-attachments/assets/4bc060d4-2ba9-43d3-993e-4307439f81f9)
+
+    
+    ![image](https://github.com/user-attachments/assets/b8a59c68-37fa-4c5b-8d4a-d10443759119)
+
+    
+    - 當 `require` 條件不成立時：
+        - 會回滾整個交易。
+        - 消耗掉的 Gas 會退還剩餘的部分。
+        - 可以提供自訂的錯誤訊息，便於調試。
+- 使用`assert`
+    
+    ![image](https://github.com/user-attachments/assets/b7d84d49-030a-4be3-8c7e-0faa7ad276e5)
+
+    
+    ![image](https://github.com/user-attachments/assets/2d3a34eb-996f-4d8d-961c-e2e91e295a54)
+
+    
+    - 當 `assert` 條件不成立時：
+        - 會回滾整個交易。
+        - **所有 Gas 都會被消耗**，無論剩餘多少 Gas。
+        - 不允許提供錯誤訊息（只知道被 revert QQ）。
+    - 使用場合：
+        - **不變性條件的檢查**：如數學計算錯誤，或者存款、提款後餘額應該始終為正。
+        - **理論上不應該失敗的地方**：比如內部狀態更新後的一致性檢查。
+        - 範例：
+            
+            ```solidity
+            function withdraw(uint256 amount) public {
+                balance[msg.sender] -= amount;
+                assert(balance[msg.sender] >= 0);  // 應該永遠不會發生
+            }
+            ```
+            
+            這裡的 `assert` 用來檢查代幣餘額在扣除後不應該是負數，因為在代幣系統中這應該是不可變的規則。
+            
+
+### 三者的區別與使用時機
+
+| 特性 | `require` | `assert` | 自定義 `error` |
+| --- | --- | --- | --- |
+| **目的** | 驗證外部輸入和合約狀態 | 檢查合約內部不變條件 | 表達具體錯誤，並提高 Gas 效率 |
+| **是否回滾** | 是 | 是 | 是 |
+| **Gas 處理** | 剩餘 Gas 退回 | 所有 Gas 消耗 | 剩餘 Gas 退回 |
+| **錯誤訊息** | 可以提供錯誤訊息 | 不可提供錯誤訊息 | 可以自定義錯誤，並攜帶參數 |
+| **使用場合** | 輸入參數檢查、邏輯條件檢查 | 檢查不應發生的內部錯誤 | 類似 `require`，但有更高 Gas 效率 |
+
+### 總結：
+
+1. **`require`**：適合用於檢查外部輸入條件和狀態，如參數有效性、餘額檢查、授權驗證等。當條件不成立時，它會回滾交易並退還剩餘 Gas。
+2. **`assert`**：主要用於檢查代碼中的不變性條件，如數學錯誤、邏輯漏洞等。如果條件不成立，則表明代碼出現了嚴重錯誤，所有的 Gas 都會被消耗掉。
+3. **自定義 `error`**：允許開發者使用更加節省 Gas 的方式來報告錯誤，並且可以帶有參數來提供更豐富的上下文信息。這是提高 Gas 效率的一種方式，尤其是在複雜合約中使用大量錯誤檢查時。
+
+### 2024.10.11
+#### 函數重載(overloading)
+- 指在同一個合約中，允許定義**多個名稱相同但參數不同**的函數
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.13;
+
+contract Demo{
+  function DoSomething() external pure returns(string memory){
+    return ("Do nothing");
+  }
+
+  function DoSomething(string memory something) external pure returns(string memory){
+    return something;
+  }
+}
+```
+
+- 參數可以在**數量**或**類型**上有所不同，合約根據傳遞的參數來調用正確的函數實現。
+    
+    ![image](https://github.com/user-attachments/assets/c16cda86-f532-4dbe-945b-f0b9b59c2258)
+
+    
+- 和**函數選擇器（function selector）** 是相關的概念
+    - 每個 Solidity 函數都有一個**函數選擇器**
+    - 函數的**名稱和參數類型 → 4 bytes Hash(8個 16進制)**
+        
+        ```solidity
+        function transfer(address recipient, uint256 amount) public returns (bool);
+        
+        keccak256("transfer(address,uint256)") => 0xa9059cbb
+        ```
+        
+    - 對於重載函數，每一個都有不同的函數簽名和函數選擇器，因為參數列表不同。
+
+### 函數重載特點：
+
+- 函數名稱相同，但參數的數量或類型不同。
+- Solidity 根據傳入參數自動選擇合適的函數實現。
+- 重載函數可以返回不同類型的數據，但參數列表必須唯一，以便區分不同的重載版本。
+- 注意：Solidity 不允許修飾器(modifier)重載
+- 注意：無法辨識的參數匹配（**Argument Matching）**
+    - 當參數帶進去都可以，編譯後不知道你要調用哪一個
+        
+        ```solidity
+        // SPDX-License-Identifier: MIT
+        pragma solidity ^0.8.13;
+        
+        contract Demo{
+          function f(uint8 _in) public pure returns (uint8 out) {
+            out = _in;
+          }
+        
+          function f(uint256 _in) public pure returns (uint256 out) {
+              out = _in;
+          }
+        
+          function callF() public pure returns (uint256 result){
+            return f(50);
+          }
+        }
+        ```
+        
+        ![image](https://github.com/user-attachments/assets/fe2936a5-ba25-4170-a24a-c52371adfa47)
+
+        
+
+p.s.容易混淆的概念：
+
+1. 覆寫(Override)
+    - 子類別可以覆寫父類別的方法內容，使該方法擁有不同於父類別的行為。
+2. 多載(Overload)
+    - 一個類別(class)中，定義多個名稱相同，但參數(Parameter)不同的方法(Method)。
+3. 多型(Polymorphism)
+    - 父類別可透過子類別衍伸成多種型態，而父類別為子類別的通用型態，再透過子類別可覆寫父類別的方法來達到多型的效果，也就是同樣的方法名稱會有多種行為。
+
+### 2024.10.12
+#### 庫合約 - library
+- Library 是大神們寫的方法們，可以減少程式碼錯誤率，高速開發
+
+### Library 的特點
+
+- **無狀態（Stateless）**：
+    - Library 中不能有狀態變量，這意味著它們不能保存任何數據。
+    - 所有的函數都是純粹的邏輯運算，不涉及狀態修改。
+- **無法接收以太幣**：
+    - Library 無法直接接收或持有以太幣，這使得它們更加簡單和安全。
+- **無法被部署**：
+    - Library 本身不能被單獨部署，
+    - 它們的函數可以被其他合約調用，但它們本身不會管理狀態或擁有資金。
+- **被調用時是無狀態的**：
+    - Library 的函數執行時不依賴於存儲的狀態，這與普通合約不同。
+- **不能被繼承**
+
+### Library 的用途
+
+- **代碼復用**：Library 中的函數可以在多個合約中重複使用，這樣可以減少代碼重複，提高開發效率。
+- **簡化合約**：Library 可以將邏輯代碼提取到外部，從而減少合約本身的複雜度。
+- **常用工具和函數**：Library 通常被用來定義常用的工具和函數，例如數學運算、數據結構處理等。
+
+### Library 的類型
+
+Solidity 中的 Library 有兩種主要調用方式：
+
+1. **內部函數庫（Internal Library）**：這類函數在編譯時會被內聯到調用它們的合約中。這意味著這些函數與合約中的其他代碼一起部署，不需要單獨的合約調用。
+2. **外部函數庫（External Library）**：這類函數庫可以部署為單獨的合約，其他合約通過 `delegatecall` 調用它們的函數，這樣的調用可以節省合約大小並允許多個合約共享相同的函數邏輯。
+
+### Library 的用法
+
+### 1. **內部函數庫（Internal Functions）**
+
+內部函數庫中的函數是內聯的，這意味著它們的代碼會在調用合約中直接使用，沒有額外的合約調用開銷。
+
+範例：
+
+```solidity
+// 數學運算工具庫
+library Math {
+    // 加法函數
+    function add(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a + b;
+    }
+}
+
+contract Example {
+    // 使用 Library 中的函數
+    function sum(uint256 x, uint256 y) public pure returns (uint256) {
+        return Math.add(x, y);
+    }
+}
+```
+
+- 在這個例子中，`Math` 庫的 `add` 函數是內聯的，這意味著當 `Example` 合約部署時，`add` 函數的邏輯會被直接編譯進合約。
+- **內聯（Inline）**：函數代碼在編譯時被嵌入到調用的合約中，因此不需要額外的合約調用。
+- **節省執行時的 Gas 成本**：
+    - **沒有額外的函數調用開銷**：內部函數庫的調用就像調用本地函數一樣，不需要通過 `CALL` 或 `DELEGATECALL` 進行合約間的調用。
+    - 因為內部函數庫不涉及合約間調用，所以節省了在合約調用中的額外 Gas 成本。
+
+### 2. **外部函數庫（External Functions）**
+
+外部函數庫需要部署成獨立的合約，其他合約通過 `delegatecall` 調用它們。這使得不同的合約可以共享相同的庫邏輯，而不需要將其內聯到每個合約中。
+
+範例：
+
+```solidity
+library Math {
+    function add(uint256 a, uint256 b) external pure returns (uint256) {
+        return a + b;
+    }
+}
+
+contract Example {
+    // 引入外部函數庫
+    using Math for uint256;
+
+    function sum(uint256 x, uint256 y) public view returns (uint256) {
+        return x.add(y);  // 調用外部函數庫
+    }
+}
+```
+
+- 在這個例子中，`Math` 庫作為外部函數庫使用，`x.add(y)` 是一個 `delegatecall` 調用，這意味著合約不需要內聯 `Math` 的代碼，而是委派調用到外部合約來完成這個邏輯。
+
+- `using for` 語法
+    - `using Math for uint256` 表示可以將 `Math` 中定義的函數應用於 `uint256` 類型的變量上。
 <!-- Content_END -->

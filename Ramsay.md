@@ -1219,7 +1219,357 @@ try externalContract.f() returns(returnType){
 
 问题就来了，为什么只支持 `external` function呢? 个人猜测是因为:
 
-external 调用不确定性更高，可能出来 gas 不够，或者是其他异常，所以需要引入 try/catch 来作异常处理。而对于合约内的调用，因为 Solidity 的异常模型是 `state-revert` exception, 所以当内部调用出现问题了(`require` 或者 `assert`)，状态就自动回滚了，无须 `try/catch` 处理
+external 调用不确定性更高，可能出来 gas 不够，或者是其他异常，所以需要引入 try/catch 来作异常处理; 而对于合约内的调用，因为 Solidity 的异常模型是 `state-revert` exception, 所以当内部调用出现问题了(`require` 或者 `assert`)，状态就自动回滚了，无须 `try/catch` 处理
 
 WTF Solidity 102 is done, I should pat myself on the back for completing this project.
+
+### 2024.10.10
+#### ERC20
+
+为了方便交互，Ethereum 基金会定义了 ERC-20 标准，只要你的合约包含如下 methods，那么你的 token 就可以作为一种标准 ERC-20 FT 被其他的钱包和交易所所支持.
+
+```solidity
+totalSupply()
+balanceOf(account)
+transfer(to, amount)
+allowance(owner, spender)
+approve(spender, amount)
+transferFrom(from, to, amount)
+```
+
+代码非常简单易懂，没有并行和并发，不需要考虑任何数据冲突。 所谓的挖矿，就是调用一下合约的 `mint` 方法，然后编辑账本，给某个地址增加一点余额。 所谓的转账，就是调用一下合约的 `transfer` 方法，然后编辑账本，给一个地址减少一点余额，给另一个地址增加一点余额。
+
+只要你的 `contract` 符合 ERC-20 标准，就可以将合约地址作为一个 FT Token，登记到任何支持 ERC-20 的平台或钱包。
+
+通过以下代码就创建了一个符合ERC20标准的Token:
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.4;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+contract ERC20Token is IERC20 {
+    mapping(address => uint256) public override balanceOf;
+    mapping(address => mapping(address => uint256)) public override allowance;
+
+    uint256 public override totalSupply; 
+
+    string public name;
+    string public symbol;
+
+    uint8 public decimals = 18;
+
+    constructor(string memory name_, string memory symbol_) {
+        name = name_;
+        symbol = symbol_;
+    }
+
+    function transfer(address recipient, uint amount) public override returns (bool){
+        balanceOf[msg.sender] -= amount;
+        balanceOf[recipient] += amount;
+        emit Transfer(msg.sender, recipient, amount);
+        return true;
+    }
+
+    function approve(address spender, uint amount) public override returns (bool) {
+        allowance[msg.sender][spender] = amount;
+        emit Approval(msg.sender, spender, amount);
+        return true ;
+    }
+
+    function transferFrom(address sender, address recipient, uint amount) public override returns (bool) {
+        allowance[sender][msg.sender] -= amount;
+        balanceOf[sender] -= amount;
+        balanceOf[recipient] += amount;
+        emit Transfer(sender, recipient, amount);
+        return true;
+    }
+
+    function mint(uint amount) external {
+        balanceOf[msg.sender] += amount;
+        totalSupply += amount;
+        emit Transfer(address(0), msg.sender, amount);
+    }
+
+    function burn(uint amount) external {
+        balanceOf[msg.sender] -= amount;
+        totalSupply -= amount;
+        emit Transfer(msg.sender, address(0), amount);
+    }
+}
+```
+
+本来打算上线测试网的，但是一直报错 `gas required exceeds allowance (85717)`, 我的 Sepolia ETH又不多，只好作罢.
+
+虽然可以通过智能合约实现一个 ERC20 的Token, 但是 `openzeppelin` 甚至把 ERC20 Token的代码都写好了，只需要继承 [`ERC20.sol`](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/ERC20.sol) 即可, 网页点击下就可以一键发币.
+
+通过继承 ERC20 来发行一个貔貅币(PIXIU Token)
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.4;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+contract PIXIU is ERC20 {
+  constructor(uint256 initialSupply) public ERC20("PIXIU", "PX") {
+	_mint(msg.sender, initialSupply);
+  }
+}
+```
+
+### 2024.10.11
+#### Faucet
+
+通过智能合约来实现简易版本的 `ERC20` 水龙头：
+
+```solidity
+pragma solidity ^0.8.4;
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+contract Facuet {
+    uint256 public amountAllowed = 100;
+    address public tokenContract;
+    mapping(address => bool) public requestedAddress;
+    event SendToken(address indexed Receiver, uint256 indexed Amount);
+    constructor (address _tokenContract) {
+        tokenContract = _tokenContract;
+    }
+
+    function requestTokens() external {
+        require(!requestedAddress[msg.sender], "Can't request multiple times!");
+        IERC20 token = IERC20(tokenContract);
+        require(token.balanceOf(address(this))>= amountAllowed, "Faucet Empty!");
+
+        token.transfer(msg.sender, amountAllowed);
+        requestedAddress[msg.sender] = true;
+
+        emit SendToken(msg.sender, amountAllowed);
+    }
+}
+```
+
+但实际的水龙头肯定会比这个复杂，因为代币数量有限，会限制每个地址领取的时间间隔（假设能重复领取的话）; 为了避免被爬虫直接把水龙头给薅光，还会加上类似 Google 的 Recaptcha 或者是 Cloudflare 的 Turnstile 人机校验服务; 更严格的还会接入链上 passport 服务，超过一定分数才能领水。
+
+这让我意识到, 即使领水是 Web3 的概念，但是水龙头的实现不能是单纯的 Solidity 智能合约，更进一步地说，如果把区块链理解成分布式的数据库，那么 Solidity 是否就算是数据库的存储过程呢？
+
+我们当然可以把逻辑计算放到存储过程，但是鉴于其成本较高（数据库的存储过程成本就是维护成本，存储成本，而区块链就是 gas fee）, 部分逻辑适合放到逻辑层（Web2），部分逻辑可以放到存储层（智能合约）
+
+课程提到最早的代币水龙头是BTC水龙头，但是那个时候还没有智能合约，所以肯定是使用 Web2 的技术栈实现的.
+
+#### 空投合约
+
+通过智能合约来发送空投，其实就是一个 for 循环来给符合条件的地址列表打固定金额的钱，转账前做参数校验:
+
+```solidity
+// 数组求和函数
+function getSum(uint256[] calldata _arr) public pure returns(uint sum){
+    for(uint i = 0; i < _arr.length; i++)
+        sum = sum + _arr[i];
+}
+
+/// @notice 向多个地址转账ERC20代币，使用前需要先授权
+///
+/// @param _token 转账的ERC20代币地址
+/// @param _addresses 空投地址数组
+/// @param _amounts 代币数量数组（每个地址的空投数量）
+function multiTransferToken(
+    address _token,
+    address[] calldata _addresses,
+    uint256[] calldata _amounts
+    ) external {
+    // 检查：_addresses和_amounts数组的长度相等
+    require(_addresses.length == _amounts.length, "Lengths of Addresses and Amounts NOT EQUAL");
+    IERC20 token = IERC20(_token); // 声明IERC合约变量
+    uint _amountSum = getSum(_amounts); // 计算空投代币总量
+    // 检查：授权代币数量 >= 空投代币总量
+    require(token.allowance(msg.sender, address(this)) >= _amountSum, "Need Approve ERC20 token");
+
+    // for循环，利用transferFrom函数发送空投
+    for (uint8 i; i < _addresses.length; i++) {
+        token.transferFrom(msg.sender, _addresses[i], _amounts[i]);
+    }
+}
+```
+
+上面的空投代码的 gas fee 会随着地址列表的增多而线性增加, 关于 gas fee, 我现在觉得是一个相当巧妙的设计:
+
+矿工（节点）的算力是相当宝贵的，但是你的代码运行在节点上，并不能像云上的虚拟机一样提供一个沙箱环境，那么对于恶意的代码，可能一个死循环就把矿工的算力给耗尽了，但是在程序运行之前，并没有办法判断代码是否可以及时返回的，可穷尽的。
+
+而引入 gas fee 就相当于把金融手段解决工程问题，死循环的代码你可以写，只要你付对应的 gas fee 就可以了，相当于每个人都用钱包为其写的代码负责。
+
+不过上面的空投代码没有做余额的检查，例如地址列表有100个，转账到99个的时候余额不足，然后回滚，但是回滚前的 gas fee 还是要照付，毕竟前面的转账矿工也干活了，不能让人家白干。
+
+> 我撸空投收获最大的一次是ENS空投，你们呢？
+
+还没有撸到过 :( 
+
+### 2024.10.12
+
+#### ERC721
+
+ERC20 本质上就只是一个 mapping, 记录了每一个地址的余额，仅此而已。它的缺点是，每一个 Token 都是一样的，没有任何区别。
+
+为了能更好的和独特的资产建立联系，Ethereum基金会定义了ERC-721标准，用来定义一种独特的 token, 也就是 NFT(Non-Fungible Token) 
+
+NFT能证明某个数字资产是正版，但是无法阻止别人使用盗版，这是两个不同的问题.
+
+而课程中反复提及的 `ERC165` 其实就是一个类型检查，判断合约是否实现了指定的接口, 以Rust 的代码为例:
+
+```rs
+// Define a trait
+trait MyTrait {
+    fn my_method(&self);
+}
+
+// Implement the trait for a struct
+struct MyStruct;
+
+impl MyTrait for MyStruct {
+    fn my_method(&self) {
+        println!("MyStruct implements MyTrait");
+    }
+}
+
+// Function that requires the struct to implement MyTrait
+fn requires_trait<T: MyTrait>(item: T) {
+    item.my_method();
+}
+
+fn main() {
+    let my_struct = MyStruct;
+    requires_trait(my_struct); // Will compile, because MyStruct implements MyTrait
+}
+```
+
+用 Solidity 的话来理解上面的代码，`MyTrait` 就类似是 `ERC721` 这样的接口, `MyStruct` 就类似合约，只有合约实现了某个指定的接口，功能才能正常运行.
+
+强类型的编程语言编译器一般都实现了这样的能力，而因为 Solidity 编译器或者是 EVM 的限制，就需要额外提出一个 ERC 来实现这个功能, 相当于是把编译器搬到分布式环境上来了.
+
+按照 [`EIP165`](https://eips.ethereum.org/EIPS/eip-165), `interface id`是某个接口所有函数 `selector` 异或的结果, 代码示例如下:
+
+```solidity
+pragma solidity ^0.4.20;
+
+interface Solidity101 {
+    function hello() external pure;
+    function world(int) external pure;
+}
+
+contract Selector {
+    function calculateSelector() public pure returns (bytes4) {
+        Solidity101 i;
+        return i.hello.selector ^ i.world.selector;
+    }
+}
+
+```
+如果某个接口只有一个函数，那么这个接口的接口ID自然就是函数的 `selector`。
+
+我看课程中的 `ERC165` 和 `ERC721` 内容看得头疼，后面对照着 OpenZeppelin 的源码，我终于明白了我为什么头疼，同样的名词在不同语境下表达的是不过的意思.
+
+`ERC`: 全称 Ethereum Request For Comment (以太坊意见征求稿), 用以记录以太坊上应用级的各种开发标准和协议, 就是正常的RFC, 各种标准和修正方案.
+
+> 我们可以看下ERC721是如何实现supportsInterface()函数的：
+```
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool)
+    {
+        return
+            interfaceId == type(IERC721).interfaceId ||
+            interfaceId == type(IERC165).interfaceId;
+    }
+```
+
+看到这里，我非常费解，为什么 `ERC721` 提案要实现 `ERC165`, 看了源码才意识到 [`ERC721`](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC721/ERC721.sol#L45) 是实现了 `IERC721` 接口和 `IERC165` 接口的抽象合约:
+
+```solidity
+abstract contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, IERC721Errors {
+...
+}
+```
+
+`ERC721` 要实现 `supportsInterface` 的函数，恰好就是 `IERC165` 接口中的函数, 而一个合约所支持的接口，自然包含它所实现的接口，所以 `ERC721` 是支持 `IERC165` 和 `IERC721`.
+
+看到这个函数的时候，我又疑惑了，这个非常关键的条件：`retval != IERC721Receiver.onERC721Received.selector` 究竟是什么意思:
+```solidity
+function _checkOnERC721Received(
+    address operator,
+    address from,
+    address to,
+    uint256 tokenId,
+    bytes memory data
+) internal {
+    if (to.code.length > 0) {
+        try IERC721Receiver(to).onERC721Received(operator, from, tokenId, data) returns (bytes4 retval) {
+            if (retval != IERC721Receiver.onERC721Received.selector) {
+                // Token rejected
+                revert IERC721Errors.ERC721InvalidReceiver(to);
+            }
+        } catch (bytes memory reason) {
+            if (reason.length == 0) {
+                // non-IERC721Receiver implementer
+                revert IERC721Errors.ERC721InvalidReceiver(to);
+            } else {
+                /// @solidity memory-safe-assembly
+                assembly {
+                    revert(add(32, reason), mload(reason))
+                }
+            }
+        }
+    }
+}
+```
+
+阅读 [`IERC721Receiver`](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/72c152dc1c41f23d7c504e175f5b417fccc89426/contracts/token/ERC721/IERC721Receiver.sol) 接口的代码注释，我才终于理解是什么意思:
+
+```solidity
+interface IERC721Receiver {
+    /**
+     * @dev Whenever an {IERC721} `tokenId` token is transferred to this contract via {IERC721-safeTransferFrom}
+     * by `operator` from `from`, this function is called.
+     *
+     * It must return its Solidity selector to confirm the token transfer.
+     * If any other value is returned or the interface is not implemented by the recipient, the transfer will be
+     * reverted.
+     *
+     * The selector can be obtained in Solidity with `IERC721Receiver.onERC721Received.selector`.
+     */
+    function onERC721Received(
+        address operator,
+        address from,
+        uint256 tokenId,
+        bytes calldata data
+    ) external returns (bytes4);
+}
+```
+
+课程完全没有提及, 为了确认 token 转账，`IERC721Receiver.onERC721Received` 规定，必须返回 `onERC721Received` 这个函数的 selector, 返回其他值或者接口未实现都会导致转账被回滚.
+
+但是课程完全没有提及这个关键信息, 遇事不决看源码好了.
+
+另外, ERC721 的示例代码是有问题的:
+
+> ERC721主合约实现了IERC721，IERC165和IERC721Metadata定义的所有功能，包含4个状态变量和17个函数。
+
+但是实际的示例代码并没有实现 `IERC165` 接口:
+
+```
+contract ERC721 is IERC721, IERC721Metadata{ 
+    // 实现IERC165接口supportsInterface
+    function supportsInterface(bytes4 interfaceId)
+        external
+        pure
+        override
+        returns (bool)
+    {
+        return
+            interfaceId == type(IERC721).interfaceId ||
+            interfaceId == type(IERC165).interfaceId ||
+            interfaceId == type(IERC721Metadata).interfaceId;
+    }
+}
+```
+
+我创建了一个 [PR](https://github.com/WTFAcademy/frontend/pull/244) 来修复我所遇到的问题.
+
 <!-- Content_END -->

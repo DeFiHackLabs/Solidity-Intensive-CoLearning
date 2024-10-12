@@ -1236,7 +1236,7 @@ contract MyContract {
 
 ```solidity
 contract MyERC20{ //代币合约
-    ...
+    ... //参照31节代币合约，此处省略
 }
 
 contract MyFauct{ //领水合约
@@ -1270,7 +1270,397 @@ contract MyFauct{ //领水合约
 
 ### 2024.10.08
 
+33. 空投合约
+
+- 实现代币合约
+
+```solidity
+contract MyErc20 is IERC20{
+    ... //参照前边代码
+}
+```
+
+- 铸造代币  
+  调用 mint 函数  
+  ？mint 权限怎么控制，**有没有办法既能保证公平发射，又能防止通胀**
+
+- 批量空投合约
+
+```solidty
+contract Airdrop{
+    /// @notice 向多个地址转账ERC20代币，使用前需要先授权
+    /// @param _token 转账的ERC20代币地址
+    /// @param _addresses 空投地址数组
+    /// @param _amounts 代币数量数组（每个地址的空投数量）
+    function multiTransferToken(
+        address _token,
+        address[] calldata _addresses,
+        uint256[] calldata _amounts
+        ) external {
+        // 检查：_addresses和_amounts数组的长度相等
+        require(_addresses.length == _amounts.length, "Lengths of Addresses and Amounts NOT EQUAL");
+        IERC20 token = IERC20(_token); // 声明IERC合约变量
+        uint _amountSum = getSum(_amounts); // 计算空投代币总量
+        // 检查：授权代币数量 >= 空投代币总量
+        require(token.allowance(msg.sender, address(this)) >= _amountSum, "Need Approve ERC20 token");
+
+        // for循环，利用transferFrom函数发送空投
+        for (uint8 i; i < _addresses.length; i++) {
+            token.transferFrom(msg.sender, _addresses[i], _amounts[i]);
+        }
+    }
+
+    /// 向多个地址转账ETH
+    function multiTransferETH(
+        address payable[] calldata _addresses,
+        uint256[] calldata _amounts
+    ) public payable {
+        // 检查：_addresses和_amounts数组的长度相等
+        require(_addresses.length == _amounts.length, "Lengths of Addresses and Amounts NOT EQUAL");
+        uint _amountSum = getSum(_amounts); // 计算空投ETH总量
+        // 检查转入ETH等于空投总量
+        require(msg.value == _amountSum, "Transfer amount error");
+        // for循环，利用transfer函数发送ETH
+        for (uint256 i = 0; i < _addresses.length; i++) {
+            // 注释代码有Dos攻击风险, 并且transfer 也是不推荐写法
+            // Dos攻击 具体参考 https://github.com/AmazingAng/WTF-Solidity/blob/main/S09_DoS/readme.md
+            // _addresses[i].transfer(_amounts[i]);
+            (bool success, ) = _addresses[i].call{value: _amounts[i]}("");
+            if (!success) {
+                failTransferList[_addresses[i]] = _amounts[i];
+            }
+        }
+    }
+}
+```
+
+- 调用 MyErc20 的 approve()授权给 Airdrop 空投合约，amount 为空投总量
+- 执行 Airdrop 合约的 multiTransferToken()，进行空投；参数分别是地址数组，空投数量数组。
+- 用户可以通过 MyErc20 的 balanceof()查询代币余额
+
+- **？有没有一种方法，可以自动的检验链上交互数据，来判断女巫并自动进行空投？**
+
 ### 2024.10.09
+
+34. 以太坊协议
+
+- EIP:改进提议，ERC：各种标准
+- ERC165
+
+```solidity
+interface IERC165 {
+    /**
+     * @dev 如果合约实现了查询的`interfaceId`，则返回true
+     * 规则详见：https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[EIP section]
+     */
+    function supportsInterface(bytes4 interfaceId) external view returns (bool);
+}
+
+//函数实现
+function supportsInterface(bytes4 interfaceId) external pure override returns (bool)
+{
+    return
+        interfaceId == type(IERC721).interfaceId ||
+        interfaceId == type(IERC165).interfaceId;
+}
+```
+
+- IERC721
+
+```solidity
+/**
+ * @dev ERC721标准接口.
+ */
+interface IERC721 is IERC165 {
+    //1.事件
+
+    //Transfer事件：在转账时被释放，记录代币的发出地址from，接收地址to和tokenid
+    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+    //Approval事件：在授权时释放，记录授权地址owner，被授权地址approved和tokenid
+    event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
+    //ApprovalForAll事件：在批量授权时释放，记录批量授权的发出地址owner，被授权地址operator和授权与否的approved
+    event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
+
+    //2.函数
+
+    //balanceOf：返回某地址的NFT持有量balance
+    function balanceOf(address owner) external view returns (uint256 balance);
+    //ownerOf：返回某tokenId的主人owner
+    function ownerOf(uint256 tokenId) external view returns (address owner);
+    //safeTransferFrom：安全转账的重载函数，参数里面包含了calldata
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 tokenId,
+        bytes calldata data
+    ) external;
+    //safeTransferFrom：安全转账（如果接收方是合约地址，会要求实现ERC721Receiver接口）。参数为转出地址from，接收地址to和tokenId
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 tokenId
+    ) external;
+    //transferFrom：普通转账，参数为转出地址from，接收地址to和tokenId
+    function transferFrom(
+        address from,
+        address to,
+        uint256 tokenId
+    ) external;
+    //approve：授权另一个地址使用你的NFT。参数为被授权地址approve和tokenId
+    function approve(address to, uint256 tokenId) external;
+    //setApprovalForAll：将自己持有的该系列NFT批量授权给某个地址operator
+    function setApprovalForAll(address operator, bool _approved) external;
+    //getApproved：查询tokenId被批准给了哪个地址
+    function getApproved(uint256 tokenId) external view returns (address operator);
+    //isApprovedForAll：查询某地址的NFT是否批量授权给了另一个operator地址
+    function isApprovedForAll(address owner, address operator) external view returns (bool);
+}
+```
+
+- IERC721Receiver  
+  如果一个合约没有实现 ERC721 的相关函数，转入的 NFT 就进了黑洞，永远转不出来了。为了**防止误转账**，ERC721 实现了 safeTransferFrom()安全转账函数，目标合约必须实现了 IERC721Receiver 接口才能接收 ERC721 代币，不然会 revert。IERC721Receiver 接口只包含一个 onERC721Received()函数。
+
+```solidity
+// ERC721接收者接口：合约必须实现这个接口来通过安全转账接收ERC721
+interface IERC721Receiver {
+    function onERC721Received(
+        address operator,
+        address from,
+        uint tokenId,
+        bytes calldata data
+    ) external returns (bytes4);
+}
+```
+
+```solidity
+//ERC721利用_checkOnERC721Received来确保目标合约实现了onERC721Received()函数（返回onERC721Received的selector
+function _checkOnERC721Received(
+    address operator,
+    address from,
+    address to,
+    uint256 tokenId,
+    bytes memory data
+) internal {
+    if (to.code.length > 0) {
+        try IERC721Receiver(to).onERC721Received(operator, from, tokenId, data) returns (bytes4 retval) {
+            if (retval != IERC721Receiver.onERC721Received.selector) {
+                // Token rejected
+                revert IERC721Errors.ERC721InvalidReceiver(to);
+            }
+        } catch (bytes memory reason) {
+            if (reason.length == 0) {
+                // non-IERC721Receiver implementer
+                revert IERC721Errors.ERC721InvalidReceiver(to);
+            } else {
+                /// @solidity memory-safe-assembly
+                assembly {
+                    revert(add(32, reason), mload(reason))
+                }
+            }
+        }
+    }
+}
+```
+
+- IERC721Metadata
+
+```solidity
+//ERC721Metadata是ERC721的拓展接口，实现了3个查询metadata元数据的常用函数
+interface IERC721Metadata is IERC721 {
+    //name()：返回代币名称
+    function name() external view returns (string memory);
+    //symbol()：返回代币代号
+    function symbol() external view returns (string memory);
+    //tokenURI()：通过tokenId查询metadata的链接url，ERC721特有的函数
+    function tokenURI(uint256 tokenId) external view returns (string memory);
+}
+```
+
+- ERC721  
+  ERC721 主合约实现了 IERC721，IERC165 和 IERC721Metadata 定义的所有功能，包含 4 个状态变量和 17 个函数,[详细代码](https://www.wtf.academy/docs/solidity-103/ERC721/#erc721%E4%B8%BB%E5%90%88%E7%BA%A6)
+- [免费铸造的 APE](https://www.wtf.academy/docs/solidity-103/ERC721/#%E5%86%99%E4%B8%80%E4%B8%AA%E5%85%8D%E8%B4%B9%E9%93%B8%E9%80%A0%E7%9A%84ape)
+- [检查接口是否符合标准的办法](https://www.wtf.academy/docs/solidity-103/ERC721/#%E5%8F%91%E8%A1%8Cerc721nft)
+
+### 2024.10.10
+
+35. 荷兰拍卖
+
+- 亦称“减价拍卖”，它是指拍卖标的的竞价由高到低依次递减直到第一个竞买人应价（达到或超过底价）时击槌成交的一种拍卖
+- 基于 Azuki 代码简化
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "https://github.com/AmazingAng/WTF-Solidity/blob/main/34_ERC721/ERC721.sol";
+
+contract DutchAuction is Ownable, ERC721 {
+    uint256 public constant COLLECTOIN_SIZE = 10000; // NFT总数
+    uint256 public constant AUCTION_START_PRICE = 1 ether; // 起拍价(最高价)
+    uint256 public constant AUCTION_END_PRICE = 0.1 ether; // 结束价(最低价/地板价)
+    uint256 public constant AUCTION_TIME = 10 minutes; // 拍卖时间，为了测试方便设为10分钟
+    uint256 public constant AUCTION_DROP_INTERVAL = 1 minutes; // 每过多久时间，价格衰减一次
+    uint256 public constant AUCTION_DROP_PER_STEP =
+        (AUCTION_START_PRICE - AUCTION_END_PRICE) /
+        (AUCTION_TIME / AUCTION_DROP_INTERVAL); // 每次价格衰减步长
+
+    uint256 public auctionStartTime; // 拍卖开始时间戳
+    string private _baseTokenURI;   // metadata URI
+    uint256[] private _allTokens; // 记录所有存在的tokenId
+
+    constructor() ERC721("WTF Dutch Auctoin", "WTF Dutch Auctoin") {
+        auctionStartTime = block.timestamp;
+    }
+
+    //··· 忽略ERC721相关函数
+
+    // 设定起拍时间 auctionStartTime setter函数，onlyOwner
+    function setAuctionStartTime(uint32 timestamp) external onlyOwner {
+        auctionStartTime = timestamp;
+    }
+
+    // 获取拍卖实时价格
+    function getAuctionPrice() public view returns (uint256){
+        if (block.timestamp < auctionStartTime) {
+        return AUCTION_START_PRICE;
+        }else if (block.timestamp - auctionStartTime >= AUCTION_TIME) {
+        return AUCTION_END_PRICE;
+        } else {
+        uint256 steps = (block.timestamp - auctionStartTime) /
+            AUCTION_DROP_INTERVAL;
+        return AUCTION_START_PRICE - (steps * AUCTION_DROP_PER_STEP);
+        }
+    }
+
+    //用户拍卖并铸造NFT：用户通过调用auctionMint()函数，支付ETH参加荷兰拍卖并铸造NFT
+    function auctionMint(uint256 quantity) external payable{
+        uint256 _saleStartTime = uint256(auctionStartTime); // 建立local变量，减少gas花费
+        require(
+            // 检查是否设置起拍时间，拍卖是否开始
+            _saleStartTime != 0 && block.timestamp >= _saleStartTime,"sale has not started yet"
+        );
+        require(
+            // 检查是否超过NFT上限
+            totalSupply() + quantity <= COLLECTOIN_SIZE,
+            "not enough remaining reserved for auction to support desired mint amount"
+        );
+
+        uint256 totalCost = getAuctionPrice() * quantity; // 计算mint成本
+        require(msg.value >= totalCost, "Need to send more ETH."); // 检查用户是否支付足够ETH
+
+        // Mint NFT
+        for(uint256 i = 0; i < quantity; i++) {
+            uint256 mintIndex = totalSupply();
+            _mint(msg.sender, mintIndex);
+            _addTokenToAllTokensEnumeration(mintIndex);
+        }
+        // 多余ETH退款
+        if (msg.value > totalCost) {
+            payable(msg.sender).transfer(msg.value - totalCost); //注意一下这里是否有重入的风险
+        }
+    }
+
+    // 项目方取出拍卖款函数，onlyOwner
+    function withdrawMoney() external onlyOwner {
+        (bool success, ) = msg.sender.call{value: address(this).balance}(""); // call函数的调用方式详见第22讲
+        require(success, "Transfer failed.");
+    }
+}
+```
+
+### 2024.10.11
+
+36. 默克尔树
+
+- 空投白名单
+  一份拥有 800 个地址的白名单，更新一次所需的 gas fee 很容易超过 1 个 ETH。而由于 Merkle Tree 验证时，leaf 和 proof 可以存在后端，链上仅需存储一个 root 的值，非常节省 gas，项目方经常用它来发放白名单。很多 ERC721 标准的 NFT 和 ERC20 标准代币的白名单/空投都是利用 Merkle Tree 发出的，比如 optimism 的空投。
+
+```solidity
+library MerkleProof { //默克尔树库
+    /**
+     * @dev 当通过`proof`和`leaf`重建出的`root`与给定的`root`相等时，返回`true`，数据有效。
+     * 在重建时，叶子节点对和元素对都是排序过的。
+     */
+    function verify(
+        bytes32[] memory proof,
+        bytes32 root,
+        bytes32 leaf
+    ) internal pure returns (bool) {
+        return processProof(proof, leaf) == root;
+    }
+
+    /**
+     * @dev Returns 通过Merkle树用`leaf`和`proof`计算出`root`. 当重建出的`root`和给定的`root`相同时，`proof`才是有效的。
+     * 在重建时，叶子节点对和元素对都是排序过的。
+     */
+    function processProof(bytes32[] memory proof, bytes32 leaf) internal pure returns (bytes32) {
+        bytes32 computedHash = leaf;
+        for (uint256 i = 0; i < proof.length; i++) {
+            computedHash = _hashPair(computedHash, proof[i]);
+        }
+        return computedHash;
+    }
+
+    // Sorted Pair Hash
+    function _hashPair(bytes32 a, bytes32 b) private pure returns (bytes32) {
+        return a < b ? keccak256(abi.encodePacked(a, b)) : keccak256(abi.encodePacked(b, a));
+    }
+}
+
+
+contract MerkleTree is ERC721 {
+    bytes32 immutable public root; // Merkle树的根
+    mapping(address => bool) public mintedAddress;   // 记录已经mint的地址
+
+    // 构造函数，初始化NFT合集的名称、代号、Merkle树的根
+    constructor(string memory name, string memory symbol, bytes32 merkleroot)
+    ERC721(name, symbol){
+        root = merkleroot;
+    }
+
+    // 利用Merkle树验证地址并完成mint
+    function mint(address account, uint256 tokenId, bytes32[] calldata proof) external{
+        require(_verify(_leaf(account), proof), "Invalid merkle proof");
+         // Merkle检验通过
+        require(!mintedAddress[account], "Already minted!");
+         // 地址没有mint过
+
+        _mint(account, tokenId); // mint
+        mintedAddress[account] = true; // 记录mint过的地址
+    }
+
+    // 计算Merkle树叶子的哈希值
+    function _leaf(address account) internal pure returns (bytes32){
+        return keccak256(abi.encodePacked(account));
+    }
+
+    // Merkle树验证，调用MerkleProof库的verify()函数
+    function _verify(bytes32 leaf, bytes32[] memory proof) internal view returns (bool){
+        return MerkleProof.verify(proof, root, leaf);
+    }
+}
+```
+
+### 2024.10.12
+
+### 2024.10.13
+
+### 2024.10.14
+
+### 2024.10.15
+
+### 2024.10.16
+
+### 2024.10.17
+
+### 2024.10.18
+
+### 2024.10.19
+
+### 2024.10.20
+
+### 2024.10.21
 
 <!-- Content_END -->
 
