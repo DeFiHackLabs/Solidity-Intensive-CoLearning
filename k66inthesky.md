@@ -278,7 +278,6 @@ receive()   fallback()
         getPair[tokenA][tokenB] = pairAddr;
         getPair[tokenB][tokenA] = pairAddr;
     }
-}
    ```
 
 <!-- Content_END -->
