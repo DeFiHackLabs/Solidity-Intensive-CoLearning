@@ -2862,7 +2862,66 @@ import '@openzeppelin/contracts/access/Ownable.sol';
         }
     }
     ```
-- [104-S06] 签名重放
+- [104-S06] 签名重放（Signature Replay）
+    - 数字签名一般有两种常见的重放攻击：
+        - 普通重放：将本该使用一次的签名多次使用。
+        - 跨链重放：将本该在一条链上使用的签名，在另一条链上重复使用。
+    - 漏洞例子：
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity ^0.8.21;
+
+    import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+    import "@openzeppelin/contracts/access/Ownable.sol";
+    import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+
+    contract SigReplay is ERC20 {
+        address public signer;
+        constructor() ERC20("SigReplay", "Replay") {
+            signer = msg.sender;
+        }
+
+        function badMint(address to, uint amount, bytes memory signature) public { // 有签名重放漏洞的铸造函数
+            bytes32 _msgHash = toEthSignedMessageHash(getMessageHash(to, amount));
+            require(verify(_msgHash, signature), "Invalid Signer!"); // 铸造函数 badMint() 没有对 signature 查重，导致同样的签名可以多次使用，无限铸造代币
+            _mint(to, amount);
+        }
+
+        function getMessageHash(address to, uint256 amount) public pure returns(bytes32){
+            return keccak256(abi.encodePacked(to, amount));
+        }
+
+        function toEthSignedMessageHash(bytes32 hash) public pure returns (bytes32) {
+            return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash));
+        }
+
+        function verify(bytes32 _msgHash, bytes memory _signature) public view returns (bool){
+            return ECDSA.recover(_msgHash, _signature) == signer;
+        }
+    }
+    ```
+    - 预防办法：
+    ```solidity
+    // 方法一
+    mapping(address => bool) public mintedAddress;   // 记录已经mint的地址
+
+    function goodMint(address to, uint amount, bytes memory signature) public {
+        bytes32 _msgHash = toEthSignedMessageHash(getMessageHash(to, amount));
+        require(verify(_msgHash, signature), "Invalid Signer!");
+        require(!mintedAddress[to], "Already minted"); // 检查该地址是否mint过
+        mintedAddress[to] = true; // 记录mint过的地址
+        _mint(to, amount);
+    }
+    // 方法二：将 nonce （数值随每次交易递增）和 chainid （链ID）包含在签名消息中
+    uint nonce;
+
+    function nonceMint(address to, uint amount, bytes memory signature) public {
+        bytes32 _msgHash = toEthSignedMessageHash(keccak256(abi.encodePacked(to, amount, nonce, block.chainid)));
+        require(verify(_msgHash, signature), "Invalid Signer!");
+        _mint(to, amount);
+        nonce++;
+    }
+    ```
 
 ### 2024.10.14
 
