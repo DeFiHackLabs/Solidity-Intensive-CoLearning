@@ -2058,7 +2058,7 @@ contract Factory {
 selfdestruct(_addr);
 _addr：接收剩餘ETH的地址（不需要有receive()或fallback()函數）
 ```
-
+### 2024.10.13
 #### 27_ABIEncode
 #### 28_Hash
 #### 29_Selector
