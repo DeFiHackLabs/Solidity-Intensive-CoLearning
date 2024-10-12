@@ -1787,4 +1787,39 @@ Copy
 
 总结
 这一讲，我们介绍了Solidity中变量的初始值。变量被声明但没有赋值的时候，它的值默认为初始值。不同类型的变量初始值不同，delete操作符可以删除一个变量的值并代替为初始值。
+
+### 2024.10.12
+
+另外學了Mapping和array。
+Mapping，就相當於給每個value 一個 key
+每個Array都有對應的從0開始的Index. 
+以上。
+
+
+昨天忘記更新，今天補上，今天嘗試理解了以下的代碼:
+```
+// SPDX-License-Identifier: GPL-3.0
+
+pragma solidity >=0.8.2 <0.9.0;
+
+contract Twitter {
+
+    //mapping address to string and call it tweets
+    mapping(address => string[]) public tweets;
+
+    function createTwitter (string memory _tweet) public {
+    // memory means store as temporary memory
+        tweets[msg.sender].push(_tweet);
+    }
+    // mapping is both key and value, could be addresses to names. So you can find name by address 
+
+    function getTweet(address _owner, uint _i) public view returns (string memory){
+        return tweets[_owner][_i];
+        // view is more gas efficient
+    }
+
+    function getAllTweets(address _owner) public view returns (string[] memory){
+        return tweets[_owner];
+    }
+
 <!-- Content_END -->
