@@ -2065,6 +2065,12 @@ function removeLiquidity(uint liquidity) external returns (uint amount0, uint am
 }
 ```
 
+### 2024.10.12
+
+(Day 17)
+
+学习笔记
+
 - 交易
 
 swap合约中，我们可以一种代币交易另一种代币。我们使用Δx单位的 token0，可以交换多少单位的 token1 ？
@@ -2150,12 +2156,6 @@ function swap(uint amountIn, IERC20 tokenIn, uint amountOutMin) external returns
 }
 ```
 
-
-### 2024.10.12
-
-(Day 17)
-
-学习笔记
 
 
 
