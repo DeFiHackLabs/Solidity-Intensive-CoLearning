@@ -55,5 +55,61 @@ Completed all tasks of Solidity 101 with a score of 100 for each task.
 ### 2024.10.11
 design Tua toekn contract which is follow ERC20, the sourceCode is https://github.com/weifengHuang/fitness-dapp/blob/main/packages/hardhat/contracts/TuaToken.sol
 
+### 2024.10.12
+
+proxy contract:
+ - https://docs.openzeppelin.com/upgrades-plugins/1.x/proxies
+ - Unstructured Storage Proxies: avoid the Storage collision ; and the proxy contract don't need set the logic proxy variable;
+
+
+ ```
+ pragma solidity ^0.8.0;
+
+contract Proxy {
+    address public implementation;
+    address public admin;
+
+    constructor(address _implementation) {
+        implementation = _implementation;
+        admin = msg.sender;
+    }
+
+    function upgrade(address newImplementation) external {
+        require(msg.sender == admin, "Only admin can upgrade");
+        implementation = newImplementation;
+    }
+
+    fallback() external payable {
+        address _impl = implementation;
+        assembly {
+            let ptr := mload(0x40)
+            calldatacopy(ptr, 0, calldatasize())
+            let result := delegatecall(gas(), _impl, ptr, calldatasize(), 0, 0)
+            let size := returndatasize()
+            returndatacopy(ptr, 0, size)
+            switch result
+            case 0 { revert(ptr, size) }
+            default { return(ptr, size) }
+        }
+    }
+}
+ ```
+
+ ```
+contract Proxy {
+    address private _implementation;
+}
+
+contract LogicV1 {
+    uint256 private _value;
+    // other functions...
+}
+
+contract LogicV2 {
+    uint256 private _value;
+    uint256 private _taxRate; 
+    // new variable and function
+}
+ ```
 
 <!-- Content_END -->
