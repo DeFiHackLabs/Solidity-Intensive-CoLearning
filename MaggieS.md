@@ -499,6 +499,7 @@ Find a little bug~ that the English version in Solidity 102 in WTF Academy websi
 ### 2024.10.12 
 
 Q1: Every contract in Solidity requires using ABI coding，it's true?
+
     If not, in what kind of special circumstances do we need to use ABI?
 
 <!-- Content_END -->
