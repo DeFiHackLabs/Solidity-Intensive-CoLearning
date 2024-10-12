@@ -1431,5 +1431,68 @@ Some commonly used libraries are:
 
 </details>
 
+### 2024.10.11
+<details>
+<summary>18. Import</summary>
+
+#### Usage of `import`
+- Import by relative location of source file. For example：
+```
+Hierarchy
+├── Import.sol
+└── Yeye.sol
+```
+```solidity
+// Import by relative location of source file
+import './Yeye.sol';
+```
+- Import the global symbols of contracts on the Internet through the source file URL. For example：
+```solidity
+// Import by URL
+import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+```
+- Import via the npm directory. For example:
+```solidity
+import '@openzeppelin/contracts/access/Ownable.sol';
+```
+- Import contract-specific global symbols by specifying `global symbols`. For example:：
+```solidity
+import {Yeye} from './Yeye.sol';
+```
+- The location of the reference (`import`) in the code: after declaring the version, and before the rest of the code.
+
+#### Test import
+We can use the following code to test whether the external source code was successfully imported:
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+// Import by relative location of source file
+import './Yeye.sol';
+// Import contract-specific global symbols by specifying `global symbols`
+import {Yeye} from './Yeye.sol';
+// Import by URL
+import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+// Import via the npm directory
+import '@openzeppelin/contracts/access/Ownable.sol';
+
+contract Import {
+    // Successfully import the Address library
+    using Address for address;
+    // declare variable "yeye"
+    Yeye yeye = new Yeye();
+
+    // Test whether the function of "yeye" can be called
+    function test() external{
+        yeye.hip();
+    }
+}
+```
+
+#### Summary
+In this lecture, I learned the method of importing external source code using the `import` keyword. Through the import, you can refer to contracts or functions in other files written by us, or directly import code written by others, which is very convenient.
+
+</details>
+
 ### 
 <!-- Content_END -->

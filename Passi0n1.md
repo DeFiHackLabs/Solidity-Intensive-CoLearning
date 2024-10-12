@@ -1104,5 +1104,14 @@ function transferOwner1(uint256 tokenId, address newOwner) public {
 而 import 则是一种代码模块化的方式，在各种编程语言当中均有涉及，当然，也可以使用 import 导入库合约。
 
 
+### 2024.10.12
+#### 学习笔记
+
+这里不太理解为什么可以直接转账。
+
+<img width="1262" alt="image" src="https://github.com/user-attachments/assets/3ec38c2a-52c5-4d6a-9e53-ae5972ff52ba">
+
+
+
    
 <!-- Content_END -->

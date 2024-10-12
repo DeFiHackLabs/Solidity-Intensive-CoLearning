@@ -160,16 +160,32 @@ initcode: 新合约的初始字节码（合约的Creation Code和构造函数的
 WTF solidity34-35
 1. [ERC721](https://eips.ethereum.org/EIPS/eip-165)
 2. [openzeppelin erc721实现](https://github.com/OpenZeppelin/openzeppelin-contracts/tree/master/contracts/token/ERC721)
-3. [ERC165](https://eips.ethereum.org/EIPS/eip-165)
-4. 荷兰拍卖合约实现
+3. IERC721函数
+- `balanceOf`：返回某地址的NFT持有量`balance`。
+- `ownerOf`：返回某`tokenId`的主人`owner`。
+- `transferFrom`：普通转账，参数为转出地址`from`，接收地址`to`和`tokenId`。
+- `safeTransferFrom`：安全转账（如果接收方是合约地址，会要求实现`ERC721Receiver`接口）。参数为转出地址`from`，接收地址`to`和`tokenId`。
+- `approve`：授权另一个地址使用你的NFT。参数为被授权地址`approve`和`tokenId`。
+- `getApproved`：查询`tokenId`被批准给了哪个地址。
+- `setApprovalForAll`：将自己持有的该系列NFT批量授权给某个地址`operator`。
+- `isApprovedForAll`：查询某地址的NFT是否批量授权给了另一个`operator`地址。
+- `safeTransferFrom`：安全转账的重载函数，参数里面包含了`data`。 
+4. [ERC165](https://eips.ethereum.org/EIPS/eip-165)
+5. 荷兰拍卖合约实现
 ### 2024.09.29
-WTF solidity40
+WTF solidity41
+1. WETH
+   合约将用户传来的Eth转换为wrapped eth,即符合ERC20标准的代币，方便用户交互DAPP。用户也可销毁存储在合约中的WETH来换取eth  
 ### 2024.09.30
-WTF solidity41-43
+WTF solidity42
+1. PaymentSplit  
+   分账合约，通过构造器初始化各个账户所在份额，用户根据份额可通过合约将收益进行提款   
 ### 2024.10.01
-WTF solidity43-45
+WTF solidity43-44
+1. 实现锁仓合约tokenLocker和tokenvest合约
 ### 2024.10.02
-WTF solidity46-50
+WTF solidity45
+1. 实现时间锁合约
 ### 2024.10.03
 WTF solidity16-18   
 1. 库合约和普通合约区别：  
@@ -298,7 +314,7 @@ WTF solidity26-28
 1. selfdestruct  
    使用`selfdestruct(_target)`可进行合约自毁并将剩余以太转移到_target地址。
    `SELFDESTRUCT will recover all funds to the target but not delete the account, except when called in the same transaction as creation` 在Cancun硬分叉之后，只有合约创建和自毁在一个交易中才会删除合约
-2. abi编码en
+2. abi编码
    abi提供四种编码方式`encode/encodePacked/encodeWithSignature/encodeWithSelector`，`encodePacked`是`encode`的压缩版，
    `encodeWithSignature/encodeWithSelector`和函数有关生成的编码开头带有四字节的函数选择器，`encodeWithSignature`第一个参数为函数签名，`encodeWithSelector`第一个参数为函数选择器
    ``` solidity
@@ -340,9 +356,16 @@ WTF solidity29-30
 3. try/catch     
 ### 2024.10.08
 WTF solidity31-33
-1. [ERC-20](https://eips.ethereum.org/EIPS/eip-20)
+1. [ERC-20](https://eips.ethereum.org/EIPS/eip-20)  
    [OpenZeppelin实现](https://github.com/OpenZeppelin/openzeppelin-contracts/tree/master/contracts/token/ERC20)
-2. 两个简单的ERC20应用合约faucet和airdrop   
+2. IERC721函数
+- `totalSupply`：返回代币总供给
+- `balanceOf`：返回账户余额
+- `transfer`：转账
+- `allowance`：返回授权额度
+- `approve`：授权
+- `transferFrom`：授权转账 
+3. 两个简单的ERC20应用合约faucet和airdrop   
 ### 2024.10.09
 WTF solidity36-37
 #### 以太坊中密码学应用
@@ -352,7 +375,7 @@ WTF solidity36-37
 2. 签名
    以太坊中采用双椭圆曲线数字签名算法（ECDSA）
    1. 先将需要签名的信息进行`abi.encodePacked()`编码，再用`keccak256`进行hash
-   2. 将处理过的信息前加上"\x19Ethereum Signed Message:\n32"字符，再用`keccak256`进行hash
+   2. 将处理过的信息前加上`"\x19Ethereum Signed Message:\n32"`字符，再用`keccak256`进行hash
    3. 将处理后的信息利用钱包和私钥进行签名
    4. 通过签名和处理后的信息获取公钥
       ``` solidity
@@ -383,5 +406,22 @@ WTF solidity36-37
       }
       ```
 ### 2024.10.10
-WTF solidity38-39      
+WTF solidity38-39 
+1. nftswap合约实现
+### 2024.10.11
+WTF solidity40
+1. ERC1155
+   较ERC20和ERC721不同，ERC1155标准允许一个合约中包含多个同质化和非同质化代币，每一种代币有一个id来标识。`mapping(uint256 => mapping(address => uint256)) private _balances`
+### 2024.10.12
+WTF solidity46-50
+1. 代理模式  
+   合约在部署之后无法修改，为了更改和升级可采用代理模式。代理模式将合约数据和逻辑分开，数据存在代理合约中，逻辑则写在
+   逻辑合约里，用户直接调用代理合约，代理合约再通过delegate call调用逻辑合约
+2. 合约升级  
+   升级合约只需要管理者调用升级函数修改代理合约里的逻辑合约地址即可
+3. 相关问题  
+   由于代理合约和逻辑为不同合约，所以两个合约可能产生选择器冲突问题，即用户在调用逻辑合约中相关函数，由于该函数的method id和代理合约中的函数的method id相同。解决方案（针对代理合约中升级函数和逻辑合约中的函数选择器冲突）：
+   - `透明代理`代理合约里的升级函数智能管理员调用，管理员不可以调用逻辑合约里的函数
+   - `可升级代理（uups，universal upgradeable proxy standard）`将升级函数写在逻辑合约中
+4. 实现多签钱包合约      
 <!-- Content_END -->
