@@ -52,6 +52,8 @@ Completed all tasks of Solidity 101 with a score of 100 for each task.
 ### 2024.10.10
 Completed all tasks of Solidity 101 with a score of 100 for each task.
 
+### 2024.10.11
+design Tua toekn contract which is follow ERC20, the sourceCode is https://github.com/weifengHuang/fitness-dapp/blob/main/packages/hardhat/contracts/TuaToken.sol
 
 
 <!-- Content_END -->

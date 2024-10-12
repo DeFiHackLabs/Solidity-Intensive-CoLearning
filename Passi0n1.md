@@ -1096,6 +1096,12 @@ function transferOwner1(uint256 tokenId, address newOwner) public {
     _owners[tokenId] = newOwner;
 }
 ```
+### 2024.10.11
+#### 学习笔记
+
+## import
+库合约本质是一个特殊的智能合约，设计出来就是被当作工具的。本身是包含了一些常用的功能。
+而 import 则是一种代码模块化的方式，在各种编程语言当中均有涉及，当然，也可以使用 import 导入库合约。
 
 
    

@@ -15,6 +15,29 @@ timezone: Asia/Shanghai
 ## Notes
 <!-- Content_START -->
 
+### 2024.10.11
+
+EVM opcode101章节: Hello Opcodes
+
+Solidity 103章节：去中心化交易所、闪电贷
+
+- EVM的执行模型
+    
+  1. 当一个交易被接收并准备执行时，以太坊会初始化一个新的执行环境并加载合约的字节码。
+  
+  2. 字节码被翻译成Opcode，被逐一执行。每个Opcodes代表一种操作，比如算术运算、逻辑运算、存储操作或者跳转到其他操作码。
+
+  3. 每执行一个Opcodes，都要消耗一定数量的Gas。如果Gas耗尽或者执行出错，执行就会立即停止，所有的状态改变（除了已经消耗的Gas）都会被回滚。
+
+  4. 执行完成后，交易的结果会被记录在区块链上，包括Gas的消耗、交易日志等信息。
+    
+- gas 计算
+
+  通过opcodes，以太坊规定了每个opcode的gas消耗，复杂度越高的opcodes消耗越多的gas；如ADD操作消耗3 gas，SSTORE操作消耗20000 gas等等
+- flashloan
+
+  即为在一笔TX中同时完成借贷-执行-还款三个行为；
+
 ### 2024.10.10
 
 Solidity 103章节：ERC-2612 ERC20Permit，多重调用

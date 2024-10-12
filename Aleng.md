@@ -121,4 +121,11 @@ ERC20與IERC20的不同，並理解其推出的意義。
 筆記 : [2024.10.11學習筆記](https://hackmd.io/@82tWd8u0TI6fMRC9VG6JXw/ByzBkTVkJl)
 
 紀錄一些註解用途與方式
+### 2024.10.12
+#### 學習筆記
+筆記 : 
+[2024.10.12學習筆記1](https://hackmd.io/@82tWd8u0TI6fMRC9VG6JXw/r1eJzhOSJyx)
+[2024.10.12學習筆記2](https://hackmd.io/@82tWd8u0TI6fMRC9VG6JXw/SJR3SFSyJx)
+
+水龍頭與空投合約實操
 <!-- Content_END -->

@@ -149,4 +149,11 @@ timezone: Asia/Shanghai
 2. 惡意合約，會在receive() 函數（舊版本的fallback() 函數）嵌入惡意消耗gas的内容或者使得執行故意失敗的代碼，讓一些退款、轉帳邏輯的合約不能正常工作
 3. receive()和payable fallback()都不存在的時候，向合約直接發送ETH將會報錯（你仍可以通過帶有payable的函數向合約發送ETH）
 
+### 2024.10.11
+1. Solidity有三種方法可以向其他合约約發送ETH：transfer()、send()、call()
+2. call()是最推薦的做法
+3. transfer()如果轉帳失敗，會自動revert（回滾交易），gas限制是2300
+4. send()如果轉帳失敗，不會revert，gas限制是2300
+5. call()如果轉帳失敗，不會revert，没有gas限制
+
 <!-- Content_END -->

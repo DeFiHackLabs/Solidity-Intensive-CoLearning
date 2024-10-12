@@ -178,4 +178,8 @@ Add source codes for 24.Create and its tests
 
 Add source codes for 25.Create2 and its tests
 
+### 2024.10.11
+
+Add source codes for 13.Inheritance and its tests
+
 <!-- Content_END -->

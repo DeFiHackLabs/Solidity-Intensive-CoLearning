@@ -97,5 +97,11 @@ day14:
 
 [solidity-102 21(调用其他合约) Note](./content/llt/114.md)
 
+### 2024.10.11
+
+day15:
+
+[solidity-102 22-23(call-delegatecall) Note](./content/llt/115.md)
+
 <!-- Content_END -->
 

@@ -1417,5 +1417,150 @@ function setXTransferETH(address otherContract, uint256 x) payable external {
 
 
 
+### 2024.10.11
+
+- [solidity-102 第二十二课  Call](https://www.wtf.academy/docs/solidity-102/Call/)
+- [solidity-102 第二十三课  Delegatecall](https://www.wtf.academy/docs/solidity-102/Delegatecall/)
+
+笔记
+
+
+#### Call
+
+`call` 是 `address` 类型的低级成员函数，用于与其他合约交互。
+
+##### 特点：
+- 返回值为 `(bool, bytes memory)`，分别表示调用是否成功和目标函数的返回值。
+- 推荐用于发送 ETH 和触发 `fallback` 或 `receive` 函数。
+- 不推荐用于调用其他合约的常规函数。
+
+##### 使用语法：
+```solidity
+目标合约地址.call{value: 发送数额, gas: gas数额}(abi.encodeWithSignature("函数签名", 参数1, 参数2, ...));
+```
+
+##### 示例：
+```solidity
+function callSetX(address payable _addr, uint256 x) public payable {
+    (bool success, bytes memory data) = _addr.call{value: msg.value}(
+        abi.encodeWithSignature("setX(uint256)", x)
+    );
+    emit Response(success, data);
+}
+```
+
+#### Delegatecall
+
+`delegatecall` 是一种特殊的函数调用，它在调用者的上下文中执行目标合约的代码。
+
+##### 特点：
+- 执行目标合约的代码，但在调用合约的上下文中。
+- 状态变更影响调用合约，而不是目标合约。
+- `msg.sender` 保持为原始调用者。
+
+##### 使用语法：
+```solidity
+目标合约地址.delegatecall(abi.encodeWithSignature("函数签名", 参数1, 参数2, ...));
+```
+
+##### 示例：
+```solidity
+function delegatecallSetVars(address _addr, uint _num) external payable {
+    (bool success, bytes memory data) = _addr.delegatecall(
+        abi.encodeWithSignature("setVars(uint256)", _num)
+    );
+}
+```
+
+#### 思考与解答
+
+1. `call` 和 `delegatecall` 的主要区别是什么？
+   - 解答：
+     - `call` 在目标合约的上下文中执行，而 `delegatecall` 在调用合约的上下文中执行。
+     - `call` 改变目标合约的状态，`delegatecall` 改变调用合约的状态。
+     - `call` 中 `msg.sender` 是调用合约地址，`delegatecall` 中保持为原始调用者地址。
+     - `call` 可以发送 ETH，而 `delegatecall` 不能。
+
+2. 为什么 `delegatecall` 在使用时需要特别小心？
+   - 解答：
+     - 存储布局必须匹配：调用合约和目标合约的状态变量结构必须相同，否则可能导致意外的状态更改。
+     - 安全风险：如果目标合约不安全或被恶意修改，可能导致调用合约的状态被破坏。
+     - 升级风险：在代理模式中使用时，新版本合约必须保持与旧版本兼容的存储布局。
+
+3. 在实际开发中，`call` 和 `delegatecall` 的主要应用场景是什么？
+   - 解答：
+     - `call` 主要用于：
+       1. 发送 ETH 到其他合约。
+       2. 调用未知合约或无 ABI 的合约函数。
+       3. 处理低级别的交互，如触发 fallback 函数。
+     - `delegatecall` 主要用于：
+       1. 实现代理合约模式，支持合约逻辑的可升级性。
+       2. 实现库合约，允许代码重用而不复制代码。
+       3. 在 DApp 中实现模块化和可扩展的智能合约系统（如 EIP-2535 Diamonds）。
+
+### 2024.10.12 
+
+- [solidity-102 第二十四课  在合约中创建新合约](https://www.wtf.academy/docs/solidity-102/Create/)
+- [solidity-102 第二十五课  CREATE2](https://www.wtf.academy/docs/solidity-102/Create2/)
+
+笔记
+
+#### CREATE方法
+
+-  用途：在合约中创建新的合约
+- 语法：`Contract x = new Contract{value: _value}(params)`
+- 地址计算：新地址 = hash(创建者地址, nonce)
+- 特点：地址不可预测，因为nonce会随时间变化
+
+#### CREATE2方法
+
+- 目的：让合约地址独立于未来事件，可以预先计算
+- 语法：`Contract x = new Contract{salt: _salt, value: _value}(params)`
+- 地址计算：新地址 = hash("0xFF", 创建者地址, salt, initcode)
+- 组成部分：
+  - 0xFF：常数，避免与CREATE冲突
+  - 创建者地址：调用CREATE2的当前合约地址
+  - salt：创建者指定的bytes32类型值
+  - initcode：新合约的初始字节码
+
+
+
+#### 极简Uniswap实现
+
+- Pair合约：管理币对地址
+- PairFactory合约：创建新币对，管理币对地址
+- CREATE2在PairFactory中的应用：
+  - 使用token地址计算salt
+  - 使用CREATE2部署Pair合约
+  - 初始化Pair合约并更新地址映射
+
+
+
+#### 思考与解答
+
+为什么Uniswap不在constructor中更新token0和token1地址？
+
+- 解答：因为Uniswap使用CREATE2创建合约，这样可以实现地址预测。如果在constructor中更新，就无法预先知道确切的合约字节码，从而影响地址预测的准确性。
+
+
+CREATE2的优势是什么？
+
+- 解答：可以预先计算合约地址，无论未来区块链上发生什么
+- 使得合约部署更加灵活和可控
+- 在某些场景下，可以优化gas使用（如Uniswap V2中减少了跨合约调用）
+
+
+CREATE2的实际应用场景：
+
+- 交易所为新用户预留钱包合约地址
+- 在Uniswap V2中，用于创建交易对，实现确定性的pair地址计算
+
+
+在使用CREATE2时，如何处理构造函数带参数的情况？
+
+- 解答：需要将参数和initcode一起打包进行哈希计算
+- 示例：`keccak256(abi.encodePacked(type(Pair).creationCode, abi.encode(address(this))))`
+
+
 
 <!-- Content_END -->

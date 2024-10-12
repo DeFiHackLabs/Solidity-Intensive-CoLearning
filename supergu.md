@@ -38,7 +38,10 @@ timezone: Asia/Shanghai
       4. Fixed-size byte arrays
       5. Enumeration
    - Reference
-   - Mapping
+      1. String
+      2. Array
+      3. Struct
+      4. Mapping
    - Function
 
 - Integers
@@ -388,5 +391,68 @@ contract people is Adam, Eve { // multiple inheritance, search from right to lef
    ```solidity
    assert(condition);
    ```
+
+### 2024.10.11
+
+#### Chapter 16: Overloading
+
+- Same function name but different input parameters
+- Can't overload modifier
+- Achievable because selector becomes different
+
+#### Chapter 17: Library
+
+- Method 1
+   ```solidity
+   using Strings for uint256;
+   _number.toHexString(); // automatically becomes Strings.toHexString(_number);
+   ```
+
+- Method 2
+   ```solidity
+   Strings.toHexString(_number);
+   ```
+
+### 2024.10.12
+
+#### Chapter 18: Import
+
+- 4 types of import
+   ```solidity
+   // 通过文件相对位置import
+   import './Yeye.sol';
+   // 通过`全局符号`导入特定的contract/function/struct
+   import {Yeye} from './Yeye.sol';
+   // 通过网址引用
+   import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+   // 引用OpenZeppelin合约
+   import '@openzeppelin/contracts/access/Ownable.sol';
+   ```
+
+- usage
+   ```solidity
+   using Address for address;
+   Yeye yeye = new Yeye();
+   ```
+
+#### Chapter 19: Receive and Fallback
+
+- Receive: `receive() external payable { ... }`
+- Fallback: `fallback() external payable { ... }`
+- Receive VS Fallback
+   ```
+            接收ETH
+               |
+            msg.data是空？
+               /  \
+            是    否
+            /      \
+   receive()存在?   fallback()
+         / \
+         是  否
+         /     \
+   receive()   fallback()
+   ```
+- Can't send ETH to a contract if it doesn't have `receive()` or `payable fallback()`
 
 <!-- Content_END -->
