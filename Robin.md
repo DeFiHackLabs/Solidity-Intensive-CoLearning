@@ -982,5 +982,17 @@ contract ContractB{
       - name：返回NTF的名称
       - symbol：返回NTF的符号
       - tokenURI：返回NTF的元数据URI（ERC721特有函数）
-     
+
+### 2024.10.13
+
+學習內容:
+
+- [x] 荷兰拍卖，一种拍卖形式，价格由高逐渐降低，知道有人愿意购买，避免gas war
+    - 与荷兰拍卖相关的参数：
+        - COLLECTOIN_SIZE：NFT总量。
+        - AUCTION_START_PRICE：荷兰拍卖起拍价，也是最高价。
+        - AUCTION_END_PRICE：荷兰拍卖结束价，也是最低价/地板价。
+        - AUCTION_TIME：拍卖持续时长。
+        - AUCTION_DROP_INTERVAL：每过多久时间，价格衰减一次。
+        - auctionStartTime：拍卖起始时间（区块链时间戳，block.timestamp）
 <!-- Content_END -->

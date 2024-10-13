@@ -143,4 +143,12 @@ timezone: Asia/Taipei
 
   [WTF Academy Solidity 103 50 多簽錢包 Note](/content/0xRory/118-MultisigWallet/MultisigWallet.md)
 
+### 2024.10.13
+  day21:
+
+  [WTF Academy Solidity 103 51 ERC4626 Note](/content/0xRory/119-ERC4626/119-ERC4626.md)
+
+  [WTF Academy Solidity 103 52 EIP712 Note](/content/0xRory/119-EIP712/119-ERC712.md)
+
+
 <!-- Content_END -->
