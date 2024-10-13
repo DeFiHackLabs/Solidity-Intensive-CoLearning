@@ -3097,9 +3097,42 @@ import '@openzeppelin/contracts/access/Ownable.sol';
         - 使用貔貅识别工具，比如 [Token Sniffer](https://tokensniffer.com/) 和 [Ave Check](https://ave.ai/check)，分低的话大概率是貔貅。
         - 看项目是否有审计报告。
         - 使用tenderly、phalcon分叉模拟卖出貔貅，如果失败则确定是貔貅代币。
-- [104-S11] 抢先交易
+- [104-S11] 抢先交易/抢跑(front-running)
+    - 链上抢跑指的是搜索者或矿工通过调高gas或其他方法将自己的交易安插在其他交易之前，来攫取价值。在区块链中，矿工可以通过打包、排除或重新排序他们产生的区块中的交易来获得一定的利润，而MEV是衡量这种利润的指标。在用户的交易被矿工打包进以太坊区块链之前，大部分交易会汇集到Mempool（交易内存池）中，矿工在这里寻找费用高的交易优先打包出块，实现利益最大化。通常来说，gas price越高的交易，越容易被打包。同时，一些MEV机器人也会搜索mempool中有利可图的交易。比如，一笔在去中心化交易所中滑点设置过高的swap交易可能会被三明治攻击：通过调整gas，套利者会在这笔交易之前插一个买单，再在之后发送一个卖单，并从中盈利。这等效于哄抬市价。
 - [104-S12] tx.origin 钓鱼攻击
+    - 如果一个银行合约使用了tx.origin做身份认证，那么黑客就有可能先部署一个攻击合约，然后再诱导银行合约的拥有者调用，即使msg.sender是攻击合约地址，但tx.origin是银行合约拥有者地址，那么转账就有可能成功。
+    ```solidity
+    contract Bank {
+        address public owner;//记录合约的拥有者
 
+        constructor() payable {
+            owner = msg.sender;
+        }
+
+        function transfer(address payable _to, uint _amount) public 
+            require(tx.origin == owner, "Not owner"); // tx.origin 可能被钓鱼！
+            (bool sent, ) = _to.call{value: _amount}("");
+            require(sent, "Failed to send Ether");
+        }
+    }
+
+    contract Attack {
+        address payable public hacker;
+        Bank bank;
+        constructor(Bank _bank) {
+            bank = Bank(_bank);
+            hacker = payable(msg.sender);
+        }
+
+        function attack() public {
+            //诱导bank合约的owner调用，于是bank合约内的余额就全部转移到黑客地址中
+            bank.transfer(hacker, address(bank).balance);
+        }
+    }
+    ```
+    - 预防措施：
+        - 使用msg.sender代替tx.origin；
+        - 如果一定要使用tx.origin，检验tx.origin == msg.sender；
 ### 2024.10.16
 
 - [104-S13] 未检查的低级调用
