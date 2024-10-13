@@ -134,4 +134,13 @@ timezone: Asia/Taipei
 
   [WTF Academy Solidity 103 47 Upgradeable Note](/content/0xRory/117-Upgradeable/Upgradeable.md)
 
+### 2024.10.12
+  day20:
+
+  [WTF Academy Solidity 103 48 透明代理 Note](/content/0xRory/118-TransparentProxy/TransparentProxy.md)
+
+  [WTF Academy Solidity 103 49 UUPS Note](/content/0xRory/118-UUPS/UUPS.md)
+
+  [WTF Academy Solidity 103 50 多簽錢包 Note](/content/0xRory/118-MultisigWallet/MultisigWallet.md)
+
 <!-- Content_END -->

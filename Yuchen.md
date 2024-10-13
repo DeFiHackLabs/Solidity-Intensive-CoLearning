@@ -2001,5 +2001,226 @@ const waves = await wavePortalContract.getAllWaves();
 > abi.encodeWithSelector 是一個有效的方法來生成函數的調用數據，其中函數的 selector（前四個 bytes 的 Keccak256 哈希值）可以被直接使用。  
 > 選項 D 使用了已知的函數 selector 0x2fbebd38，並傳遞參數 a，這樣直接使用 selector，避免了在調用中再去計算哈希值，從而節省了 gas。
 
+### 2024.10.12
+
+哈希函數(hash)是一個密碼學概念，它可以將任意長度的消息轉換為一個固定長度的值，這個值也稱作哈希(hash)。
+
+#### Hash
+好的哈希函數具有以下幾個特徵：  
+* 單向性：从输入的消息到它的哈希的正向运算简单且唯一确定，而反过来非常难，只能靠暴力枚举。
+* 靈敏性：输入的消息改变一点对它的哈希改变很大。
+* 高效性：从输入的消息到哈希的运算高效。
+* 均一性：每个哈希值被取到的概率应该基本相等。
+* 抗碰撞性：
+    * 弱抗碰撞性：給定一個`x`，找到另個`x'`，使的`hash(x)=hash(x')`是困難的。
+    * 強抗碰撞性：找到兩個不同的輸入導致相同的輸出（哈希值）非常困難，但若長度是無限的，必然會有碰撞。
+
+#### Hash的應用
+* 生成數據唯一標識
+* 加密签名
+* 安全加密
+
+**Keccak256**  
+Keccak256函数是Solidity中最常用的哈希函数，用法：  
+```Solidity
+哈希 = keccak256(数据);
+```
+
+**Keccak256和sha3**  
+1. sha3由keccak标准化而来，在很多场合下Keccak和SHA3是同义词，但在2015年8月SHA3最终完成标准化时，NIST调整了填充算法。所以SHA3就和keccak计算的结果不一样，这点在实际开发中要注意。
+2. 以太坊在开发的时候sha3还在标准化中，所以采用了keccak，所以Ethereum和Solidity智能合约代码中的SHA3是指Keccak256，而不是标准的NIST-SHA3，为了避免混淆，直接在合约代码中写成Keccak256是最清晰的。
+
+#### 生成数据唯一标识  
+
+可以利用keccak256来生成一些数据的唯一标识。比如我们有几个不同类型的数据：uint，string，address，我们可以先用abi.encodePacked方法将他们打包编码，然后再用keccak256来生成唯一标识：
+
+```Solidity
+function hash(
+    uint _num,
+    string memory _string,
+    address _addr
+    ) public pure returns (bytes32) {
+    return keccak256(abi.encodePacked(_num, _string, _addr));
+}
+```
+
+#### 弱抗碰撞性
+我们用`keccak256`演示一下之前讲到的弱抗碰撞性，即给定一个消息`x`，找到另一个消息`x'`，使得`hash(x) = hash(x')`是困难的。
+
+给定一个消息`0xAA`，试图去找另一个消息，使得它们的哈希值相等：  
+```Solidity
+// 弱抗碰撞性
+function weak(
+    string memory string1
+    )public view returns (bool){
+    return keccak256(abi.encodePacked(string1)) == _msg;
+}
+```
+
+#### 强抗碰撞性
+我们用`keccak256`演示一下之前讲到的强抗碰撞性，即找到任意不同的`x`和`x'`，使得`hash(x) = hash(x')`是困难的。
+
+我们构造一个函数`strong`，接收两个不同的`string`参数`string1`和`string2`，然后判断它们的哈希是否相同：  
+```Solidity
+// 强抗碰撞性
+function strong(
+        string memory string1,
+        string memory string2
+    )public pure returns (bool){
+    return keccak256(abi.encodePacked(string1)) == keccak256(abi.encodePacked(string2));
+}
+```
+
+<img src="https://github.com/user-attachments/assets/0be0c95b-a333-467d-8dd1-387e6ce1c5eb" height="400px" width="640px" />
+
+### 2024.10.14
+
+#### Try Catch
+
+`try-catch`只能被用於`external`函數或創建合約時`constructor`（被視為`external`函數）的調用。  
+`externalContract.f()`是某個外部合約的函數調用，`try`在調用成功的情况下運行，而`catch`則在調用失敗時執行。  
+可以使用`this.f()`來替代`externalContract.f()`，`this.f()`也被視作為外部調用，但不可在構造函數中使用，因為此時合約還未創建。  
+```Solidity
+try externalContract.f() {
+    // call成功的情况下 运行一些代码
+} catch {
+    // call失败的情况下 运行一些代码
+}
+```  
+
+如果調用的函數有返回值，那麼必須在`try`之後聲明`returns(returnType val)`，並且在`try`中可以使用返回的變量；如果是創建合約，那麼返回值是新創建的合約變量。  
+`catch`支持特殊的異常原因：  
+```Solidity
+try externalContract.f() returns(returnType){
+    // call成功的情况下 运行一些代码
+} catch Error(string memory /*reason*/) {
+    // 捕获revert("reasonString") 和 require(false, "reasonString")
+} catch Panic(uint /*errorCode*/) {
+    // 捕获Panic导致的错误 例如assert失败 溢出 除零 数组访问越界
+} catch (bytes memory /*lowLevelData*/) {
+    // 如果发生了revert且上面2个异常类型匹配都失败了 会进入该分支
+    // 例如revert() require(false) revert自定义类型的error
+}
+```
+
+#### `try-catch`實例
+`OnlyEven`
+```Solidity
+# 创建一个外部合约OnlyEven，并使用try-catch来处理异常
+contract OnlyEven{
+    # 当a=0时，require会抛出异常；当a=1时，assert会抛出异常；其他情况均正常。
+    constructor(uint a){
+        require(a != 0, "invalid number");
+        assert(a != 1);
+    }
+
+    # 当b为奇数时，require会抛出异常。
+    function onlyEven(uint256 b) external pure returns(bool success){
+        // 输入奇数时revert
+        require(b % 2 == 0, "Ups! Reverting");
+        success = true;
+    }
+}
+```
+
+**处理外部函数调用异常**  
+```Solidity
+// 调用成功会释放的事件
+event SuccessEvent();
+
+// CatchEvent和CatchByte是抛出异常时会释放的事件，分别对应require/revert和assert异常的情况。
+event CatchEvent(string message);
+event CatchByte(bytes data);
+
+// 声明even是个OnlyEven合约变量
+OnlyEven even;
+
+constructor() {
+    even = new OnlyEven(2);
+}
+
+
+// 在execute函数中使用try-catch处理调用外部函数onlyEven中的异常
+function execute(uint amount) external returns (bool success) {
+    try even.onlyEven(amount) returns(bool _success){
+        // call成功的情况下
+        emit SuccessEvent();
+        return _success;
+    } catch Error(string memory reason){
+        // call不成功的情况下
+        emit CatchEvent(reason);
+    }
+}
+```
+
+<img src="https://github.com/user-attachments/assets/9c1dc954-3162-4426-95ea-0c60a5c756cb" height="330px" width="640px" />
+
+<img src="https://github.com/user-attachments/assets/58366fda-8148-40fe-a38b-711d9167eda9" height="330px" width="640px" />
+
+
+**处理合约创建异常**  
+利用`try-catch`来处理合约创建时的异常。只需要把`try`改写为`OnlyEven`合约的创建就行：  
+```Solidity
+// 在创建新合约中使用try-catch （合约创建被视为external call）
+// executeNew(0)会失败并释放`CatchEvent`
+// executeNew(1)会失败并释放`CatchByte`
+// executeNew(2)会成功并释放`SuccessEvent`
+function executeNew(uint a) external returns (bool success) {
+    try new OnlyEven(a) returns(OnlyEven _even){
+        // call成功的情况下
+        emit SuccessEvent();
+        success = _even.onlyEven(a);
+    } catch Error(string memory reason) {
+        // catch失败的 revert() 和 require()
+        emit CatchEvent(reason);
+    } catch (bytes memory reason) {
+        // catch失败的 assert()
+        emit CatchByte(reason);
+    }
+}
+```
+
+<img src="https://github.com/user-attachments/assets/6c95b81b-d35f-4fac-a3ea-8fefc9a0898e" height="330px" width="640px" />
+
+<img src="https://github.com/user-attachments/assets/2f1707a4-edae-44e9-9daf-a651bba32ca1" height="330px" width="640px" />
+
+<img src="https://github.com/user-attachments/assets/bd9c3a2e-a299-4cff-8cb7-9de48ace1307" height="330px" width="640px" />
+
+#### 總結  
+使用try-catch来处理智能合约运行中的异常：  
+* 只能用于外部合约调用和合约创建。
+* 如果try执行成功，返回变量必须声明，并且与返回的变量类型相同。
+
+
+> 1.try-catch可以捕获什么异常？  
+> A. revert()  
+> B. require()  
+> C. assert()  
+> D. 以上都可以
+>
+> Ans:D
+
+
+> 2.以下异常返回值类型为bytes的是：  
+> A. revert()  
+> B. require()  
+> C. assert()  
+> D. 以上都是  
+>
+> Ans:C
+
+> 3.try-catch捕获到异常后是否会使try-catch所在的方法调用失败？  
+> A. 会  
+> B. 不会
+>
+> Ans:B
+
+> 4.try代码块内的revert是否会被catch本身捕获？  
+> A. 会  
+> B. 不会
+>
+> Ans:B
+
+
 
 <!-- Content_END -->
