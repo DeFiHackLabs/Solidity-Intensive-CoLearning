@@ -796,5 +796,36 @@ IERC20
 - 構造函數, 調用父合約 ERC721 的構造函數, 需要傳入 NFT 的名稱 _Nname 和符號 _symbol
 - function _baseURI, 讓每個 NFT 的 tokenURI 基於 IPFS 上的資源進行生成
 - functnio mint(), 要檢查 tokenId 的範圍沒有超過總供給量, 並 mint
-  
+
+### 2024.10.12        
+學習內容  
+筆記:  
+
+#### 荷蘭拍賣 DutchAuction
+- 也稱減價拍賣, 拍賣是由高到低依次遞減直到第一個人應價或是超過底價
+- 優點: 1.拍賣價格由最高慢慢下降, 項目方能獲得最大收入 2.拍賣時間通常 6h 以上, 可避免 gas war
+
+DutchAuction 合約
+- DutchAuction 合約繼承 ERC721, Ownable 合約
+- 有 9 個狀態變數, 其中 6 個和拍賣有關, 有 9 個函數
+
+結構
+1. setAuctionStartTime(), 設定拍賣起始時間
+2. getAuctionPrice(), 設定拍賣時的價格
+   要處理  
+   - block.timestamp 小於起始時間, 價格設定為最高價 action_start_price
+   - block.timestamp 大於結束時間, 價格設定為最低價 action_end_price
+   - block.timestamp 在兩著之間, 計算當前衰減價格
+4. auctionMint(), 用戶參與拍賣並鑄造 NFT
+   要處理
+   require 檢查是否設置起始時間, 拍賣是否開始
+   require 檢查是否超過 NFT 上限
+   mint 成本計算
+   require 用戶是否支付足夠 ETH
+   mint NFT
+   多餘 ETH 退款
+6. withdrawMoney(),項目方提取拍賣籌集的 ETH
+
+
+
 <!-- Content_END -->

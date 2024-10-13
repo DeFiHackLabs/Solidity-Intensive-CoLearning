@@ -759,5 +759,18 @@ contract test_error{
     _owners[tokenId] = newOwner;
 }
 }
+### 2024.10.12
 
+1. 复习前面的异常和合约抽象，以及接口。
+   function transferOwner1(uint256 tokenId, address newOwner) public {
+    if(_owners[tokenId] != msg.sender){
+        revert TransferNotOwner();
+        // revert TransferNotOwner(msg.sender);
+    }
+    _owners[tokenId] = newOwner;
+}
+function transferOwner2(uint256 tokenId, address newOwner) public {
+    require(_owners[tokenId] == msg.sender, "Transfer Not Owner");
+    _owners[tokenId] = newOwner;
+}
 <!-- Content_END -->

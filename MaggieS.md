@@ -492,6 +492,8 @@ I should focus on cultivating a feeling：Facing Challenges Head-On.
 
 ### 2024.10.10
 
+Later better than never.
+
 ### 2024.10.11
 
 Find a little bug~ that the English version in Solidity 102 in WTF Academy website couldn't be displayed well.
