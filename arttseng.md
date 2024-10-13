@@ -138,5 +138,18 @@ sha3由keccak标准化而来，在很多场合下Keccak和SHA3是同义词，但
 method id、selector和函数签名
 method id定义为函数签名的Keccak哈希后的前4个字节，当selector与method id相匹配时，即表示调用该函数
 
+### 2024.10.14
+水龍頭合約，
+我们在水龙头合约中定义3个状态变量
+amountAllowed设定每次能领取代币数量（默认为100，不是一百枚，因为代币有小数位数）。
+tokenContract记录发放的ERC20代币合约地址。
+requestedAddress记录领取过代币的地址。
+
+空投合約，
+multiTransferToken()函数：发送ERC20代币空投，包含3个参数：
+_token：代币合约地址（address类型）
+_addresses：接收空投的用户地址数组（address[]类型）
+_amounts：空投数量数组，对应_addresses里每个地址的数量（uint[]类型）
+该函数有两个检查：第一个require检查了_addresses和_amounts两个数组长度是否相等；第二个require检查了空投合约的授权额度大于要空投的代币数量总和。
 
 <!-- Content_END -->
