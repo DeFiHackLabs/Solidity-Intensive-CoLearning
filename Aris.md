@@ -1852,6 +1852,170 @@ timezone: Asia/Shanghai
 
 ---
 
+#### 学习内容 35. 荷兰拍卖
+
+1. 荷兰拍卖 (Dutch Auction)
+
+    - 减价拍卖
+    - 拍卖标的的竞价由高到低依次递减直到第一个竞买人应价（达到或超过底价）时击槌成交的一种拍卖
+    - ![image-20241012144656925](content/Aris/image-20241012144656925.png)
+    - 荷兰拍卖的价格由最高慢慢下降，能让项目方获得最大的收入
+    - 拍卖持续较长时间（通常6小时以上），可以避免`gas war`
+
+2. 合约部署
+
+    - 使用 openzeppelin 的 Ownable 接口
+
+        - ```solidity
+            import "@openzeppelin/contracts/access/Ownable.sol";
+            ```
+
+        - 需要安装依赖包
+
+        - ```shell
+            pnpm i @openzeppelin/contracts
+            ```
+
+        - ![image-20241012145023851](content/Aris/image-20241012145023851.png)
+
+    - ![image-20241012145854415](content/Aris/image-20241012145854415.png)
+
+    - ![image-20241012145907856](content/Aris/image-20241012145907856.png)
+
+    - 随时间变化,价格越来越低
+
+---
+
+#### 学习内容 36. 默克尔树 Merkle Tree
+
+1. Merkle Tree
+
+    - 默克尔树或哈希树,区块链的底层加密技术，被比特币和以太坊区块链广泛采用
+    - `Merkle Tree`是一种自下而上构建的加密树，每个叶子是对应数据的哈希，而每个非叶子为它的`2`个子节点的哈希。
+    - ![image-20241012165729660](content/Aris/image-20241012165729660.png)
+    - 验证节点有效性
+        - 必须知道 root(根节点)
+        - 必须知道 兄弟节点的 hash
+        - 必须知道 根节点的右子树的根节点
+        - ![image-20241012170251883](content/Aris/image-20241012170251883.png)
+
+2. 合约部署
+
+    - [MerleTree.js example](https://lab.miguelmota.com/merkletreejs/example/)
+
+        - 创建 4 个叶子节点(领 NFT 白名单地址) 
+
+        - ```
+            [
+                "0x14723A09ACff6D2A60DcdF7aA4AFf308FDDC160C",
+                "0x4B0897b0513fdC7C541B6d9D7E929C4e5364D2dB",
+                "0x583031D1113aD414F02576BD6afaBfb302140225",
+                "0xdD870fA1b7C4700F2BD7f44238821C26f7392148"
+            ]
+            ```
+
+        - 为了验证准确性,这几个跟课程中地址不一样
+
+    - ![image-20241012164536912](content/Aris/image-20241012164536912.png)
+
+    - 要验证的节点
+
+        - `0x14723A09ACff6D2A60DcdF7aA4AFf308FDDC160C`
+        - 对应 hash: `0x9da258265696d227eef589fd6cd14671a82aa2963ec2214eb048fca5441c4a7e`
+
+    - 证据
+
+        - 兄弟叶子节点
+            - `0x0xafe7c546eb582218cf94b848c36f3b058e2518876240ae6100c4ef23d38f3e07`
+        - 根的右子树节点
+            - `0x0407ee111665e57ca7528a3cff18a63a107414ce11259ae85c972a4714b44713`
+
+    - 根
+
+        - `0x85b4523f53e74d9b3c4e6ffb8d1bcd686967e36599de76c60eeb7c8e88c4bce2`
+
+    - ![image-20241012165606240](content/Aris/image-20241012165606240.png)
+
+---
+
+### 2024.10.13
+
+#### 学习内容 37. 数字签名 Signature
+
+1. 以太坊中的数字签名`ECDSA`
+
+    - 以太坊使用的数字签名算法叫双椭圆曲线数字签名算法 ECDSA, 基于双椭圆曲线“私钥-公钥”对的数字签名算法
+        - **身份认证**：证明签名方是私钥的持有人。
+        - **不可否认**：发送方不能否认发送过这个消息。
+        - **完整性**：通过验证针对传输消息生成的数字签名，可以验证消息是否在传输过程中被篡改
+    - 签名者利用`私钥`（隐私的）对`消息`（公开的）创建`签名`（公开的）
+    - 其他人使用`消息`（公开的）和`签名`（公开的）恢复签名者的`公钥`（公开的）并验证签名
+
+2. 创建签名
+
+    - 消息 hash (打包)
+
+        - ```solidity
+            return keccak256(abi.encodePacked(_account, _tokenId)); // bytes32
+            ```
+
+    - 计算以太坊签名消息
+
+        - ```solidity
+            return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", _hash));
+            ```
+
+        - 进行以太坊签名消息处理后,消息不能被执行交易(避免恶意交易)
+
+    - 签名 (使用 ethers)
+
+        - 安装ethers
+            - ![image-20241013080534256](content/Aris/image-20241013080534256.png)
+
+        - 执行 js 脚本,获取签名信息
+            - ![image-20241013081413406](content/Aris/image-20241013081413406.png)
+
+3. 验证签名
+
+    - 验证者需要拥有`消息`，`签名`，和签名使用的`公钥`
+
+    - ```solidity
+        function recoverSigner(
+                bytes32 _msgHash,
+                bytes memory _signature
+            ) internal pure returns (address) {
+                // 检查签名长度，65是标准r,s,v签名的长度
+                require(_signature.length == 65, "invalid signature length");
+                bytes32 r;
+                bytes32 s;
+                uint8 v;
+                // 目前只能用assembly (内联汇编)来从签名中获得r,s,v的值
+                assembly {
+                    /*
+                    前32 bytes存储签名的长度 (动态数组存储规则)
+                    add(sig, 32) = sig的指针 + 32
+                    等效为略过signature的前32 bytes
+                    mload(p) 载入从内存地址p起始的接下来32 bytes数据
+                    */
+                    // 读取长度数据后的32 bytes
+                    r := mload(add(_signature, 0x20))
+                    // 读取之后的32 bytes
+                    s := mload(add(_signature, 0x40))
+                    // 读取最后一个byte
+                    v := byte(0, mload(add(_signature, 0x60)))
+                }
+                // 使用ecrecover(全局函数)：利用 msgHash 和 r,s,v 恢复 signer 地址
+                return ecrecover(_msgHash, v, r, s);
+            }	
+        ```
+
+4. 合约部署
+
+    - ![image-20241013081650125](content/Aris/image-20241013081650125.png)
+
+
+---
+
 
 
 <!-- Content_END -->

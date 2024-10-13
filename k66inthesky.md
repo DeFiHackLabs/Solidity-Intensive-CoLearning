@@ -257,5 +257,30 @@ receive()   fallback()
   1. Proxy Contact
   2. EIP-2535 Diamonds
 
+### 2024.10.12
+學習內容: `24. Create`
++ 乙太坊鏈上，EOA(外部帳戶)可創建智能合約、智能合約也能創智能合約。
++ DEX(Uniswap)就是用PairFactory創了無數個Pair
++ PairFactory範例
+   ```
+   contract PairFactory{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair(address tokenA, address tokenB) external returns (address pairAddr) {
+        // 创建新合约
+        Pair pair = new Pair(); 
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+   ```
+### 2024.10.13
+學習內容: `25. CREATE2`
++ `CREATE2`和前一篇的`CREATE`不同，`Uniswap v2`用來驅動factory合約。
 
 <!-- Content_END -->
