@@ -849,4 +849,10 @@ contract Timelock{
 ### 
 
 
+### 2024.10.13
+
+#### [ERC712](./content/0xfu/EIP712.md)
+
+### 
+
 <!-- Content_END -->
