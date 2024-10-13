@@ -244,4 +244,40 @@ receive()   fallback()
 + 返回值: (bool, bytes memory)
 + 用法: `目標合約地址.call(字節碼)`，其中字節碼`abi.encodeWithSignature("函數簽名", 參數)`如`bi.encodeWithSignature("f(uint256,address)", _x, _addr)`
 + 另外call可以設定ETH數量和gas: `目標合約地址.call{value:ETH發送數量, gas:gas數量}(字節碼);`
+
+
+### 2024.10.11
+學習內容: `23. Delegatecall`
++ 與call類似，是委託/代表的意思。
++ 與call不同處:
+   - 舉例: 用戶A透過合約B來callㄥdelegatecall合約C。
+   - call: 執行的是合約C的函數，上下文也是合約C的。
+   - delegatecall:  執行的是合約C的函數，上下文卻是合約B的。
++ 何時用到delegatecall?
+  1. Proxy Contact
+  2. EIP-2535 Diamonds
+
+### 2024.10.12
+學習內容: `24. Create`
++ 乙太坊鏈上，EOA(外部帳戶)可創建智能合約、智能合約也能創智能合約。
++ DEX(Uniswap)就是用PairFactory創了無數個Pair
++ PairFactory範例
+   ```
+   contract PairFactory{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair(address tokenA, address tokenB) external returns (address pairAddr) {
+        // 创建新合约
+        Pair pair = new Pair(); 
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+   ```
+
 <!-- Content_END -->

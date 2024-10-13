@@ -15,6 +15,36 @@ timezone: Asia/Shanghai
 ## Notes
 <!-- Content_START -->
 
+### 2024.10.12
+
+Ethers101章节：提供其Provider、读取合约信息、发送ETH、合约交互、部署合约
+
+[ethers.js Documentation](https://docs.ethers.org/v6/)
+
+- Contract读取
+    
+    ```tsx
+    const abiERC20 = [
+      "function name() view returns (string)",
+      "function symbol() view returns (string)",
+      "function totalSupply() view returns (uint256)",
+      "function balanceOf(address) view returns (uint)",
+    ];
+    const addressDAI = '0x6B175474E89094C44Da98b954EedeAC495271d0F'
+    let provider = new ethers.InfuraProvider("mainnet", INFURA_API_KEY);
+    const contract = new ethers.Contract(addressDAI, abiERC20, provider);//只读
+    const wallet1 = ethers.Wallet.createRandom()
+    const contract = new ethers.Contract(addressDAI, abiERC20, wallet1);//可写
+    ```
+    
+- 创建钱包的api
+    
+    ```tsx
+    const wallet1 = ethers.Wallet.createRandom()//创建钱包
+    const wallet2 = new ethers.Wallet(privateKey, provider)//从私钥导入
+    const wallet3 = ethers.Wallet.fromPhrase(mnemonic.phrase)//从助记词导入
+    ```
+
 ### 2024.10.11
 
 EVM opcode101章节: Hello Opcodes

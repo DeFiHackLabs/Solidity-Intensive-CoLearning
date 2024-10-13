@@ -924,4 +924,63 @@ contract ContractB{
         }
         ```
     - 注意：只能被用于external函数或创建合约时constructor（被视为external函数）的调用
+
+### 2024.10.11
+
+學習內容:
+
+- [x] ERC20 以太坊上的代币标注，实现代币基本逻辑
+     - 账户余额 `balanceOf()`
+     - 转账 `transfer()`
+     - 授权转账`transferFrom()`
+     - 授权`approve()`
+     - 代币总供给`totalSupply()`
+     - 授权转账额度`allowance()`
+     - 代币信息（可选）：名称、符号、小数位数
+- [x] IERC20：ERC20标准的接口定义
+  - 两个事件
+    - 转账事件 Transfer `event Transfer(address indexed from, address indexed to, uint256 value);`
+    - 授权事件 Approval `event Approval(address indexed owner, address indexed spender, uint256 value);`
+  - 六个函数
+     - 返回代币总供给`function totalSupply() external view returns (uint256);`
+     - 返回账户余额`function balanceOf(address account) external view returns (uint256);`
+     - 返回授权转账额度`function allowance(address owner, address spender) external view returns (uint256);`
+     - 转账`function transfer(address recipient, uint256 amount) external returns (bool);`
+     - 授权转账` function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);`
+     - 授权`function approve(address spender, uint256 amount) external returns (bool);`
+
+
+### 2024.10.12
+
+學習內容:
+
+- [x] 代币水龙头
+- [x] 空投合约
+- [x] ERC721 标准 （根据EIP721改进建议形成的ERC721标准）
+   - ERC165用于检查合约是否是支持ERC721或者ERC1155的接口
+     ```solidity
+          function supportsInterface(bytes4 interfaceId) public view virtual returns (bool) {
+             return
+                interfaceId == 0x01ffc9a7 || // ERC165 Interface ID for ERC165
+                interfaceId == 0x80ac58cd || // ERC165 Interface ID for ERC721
+                interfaceId == 0x5b5e139f || // ERC165 Interface ID for ERC721Metadata
+                interfaceId == 0x780e9d63;   // ERC165 Interface ID for ERC721Enumerable 
+          }
+     ```
+   - IERC721是ERC721的接口定义
+   - IERC721包含三个事件：Transfer(转账时释放)、Approval（授权时释放）、ApprovalForAll（批量授权时释放）
+   - IERC721包含了9个函数
+      - balanceOf：返回某地址NTF的持有量
+      - ownerOf：返回某NTF的持有者
+      - transferFrom：转移NTF
+      - safeTransferFrom：安全转移NTF(接收方合约必须实现IERC721Receiver接口的onERC721Received函数)
+      - approve：授权NTF
+      - setApprovalForAll：批量授权NTF
+      - isApprovedForAll：检查是否批量授权
+      - safeTransferFrom：安全转移NTF(函数重载，多了data参数)
+   - IERC721Metadata是IERC721的扩展接口
+      - name：返回NTF的名称
+      - symbol：返回NTF的符号
+      - tokenURI：返回NTF的元数据URI（ERC721特有函数）
+     
 <!-- Content_END -->

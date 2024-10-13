@@ -2517,4 +2517,94 @@ p.s.容易混淆的概念：
     - 一個類別(class)中，定義多個名稱相同，但參數(Parameter)不同的方法(Method)。
 3. 多型(Polymorphism)
     - 父類別可透過子類別衍伸成多種型態，而父類別為子類別的通用型態，再透過子類別可覆寫父類別的方法來達到多型的效果，也就是同樣的方法名稱會有多種行為。
+
+### 2024.10.12
+#### 庫合約 - library
+- Library 是大神們寫的方法們，可以減少程式碼錯誤率，高速開發
+
+### Library 的特點
+
+- **無狀態（Stateless）**：
+    - Library 中不能有狀態變量，這意味著它們不能保存任何數據。
+    - 所有的函數都是純粹的邏輯運算，不涉及狀態修改。
+- **無法接收以太幣**：
+    - Library 無法直接接收或持有以太幣，這使得它們更加簡單和安全。
+- **無法被部署**：
+    - Library 本身不能被單獨部署，
+    - 它們的函數可以被其他合約調用，但它們本身不會管理狀態或擁有資金。
+- **被調用時是無狀態的**：
+    - Library 的函數執行時不依賴於存儲的狀態，這與普通合約不同。
+- **不能被繼承**
+
+### Library 的用途
+
+- **代碼復用**：Library 中的函數可以在多個合約中重複使用，這樣可以減少代碼重複，提高開發效率。
+- **簡化合約**：Library 可以將邏輯代碼提取到外部，從而減少合約本身的複雜度。
+- **常用工具和函數**：Library 通常被用來定義常用的工具和函數，例如數學運算、數據結構處理等。
+
+### Library 的類型
+
+Solidity 中的 Library 有兩種主要調用方式：
+
+1. **內部函數庫（Internal Library）**：這類函數在編譯時會被內聯到調用它們的合約中。這意味著這些函數與合約中的其他代碼一起部署，不需要單獨的合約調用。
+2. **外部函數庫（External Library）**：這類函數庫可以部署為單獨的合約，其他合約通過 `delegatecall` 調用它們的函數，這樣的調用可以節省合約大小並允許多個合約共享相同的函數邏輯。
+
+### Library 的用法
+
+### 1. **內部函數庫（Internal Functions）**
+
+內部函數庫中的函數是內聯的，這意味著它們的代碼會在調用合約中直接使用，沒有額外的合約調用開銷。
+
+範例：
+
+```solidity
+// 數學運算工具庫
+library Math {
+    // 加法函數
+    function add(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a + b;
+    }
+}
+
+contract Example {
+    // 使用 Library 中的函數
+    function sum(uint256 x, uint256 y) public pure returns (uint256) {
+        return Math.add(x, y);
+    }
+}
+```
+
+- 在這個例子中，`Math` 庫的 `add` 函數是內聯的，這意味著當 `Example` 合約部署時，`add` 函數的邏輯會被直接編譯進合約。
+- **內聯（Inline）**：函數代碼在編譯時被嵌入到調用的合約中，因此不需要額外的合約調用。
+- **節省執行時的 Gas 成本**：
+    - **沒有額外的函數調用開銷**：內部函數庫的調用就像調用本地函數一樣，不需要通過 `CALL` 或 `DELEGATECALL` 進行合約間的調用。
+    - 因為內部函數庫不涉及合約間調用，所以節省了在合約調用中的額外 Gas 成本。
+
+### 2. **外部函數庫（External Functions）**
+
+外部函數庫需要部署成獨立的合約，其他合約通過 `delegatecall` 調用它們。這使得不同的合約可以共享相同的庫邏輯，而不需要將其內聯到每個合約中。
+
+範例：
+
+```solidity
+library Math {
+    function add(uint256 a, uint256 b) external pure returns (uint256) {
+        return a + b;
+    }
+}
+
+contract Example {
+    // 引入外部函數庫
+    using Math for uint256;
+
+    function sum(uint256 x, uint256 y) public view returns (uint256) {
+        return x.add(y);  // 調用外部函數庫
+    }
+}
+```
+
+- 在這個例子中，`Math` 庫作為外部函數庫使用，`x.add(y)` 是一個 `delegatecall` 調用，這意味著合約不需要內聯 `Math` 的代碼，而是委派調用到外部合約來完成這個邏輯。
+
+- `using for` 語法
+    - `using Math for uint256` 表示可以將 `Math` 中定義的函數應用於 `uint256` 類型的變量上。
 <!-- Content_END -->

@@ -50,6 +50,20 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 ## Notes
 
 <!-- Content_START -->
+
+### 2024.10.12
+
+Day 16
+
+WTF Academy Solidity 101 48_TransparentProxy
+
+TransparentProxy
+
+- "selector clash" in proxy contract and logic contracts
+- The admin can only upgrade the contract by calling the upgradable function of the proxy contract, without calling the fallback function to call the logic contract.
+- Other users cannot call the upgradable function but can call functions of the logic contract.
+
+---
 ### 2024.10.11
 
 Day 15
@@ -254,6 +268,8 @@ An other important upgrade contract protocol
 [Diamonds, Multi-Facet Proxy (EIP-2535)](https://eips.ethereum.org/EIPS/eip-2535)
 
 [Diamond Implementations](https://github.com/mudgen/Diamond)
+
+[Awesome Diamonds](https://github.com/mudgen/awesome-diamonds)
 
 ```mermaid
 graph TB

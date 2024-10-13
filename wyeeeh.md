@@ -1783,10 +1783,312 @@ function getString2(uint256 _number) public pure returns(string memory) {
 ##### 测验结果
 - 100/100
 
-##### 测验错题
-
 ### 2024.10.11
 #### WTF Academy Solidity 102.19 接收ETH receive和fallback
+
+##### `receive`函数
+`receive()` 函数专门用于处理合约收到ETH的情况。当合约接收到ETH并且 `msg.data` 为空时（即没有调用任何函数），如果存在 `receive()` 函数，它就会被触发。
+- **`receive()` 函数的触发条件**：
+    - 当合约接收ETH，且 `msg.data` 为空时会触发 `receive()`。
+    - 在上述例子中，当有人向合约发送ETH时（例如通过钱包的发送功能），`receive()` 会被调用，并触发 `Received` 事件。
+- **语法规则**：
+    - 一个合约最多有一个`receive()`函数
+    - 声明方式与一般函数不一样，不需要`function`关键字：`receive() external payable { ... }`。
+    - `receive()`函数不能有任何的参数，不能返回任何值，必须包含`external`和`payable`。
+- **逻辑简单**：为了避免超过 `gas` 限制，`receive()` 函数最好尽量简单，在这里我们仅仅记录ETH发送者和金额。
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract ReceiveExample {
+    event Received(address sender, uint value);
+
+    // receive 函数，用于接收ETH
+    receive() external payable {
+        emit Received(msg.sender, msg.value); // 触发事件记录发送者和金额
+    }
+
+    // 用于查询合约的余额
+    function getBalance() public view returns (uint) {
+        return address(this).balance;
+    }
+}
+
+```
+
+##### `fallback`函数
+`fallback()` 函数在两个主要场景下被调用：
+1. 当调用一个不存在的函数时。
+2. 当向合约发送ETH且 `msg.data` 不为空，或者合约没有定义 `receive()` 函数时。
+- **`fallback()` 函数的触发条件**：
+    - 当调用合约中不存在的函数时，或者向合约发送ETH但 `msg.data` 不为空时，`fallback()` 会被触发。
+    - 在这个例子中，我们定义了一个 `fallback()` 函数，当它被触发时，记录发送者、金额和 `msg.data`。
+- **`payable` 修饰符**：为了确保 `fallback()` 能够接收ETH，它通常也会使用 `payable` 修饰符。
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract FallbackExample {
+    event FallbackCalled(address sender, uint value, bytes data);
+
+    // fallback 函数，用于接收ETH或处理不存在的函数调用
+    fallback() external payable {
+        emit FallbackCalled(msg.sender, msg.value, msg.data); // 触发事件记录发送者、金额和data
+    }
+
+    // 用于查询合约的余额
+    function getBalance() public view returns (uint) {
+        return address(this).balance;
+    }
+}
+
+```
+##### `receive`和`fallback`的区别
+
+| 触发条件 | `receive()` | `fallback()` |
+| --- | --- | --- |
+| 接收ETH，且 `msg.data` 为空 | 触发 | 不触发 |
+| 接收ETH，且 `msg.data` 不为空 | 不触发 | 触发（如果存在） |
+| 调用不存在的函数 | 不触发 | 触发 |
+| 合约没有 `receive()`，接收ETH | 不触发 | 触发 |
+
+```text
+触发fallback() 还是 receive()?
+           接收ETH
+              |
+         msg.data是空？
+            /  \
+          是    否
+          /      \
+receive()存在?   fallback()
+        / \
+       是  否
+      /     \
+receive()   fallback()
+```
+##### 同时实现`receive`和`fallback`
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract ReceiveFallbackExample {
+    event Received(address sender, uint value);
+    event FallbackCalled(address sender, uint value, bytes data);
+
+    // receive 函数
+    receive() external payable {
+        emit Received(msg.sender, msg.value);
+    }
+
+    // fallback 函数
+    fallback() external payable {
+        emit FallbackCalled(msg.sender, msg.value, msg.data);
+    }
+
+    // 查询合约余额
+    function getBalance() public view returns (uint) {
+        return address(this).balance;
+    }
+}
+
+```
+
+在这个合约中：
+- 如果向合约发送ETH而不附带数据，则 `receive()` 函数会被触发。
+- 如果向合约发送ETH并附带数据，或者调用了一个不存在的函数，`fallback()` 函数会被触发。
+
+##### 测验结果
+- 100/100
+
+### 2024.10.12
+#### WTF Academy Solidity 102.20 发送ETH
+
+##### 发送-接收ETH合约
+**接收ETH合约 `ReceiveETH`**
+
+简单的接收ETH的合约包含`receive()`函数，允许它接收ETH，并记录交易信息。
+
+```solidity
+contract ReceiveETH {
+    // 事件，用于记录ETH接收情况
+    event Log(uint amount, uint gas);
+
+    // receive函数，每次接收ETH时触发
+    receive() external payable {
+        emit Log(msg.value, gasleft());
+    }
+
+    // 查询合约当前余额
+    function getBalance() public view returns (uint) {
+        return address(this).balance;
+    }
+}
+
+```
+**发送ETH合约 `SendETH`**
+
+发送ETH的合约`SendETH`，这个合约通过不同的方法向`ReceiveETH`合约发送ETH。
+
+```solidity
+contract SendETH {
+    // 构造函数，使得部署时可以转入ETH
+    constructor() payable {}
+
+    // receive函数，接收ETH时被触发
+    receive() external payable {}
+
+    // transfer()发送ETH的示例
+    function transferETH(address payable _to, uint256 amount) external payable {
+        _to.transfer(amount);
+    }
+
+    // send()发送ETH的示例
+    error SendFailed();  // 如果发送失败，触发自定义错误
+    function sendETH(address payable _to, uint256 amount) external payable {
+        bool success = _to.send(amount);
+        if (!success) {
+            revert SendFailed();  // 发送失败则revert交易
+        }
+    }
+
+    // call()发送ETH的示例
+    error CallFailed();  // 如果发送失败，触发自定义错误
+    function callETH(address payable _to, uint256 amount) external payable {
+        (bool success, ) = _to.call{value: amount}("");
+        if (!success) {
+            revert CallFailed();  // 发送失败则revert交易
+        }
+    }
+}
+
+```
+
+##### 三种发送ETH方法
+**1. `transfer()`**
+
+**语法**：
+
+```solidity
+_to.transfer(amount);
+
+```
+
+- **参数**：
+    - `_to`：接收ETH的目标地址，类型是`address payable`。
+    - `amount`：发送的ETH数额，以`wei`为单位。
+- **返回值**：
+    - `transfer()` 没有返回值。
+    - 如果转账失败（例如目标合约消耗的`gas`超过了2300 gas），会自动`revert`（回滚交易），并抛出异常，停止执行合约后续的代码。
+- **用法特点**：
+    - 固定的2300 gas限制，适合简单的转账，不适用于执行复杂逻辑。
+    - 如果失败，会自动回滚交易，无需手动处理。
+
+**示例**：
+
+```solidity
+function transferETH(address payable _to, uint256 amount) external {
+    _to.transfer(amount);
+}
+
+```
+
+**2. `send()`**
+
+**语法**：
+
+```solidity
+bool success = _to.send(amount);
+
+```
+
+- **参数**：
+    - `_to`：接收ETH的目标地址，类型是`address payable`。
+    - `amount`：发送的ETH数额，以`wei`为单位。
+- **返回值**：
+    - 返回一个`bool`值，表示转账是否成功。
+        - `true`：转账成功。
+        - `false`：转账失败。
+    - 由于返回值是`bool`，需要手动检查返回值来决定是否要回滚（例如使用`require`或`revert`来处理）。
+- **用法特点**：
+    - 和`transfer()`一样有2300 gas限制，但转账失败不会自动`revert`，需要手动处理失败情况。
+    - 因为没有自动`revert`机制，使用场景较少。
+
+**示例**：
+
+```solidity
+error SendFailed(); // 自定义错误
+
+function sendETH(address payable _to, uint256 amount) external {
+    bool success = _to.send(amount);
+    if (!success) {
+        revert SendFailed(); // 手动回滚
+    }
+}
+
+```
+
+**3. `call()`**
+
+**语法**：
+
+```solidity
+(bool success, bytes memory data) = _to.call{value: amount}("");
+
+```
+
+- **参数**：
+    - `_to`：接收ETH的目标地址，类型是`address payable`。
+    - `amount`：发送的ETH数额，以`wei`为单位。
+    - `{value: amount}`：指定转账的ETH数额。
+    - `""`：调用的函数签名（空字符串代表调用目标合约的`fallback()`或`receive()`函数）。
+- **返回值**：
+    - `call()`返回一个元组：
+        - `bool success`：表示调用是否成功。
+            - `true`：调用成功。
+            - `false`：调用失败。
+        - `bytes memory data`：表示调用返回的`data`，在发送ETH时通常不使用（因为没有调用任何具体函数），但在函数调用中可以解析返回数据。
+- **用法特点**：
+    - 没有固定的gas限制，适合复杂逻辑的执行（可以手动设置`gas`）。
+    - 如果失败，不会自动`revert`，需要手动检查`bool success`，决定是否要回滚交易。
+
+**示例**：
+
+```solidity
+error CallFailed(); // 自定义错误
+
+function callETH(address payable _to, uint256 amount) external {
+    (bool success, ) = _to.call{value: amount}(""); // 发送ETH
+    if (!success) {
+        revert CallFailed(); // 手动回滚
+    }
+}
+
+```
+
+##### 主要区别总结：
+
+| 方法 | 语法规则 | 返回值 | gas 限制 | 失败时行为 | 用法场景 |
+| --- | --- | --- | --- | --- | --- |
+| `transfer()` | `_to.transfer(amount)` | 无返回值 | 固定 2300 gas | 自动`revert` | 简单ETH转账，确保安全 |
+| `send()` | `bool success = _to.send(amount)` | `bool success` | 固定 2300 gas | 不自动`revert` | 不推荐，必须手动检查返回值 |
+| `call()` | `(bool success, bytes memory data) = _to.call{value: amount}("")` | `bool success`, `bytes data` | 无限制 | 不自动`revert` | 推荐用于复杂逻辑或可控的ETH发送 |
+##### 测验结果
+- 100/100
+
+### 2024.10.13
+#### WTF Academy Solidity 102.21 调用其他合约
+
+##### 笔记
+
+##### 测验结果
+
+##### 测验错题
+
+
+### 2024.10.14
+#### WTF Academy Solidity 102.22 Call
 
 ##### 笔记
 

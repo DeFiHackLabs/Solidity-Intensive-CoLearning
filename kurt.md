@@ -1051,6 +1051,9 @@ contract DutchAuction is Ownable ,ERC721{
 ```
 ### 2024.10.11
 ### 2024.10.12
+完成题目
+![image](https://github.com/user-attachments/assets/0ce636a1-6d8c-4945-b14a-9b78b3b27b23)
+
 ### 2024.10.13
 ### 2024.10.14
 ### 2024.10.15

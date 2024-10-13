@@ -365,4 +365,12 @@ interface IERC721Receiver {
 ### 2024.10.11
 学习了线性释放，代币锁，时间锁合约，并在remix上进行了验证
 通过bytes32 txHash = getTxHash(target, value, signature, data, executeTime);来确定交易唯一
+
+### 2024.10.12
+学习了代理合约的相关知识，并在remix上进行了验证
+- 代理合约
+- 可升级合约
+- 透明代理(解决 逻辑合约 和 代理合约 abi重名问题)
+- UUPS代理(将升级函数放在逻辑合约中，逻辑合约必须保证有相关的升级函数)
+- := 在 Solidity 中，:= 是一种特殊的符号，用于 Yul 代码（Solidity 的低级中间语言）。它用于赋值操作
 <!-- Content_END -->

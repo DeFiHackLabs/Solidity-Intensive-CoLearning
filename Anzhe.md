@@ -2296,5 +2296,617 @@ Airdrop空投合約邏輯非常簡單：利用循環，一筆交易將ERC20代�
         }
     }
     ```
+### 2024.10.11
+BTC 和 ETH 這類代幣都屬於同質化代幣，礦工挖出的第 1 個 BTC 與第 10000 個 BTC 是等價的，但世界上許多物品是不同質的，其中包括房產、古董、虛擬藝術品等等，這類物品無法用同質化代幣抽象化。因此，以太坊 EIP721 提出了 ERC721 標準，來抽象化非同質化的物品。今天要來理解 ERC721 標準，並利用它發行一款 NFT。
+# EIP 與 ERC
+## EIP
+EIP 全名為 Ethereum Improvement Proposals(以太坊改進建議), 是以太坊開發者社區提出的改進建議，是一系列以編號排定的文件，類似網路上 IETF 的 RFC。
+而 EIP 可以是乙太坊生態中任意領域的改進，例如新特性、ERC、協定改進、程式設計工具等等。
+## ERC
+ERC 全名為 Ethereum Request For Comment (以太坊意見徵求稿)，用來記錄以太坊上應用級的各種開發標準和協議。如典型的 Token 標準(ERC20, ERC721)、名字註冊(ERC26, ERC13)、URI範式(ERC67)、Library/Package 格式(EIP82)、包格式(EIP75,EIP85)。ERC 協議標準也是影響以太坊發展的重要因素，像 ERC20、ERC223、 ERC721、ERC777 等，都是對以太坊生態產生了很大影響。**而 EIP 包含了 ERC**。
+### ERC165
+透過 [ERC165](https://eips.ethereum.org/EIPS/eip-165) 標準，智能合約可以宣告它支援的介面，供其他合約檢查。簡單的說，ERC165 就是檢查一個智能合約是不是支援了 ERC721、ERC1155 的介面。
+IERC165 介面合約只聲明了一個 `supportsInterface` 函數，輸入要查詢的`interfaceId` 介面id，若合約實作了該介面 id，則傳回 `true`：
+```
+interface IERC165 {
+    /**
+     * @dev 如果合約實作了查詢的 `interfaceId`，則傳回 true
+     */
+    function supportsInterface(bytes4 interfaceId) external view returns (bool);
+}
+```
+然後 ERC721 實作 `supportsInterface()` 函數：
+```
+function supportsInterface(bytes4 interfaceId) external pure override returns (bool)
+{
+    return
+        interfaceId == type(IERC721).interfaceId ||
+        interfaceId == type(IERC165).interfaceId;
+}
+```
+當查詢的是 IERC721 或 IERC165 的介面 id 時，回傳 true，反之回傳 false。
+### IERC721
+IERC721 是 ERC721標準的介面合約，規定了 ERC721 要實現的基本函數。它利用 `tokenId` 來表示特定的非同質化代幣，授權或轉帳都要明確 `tokenId`；而 ERC20 只需要明確轉帳的金額即可。
+```
+/**
+ * @dev ERC721 標準介面
+ */
+interface IERC721 is IERC165 {
+    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+    event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
+    event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
 
+    function balanceOf(address owner) external view returns (uint256 balance);
+
+    function ownerOf(uint256 tokenId) external view returns (address owner);
+
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 tokenId,
+        bytes calldata data
+    ) external;
+
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 tokenId
+    ) external;
+
+    function transferFrom(
+        address from,
+        address to,
+        uint256 tokenId
+    ) external;
+
+    function approve(address to, uint256 tokenId) external;
+
+    function setApprovalForAll(address operator, bool _approved) external;
+
+    function getApproved(uint256 tokenId) external view returns (address operator);
+
+    function isApprovedForAll(address owner, address operator) external view returns (bool);
+}
+```
+#### IERC721事件
+IERC721 包含 3 個事件，其中 Transfer 和 Approval 事件在 ERC20 中也有。
+* Transfer 事件：在轉帳時被釋放，記錄代幣的發出地址 from，接收地址 to 和tokenid。
+* Approval 事件：在授權時釋放，記錄授權位址 owner，被授權位址 approved 和tokenid。
+* ApprovalForAll 事件：在批次授權時釋放，記錄批量授權的發出位址 owner，被授權位址 operator 和授權與否的 approved。
+#### IERC721 函數
+* balanceOf：傳回某位址的NFT持有量balance。
+* ownerOf：回傳某tokenId的主人owner。
+* transferFrom：普通轉賬，參數為轉出地址from，接收地址to和tokenId。
+* safeTransferFrom：安全轉帳（如果接收方是合約位址，會要求實作ERC721Receiver介面）。參數為轉出位址from，接收位址to和tokenId。
+* approve：授權另一個位址使用你的NFT。參數為被授權位址approve和tokenId。
+* getApproved：查詢tokenId被批准給了哪個位址。
+* setApprovalForAll：將自己持有的該系列NFT批次授權給某個地址operator。 
+* isApprovedForAll：查詢某個位址的NFT是否批次授權給了另一個operator位址。 
+* safeTransferFrom：安全轉帳的重載函數，參數裡麵包含了data。
+#### IERC721Receiver
+如果一個合約沒有實現 ERC721 的相關函數，轉入的 NFT 就進了黑洞，永遠轉不出來了。為了防止誤轉賬，ERC721 實作了 safeTransferFrom() 安全轉帳函數，目標合約必須實作了 IERC721Receiver 介面才能接收 ERC721 代幣，不然會 revert。 IERC721Receiver 介面只包含一個 onERC721Received() 函數。
+```
+// ERC721接收者介面：合約必須實作這個介面來透過安全轉帳接收ERC721
+interface IERC721Receiver {
+    function onERC721Received(
+        address operator,
+        address from,
+        uint tokenId,
+        bytes calldata data
+    ) external returns (bytes4);
+}
+```
+# 荷蘭拍賣
+荷蘭拍賣（Dutch Auction）是一種特殊的拍賣形式，亦稱為「減價拍賣」，它是指拍賣標的的競價由高到低依次遞減直到第一個競買人應價（達到或超過底價）時擊槌成交的一種拍賣。
+在幣圈，許多NFT透過荷蘭拍賣發售，其中包括 Azuki 和 World of Women，其中 Azuki 透過荷蘭拍賣籌集了超過 8000 枚 ETH。
+專案方非常喜歡這種拍賣形式，主要有兩個原因：
+1. 荷蘭拍賣的價格由最高慢慢下降，能讓專案方獲得最大的收入。
+2. 拍賣持續較長（通常6小時以上），可以避免 gas war。
+## DutchAuction合約
+程式碼基於 Azuki 的程式碼簡化而成。DucthAuction 合約繼承了先前介紹的 ERC721 和 Ownable 合約：
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "https://github.com/AmazingAng/WTF-Solidity/blob/main/34_ERC721/ERC721.sol";
+
+contract DutchAuction is Ownable, ERC721 {
+    uint256 public constant COLLECTOIN_SIZE = 10000; // NFT 總數
+    uint256 public constant AUCTION_START_PRICE = 1 ether; // 起拍價（最高價）
+    uint256 public constant AUCTION_END_PRICE = 0.1 ether; // 結束價(最低價/地板價)
+    uint256 public constant AUCTION_TIME = 10 minutes; // 拍賣時間，為了測試方便設為10分鐘
+    uint256 public constant AUCTION_DROP_INTERVAL = 1 minutes; // 每過多久時間，價格衰減一次
+    uint256 public constant AUCTION_DROP_PER_STEP =
+        (AUCTION_START_PRICE - AUCTION_END_PRICE) /
+        (AUCTION_TIME / AUCTION_DROP_INTERVAL); // 每次價格衰減步長
+    
+    uint256 public auctionStartTime; // 拍賣開始時間戳
+    string private _baseTokenURI;   // metadata URI
+    uint256[] private _allTokens; // 記錄所有存在的 tokenId
+```
+### DutchAuction 狀態變數
+合約中總共有 9 個狀態變數，其中有 6 個和拍賣相關：
+* COLLECTOIN_SIZE：NFT 總量。
+* AUCTION_START_PRICE：荷蘭拍賣起拍價，也是最高價。
+* AUCTION_END_PRICE：荷蘭拍賣結束價，也是最低價/地板價。
+* AUCTION_TIME：拍賣持續時長。
+* AUCTION_DROP_INTERVAL：每過多久時間，價格衰減一次。
+* auctionStartTime：拍賣起始時間（區塊鏈時間戳，`block.timestamp`）。
+### DutchAuction 函數
+荷蘭拍賣合約中共有 9 個函數，與 ERC721 相關的函數我們這裡不再重複介紹，只介紹和拍賣相關的函數。
+* 設定拍賣起始時間：我們在建構子中會宣告當前區塊時間為起始時間，專案方也可以透過 `setAuctionStartTime()` 函數來調整：
+    ```
+    constructor() ERC721("WTF Dutch Auctoin", "WTF Dutch Auctoin") {
+        auctionStartTime = block.timestamp;
+    }
+
+    // auctionStartTime setter 函數，onlyOwner
+    function setAuctionStartTime(uint32 timestamp) external onlyOwner {
+        auctionStartTime = timestamp;
+    }
+    ```
+* 取得拍賣即時價格：`getAuctionPrice()` 函數透過當前區塊時間以及拍賣相關的狀態變數來計算即時拍賣價格。
+    * 當 `block.timestamp` 小於起始時間，價格為最高價 AUCTION_START_PRICE
+    * 當 `block.timestamp` 大於結束時間，價格為最低價 AUCTION_END_PRICE
+    * 當 `block.timestamp` 處於兩者之間時，則計算出目前的衰減價格
+    ```
+        // 取得拍賣即時價格
+        function getAuctionPrice()
+            public
+            view
+            returns (uint256)
+        {
+            if (block.timestamp < auctionStartTime) {
+            return AUCTION_START_PRICE;
+            }else if (block.timestamp - auctionStartTime >= AUCTION_TIME) {
+            return AUCTION_END_PRICE;
+            } else {
+            uint256 steps = (block.timestamp - auctionStartTime) /
+                AUCTION_DROP_INTERVAL;
+            return AUCTION_START_PRICE - (steps * AUCTION_DROP_PER_STEP);
+            }
+        }
+    ```
+* 使用者拍賣並鑄造 NFT：使用者透過呼叫 `auctionMint()` 函數，支付 ETH 參加荷蘭拍賣並鑄造 NFT。
+    * 此函數首先檢查拍賣是否開始/鑄造是否超出 NFT 總量。接著，合約透過 `getAuctionPrice()` 和鑄造數量計算拍賣成本，並檢查使用者支付的 ETH 是否足夠：如果足夠，則將 NFT 鑄造給使用者，並退回超額的 ETH；反之，則回退交易。
+    ```
+        // 拍賣 mint 函數
+    function auctionMint(uint256 quantity) external payable{
+        uint256 _saleStartTime = uint256(auctionStartTime); // 建立 local 變數，減少 gas 花費
+        require(
+        _saleStartTime != 0 && block.timestamp >= _saleStartTime,
+        "sale has not started yet"
+        ); // 檢查是否設定起拍時間，拍賣是否開始
+        require(
+        totalSupply() + quantity <= COLLECTOIN_SIZE,
+        "not enough remaining reserved for auction to support desired mint amount"
+        ); // 檢查是否超過 NFT 上限
+
+        uint256 totalCost = getAuctionPrice() * quantity; // 計算 mint 成本
+        require(msg.value >= totalCost, "Need to send more ETH."); // 檢查使用者是否支付足夠 ETH
+        
+        // Mint NFT
+        for(uint256 i = 0; i < quantity; i++) {
+            uint256 mintIndex = totalSupply();
+            _mint(msg.sender, mintIndex);
+            _addTokenToAllTokensEnumeration(mintIndex);
+        }
+        // 多餘 ETH 退款
+        if (msg.value > totalCost) {
+            payable(msg.sender).transfer(msg.value - totalCost); // 注意這裡是否有重入的風險
+        }
+    }
+    ```
+* 專案方取出籌集的 ETH：專案方可以透過 `withdrawMoney()` 函數提走拍賣會籌集的 ETH
+    ```
+        // 提款函數，onlyOwner
+    function withdrawMoney() external onlyOwner {
+        (bool success, ) = msg.sender.call{value: address(this).balance}(""); // call 函數呼叫
+        require(success, "Transfer failed.");
+    }
+    ```
+### 2024.10.12
+# Merkle Tree
+Merkle Tree，也稱為梅克爾樹或哈希樹，是區塊鏈的底層加密技術，被比特幣和以太坊區塊鏈廣泛採用。Merkle Tree 是一種由下而上建構的加密樹，每個葉子是對應資料的 Hash，而每個非葉子為它的 2 個子節點的 Hash。
+![](https://i.imgur.com/WrVL5XB.png)
+Merkle Tree 允許對大型資料結構的內容進行有效且安全的驗證（Merkle Proof），對於有 N 個葉子結點的 Merkle Tree，在已知 root 根值的情況下，驗證某個資料是否有效（屬於 Merkle Tree 葉子結點）只需要 ceil (log₂N) 個資料（也叫 proof），非常有效率，如果資料有誤，或給的 proof 錯誤，則無法還原出 root 根植。
+
+在下面的例子中，葉子 L1 的 Merkle proof 為Hash 0-1 和 Hash 1：知道這兩個值，就能驗證 L1 的值是不是在 Merkle Tree 的葉子中。為什麼呢？因為透過葉子 L1 我們就可以算出 Hash 0-0，我們又知道了 Hash 0-1，那麼 Hash 0-0 和 Hash 0-1 就可以聯合算出 Hash 0，然後我們又知道 Hash 1，Hash 0 和 Hash 1 就可以聯合算出 Top Hash，也就是 root 節點的 hash。
+![](https://i.imgur.com/8IuVaHx.png)
+
+## 生成 Merkle Tree
+我們可以利用[網頁](https://lab.miguelmota.com/merkletreejs/example/)或 Javascript 函式庫 [merkletreejs](https://github.com/merkletreejs/merkletreejs) 來產生 Merkle Tree。
+這裡我們用網頁來產生4個位址當葉子結點的Merkle Tree。葉子結點輸入：
+```
+    [
+    "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4", 
+    "0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2",
+    "0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db",
+    "0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB"
+    ]
+```
+在選單裡選 Keccak-256、hashLeaves 和 sortPairs 選項，然後點選 Compute，Merkle Tree 就生成好了。 
+![](https://i.imgur.com/M6RFZzV.png)
+Merkle Tree 展開為：
+![](https://i.imgur.com/pnVVe3e.png)
+
+## Merkle Proof 驗證
+透過網站，我們可以得到地址 0 的 proof 如下：
+
+
+利用 MerkleProof 函式庫來驗證：
+```
+library MerkleProof {
+    /**
+     * @dev 當透過`proof`和`leaf`重建的`root`與給定的`root`相等時，傳回`true`，資料有效。
+     * 重建時，葉子節點對和元素對都是排序過的。
+     */
+    function verify(
+        bytes32[] memory proof,
+        bytes32 root,
+        bytes32 leaf
+    ) internal pure returns (bool) {
+        return processProof(proof, leaf) == root;
+    }
+
+    /**
+     * @dev Returns 透過Merkle樹用`leaf`和`proof`計算出`root`. 當重建出的`root`和給定的`root`相同時，`proof`才是有效的。
+     * 在重建時，葉子節點對和元素對都是排序過的。
+     */
+    function processProof(bytes32[] memory proof, bytes32 leaf) internal pure returns (bytes32) {
+        bytes32 computedHash = leaf;
+        for (uint256 i = 0; i < proof.length; i++) {
+            computedHash = _hashPair(computedHash, proof[i]);
+        }
+        return computedHash;
+    }
+
+    // Sorted Pair Hash
+    function _hashPair(bytes32 a, bytes32 b) private pure returns (bytes32) {
+        return a < b ? keccak256(abi.encodePacked(a, b)) : keccak256(abi.encodePacked(b, a));
+    }
+}
+```
+MerkleProof 函式庫有三個函數：
+* verify()函數：利用proof數來驗證leaf是否屬於根為root的Merkle Tree中，如果是，則傳回true。它呼叫了processProof()函數。
+* processProof()函數：利用proof和leaf依序計算出Merkle Tree的root。它呼叫了_hashPair()函數。
+* _hashPair()函數：用keccak256()函數計算兩個非根節點對應的子節點的雜湊（排序後）。
+## 利用 Merkle Tree 發放 NFT 白名單
+一份擁有 800 個地址的白名單，更新一次所需的 gas fee 很容易超過 1 個 ETH。而由於 Merkle Tree 驗證時，leaf 和 proof 可以存在後端，鏈上只需儲存一個 root 的值，非常節省g as，專案方常用它來發放白名單。許多 ERC721 標準的 NFT 和 ERC20 標準代幣的白名單/空投都是利用 Merkle Tree 發出的，例如 optimism 的空投。
+```
+contract MerkleTree is ERC721 {
+    bytes32 immutable public root; // Merkle樹的根
+    mapping(address => bool) public mintedAddress;   // 記錄已經mint的位址
+
+    // 建構子，初始化NFT合集的名稱、代號、Merkle樹的根
+    constructor(string memory name, string memory symbol, bytes32 merkleroot)
+    ERC721(name, symbol)
+    {
+        root = merkleroot;
+    }
+
+    // 利用Merkle樹驗證地址並完成mint
+    function mint(address account, uint256 tokenId, bytes32[] calldata proof)
+    external
+    {
+        require(_verify(_leaf(account), proof), "Invalid merkle proof"); // Merkle檢驗通過
+        require(!mintedAddress[account], "Already minted!"); // 地址沒有mint過
+        _mint(account, tokenId); // mint
+        mintedAddress[account] = true; // 記錄mint過的地址
+    }
+
+    // 計算Merkle樹葉子的 hash
+    function _leaf(address account)
+    internal pure returns (bytes32)
+    {
+        return keccak256(abi.encodePacked(account));
+    }
+
+    // Merkle樹驗證，呼叫MerkleProof函式庫的verify()函數
+    function _verify(bytes32 leaf, bytes32[] memory proof)
+    internal view returns (bool)
+    {
+        return MerkleProof.verify(proof, root, leaf);
+    }
+}
+```
+MerkleTree 合約繼承了 ERC721 標準，並利用了 MerkleProof 函式庫。
+### 狀態變數
+* root儲存了Merkle Tree的根，部署合約的時候賦值。
+* mintedAddress是一個mapping，記錄了已經mint過的地址，某地址mint成功後進行賦值。
+### 函數
+* 建構子：初始化NFT的名稱和代號，還有Merkle Tree的root。
+* mint()函數：利用白名單鑄造NFT。參數為白名單地址account，鑄造的tokenId，和proof。首先驗證address是否在白名單中，驗證通過則把序號為tokenId的NFT鑄造給該地址，並將它記錄到mintedAddress。此過程中呼叫了_leaf()和_verify()函數。
+* _leaf()函數：計算了Merkle Tree的葉子地址的雜湊。
+* _verify()函數：呼叫了MerkleProof函式庫的verify()函數，進行Merkle Tree驗證。
+# Signature
+如果用過 opensea 交易 NFT，對簽名就不會陌生。從 Metamask 錢包進行簽署時彈出的窗口，可以證明你擁有私鑰的同時不需要對外公佈私鑰。以太坊使用的數位簽章演算法叫做雙橢圓曲線數位簽章演算法（ECDSA），是基於雙橢圓曲線「私鑰-公鑰」對的數位簽章演算法。它主要起到了三個作用：
+1. 身分認證：證明簽章方是私鑰的持有人。
+2. 不可否認：發送方不能否認發送過這個訊息。
+3. 完整性：透過驗證針對傳輸訊息產生的數位簽名，可以驗證訊息是否在傳輸過程中被竄改。
+## ECDSA 合約
+ECDSA標準中包含兩個部分：
+1. 簽署者利用私鑰（private）對訊息（public）創建簽名（public）。
+2. 其他人則使用訊息（public）和簽名（public）恢復簽署者的公鑰（public）並驗證簽名。
+```
+私鑰: 0x227dbb8586117d55284e26620bc76534dfbd2394be34cf4a09cb775d593b6f2b
+公鑰: 0xe16C1623c1AA7D919cd2241d8b36d9E79C1Be2A2
+訊息: 0x1bf2c0ce4546651a1a2feb457b39d891a6b83931cc2454434f39961345ac378c
+以太坊簽名訊息: 0xb42ca4636f721c7a331923e764587e98ec577cea1a185f60dfcc14dbb9bd900b
+簽名: 0x390d704d7ab732ce034203599ee93dd5d3cb0d4d1d7c600ac11726659489773d559b12d220f99f41d17651b0c1c6a669d346a397f8541760d6b32a5725378b241c
+```
+### 建立簽名
+1. 打包訊息： 在以太坊的 ECDSA 標準中，被簽署的訊息是一組資料的 keccak256 hash，為 bytes32 類型。我們可以把任何想要簽署的內容利用 abi.encodePacked() 函數打包，然後用 keccak256() 計算 hash，作為訊息。例子中的訊息是由一個 address 類型變數和一個 uint256 類型變數得到的：
+    ```
+    function getMessageHash(address _account, uint256 _tokenId) public pure returns(bytes32){
+        return keccak256(abi.encodePacked(_account, _tokenId));
+    }
+    ```
+2. 計算以太坊簽章訊息：訊息可以是能被執行的交易，也可以是其他任何形式。為了避免使用者誤簽了惡意交易，EIP191 提倡在訊息前加上 `"\x19Ethereum Signed Message:\n32"` 字串，並再做一次 keccak256 哈希，作為以太坊簽名訊息。經過`toEthSignedMessageHash()` 函數處理後的訊息，不能被用來執行交易:
+    ```
+        /**
+         * @dev 回傳以太坊簽名訊息
+         * `hash`：訊息
+         * 遵從以太坊簽名標準：https://eth.wiki/json-rpc/API#eth_sign[`eth_sign`]
+         * 以及`EIP191`:https://eips.ethereum.org/EIPS/eip-191
+         * 添加"\x19Ethereum Signed Message:\n32"字串，防止簽名的是可執行交易。
+         */
+        function toEthSignedMessageHash(bytes32 hash) public pure returns (bytes32) {
+            // 哈希的長度為32
+            return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash));
+        }
+    ```
+3. (1) 利用錢包簽章： 在日常操作中，大部分使用者都是透過這種方式進行簽署。在取得到需要簽名的訊息之後，我們需要使用 Metamask 錢包進行簽名。Metamask 的 personal_sign 方法會自動把訊息轉換為以太坊簽章訊息，然後發起簽章。所以我們只需要輸入訊息和簽名者錢包 account。要注意的是輸入的簽署者錢包 account 需要和 metamask 目前連接的 account 一致才能使用。
+因此需把例子中的私鑰導入到 Metamask 錢包，然後打開瀏覽器的 console 頁面。在連接錢包的狀態下（如連接 opensea，否則會出現錯誤），依序輸入以下指令進行簽署
+    ```
+    ethereum.enable()
+    account = "0xe16C1623c1AA7D919cd2241d8b36d9E79C1Be2A2" // 公鑰
+    hash = "0x1bf2c0ce4546651a1a2feb457b39d891a6b83931cc2454434f39961345ac378c" // 訊息
+    ethereum.request({method: "personal_sign", params: [account, hash]})
+    ```
+    在 console 頁面傳回的結果（Promise 的 PromiseResult）可以看到建立好的簽章。不同帳戶有不同的私鑰，創建的簽名值也不同。
+3. (2) 利用 web3.py 簽名： 批次呼叫中更傾向於使用程式碼進行簽名，以下是基於web3.py的實作。
+    ```
+    from web3 import Web3, HTTPProvider
+    from eth_account.messages import encode_defunct
+
+    private_key = "0x227dbb8586117d55284e26620bc76534dfbd2394be34cf4a09cb775d593b6f2b"
+    address = "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"
+    rpc = 'https://rpc.ankr.com/eth'
+    w3 = Web3(HTTPProvider(rpc))
+
+    #打包訊息
+    msg = Web3.solidity_keccak(['address','uint256'], [address,0])
+    print(f"消息：{msg.hex()}")
+    #建構可簽名訊息
+    message = encode_defunct(hexstr=msg.hex())
+    #簽名
+    signed_message = w3.eth.account.sign_message(message, private_key=private_key)
+    print(f"簽名：{signed_message['signature'].hex()}")
+    ```
+    運行計算的簽名結果應該和前面的案例一致。
+
+### 驗證簽名
+為了驗證簽名，驗證者需要擁有訊息、簽名和簽名使用的公鑰。我們能驗證簽名的原因是只有私鑰的持有者才能夠針對交易產生這樣的簽名，而別人不能。
+
+4. 透過簽名和訊息恢復公鑰：簽名是由數學演算法產生的。這裡我們使用的是 rsv 簽名，簽名包含 r, s, v 三個值的資訊。而後，我們可以透過 r, s, v 及以太坊簽章訊息來求公鑰。下面的 recoverSigner() 函數實現了上述步驟，它利用以太坊簽署訊息 _msgHash 和簽署 _signature 恢復公鑰（使用了簡單的內聯彙編）：
+    ```
+        // @dev 從_msgHash和簽名_signature中恢復signer地址
+    function recoverSigner(bytes32 _msgHash, bytes memory _signature) internal pure returns (address){
+        // 檢查簽名長度，65是標準r,s,v簽名的長度
+        require(_signature.length == 65, "invalid signature length");
+        bytes32 r;
+        bytes32 s;
+        uint8 v;
+        // 目前只能用assembly (內聯彙編)來從簽名中獲得r,s,v的值
+        assembly {
+            /*
+            前32 bytes儲存簽章的長度 (動態陣列儲存規則)
+            add(sig, 32) = sig的指標 + 32
+            等效為略過signature的前32 bytes
+            mload(p) 載入從記憶體位址 p 起始的接下來 32 bytes資料
+            */
+            // 讀取長度資料後的 32 bytes
+            r := mload(add(_signature, 0x20))
+            // 讀取之後的 32 bytes
+            s := mload(add(_signature, 0x40))
+            // 讀取最後一個 byte
+            v := byte(0, mload(add(_signature, 0x60)))
+        }
+        // 使用ecrecover(全域函數)：利用 msgHash 和 r,s,v 來恢復 signer 位址
+        return ecrecover(_msgHash, v, r, s);
+    }
+    ```
+5. 比較公鑰並驗證簽章：接下來只需要比對復原的公鑰與簽署者公鑰 _signer 是否相等，若相等，則簽章有效；否則，簽章無效：
+    ```
+        /**
+     * @dev @dev 透過ECDSA，驗證簽章位址是否正確，如果正確則回傳true
+     * _msgHash為訊息的hash
+     * _signature為簽名
+     * _signer為簽名地址
+     */
+    function verify(bytes32 _msgHash, bytes memory _signature, address _signer) internal pure returns (bool) {
+        return recoverSigner(_msgHash, _signature) == _signer;
+    }
+    ```
+## 利用簽名發放白名單
+NFT 專案方可以利用 ECDSA 的這個特性發放白名單。由於簽名是鏈下的，不需要 gas，因此這種白名單發放模式比 Merkle Tree 模式還要經濟實惠。方法非常簡單，專案方利用專案方帳戶把白名單發放地址簽名（可以加上地址可以鑄造的 tokenId）。然後 mint 的時候利用 ECDSA 檢驗簽章是否有效，如果有效，則給他 mint。但由於使用者要請求中心化介面去取得簽名，不可避免的犧牲了一部分去中心化。另外還有一個好處是白名單可以動態變化，而不是提前寫死在合約裡面，因為專案方的中心化後端介面可以接受任何新地址的請求並給予白名單簽名。
+SignatureNFT 合約實現了利用簽名發放 NFT 白名單：
+```
+contract SignatureNFT is ERC721 {
+    address immutable public signer; // 簽名地址
+    mapping(address => bool) public mintedAddress;   // 記錄已經mint的位址
+
+    // 建構子，初始化 NFT 合集的名稱、代號、簽名地址
+    constructor(string memory _name, string memory _symbol, address _signer)
+    ERC721(_name, _symbol)
+    {
+        signer = _signer;
+    }
+
+    // 利用ECDSA驗證簽章並mint
+    function mint(address _account, uint256 _tokenId, bytes memory _signature)
+    external
+    {
+        bytes32 _msgHash = getMessageHash(_account, _tokenId); // 將_account和_tokenId打包訊息
+        bytes32 _ethSignedMessageHash = ECDSA.toEthSignedMessageHash(_msgHash); // 計算以太坊簽名訊息
+        require(verify(_ethSignedMessageHash, _signature), "Invalid signature"); // ECDSA檢驗通過
+        require(!mintedAddress[_account], "Already minted!"); // 地址沒有mint過
+        _mint(_account, _tokenId); // mint
+        mintedAddress[_account] = true; // 記錄mint過的地址
+    }
+
+    /*
+     * 將mint位址（address類型）和tokenId（uint256類型）拼成訊息msgHash
+     * _account: 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4
+     * _tokenId: 0
+     * 對應的訊息: 0x1bf2c0ce4546651a1a2feb457b39d891a6b83931cc2454434f39961345ac378c
+     */
+    function getMessageHash(address _account, uint256 _tokenId) public pure returns(bytes32){
+        return keccak256(abi.encodePacked(_account, _tokenId));
+    }
+
+    // ECDSA驗證，呼叫ECDSA函式庫的verify()函數
+    function verify(bytes32 _msgHash, bytes memory _signature)
+    public view returns (bool)
+    {
+        return ECDSA.verify(_msgHash, _signature, signer);
+    }
+}
+```
+### 說明
+#### 狀態變數
+* signer：公鑰，專案方簽署地址。
+* mintedAddress：是一個 mapping，記錄了已經 mint 過的地址。
+#### 函數
+* 建構子：初始化 NFT 的名稱和代號，還有 ECDSA 的簽章地址 signer
+* mint()函數：接受地址 address、tokenId 和 _signature 三個參數，驗證簽名是否有效：如果有效，則把 tokenId 的 NFT 鑄造給 address 地址，並將它記錄到 mintedAddress。它呼叫了 getMessageHash()、ECDSA.toEthSignedMessageHash() 和 verify() 函數。
+* etMessageHash() 函數：將 mint 位址（address 類型）和tokenId（uint256 類型）拼成訊息。
+* verify() 函數呼叫了 ECDSA 函式庫的 verify() 函數，來進行 ECDSA 簽章驗證。
+
+# NFT交易所
+Opensea 是以太坊上最大的 NFT 交易平台，總交易總量達到了 $300 億。 Opensea 在交易中抽成 2.5%，因此它透過使用者交易獲利了至少 $7.5億。另外，它的運作並不去中心化，也不準備發幣補償用戶。 NFT 玩家苦 Opensea 久矣，今天我們就利用智能合約搭建一個零手續費的去中心化 NFT 交易所：NFTSwap。
+## 設計邏輯
+* 賣家：出售 NFT 的一方，可以掛單 list、取消單 revoke、修改價格 update。
+* 買家：購買 NFT 的一方，可以購買 purchase。
+* 訂單：賣家發布的 NFT 鏈上訂單，一個系列的同一 tokenId 最多存在一個訂單，其中包含掛單價格 price 和持有人 owner 資訊。當一個訂單交易完成或被撤單後，其中資訊清除。
+## NFTSwap 合約
+### 事件
+```
+    event List(address indexed seller, address indexed nftAddr, uint256 indexed tokenId, uint256 price); // 掛單
+    event Purchase(address indexed buyer, address indexed nftAddr, uint256 indexed tokenId, uint256 price); // 
+    event Revoke(address indexed seller, address indexed nftAddr, uint256 indexed tokenId); // 撤單
+    event Update(address indexed seller, address indexed nftAddr, uint256 indexed tokenId, uint256 newPrice); // 修改價格
+```
+### 訂單
+NFT 訂單抽象化為 Order 結構，包含掛單價格 price 和持有人 owner 資訊。nftList 映射記錄了訂單是對應的 NFT 系列（合約地址）和 tokenId 資訊。
+```
+// 定義訂單結構
+struct Order{
+    address owner;
+    uint256 price; 
+}
+// NFT 訂單映射
+mapping(address => mapping(uint256 => Order)) public nftList;
+```
+
+### 回退函數
+在 NFTSwap 中，使用者用 ETH 購買 NFT。因此，合約需要實作 fallback() 函數來接收 ETH。
+```
+fallback() external payable{}
+```
+### onERC721Received
+ERC721 的安全轉帳函數會檢查接收合約是否實作了 onERC721Received() 函數，並傳回正確的選擇器 selector。使用者下單之後，需要將 NFT 發送給 NFTSwap 合約。因此 NFTSwap 繼承 IERC721Receiver 介面，並實現 onERC721Received() 函數：
+```
+contract NFTSwap is IERC721Receiver{
+    // 實現{IERC721Receiver}的onERC721Received，能夠接收ERC721代幣
+    function onERC721Received(
+        address operator,
+        address from,
+        uint tokenId,
+        bytes calldata data
+    ) external override returns (bytes4){
+        return IERC721Receiver.onERC721Received.selector;
+    }
+```
+### 交易
+合約實現了4個交易相關的函數：
+* 掛單list()：賣家建立 NFT 並建立訂單，然後釋放 List 事件。參數為 NFT 合約地址 _nftAddr，NFT 對應的 _tokenId，掛單價格 _price（單位是 wei）。成功後，NFT 會從賣家轉到 NFTSwap 合約。
+    ```
+        // 掛單: 賣家上架NFT，合約地址為_nftAddr，tokenId為_tokenId，價格_price為以太坊（單位是wei）
+    function list(address _nftAddr, uint256 _tokenId, uint256 _price) public{
+        IERC721 _nft = IERC721(_nftAddr); // 宣告 IERC721 介面合約變數
+        require(_nft.getApproved(_tokenId) == address(this), "Need Approval"); // 合約得到授權
+        require(_price > 0); // 價格大於0
+
+        Order storage _order = nftList[_nftAddr][_tokenId]; //設定NF持有者和價格
+        _order.owner = msg.sender;
+        _order.price = _price;
+        // 將NFT轉帳到合約
+        _nft.safeTransferFrom(msg.sender, address(this), _tokenId);
+
+        // 釋放List事件
+        emit List(msg.sender, _nftAddr, _tokenId, _price);
+    }
+    ```
+* 撤單 revoke()：賣家撤回掛單，並釋放 Revoke 事件。參數為 NFT 合約位址 _nftAddr，NFT 對應的 _tokenId。成功後，NFT 會從 NFTSwap 合約轉回賣家。
+    ```
+        // 撤單： 賣家取消掛單
+    function revoke(address _nftAddr, uint256 _tokenId) public {
+        Order storage _order = nftList[_nftAddr][_tokenId]; // 取得 Order        
+        require(_order.owner == msg.sender, "Not Owner"); // 必須由持有人發起
+        // 宣告IERC721介面合約變數
+        IERC721 _nft = IERC721(_nftAddr);
+        require(_nft.ownerOf(_tokenId) == address(this), "Invalid Order"); // NFT在合約中
+        
+        // 將NFT轉給賣家
+        _nft.safeTransferFrom(address(this), msg.sender, _tokenId);
+        delete nftList[_nftAddr][_tokenId]; // 刪除order
+      
+        // 釋放Revoke事件
+        emit Revoke(msg.sender, _nftAddr, _tokenId);
+    }
+    ```
+* 修改價格 update()：賣家修改 NFT 訂單價格，並釋放 Update 事件。參數為 NFT 合約地址 _nftAddr，NFT 對應的 _tokenId，更新後的掛單價格 _newPrice（單位是wei）。
+    ```
+        // 調整價格：賣家調整掛單價格
+    function update(address _nftAddr, uint256 _tokenId, uint256 _newPrice) public {
+        require(_newPrice > 0, "Invalid Price"); // NFT價格大於0
+        Order storage _order = nftList[_nftAddr][_tokenId]; // 取得 Order        
+        require(_order.owner == msg.sender, "Not Owner"); // 必須由持有人發起
+        //  宣告IERC721介面合約變數
+        IERC721 _nft = IERC721(_nftAddr);
+        require(_nft.ownerOf(_tokenId) == address(this), "Invalid Order"); // NFT在合約中
+        
+        // 調整NFT價格
+        _order.price = _newPrice;
+      
+        // 釋放Update事件
+        emit Update(msg.sender, _nftAddr, _tokenId, _newPrice);
+    }
+    ```
+* 購買 purchase：買家支付 ETH 購買掛單的 NFT，並釋放 Purchase 事件。參數為 NFT 合約地址 _nftAddr，NFT 對應的 _tokenId。成功後，ETH 將轉給賣家，NFT 將從NFTSwap 合約轉給買家。
+    ```
+        // 購買: 買家購買NFT，合約為_nftAddr，tokenId為_tokenId，呼叫函數時要附帶ETH
+    function purchase(address _nftAddr, uint256 _tokenId) payable public {
+        Order storage _order = nftList[_nftAddr][_tokenId]; // 取得Order        
+        require(_order.price > 0, "Invalid Price"); // NFT價格大於0
+        require(msg.value >= _order.price, "Increase price"); // 購買價格大於標價
+        // 宣告IERC721介面合約變數
+        IERC721 _nft = IERC721(_nftAddr);
+        require(_nft.ownerOf(_tokenId) == address(this), "Invalid Order"); // NFT在合約中
+
+        // 將NFT轉給買家
+        _nft.safeTransferFrom(address(this), msg.sender, _tokenId);
+        // 將ETH轉給賣家，多餘ETH給買家退款
+        payable(_order.owner).transfer(_order.price);
+        payable(msg.sender).transfer(msg.value-_order.price);
+
+        delete nftList[_nftAddr][_tokenId]; // 刪除order
+
+        // 釋放Purchase事件
+        emit Purchase(msg.sender, _nftAddr, _tokenId, _order.price);
+    }
+    ```
 <!-- Content_END -->

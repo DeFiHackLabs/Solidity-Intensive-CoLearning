@@ -137,6 +137,12 @@ Assert一般用於寫程式debug，它不能解釋拋出異常的原因。
 三種方法的gas消耗量是Error < Assert < Require
 未來Error的使用應會愈來愈多。
 
+### 2024.10.12
+16講裡面，
+說明到Solidity的函數可以重載（overloading），不允許修飾器（modifier）重載。
+
+名字一樣的函數，輸入參數類型不同時，可以同時存在會被視為不同的函數。
+
 
 
 <!-- Content_END -->

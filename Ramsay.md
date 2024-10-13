@@ -1404,4 +1404,238 @@ function multiTransferToken(
 
 还没有撸到过 :( 
 
+### 2024.10.12
+
+#### ERC721
+
+ERC20 本质上就只是一个 mapping, 记录了每一个地址的余额，仅此而已。它的缺点是，每一个 Token 都是一样的，没有任何区别。
+
+为了能更好的和独特的资产建立联系，Ethereum基金会定义了ERC-721标准，用来定义一种独特的 token, 也就是 NFT(Non-Fungible Token) 
+
+NFT能证明某个数字资产是正版，但是无法阻止别人使用盗版，这是两个不同的问题.
+
+而课程中反复提及的 `ERC165` 其实就是一个类型检查，判断合约是否实现了指定的接口, 以Rust 的代码为例:
+
+```rs
+// Define a trait
+trait MyTrait {
+    fn my_method(&self);
+}
+
+// Implement the trait for a struct
+struct MyStruct;
+
+impl MyTrait for MyStruct {
+    fn my_method(&self) {
+        println!("MyStruct implements MyTrait");
+    }
+}
+
+// Function that requires the struct to implement MyTrait
+fn requires_trait<T: MyTrait>(item: T) {
+    item.my_method();
+}
+
+fn main() {
+    let my_struct = MyStruct;
+    requires_trait(my_struct); // Will compile, because MyStruct implements MyTrait
+}
+```
+
+用 Solidity 的话来理解上面的代码，`MyTrait` 就类似是 `ERC721` 这样的接口, `MyStruct` 就类似合约，只有合约实现了某个指定的接口，功能才能正常运行.
+
+强类型的编程语言编译器一般都实现了这样的能力，而因为 Solidity 编译器或者是 EVM 的限制，就需要额外提出一个 ERC 来实现这个功能, 相当于是把编译器搬到分布式环境上来了.
+
+按照 [`EIP165`](https://eips.ethereum.org/EIPS/eip-165), `interface id`是某个接口所有函数 `selector` 异或的结果, 代码示例如下:
+
+```solidity
+pragma solidity ^0.4.20;
+
+interface Solidity101 {
+    function hello() external pure;
+    function world(int) external pure;
+}
+
+contract Selector {
+    function calculateSelector() public pure returns (bytes4) {
+        Solidity101 i;
+        return i.hello.selector ^ i.world.selector;
+    }
+}
+
+```
+如果某个接口只有一个函数，那么这个接口的接口ID自然就是函数的 `selector`。
+
+我看课程中的 `ERC165` 和 `ERC721` 内容看得头疼，后面对照着 OpenZeppelin 的源码，我终于明白了我为什么头疼，同样的名词在不同语境下表达的是不过的意思.
+
+`ERC`: 全称 Ethereum Request For Comment (以太坊意见征求稿), 用以记录以太坊上应用级的各种开发标准和协议, 就是正常的RFC, 各种标准和修正方案.
+
+> 我们可以看下ERC721是如何实现supportsInterface()函数的：
+```
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool)
+    {
+        return
+            interfaceId == type(IERC721).interfaceId ||
+            interfaceId == type(IERC165).interfaceId;
+    }
+```
+
+看到这里，我非常费解，为什么 `ERC721` 提案要实现 `ERC165`, 看了源码才意识到 [`ERC721`](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC721/ERC721.sol#L45) 是实现了 `IERC721` 接口和 `IERC165` 接口的抽象合约:
+
+```solidity
+abstract contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, IERC721Errors {
+...
+}
+```
+
+`ERC721` 要实现 `supportsInterface` 的函数，恰好就是 `IERC165` 接口中的函数, 而一个合约所支持的接口，自然包含它所实现的接口，所以 `ERC721` 是支持 `IERC165` 和 `IERC721`.
+
+看到这个函数的时候，我又疑惑了，这个非常关键的条件：`retval != IERC721Receiver.onERC721Received.selector` 究竟是什么意思:
+```solidity
+function _checkOnERC721Received(
+    address operator,
+    address from,
+    address to,
+    uint256 tokenId,
+    bytes memory data
+) internal {
+    if (to.code.length > 0) {
+        try IERC721Receiver(to).onERC721Received(operator, from, tokenId, data) returns (bytes4 retval) {
+            if (retval != IERC721Receiver.onERC721Received.selector) {
+                // Token rejected
+                revert IERC721Errors.ERC721InvalidReceiver(to);
+            }
+        } catch (bytes memory reason) {
+            if (reason.length == 0) {
+                // non-IERC721Receiver implementer
+                revert IERC721Errors.ERC721InvalidReceiver(to);
+            } else {
+                /// @solidity memory-safe-assembly
+                assembly {
+                    revert(add(32, reason), mload(reason))
+                }
+            }
+        }
+    }
+}
+```
+
+阅读 [`IERC721Receiver`](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/72c152dc1c41f23d7c504e175f5b417fccc89426/contracts/token/ERC721/IERC721Receiver.sol) 接口的代码注释，我才终于理解是什么意思:
+
+```solidity
+interface IERC721Receiver {
+    /**
+     * @dev Whenever an {IERC721} `tokenId` token is transferred to this contract via {IERC721-safeTransferFrom}
+     * by `operator` from `from`, this function is called.
+     *
+     * It must return its Solidity selector to confirm the token transfer.
+     * If any other value is returned or the interface is not implemented by the recipient, the transfer will be
+     * reverted.
+     *
+     * The selector can be obtained in Solidity with `IERC721Receiver.onERC721Received.selector`.
+     */
+    function onERC721Received(
+        address operator,
+        address from,
+        uint256 tokenId,
+        bytes calldata data
+    ) external returns (bytes4);
+}
+```
+
+课程完全没有提及, 为了确认 token 转账，`IERC721Receiver.onERC721Received` 规定，必须返回 `onERC721Received` 这个函数的 selector, 返回其他值或者接口未实现都会导致转账被回滚.
+
+但是课程完全没有提及这个关键信息, 遇事不决看源码好了.
+
+另外, ERC721 的示例代码是有问题的:
+
+> ERC721主合约实现了IERC721，IERC165和IERC721Metadata定义的所有功能，包含4个状态变量和17个函数。
+
+但是实际的示例代码并没有实现 `IERC165` 接口:
+
+```
+contract ERC721 is IERC721, IERC721Metadata{ 
+    // 实现IERC165接口supportsInterface
+    function supportsInterface(bytes4 interfaceId)
+        external
+        pure
+        override
+        returns (bool)
+    {
+        return
+            interfaceId == type(IERC721).interfaceId ||
+            interfaceId == type(IERC165).interfaceId ||
+            interfaceId == type(IERC721Metadata).interfaceId;
+    }
+}
+```
+
+我创建了一个 [PR](https://github.com/WTFAcademy/frontend/pull/244) 来修复我所遇到的问题.
+
+### 2024.10.13
+
+#### 荷兰拍卖
+
+荷兰拍卖是指，拍卖人先将价格设定在足以阻止所有竞拍者的水平，然后由高价往低价喊，第一个应价的竞拍者获胜，并支付当时所喊到的价格。
+
+拍卖合约继承了 `Owner` 合约，我看了 `Owner` 合约的[文档](https://docs.openzeppelin.com/contracts/2.x/access-control), 权限控制在智能合约非常关键，最常见和最基本的权限抽近就是只有合约的所有者才有权限做管理操作，而每个合约只拥有一个所有者就是件理所当然的事了。
+
+默认的情况，继承`Owner`合约的所有者就是部署合约的地址，只有它才有权限进行操作, 比如课程中的设置拍卖开始时间和提款操作.
+
+虽然荷兰拍卖的原理是每过 `AUCTION_DROP_INTERVAL` 价格就衰减一次，但是并没有一个定时器或者 `crontab` 不停的更新时间并且广播，而是当有竞拍者调用 `getAuctionPrice` 时函数，根据已经过去的时间，再根据时间动态算出价格.
+```solidity
+    function getAuctionPrice()
+        public
+        view
+        returns (uint256)
+    {
+        if (block.timestamp < auctionStartTime) {
+        return AUCTION_START_PRICE;
+        }else if (block.timestamp - auctionStartTime >= AUCTION_TIME) {
+        return AUCTION_END_PRICE;
+        } else {
+        uint256 steps = (block.timestamp - auctionStartTime) /
+            AUCTION_DROP_INTERVAL;
+        return AUCTION_START_PRICE - (steps * AUCTION_DROP_PER_STEP);
+        }
+    }
+```
+
+```solidity
+    // 拍卖mint函数
+    function auctionMint(uint256 quantity) external payable{
+        uint256 _saleStartTime = uint256(auctionStartTime); // 建立local变量，减少gas花费
+        require(
+        _saleStartTime != 0 && block.timestamp >= _saleStartTime,
+        "sale has not started yet"
+        ); // 检查是否设置起拍时间，拍卖是否开始
+        require(
+        totalSupply() + quantity <= COLLECTOIN_SIZE,
+        "not enough remaining reserved for auction to support desired mint amount"
+        ); // 检查是否超过NFT上限
+
+        uint256 totalCost = getAuctionPrice() * quantity; // 计算mint成本
+        require(msg.value >= totalCost, "Need to send more ETH."); // 检查用户是否支付足够ETH
+        
+        // Mint NFT
+        for(uint256 i = 0; i < quantity; i++) {
+            uint256 mintIndex = totalSupply();
+            _mint(msg.sender, mintIndex);
+            _addTokenToAllTokensEnumeration(mintIndex);
+        }
+        // 多余ETH退款
+        if (msg.value > totalCost) {
+            payable(msg.sender).transfer(msg.value - totalCost); //注意一下这里是否有重入的风险
+        }
+    }
+```
+
+现实中的拍卖可能是把藏品给到竞拍者，而上面的拍卖函数是通过合约收你钱，然后「现场」铸造出来，即产即销了.
+
+这里"建立local变量，减少gas花费", 类似于 caching 的技巧，相当于把多次访问并且只读的状态变量缓存起来，以减少 gas fee, 减少一次 `SLOAD` 指令，大概能节省 2100 gas fee. 
+
+荷兰拍卖中，直接和价格关联的就是 `block.timestamp`, 我在想，是否有可能控制 `block.timestamp`，比如直接把区块链时间戳直接改到起始时间+拍卖时长之后，那么不就可以直接以最低价/地板价拍到手了嘛?
+
+不过看起来，validator 只有几秒的空间来调整，时间戳应该不存在被利用的漏洞.
+
 <!-- Content_END -->
