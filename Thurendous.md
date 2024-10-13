@@ -1189,6 +1189,1161 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Yeye} from './Yeye.sol';
 ```
 
+### 2024.10.5
+
+
+(Day 11)
+
+学习笔记
+
+#### 接受ETH
+
+Solidity支持两种特殊的回调函数，receive()和fallback()，他们主要在两种情况下被使用：
+
+接收ETH
+处理合约中不存在的函数调用（代理合约proxy contract）
+
+注意⚠️：在Solidity 0.6.x版本之前，语法上只有 fallback() 函数，用来接收用户发送的ETH时调用以及在被调用函数签名没有匹配到时，来调用。 0.6版本之后，Solidity才将 fallback() 函数拆分成 receive() 和 fallback() 两个函数。
+
+注意这个receive和fallback函数之中的逻辑不可以太复杂，否则消耗过多的gas会造成很多的bug出现。
+
+- 接受ETH函数的receive
+
+receive()函数是在接受到ETH转账时候被调用的函数。一个合约最多有一个receive函数。
+
+声明方式和一般的函数不同，不需要function关键词。
+
+`receive() external payable { ... }`
+
+- 接受ETH函数的fallback
+
+fallback()函数是在接受到ETH转账时候被调用的函数。一个合约最多有一个fallback函数。
+
+声明方式和一般的函数不同，不需要function关键词。
+
+`fallback() external payable { ... }`
+
+- receive和fallback的区别
+
+```text
+触发fallback() 还是 receive()?
+           接收ETH
+              |
+         msg.data是空？
+            /  \
+          是    否
+          /      \
+receive()存在?   fallback()
+        / \
+       是  否
+      /     \
+receive()   fallback()
+```
+
+简单来说，合约接收ETH时，msg.data为空且存在receive()时，会触发receive()；msg.data不为空或不存在receive()时，会触发fallback()，此时fallback()必须为payable。
+
+
+
+#### 发送ETH
+
+部署一个合约具有获取ETH的功能。其合约如下：
+
+```solidity
+contract ReceiveETH {
+    // 收到eth事件，记录amount和gas
+    event Log(uint amount, uint gas);
+    
+    // receive方法，接收eth时被触发
+    receive() external payable{
+        emit Log(msg.value, gasleft());
+    }
+    
+    // 返回合约ETH余额
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+}
+```
+
+部署ReceiveETH合约后，运行getBalance()函数，可以看到当前合约的ETH余额为0。
+
+我们将实现三种方法向ReceiveETH合约发送ETH。首先，先在发送ETH合约SendETH中实现payable的构造函数和receive()，让我们能够在部署时和部署后向合约转账。
+
+- transfer
+  - 用法是`接受方地址.transfer(发送ETH金额)`
+  - `transfer`的gas是2300，足够用于转账。但是对方的合约的`fallback`和`receive`函数不可以实现比较复杂的逻辑了。
+  - `transfer`函数如果转账失败，会自动revert（回滚交易）。
+
+代码样例，注意里边的`_to`填写`receiveETH`合约的地址，amount是ETH的转账金额。
+
+```solidity
+// 用transfer()发送ETH
+function transferETH(address payable _to, uint256 amount) external payable{
+    _to.transfer(amount);
+}
+```
+
+- send
+  - 用法是`接受方地址.send(发送ETH金额)`
+  - `send`的gas是2300，足够用于转账。但是对方的合约的`fallback`和`receive`函数不可以实现比较复杂的逻辑了。
+  - `send`函数如果转账失败，会返回false，但是不会revert。
+
+代码样例，注意里边的`_to`填写`receiveETH`合约的地址，amount是ETH的转账金额。
+
+
+```solidity
+error SendFailed(); // 用send发送ETH失败error
+
+// send()发送ETH
+function sendETH(address payable _to, uint256 amount) external payable{
+    // 处理下send的返回值，如果失败，revert交易并发送error
+    bool success = _to.send(amount);
+    if(!success){
+        revert SendFailed(); // 得手动进行回滚操作才有这个操作
+    }
+}
+```
+
+- call
+  - 用法是接收方地址.call{value: 发送ETH数额}("")。
+  - call()没有gas限制，可以支持对方合约fallback()或receive()函数实现复杂逻辑。
+  - call()如果转账失败，不会revert。
+  - call()的返回值是(bool, bytes)，其中bool代表着转账成功或失败，需要额外代码处理一下。
+
+- 总结
+这一讲，我们介绍Solidity三种发送ETH的方法：transfer，send和call。
+
+- call没有gas限制，最为灵活，是最提倡的方法；
+- transfer有2300 gas限制，但是发送失败会自动revert交易，是次优选择；
+- send有2300 gas限制，而且发送失败不会自动revert交易，几乎没有人用它。
+
+#### 调用其他合约
+
+调用别的合约的时候，可以使用合约的代码（和接口）来创建合约的引用来进行合约的呼叫。`Name(address).function()`这样的模式来呼叫合约。
+
+- 1
+
+```solidity
+function callSetX(address _Address, uint256 x) external{
+    OtherContract(_Address).setX(x);
+}
+```
+
+- 2
+
+```solidity
+function callGetX(OtherContract _Address) external view returns(uint x){
+    x = _Address.getX();
+}
+```
+
+- 3
+```solidity
+function callGetX2(address _Address) external view returns(uint x){
+    OtherContract oc = OtherContract(_Address);
+    x = oc.getX();
+}
+```
+
+- 4
+
+```solidity
+function setXTransferETH(address otherContract, uint256 x) payable external{
+    OtherContract(otherContract).setX{value: msg.value}(x);
+}
+```
+
+### 2024.10.6
+
+(Day 12)
+
+学习笔记
+
+#### Call
+
+`call`是`address`类型的一个内置函数，可以用来调用任何合约。返回值是`(bool, bytes memory)`，其中`bool`代表着转账成功或失败，`bytes`是返回值。
+- `call`是`Solidity`官方推荐的触发`fallback`和`receive`函数的方法。
+- 不推荐`call`来调用另一个合约，因为当你调用不安全合约的函数的时候，你就把主动权给了对方。推荐的方法仍然是声明合约变量后调用函数。
+- 当我们不知道对方合约的源代码或者ABI的时候，就没法生成合约变量。这时候，我们仍然可以通过`call`来调用合约。
+
+```solidity
+function callGetX(address _Address) external view returns(uint x){
+    x = OtherContract(_Address).getX();
+}
+```
+
+- call的使用规则
+
+```solidity
+目标合约地址.call(字节码);
+```
+
+```solidity
+目标合约地址.call{value: 发送ETH数额}(abi.encodeWithSignature("函数签名", 逗号分隔的具体参数));
+```
+
+这样看的话还是有一些复杂。我们看一下这里的合约的内容吧。
+
+```solidity
+function callSetX(address payable _addr, uint256 x) public payable {
+    // call setX()，同时可以发送ETH
+    (bool success, bytes memory data) = _addr.call{value: msg.value}(
+        abi.encodeWithSignature("setX(uint256)", x)
+    );
+
+    emit Response(success, data); //释放事件
+}
+```
+
+- 调用不存在的函数
+  - 如果我们给call输入的函数不存在于目标合约，那么目标合约的fallback函数会被触发。
+
+
+### Delegatecall
+
+`delegatecall`和`call`类似，都是`Solidity`中地址类型的一个低级成员函数。
+
+区别在于`delegatecall`使用的是目标合约的存储空间，而`call`使用的是调用者合约的存储空间。
+然后`delegatecall`和`call`的context是不同的，其区别在于：
+
+- `call`的context是调用者合约的context，而`delegatecall`的context是目标合约的context。
+
+`delegatecall`的返回值是`(bool, bytes memory)`，其中`bool`代表着转账成功或失败，`bytes`是返回值。
+
+" 注意：delegatecall有安全隐患，使用时要保证当前合约和目标合约的状态变量存储结构相同，并且目标合约安全，不然会造成资产损失。
+
+目前`delegatecall`主要有两个使用场景：
+
+1. 代理合约：将智能合约的存储合约和逻辑合约分开。
+2. EIP-2535钻石合约：钻石是一个支持构建可以在生产中扩展的模块化智能合约系统的标准。钻石具有多个实施合约的代理合约。
+
+
+#### 合约中创建一个新的合约
+
+在以太坊链上，用户（外部账户，EOA）可以创建智能合约，智能合约同样也可以创建新的智能合约。去中心化交易所uniswap就是利用工厂合约（PairFactory）创建了无数个币对合约（Pair）。这一讲，我会用简化版的uniswap讲如何通过合约创建合约。
+
+有两种方法可以在合约中创建新合约，create和create2，这里我们讲create，下一讲会介绍create2。
+
+```solidity
+Contract x = new Contract{value: _value}(params)
+```
+
+极简Uniswap
+
+```solidity
+contract Pair{
+    address public factory; // 工厂合约地址
+    address public token0; // 代币1
+    address public token1; // 代币2
+
+    constructor() payable {
+        factory = msg.sender;
+    }
+
+    // called once by the factory at time of deployment
+    function initialize(address _token0, address _token1) external {
+        require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
+        token0 = _token0;
+        token1 = _token1;
+    }
+}
+```
+
+构造函数constructor在部署时将factory赋值为工厂合约地址。initialize函数会由工厂合约在部署完成后手动调用以初始化代币地址，将token0和token1更新为币对中两种代币的地址。
+
+```solidity
+contract PairFactory{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair(address tokenA, address tokenB) external returns (address pairAddr) {
+        // 创建新合约
+        Pair pair = new Pair(); 
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+}
+```
+
+airFactory合约只有一个createPair函数，根据输入的两个代币地址tokenA和tokenB来创建新的Pair合约。其中
+
+```solidity
+Pair pair = new Pair();
+```
+
+
+
+创建了一个Pair合约，并将其地址赋值给pair。
+
+
+#### Create2
+
+Uniswap V2中，创建新合约使用的是create2，而不是create。
+
+CREATE2如何计算地址
+CREATE2的目的是为了让合约地址独立于未来的事件。不管未来区块链上发生了什么，你都可以把合约部署在事先计算好的地址上。用CREATE2创建的合约地址由4个部分决定：
+
+- 0xFF：一个常数，避免和CREATE冲突
+- CreatorAddress: 调用 CREATE2 的当前合约（创建合约）地址。
+- salt（盐）：一个创建者指定的bytes32类型的值，它的主要目的是用来影响新创建的合约的地址。
+- initcode: 新合约的初始字节码（合约的Creation Code和构造函数的参数）。
+
+
+```solidity
+新地址 = hash("0xFF",创建者地址, salt, initcode)
+```
+
+极简Uniswap2
+
+跟上一讲类似，我们使用create2来创建极简Uniswap。
+
+`Pair`
+
+```solidity
+contract Pair{
+    address public factory; // 工厂合约地址
+    address public token0; // 代币1
+    address public token1; // 代币2
+
+    constructor() payable {
+        factory = msg.sender;
+    }
+
+    // called once by the factory at time of deployment
+    function initialize(address _token0, address _token1) external {
+        require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
+        token0 = _token0;
+        token1 = _token1;
+    }
+}
+```
+
+`PairFactory`
+
+```solidity
+contract PairFactory2{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair2(address tokenA, address tokenB) external returns (address pairAddr) {
+        require(tokenA != tokenB, 'IDENTICAL_ADDRESSES'); //避免tokenA和tokenB相同产生的冲突
+        // 用tokenA和tokenB地址计算salt
+        (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); //将tokenA和tokenB按大小排序.如此一来，tokenA和tokenB的顺序就是固定的，就不会出现重复的同样的两个tokne但是顺序是反过来的情况了。
+        bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+        // 用create2部署新合约
+        Pair pair = new Pair{salt: salt}(); 
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+}
+```
+
+工厂合约（PairFactory2）有两个状态变量getPair是两个代币地址到币对地址的map，方便根据代币找到币对地址；allPairs是币对地址的数组，存储了所有币对地址。
+
+PairFactory2合约只有一个createPair2函数，使用CREATE2根据输入的两个代币地址tokenA和tokenB来创建新的Pair合约。其中
+
+
+
+```solidity
+// 提前计算pair合约地址
+function calculateAddr(address tokenA, address tokenB) public view returns(address predictedAddress){
+    require(tokenA != tokenB, 'IDENTICAL_ADDRESSES'); //避免tokenA和tokenB相同产生的冲突
+    // 计算用tokenA和tokenB地址计算salt
+    (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); //将tokenA和tokenB按大小排序
+    bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+    // 计算合约地址方法 hash()
+    predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+        bytes1(0xff),
+        address(this),
+        salt,
+        keccak256(type(Pair).creationCode)
+        )))));
+}
+```
+
+
+create2的用途
+
+交易所为新用户预留创建钱包合约地址。
+
+由 CREATE2 驱动的 factory 合约，在Uniswap V2中交易对的创建是在 Factory中调用CREATE2完成。这样做的好处是: 它可以得到一个确定的pair地址, 使得 Router中就可以通过 (tokenA, tokenB) 计算出pair地址, 不再需要执行一次 Factory.getPair(tokenA, tokenB) 的跨合约调用。
+
+
+#### 删除合约
+
+`selfdestruct`是`address`类型的一个内置函数，可以用来删除合约。selfdestruct命令可以用来删除智能合约，并将该合约剩余ETH转到指定地址。
+
+已经部署的合约无法被SELFDESTRUCT了。
+如果要使用原先的SELFDESTRUCT功能，必须在同一笔交易中创建并SELFDESTRUCT。
+
+```solidity
+selfdestruct(_address);
+```
+
+以下合约在坎昆升级前可以完成合约的自毁，在坎昆升级后仅能实现内部ETH余额的转移。
+
+```solidity
+contract DeleteContract {
+
+    uint public value = 10;
+
+    constructor() payable {}
+
+    receive() external payable {}
+
+    function deleteContract() external {
+        // 调用selfdestruct销毁合约，并把剩余的ETH转给msg.sender
+        selfdestruct(payable(msg.sender));
+    }
+
+    function getBalance() external view returns(uint balance){
+        balance = address(this).balance;
+    }
+}
+```
+
+当我们调用deleteContract()函数，合约将触发selfdestruct操作。在坎昆升级前，合约会被自毁。但是在升级后，合约依然存在，只是将合约包含的ETH转移到指定地址，而合约依然能够调用。
+
+
+Demo-同笔交易内实现合约创建-自毁
+根据提案，原先的删除功能只有在合约创建-自毁这两个操作处在同一笔交易时才能生效。所以我们需要通过另一个合约进行控制。
+
+对外提供合约销毁接口时，最好设置为只有合约所有者可以调用，可以使用函数修饰符onlyOwner进行函数声明。
+当合约中有selfdestruct功能时常常会带来安全问题和信任问题，合约中的selfdestruct功能会为攻击者打开攻击向量(例如使用selfdestruct向一个合约频繁转入token进行攻击，这将大大节省了GAS的费用，虽然很少人这么做)，此外，此功能还会降低用户对合约的信心。
+不推荐使用这个代码命令。
+
+### 2024.10.8
+
+(Day 13)
+
+学习笔记
+
+#### ABI编码解码
+
+ABI是Application Binary Interface的缩写，是智能合约与外界交互的接口。ABI编码解码是智能合约与外界交互的重要方式。
+
+Solidity中，ABI编码有4个函数：abi.encode, abi.encodePacked, abi.encodeWithSignature, abi.encodeWithSelector。而ABI解码有1个函数：abi.decode，用于解码abi.encode的数据。这一讲，我们将学习如何使用这些函数。
+
+- 编码
+
+```solidity
+abi.encode(参数1, 参数2, 参数3, 参数4, 参数5);
+```
+
+`abi.encode`可以编码一些变量，这个函数可以编码然后让这个编码后的内容有很多的0。这是因为他会把一个变量编程一个bytes32的单位。
+
+`abi.encodePacked`可以编码一些变量，这个函数可以编码然后让这个编码后的内容没有很多的0。他是直接把这部分编码后的内容给连接起来。
+将给定参数根据其所需最低空间编码。它类似 abi.encode，但是会把其中填充的很多0省略。比如，只用1字节来编码uint8类型。当你想省空间，并且不与合约交互的时候，可以使用abi.encodePacked，例如算一些数据的hash时。
+
+
+将给定参数利用ABI规则编码。ABI被设计出来跟智能合约交互，他将每个参数填充为32字节的数据，并拼接在一起。如果你要和合约交互，你要用的就是abi.encode。
+
+
+abi.encodeWithSignature
+与abi.encode功能类似，只不过第一个参数为函数签名，比如"foo(uint256,address,string,uint256[2])"。当调用其他合约的时候可以使用。
+
+function encodeWithSignature() public view returns(bytes memory result) {
+    result = abi.encodeWithSignature("foo(uint256,address,string,uint256[2])", x, addr, name, array);
+}
+
+等同于在abi.encode编码结果前加上了4字节的函数选择器说明。 说明: 函数选择器就是通过函数名和参数进行签名处理(Keccak–Sha3)来标识函数，可以用于不同合约之间的函数调用
+
+abi.encodeWithSelector
+与abi.encodeWithSignature功能类似，只不过第一个参数为函数选择器，为函数签名Keccak哈希的前4个字节。
+
+```solidity
+function encodeWithSelector() public view returns(bytes memory result) {
+    result = abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array);
+}
+```
+
+abi.decode
+abi.decode用于解码abi.encode生成的二进制编码，将它还原成原本的参数。
+
+```solidity
+function decode(bytes memory data) public pure returns(uint dx, address daddr, string memory dname, uint[2] memory darray) {
+    (dx, daddr, dname, darray) = abi.decode(data, (uint, address, string, uint[2]));
+}
+```
+
+ethers.js中常用ABI实现合约的导入和函数调用。
+
+```javascript
+const wavePortalContract = new ethers.Contract(contractAddress, contractABI, signer);
+/*
+* Call the getAllWaves method from your Smart Contract
+*/
+const waves = await wavePortalContract.getAllWaves();
+```
+
+当我们不知道某个函数的签名的时候，反编译出来的是一对乱码的签名。
+我们也可以使用这个乱码的签名，对函数进行呼叫。
+
+e.g.我们的函数反编译的签名是这个的话：`0x533ba33a`
+
+```solidity
+bytes memory data = abi.encodeWithSelector(bytes4(0x533ba33a));
+
+(bool success, bytes memory returnedData) = address(contract).staticcall(data);
+require(success);
+
+return abi.decode(returnedData, (uint256));
+```
+
+#### 哈希
+
+Hash的性质
+一个好的哈希函数应该具有以下几个特性：
+
+- 单向性：从输入的消息到它的哈希的正向运算简单且唯一确定，而反过来非常难，只能靠暴力枚举。
+- 灵敏性：输入的消息改变一点对它的哈希改变很大。
+- 高效性：从输入的消息到哈希的运算高效。
+- 均一性：每个哈希值被取到的概率应该基本相等。
+- 抗碰撞性：
+  - 弱抗碰撞性：给定一个消息x，找到另一个消息x'，使得hash(x) = hash(x')是困难的。
+  - 强抗碰撞性：找到任意x和x'，使得hash(x) = hash(x')是困难的。
+
+强弱抗碰撞性指的是，如果一个哈希函数是强抗碰撞的，那么它也是弱抗碰撞的。
+
+原因是：强抗碰撞性的要求更高的。弱抗碰撞性的要求比较低，因为自由度低一些。
+
+Hash的应用
+生成数据唯一标识
+
+```solidity
+function hash(
+    uint _num,
+    string memory _string,
+    address _addr
+    ) public pure returns (bytes32) {
+    return keccak256(abi.encodePacked(_num, _string, _addr));
+}
+```
+加密签名
+
+```solidity
+// 弱抗碰撞性
+function weak(
+    string memory string1
+    )public view returns (bool){
+    return keccak256(abi.encodePacked(string1)) == _msg;
+}
+```
+
+```solidity
+// 强抗碰撞性
+function strong(
+        string memory string1,
+        string memory string2
+    )public pure returns (bool){
+    return keccak256(abi.encodePacked(string1)) == keccak256(abi.encodePacked(string2));
+}
+```
+
+
+### 2024.10.9
+
+(Day 14)
+
+学习笔记
+
+#### 函数选择器
+
+当呼叫一个合约的时候，会发送一个calldata。本质上合约的交互就是这样进行的。
+
+calldata的前四个字节是函数的签名的selector（函数选择器）。
+
+msg.data的前四个字节是函数选择器。
+
+```solidity
+// event 返回msg.data
+event Log(bytes data);
+
+function mint(address to) external{
+    emit Log(msg.data);
+}
+```
+
+当参数为0x2c44b726ADF1963cA47Af88B284C06f30380fC78的时候，输出calldata就是：
+
+```text
+0x6a6278420000000000000000000000002c44b726adf1963ca47af88b284c06f30380fc78
+```
+
+这段字节码可以这么理解：
+
+```text
+前4个字节为函数选择器selector：
+0x6a627842
+
+后面32个字节为输入的参数：
+0x0000000000000000000000002c44b726adf1963ca47af88b284c06f30380fc78
+```
+
+其实calldata就是告诉智能合约，我要调用哪个函数，以及参数是什么。
+
+```solidity
+// elementary（基础）类型参数selector
+// 输入：param1: 1，param2: 0
+// elementaryParamSelector(uint256,bool) : 0x3ec37834
+function elementaryParamSelector(uint256 param1, bool param2) external returns(bytes4 selectorWithElementaryParam){
+  emit SelectorEvent(this.elementaryParamSelector.selector);
+  return bytes4(keccak256("elementaryParamSelector(uint256,bool)"));
+}
+
+// fixed size（固定长度）类型参数selector
+// 输入： param1: [1,2,3]
+// fixedSizeParamSelector(uint256[3]) : 0xead6b8bd
+function fixedSizeParamSelector(uint256[3] memory param1) external returns(bytes4 selectorWithFixedSizeParam){
+    emit SelectorEvent(this.fixedSizeParamSelector.selector);
+    return bytes4(keccak256("fixedSizeParamSelector(uint256[3])"));
+}
+
+// non-fixed size（可变长度）类型参数selector
+// 输入： param1: [1,2,3]， param2: "abc"
+// nonFixedSizeParamSelector(uint256[],string) : 0xf0ca01de
+function nonFixedSizeParamSelector(uint256[] memory param1,string memory param2) external returns(bytes4 selectorWithNonFixedSizeParam){
+    emit SelectorEvent(this.nonFixedSizeParamSelector.selector);
+    return bytes4(keccak256("nonFixedSizeParamSelector(uint256[],string)"));
+}
+
+contract DemoContract {
+    // empty contract
+}
+
+contract Selector{
+    // Struct User
+    struct User {
+        uint256 uid;
+        bytes name;
+    }
+    // Enum School
+    enum School { SCHOOL1, SCHOOL2, SCHOOL3 }
+    ...
+    // mapping（映射）类型参数selector
+    // 输入：demo: 0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99， user: [1, "0xa0b1"], count: [1,2,3], mySchool: 1
+    // mappingParamSelector(address,(uint256,bytes),uint256[],uint8) : 0xe355b0ce
+    function mappingParamSelector(DemoContract demo, User memory user, uint256[] memory count, School mySchool) external returns(bytes4 selectorWithMappingParam){
+        emit SelectorEvent(this.mappingParamSelector.selector);
+        return bytes4(keccak256("mappingParamSelector(address,(uint256,bytes),uint256[],uint8)"));
+    }
+    ...
+}
+
+
+```
+
+- 使用selector来调用函数
+
+```solidity
+    // 使用selector来调用函数
+    function callWithSignature() external{
+    ...
+        // 调用elementaryParamSelector函数
+        (bool success1, bytes memory data1) = address(this).call(abi.encodeWithSelector(0x3ec37834, 1, 0));
+    ...
+    }
+```
+
+#### try catch
+
+在Solidity中，try-catch只能被用于external函数或创建合约时constructor（被视为external函数）的调用。基本语法如下：
+
+```solidity
+try {
+    // 尝试执行的代码
+} catch {
+    // 捕获异常后的处理代码
+}
+```
+
+其中externalContract.f()是某个外部合约的函数调用，try模块在调用成功的情况下运行，而catch模块则在调用失败时运行。
+
+catch还支持部或特殊的异常的原因：
+
+```solidity
+try externalContract.f() returns(returnType){
+    // call成功的情况下 运行一些代码
+} catch Error(string memory /*reason*/) {
+    // 捕获revert("reasonString") 和 require(false, "reasonString")
+} catch Panic(uint /*errorCode*/) {
+    // 捕获Panic导致的错误 例如assert失败 溢出 除零 数组访问越界
+} catch (bytes memory /*lowLevelData*/) {
+    // 如果发生了revert且上面2个异常类型匹配都失败了 会进入该分支
+    // 例如revert() require(false) revert自定义类型的error
+}
+```
+
+### 2024.10.10
+
+(Day 15)
+
+学习笔记
+
+#### 56. 去中心化交易所
+
+恒定乘积做市商。也叫做Constant Product Automated Market Maker(CPAMM)。它是去中心化交易所的核心的机制。
+
+被Uniswap, PancakeSwap, SushiSwap等DEX采用。我们实现一个简单的[Uniswap V2](https://github.com/Uniswap/v2-core)的合约。
+
+自动做市商是一种算法，是在区块链上运行的智能合约。它允许数字资产之间的交易。AMM打开了一种全新的交易模式。无需传统的买家和卖家进行匹配，而是通过一种预设的数学公式（比如，常数乘积公式）创建了一个流动性池子。使得用户可以随时进行讲交易。
+
+x：可乐
+
+y：美元
+
+Δx和Δy：交易对中两种资产的变化量。
+
+L和ΔL：流动性池中总流动性的数量和变化量。
+
+- 恒定总和做市商
+
+恒定总和做市商(Constant Sum Automated Market Maker, CSAMM)是最简单的做市商模型。我们从他开始。
+
+他在交易的时候的约束是：
+
+x + y = k
+
+k是一个常数。
+
+也就是说，在交易的前后市场中，可乐和美元的数量的总和不变。举个例子，市场中流动性有10瓶可乐和10美元。此时k=20。如果一个用户想买可乐，这时k=20，价格是1美元/瓶，这个做市商需要卖出1美元，那么他卖出1美元后，市场中就只有9美元和11瓶可乐。此时保持k=20，价格还是1美元/瓶。没有变化。
+
+这个就是最简单的恒定总和做市商。
+
+CSAMM的优点是可以保证代币的相对价格的不变。这点在稳定币兑换中很重要，大家都希望1USDT总是能够兑换1USDC。它的缺点也很明显了，就是他的流动性非常容易耗尽。我只需要10美元就可以把这个池子的流动性耗尽。其他用户就没发交易然后喝可乐了。
+
+- 恒定乘积做市商
+
+恒定乘积做市商(Constant Product Automated Market Maker, CPAMM)是Uniswap采用的模型。
+
+在CPAMM中，交易对中两种资产的数量乘积总是保持不变。
+
+x * y = k
+
+k是一个常数。
+
+举个例子，市场中流动性有10瓶可乐和10美元。此时k=100。如果一个用户想买可乐，这时k=100，价格是1美元/瓶，这个做市商需要卖出1美元，那么他卖出1美元后，市场中就只有9美元和11瓶可乐。此时保持k=100，价格还是1美元/瓶。没有变化。
+
+这个就是最简单的恒定乘积做市商。
+
+CPAMM的优点是他的流动性不容易耗尽。因为他的流动性是基于两种资产的数量乘积来决定的。
+
+比如，同样的例子，市场中有10瓶可乐和10美元。此时k=100。按照之前的恒定总和的做市商的话，如果一个用户想要买可乐，他买了2瓶可乐。那么市场中就只有8瓶可乐和12美元。此时k=96。常数k不守恒了，所以不对了，所以我们其实是这样计算的，
+
+如果买了两瓶可乐的话，那么，x*y=k还是总是保持不变，那么，x*y=10*10=100，那么，y=100/8=12.5。也就是说，卖出了两瓶可乐的话，那么需要支付的金额是2.5美元。
+
+- 去中心化交易所
+
+下面我们实现一个简单的去中心化交易所。
+
+```solidity
+contract SimpleSwap is ERC20 {
+    // 代币合约
+    IERC20 public token0;
+    IERC20 public token1;
+
+    // 代币储备量
+    uint public reserve0;
+    uint public reserve1;
+    
+    // 构造器，初始化代币地址
+    constructor(IERC20 _token0, IERC20 _token1) ERC20("SimpleSwap", "SS") {
+        token0 = _token0;
+        token1 = _token1;
+    }
+}
+```
+
+交易所主要有两类参与者：流动性提供者（Liquidity Provider，LP）和交易者（Trader）。下面我们分别实现这两部分的功能。
+
+- 流动性提供
+
+流动性的提供者是给市场提供流动性的人。他们向池子中注入两种资产，成为流动性提供者。
+
+他们提供流动性，并且获得手续费。
+
+我们需要实现这个流动性提供的功能。
+
+根据uniswap v2的实现，LP份额的计算公式是：
+
+![img](./content/Thurendous/01-AMM.png)
+
+因为SimpleSwap合约继承了ERC20合约，所以在计算好了LP份额以后，可以将份额以代币形式铸造给用户。
+
+下面的 addLiquidity() 函数实现了添加流动性的功能，主要步骤如下：
+
+- 将用户添加的代币转入合约，需要用户事先给合约授权。
+- 根据公式计算添加的流动性份额，并检查铸造的LP数量。
+- 更新合约的代币储备量。
+- 给流动性提供者铸造LP代币。
+- 释放 Mint 事件。
+
+```solidity
+event Mint(address indexed sender, uint amount0, uint amount1);
+
+// 添加流动性，转进代币，铸造LP
+// @param amount0Desired 添加的token0数量
+// @param amount1Desired 添加的token1数量
+function addLiquidity(uint amount0Desired, uint amount1Desired) public returns(uint liquidity){
+    // 将添加的流动性转入Swap合约，需事先给Swap合约授权
+    token0.transferFrom(msg.sender, address(this), amount0Desired);
+    token1.transferFrom(msg.sender, address(this), amount1Desired);
+    // 计算添加的流动性
+    uint _totalSupply = totalSupply();
+    if (_totalSupply == 0) {
+        // 如果是第一次添加流动性，铸造 L = sqrt(x * y) 单位的LP（流动性提供者）代币
+        liquidity = sqrt(amount0Desired * amount1Desired);
+    } else {
+        // 如果不是第一次添加流动性，按添加代币的数量比例铸造LP，取两个代币更小的那个比例
+        liquidity = min(amount0Desired * _totalSupply / reserve0, amount1Desired * _totalSupply /reserve1);
+    }
+
+    // 检查铸造的LP数量
+    require(liquidity > 0, 'INSUFFICIENT_LIQUIDITY_MINTED');
+
+    // 更新储备量
+    reserve0 = token0.balanceOf(address(this));
+    reserve1 = token1.balanceOf(address(this));
+
+    // 给流动性提供者铸造LP代币，代表他们提供的流动性
+    _mint(msg.sender, liquidity);
+    
+    emit Mint(msg.sender, amount0Desired, amount1Desired);
+}
+```
+
+- 移除流动性
+
+流动性提供者可以随时移除他们的流动性。
+
+![img](./content/Thurendous/02-AMM.png)
+
+下边的removeLiquidity()函数实现了移除流动性的功能，主要步骤如下：
+
+- 获取合约中的代币余额。
+- 按LP的比例计算要转出的代币数量。
+- 检查代币数量。
+- 销毁LP份额。
+- 将相应的代币转账给用户。
+- 更新储备量。
+- 释放 Burn 事件。
+
+```solidity
+// 移除流动性，销毁LP，转出代币
+// 转出数量 = (liquidity / totalSupply_LP) * reserve
+// @param liquidity 移除的流动性数量
+function removeLiquidity(uint liquidity) external returns (uint amount0, uint amount1) {
+    // 获取余额
+    uint balance0 = token0.balanceOf(address(this));
+    uint balance1 = token1.balanceOf(address(this));
+    // 按LP的比例计算要转出的代币数量
+    uint _totalSupply = totalSupply();
+    amount0 = liquidity * balance0 / _totalSupply;
+    amount1 = liquidity * balance1 / _totalSupply;
+    // 检查代币数量
+    require(amount0 > 0 && amount1 > 0, 'INSUFFICIENT_LIQUIDITY_BURNED');
+    // 销毁LP
+    _burn(msg.sender, liquidity);
+    // 转出代币
+    token0.transfer(msg.sender, amount0);
+    token1.transfer(msg.sender, amount1);
+    // 更新储备量
+    reserve0 = token0.balanceOf(address(this));
+    reserve1 = token1.balanceOf(address(this));
+
+    emit Burn(msg.sender, amount0, amount1);
+}
+```
+
+### 2024.10.12
+
+(Day 17)
+
+学习笔记
+
+- 交易
+
+swap合约中，我们可以一种代币交易另一种代币。我们使用Δx单位的 token0，可以交换多少单位的 token1 ？
+
+根据恒定乘积公式：
+
+k = x * y
+
+交易后有：
+
+(x + Δx) * (y - Δy) = k
+
+交易的前后k的值都不变。联立方程后，得到：
+
+Δy = y - k / (x + Δx)
+带入k = x * y 得到：
+Δy = k/x - k/(x + Δx)
+
+
+因此可以交换到的代币的数量为Δy是是由Δx, x, y决定的。
+
+Δx和Δy的值符号是相反的，也就是说，Δx增加，Δy减少，反之亦然。
+
+```solidity
+// 给定一个资产的数量和代币对的储备，计算交换另一个代币的数量
+function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) public pure returns (uint amountOut) {
+    require(amountIn > 0, 'INSUFFICIENT_AMOUNT');
+    require(reserveIn > 0 && reserveOut > 0, 'INSUFFICIENT_LIQUIDITY');
+    amountOut = amountIn * reserveOut / (reserveIn + amountIn);
+}
+```
+
+有了这个核心的公式之后，我们就可以来使用swap函数来实现交易代币的功能了。
+
+主要步骤：
+
+1. 用户在调用函数时，制定用户交换的代币数量，交换的代币的地址，以及换出另一种代币的最低数量。
+2. 判断token0和token1的交换是用谁换谁。
+3. 利用公式计算交换出的代币的数量
+4. 判断交换出的代币是否达到了用户指定的最低数量，这里类似于交易的滑点
+5. 讲用户代币转入合约
+6. 将交换的代币从合约转给用户
+7. 更新合约的代币储备粮
+8. 释放swap
+
+```solidity
+// swap代币
+// @param amountIn 用于交换的代币数量
+// @param tokenIn 用于交换的代币合约地址
+// @param amountOutMin 交换出另一种代币的最低数量
+function swap(uint amountIn, IERC20 tokenIn, uint amountOutMin) external returns (uint amountOut, IERC20 tokenOut){
+    require(amountIn > 0, 'INSUFFICIENT_OUTPUT_AMOUNT');
+    require(tokenIn == token0 || tokenIn == token1, 'INVALID_TOKEN');
+    
+    uint balance0 = token0.balanceOf(address(this));
+    uint balance1 = token1.balanceOf(address(this));
+
+    if(tokenIn == token0){
+        // 如果是token0交换token1
+        tokenOut = token1;
+        // 计算能交换出的token1数量
+        amountOut = getAmountOut(amountIn, balance0, balance1);
+        require(amountOut > amountOutMin, 'INSUFFICIENT_OUTPUT_AMOUNT');
+        // 进行交换
+        tokenIn.transferFrom(msg.sender, address(this), amountIn);
+        tokenOut.transfer(msg.sender, amountOut);
+    }else{
+        // 如果是token1交换token0
+        tokenOut = token0;
+        // 计算能交换出的token1数量
+        amountOut = getAmountOut(amountIn, balance1, balance0);
+        require(amountOut > amountOutMin, 'INSUFFICIENT_OUTPUT_AMOUNT');
+        // 进行交换
+        tokenIn.transferFrom(msg.sender, address(this), amountIn);
+        tokenOut.transfer(msg.sender, amountOut);
+    }
+
+    // 更新储备量
+    reserve0 = token0.balanceOf(address(this));
+    reserve1 = token1.balanceOf(address(this));
+
+    emit Swap(msg.sender, amountIn, address(tokenIn), amountOut, address(tokenOut));
+}
+```
+
+
+#### Multicall
+
+Multicall可以让你在一个tx之中进行多次的函数调用。
+
+他的优点如下：
+1. 方便性
+2. 节省gas
+3. 原子性:multicall如果让用户在一个tx中执行所有的操作，保证了要么全部成功，要么全部失败。
+
+
+MultiCall的合约是这样的：
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+contract Multicall {
+    // Call结构体，包含目标合约target，是否允许调用失败allowFailure，和call data
+    struct Call {
+        address target;
+        bool allowFailure;
+        bytes callData;
+    }
+
+    // Result结构体，包含调用是否成功和return data
+    struct Result {
+        bool success;
+        bytes returnData;
+    }
+
+    /// @notice 将多个调用（支持不同合约/不同方法/不同参数）合并到一次调用
+    /// @param calls Call结构体组成的数组
+    /// @return returnData Result结构体组成的数组
+    function multicall(Call[] calldata calls) public returns (Result[] memory returnData) {
+        uint256 length = calls.length;
+        returnData = new Result[](length);
+        Call calldata calli;
+        
+        // 在循环中依次调用
+        for (uint256 i = 0; i < length; i++) {
+            Result memory result = returnData[i];
+            calli = calls[i];
+            (result.success, result.returnData) = calli.target.call(calli.callData);
+            // 如果 calli.allowFailure 和 result.success 均为 false，则 revert
+            if (!(calli.allowFailure || result.success)){
+                revert("Multicall: call failed");
+            }
+        }
+    }
+}
+```
+
+这里使用了一个struct的Call的结构体，这个结构体可以保证你的数据都有一个target和callData。
+
+还有一个allowFailure的参数，它是允许这个东西调用失败的，如果不允许的话，就会回滚了。
+
+
+#### 2024.10.13
+
+(Day 18)
+
+学习笔记
+
+- 跨链桥
+
+跨链桥是一个种区块链的协议，它允许两个或者多个区块链之间进行资产的转移和信息的转移。
+但是风险及其巨大，这几年，跨链桥的攻击事件层出不穷。已经造成了超过20亿美金的损失了。
+
+- 跨链桥的种类
+  - Burn/Mint 桥
+    - 这个方法好处是代币的总量保持不变。
+  - Stake/Mint 桥
+    - 这个是在源头链上锁定代币，然后再目标链上mint同等数量的代币。源头链上代币被锁定，当代币从目标链上回到源头链上的时候，在解锁源头链上的。
+  - Stake/Unstake 桥
+    - 在源头链上锁定代币，然后再目标链上释放代币。
+
+
+- 简单搭建一个跨链桥
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract CrossChainToken is ERC20, Ownable {
+    
+    // Bridge event
+    event Bridge(address indexed user, uint256 amount);
+    // Mint event
+    event Mint(address indexed to, uint256 amount);
+
+    /**
+     * @param name Token Name
+     * @param symbol Token Symbol
+     * @param totalSupply Token Supply
+     */
+    constructor(
+        string memory name,
+        string memory symbol,
+        uint256 totalSupply
+    ) payable ERC20(name, symbol) Ownable(msg.sender) {
+        _mint(msg.sender, totalSupply);
+    }
+
+    /**
+     * Bridge function
+     * @param amount: burn amount of token on the current chain and mint on the other chain
+     */
+    function bridge(uint256 amount) public {
+        _burn(msg.sender, amount);
+        emit Bridge(msg.sender, amount);
+    }
+
+    /**
+     * Mint function
+     */
+    function mint(address to, uint amount) external onlyOwner {
+        _mint(to, amount);
+        emit  Mint(to, amount);
+    }
+}
+```
+
+
+以下就是一个监听跨链桥的script版本。他能够监听两条链上的跨链事件，然后在另一条链上进行mint操作。
+
+```javascript
+import { ethers } from "ethers";
+
+// 初始化两条链的provider
+const providerGoerli = new ethers.JsonRpcProvider("Goerli_Provider_URL");
+const providerSepolia = new ethers.JsonRpcProvider("Sepolia_Provider_URL://eth-sepolia.g.alchemy.com/v2/RgxsjQdKTawszh80TpJ-14Y8tY7cx5W2");
+
+// 初始化两条链的signer
+// privateKey填管理者钱包的私钥
+const privateKey = "Your_Key";
+const walletGoerli = new ethers.Wallet(privateKey, providerGoerli);
+const walletSepolia = new ethers.Wallet(privateKey, providerSepolia);
+
+// 合约地址和ABI
+const contractAddressGoerli = "0xa2950F56e2Ca63bCdbA422c8d8EF9fC19bcF20DD";
+const contractAddressSepolia = "0xad20993E1709ed13790b321bbeb0752E50b8Ce69";
+
+const abi = [
+    "event Bridge(address indexed user, uint256 amount)",
+    "function bridge(uint256 amount) public",
+    "function mint(address to, uint amount) external",
+];
+
+// 初始化合约实例
+const contractGoerli = new ethers.Contract(contractAddressGoerli, abi, walletGoerli);
+const contractSepolia = new ethers.Contract(contractAddressSepolia, abi, walletSepolia);
+
+const main = async () => {
+    try{
+        console.log(`开始监听跨链事件`)
+
+        // 监听chain Sepolia的Bridge事件，然后在Goerli上执行mint操作，完成跨链
+        contractSepolia.on("Bridge", async (user, amount) => {
+            console.log(`Bridge event on Chain Sepolia: User ${user} burned ${amount} tokens`);
+
+            // 在执行burn操作
+            let tx = await contractGoerli.mint(user, amount);
+            await tx.wait();
+
+            console.log(`Minted ${amount} tokens to ${user} on Chain Goerli`);
+        });
+
+        // 监听chain Goerli的Bridge事件，然后在Sepolia上执行mint操作，完成跨链
+        contractGoerli.on("Bridge", async (user, amount) => {
+            console.log(`Bridge event on Chain Goerli: User ${user} burned ${amount} tokens`);
+
+            // 在执行burn操作
+            let tx = await contractSepolia.mint(user, amount);
+            await tx.wait();
+
+            console.log(`Minted ${amount} tokens to ${user} on Chain Sepolia`);
+        });
+    } catch(e) {
+        console.log(e);
+    } 
+}
+
+main();
+```
 
 
 

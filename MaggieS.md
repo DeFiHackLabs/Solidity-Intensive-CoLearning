@@ -452,10 +452,62 @@ Since EVM executors can choose to include a transaction or not, transaction send
 
 ### 2024.10.04
 
+Try to understand the contracts in openzeppelin, the first one is ERC20，
+
+Most of the code is still incomprehensible, but it doesn't matter. 
+
+It's also interesting to feel further joy now. 
+
+Lines of code are like colorful elves dancing. hhh
+
+
+Q1:
+
+Q2:
+
+### 2024.10.05
+
 Q1:
 
 Q2:
 
 
+### 2024.10.07
+
+
+I‘m a little busy during the National Day holiday, 
+
+but, I don't want to miss the daily check-in, 
+
+and, I will start to make up my study records.
+
+
+
+### 2024.10.08
+
+I should focus on cultivating a feeling：Facing Challenges Head-On. 
+
+
+### 2024.10.09
+
+### 2024.10.10
+
+Later better than never.
+
+### 2024.10.11
+
+Find a little bug~ that the English version in Solidity 102 in WTF Academy website couldn't be displayed well.
+
+### 2024.10.12 
+
+Q1: Every contract in Solidity requires using ABI coding，it's true?
+
+    If not, in what kind of special circumstances do we need to use ABI?
+
+Q2: What means proxy contract?
+    
+    why it needs to deal with function calls that do not exist in the proxy contract?
+
+    
 
 <!-- Content_END -->

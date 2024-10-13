@@ -15,6 +15,143 @@ timezone: Asia/Shanghai
 ## Notes
 
 <!-- Content_START -->
+### 2024.10.12
+實作
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract FunctionTypes {
+    // 定義一個狀態變數 `number` 並初始化為 5
+    uint256 public number = 5;
+
+    // 1. 修改狀態的函數
+    // 定義一個 `add()` 函數，呼叫時 `number` 增加 1
+    function add() external {
+        number = number + 1;
+    }
+
+    // 2. pure 函數：不讀取或改變狀態變數
+    // 該函數純粹依賴於輸入參數進行計算並返回結果
+    function addPure(uint256 _number) external pure returns (uint256 new_number) {
+        new_number = _number + 1;
+    }
+
+    // 3. view 函數：僅讀取狀態變數，不會修改狀態
+    // 該函數僅返回 `number` 的新值，不會改變狀態變數
+    function addView() external view returns (uint256 new_number) {
+        new_number = number + 1;
+    }
+
+    // 4. internal 函數：只能在合約內部被調用
+    // 定義一個 `minus()` 函數，呼叫時 `number` 減少 1
+    function minus() internal {
+        number = number - 1;
+    }
+
+    // 5. 呼叫 internal 函數的 external 函數
+    // 該函數可外部調用，並在內部調用 `minus()` 函數
+    function minusCall() external {
+        minus();
+    }
+
+    // 6. payable 函數：允許合約接收 ETH
+    // 此函數呼叫時，合約會接收 ETH 並返回合約當前的餘額
+    function minusPayable() external payable returns (uint256 balance) {
+        minus();  // 調用 `minus()` 函數，使 `number` 減少 1
+        balance = address(this).balance;  // 返回合約地址的 ETH 餘額
+    }
+}
+
+```
+解釋：
+狀態變數 number：這是合約中的一個狀態變數，初始值為 5，通過不同函數對其進行增減。
+
+add() 函數：
+
+這是一個修改狀態變數的函數，將 number 增加 1。因為它改變了合約的狀態，所以它不能標記為 pure 或 view。
+addPure() 函數：
+
+這是一個 pure 函數，表示它不讀取或修改合約的狀態變數。它僅基於輸入的 _number 參數進行計算並返回結果。
+addView() 函數：
+
+這是一個 view 函數，表示它只讀取合約的狀態變數（即 number），但不會修改其狀態。它返回 number 的值加 1。
+minus() 函數：
+
+這是一個 internal 函數，表示它只能在合約內部被調用。每次調用它都會將 number 減少 1。
+minusCall() 函數：
+
+這是一個外部函數，它在內部調用 minus() 函數。這使得外部可以間接調用 internal 函數 minus()。
+minusPayable() 函數：
+
+這是一個 payable 函數，允許合約接收 ETH。在每次調用時，它會減少 number 並返回合約的 ETH 餘額。payable 關鍵字允許該函數接收 ETH。
+總結：
+這個合約展示了不同類型的 Solidity 函數，包括狀態修改函數、pure 和 view 函數，以及允許接收 ETH 的 payable 函數。它還展示了如何使用 internal 函數來限制函數只能在合約內部使用。
+
+### 2024.10.10
+什麼是 `pure` 函數？
+pure 函數則完全`獨立`於合約的狀態。pure 函數既不能讀取也不能修改鏈上的狀態變量。通常用於進行`純計算`或`處理輸入參數`的邏輯，這類函數與鏈上的狀態數據無關。
+
+範例：
+```solidity
+// 一個純粹的計算函數，完全不涉及合約狀態
+pragma solidity ^0.8.0;
+contract Math {
+    // pure 函數：既不讀取也不修改狀態變量
+    function add(uint256 a, uint256 b) public pure returns (uint256) {
+        return a + b;
+    }
+}
+```
+在這個例子中，` add() ` 函數是一個 pure 函數，它只對輸入的參數進行計算，而不依賴於合約中的任何狀態變量。
+
+### 總結：
+`view` 函數：可以讀取鏈上的狀態，但不能修改它。
+`pure` 函數：不能讀取或修改鏈上的狀態，只能進行純計算。
+修改鏈上狀態的操作：
+以下操作會被認為是修改鏈上狀態，因此需要消耗 Gas：
+
+1.寫入狀態變量。
+2.觸發事件。
+3.創建新合約。
+4.使用 `selfdestruct`。
+5.透過`調用`傳送以太幣。
+6.調用沒有標記為 `view` 或 `pure` 的函數。
+7.使用低級調用（low-level calls）。
+8.使用包含某些操作碼的內聯匯編。
+
+### 為什麼這些關鍵字很重要？
+Solidity 引入 pure 和 view 關鍵字的主要目的是為了節省 Gas 費用。因此，合理使用這些關鍵字可以編寫出更高效、更經濟的智能合約。
+
+### 2024.10.09
+Pure 和 View 關鍵字到底是什麼？
+pure 和 view 關鍵字在 Solidity 中非常重要，對於初學者來說可能比較難理解，因為其他編程語言中並沒有類似的概念。這兩個關鍵字的引入主要是為了`管理`以太坊交易中的 Gas 費用。
+
+為什麼需要 Pure 和 View？
+在以太坊上，合約的`狀態變量`是存儲在區塊鏈上的，每次修改這些狀態變量時，都需要消耗 Gas 費。而 pure 和 view 這兩個關鍵字是為了`區分`那些不需要修改鏈上狀態的操作，從而節省不必要的 Gas 費用。
+
+什麼是 view 函數？
+view 函數是只`讀`函數，這意味著它可以讀取鏈上的狀態變量，`但不能`修改它們。當用戶直接調用 `view` 函數時，`不需要`支付 Gas，因為這些操作`不會`改變鏈上的任何狀態。然而，如果 view 函數被其他`非` view 函數調用，則仍然需要支付 Gas。
+```solidity
+// 一個簡單的 view 函數，只讀取狀態變量
+pragma solidity ^0.8.0;
+
+contract Example {
+    uint256 public storedData;
+
+    // view 函數：只讀取狀態變量
+    function getStoredData() public view returns (uint256) {
+        return storedData;
+    }
+}
+```
+在這個例子中，getStoredData() 函數只讀取 storedData 的值，而不會修改它，因此被標記為 view。用戶直接調用這個函數時，不會消耗 Gas。
+
+### 2024.10.07
+pure 和 view 關鍵字在 Solidity 中非常重要，對於初學者來說可能比較難理解，因為其他編程語言中並沒有類似的概念。這兩個關鍵字的引入主要是為了管理以太坊交易中的 Gas 費用。
+
+為什麼需要 `Pure `和 `View`？
+在以太坊上，合約的狀態變量是存儲在區塊鏈上的，每次修改這些狀態變量時，都需要消耗 Gas 費。而 pure 和 view 這兩個關鍵字是為了區分那些不需要修改鏈上狀態的操作，從而節省不必要的 Gas 費用。
 ### 2024.10.04
 
 1. `public` 函數
@@ -41,6 +178,10 @@ function add(uint256 a, uint256 b) public pure returns (uint256) {
     return a + b;
 }
 ```
+結論
+Solidity 中的函數十分靈活，包含不同的可見性和功能修飾符，可以根據合約的需求進行各種操作。`pure` 和 `view` 函數特別用來處理不會改變鏈上狀態的操作，而 `payable` 函數則允許合約接收 ETH。理解這些函數的特性，對開發智能合約至關重要。
+
+如果對於 pure 和 view 還有疑問，可以想像它們在合約中如同遊戲中的角色一樣，pure 只是一個純打酱油的角色，而 view 是一個`看`角色，能看不能改！
 
 ### 2024.10.03
 ### 函數的結構 (發現仍有點陌生重讀）

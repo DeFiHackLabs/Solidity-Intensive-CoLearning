@@ -18,11 +18,14 @@ timezone: Asia/Taipei
 學習內容 Solidity 101  
 筆記:  
 #### Mapping
-###### 使用 mapping 的時機？
-- mapping 映射, 可以透過 key 查詢對應的 value, ex: 通過一個人的 id 查詢他的錢包地址
+功用
+- 可以透過 key 查詢對應的 value, ex: 通過一個人的 id 查詢他的錢包地址
 - mapping 的 _keyType 只能選擇 solidity 內建的直類型, _valueType 則可以自定義類型
-  
+
+寫法
+給映射新增鍵值
 ```solidity
+   // 此範例有兩組 mapping, 透過 writeMap() 對 idToAddress 新增鍵值 
    mapping(uint => address) public idToAddress;
    mapping(address => address) public swapPair;
 
@@ -637,7 +640,191 @@ function hash(uint _num, string memory _string, address _addr) public pure retur
 強抗碰撞性
 - 難以找到任何兩個不同的輸入, 它們散列值相同
 
+### 2024.10.6      
+學習內容  
+筆記:  
 
+#### 函數選擇器
+- 當調用智能合約時, 本質上是向目標合約發送一段 calldata, 可以在 remix 的詳細信息中看見 input 就是該次交易的 calldata
+- calldata 的錢 4 個字節是 selector 函數選擇器
+
+msg.data
+
+method id, selector, 函數簽名
+
+計算 method id
+- 要計算 method id 時, 需要通過函數名和函數的參數類型來計算
+- 函數的參數類型分以下 4 種
+1. 基礎類型參數 (uint8,...,uint256, bool, address 等)
+   寫法, bytes4(keccak256("函數名(參數類型)"))
+   ```Solidity
+   function elementaryParamSelector(uint256 param1, bool param2) external returns(bytes4 selectorWithElementaryParam){
+      // emit 這段的用意是甚麼, 待釐清
+      emit SelectorEvent(this.elementaryParamSelector.selector);
+      return bytes4(keccak256("elementaryParamSelector(uint256, bool)"));
+   ]
+   ```
+   
+2. 固定長度類型參數
+   - ex: uint256[5]
+   寫法, bytes4(keccak256("fixedSizeParamSelector(uint256[3])"));
+   ```Solidity
+   function fixedSizeParamSelector(uint256[3] memory param1) external returns(bytes4 selectorWithFixedSizeParam){
+      emit SelectorEvent(this.fixedSizeParamSelector.selector);
+      return bytes4(keccak256("fixedSizeParamSelector(uint256[3])"));
+   }
+   ```
+   
+3. 可變長度類型參數
+   - ex: address[], uint8[], string
+   寫法, bytes4(keccak256("nonFixedSizeParamSelector(uint256[], string)"))
+   ```Solidity
+   function nonFixedSizeParamSelector(uint256[] memory param1, string memory param2) external returns(bytes4 selectorWithFixedSizeParam){
+      emit SelectorEvent(this.nonFixedSizeParamSelector.selector);
+      return bytes4(keccak256("fixedSizeParamSelector(uint256[], string)"));
+   }
+   ``` 
+5. 映射類型參數
+   - ex: contract, eunm, struct, 在計算 method.id 時, 要將該類型轉成 ABI 類型
+   寫法, bytes4(keccak256("mappingParamSelector(address, (uint256, bytes), uint256[], uint8)"))  
+
+
+使用 selector
+- 可以利用 selector 調用目標函數
+  ex:利用 abi.encodeWithSelector 將 elementaryParamSelector 函數的 method id 作為 selector 和參數打包編碼, 傳給 call 函數
+```Solidity
+function callWithSignature() external{
+   (bool success, bytes memory data1) = address(this).call(abi.encodeWithSelector(0x3ec37834, 1, 0));
+}
+```
+### 2024.10.7      
+學習內容  
+筆記:  
+
+#### try catch
+- 利用 try-catch 處理智能合約的異常
+- 只能被用於 external 函數或創建合約時 constructor 的調用
+
+寫法
+- externalContract.f() 是某個外部合約的函數調用
+```Solidity
+try externalContract.f(){
+   // 成功的情況下, 運行代碼
+}catch{
+   // 失敗的情況下, 運行代碼
+}
+```
+
+- 如果調用的函數有返回值, 必須在 try 之後聲明 returns(returnType val), 並且在 try 的地方可以使用返回的變數
+```Solidity
+try externalContract.f() returns(returnType val){
+   // 成功的情況下, 運行代碼
+}catch{
+   // 失敗的情況下, 運行代碼
+}
+```
+
+catch 也支援特殊異常
+```Solidity
+try externalContract.f() returns(returnType){
+}catch Error(){
+}catch Panic(){
+}catch (bytes memory){
+}
+
+```
+### 2024.10.8        
+學習內容  
+筆記:  
+
+#### ERC20
+- 以太坊上的代幣標準, 用來實現代幣轉帳的基本邏輯
+- 帳戶餘額, balanceOf()
+- 轉帳, transfer()
+- 授權轉帳, transferFrom()
+- 授權, approve()
+- 代幣總供給量, totalSupply()
+- 授權轉帳額度, allowance()
+- 代幣信息, 可選, name(), symbol(), 小數位數 decimals()
+
+IERC20  
+- IERC20 是 ERC20 代幣標準的合約接口, 用來規定 ERC20 代幣需要實現的函數和事件, 內含 ERC20 要使用的函數名稱, 輸入輸出參數
+- IERC20 定義 2 個事件, 6 個函數
+
+### 2024.10.9        
+學習內容  
+筆記:  
+
+#### 代幣水龍頭
+實做一個簡易版的 ERC20 水龍頭合約
+結構
+- 狀態變數*3, 紀錄每次能提領的數量, token 合約地址, 紀錄領取過代幣的地址 
+- 事件*1, 紀錄每次提取代幣的地址和數量
+- 函數*2, 構造函數(初始化 tokenContract 狀態變數, 確定發放的 ERC20 代幣地址), requestTokens() (用戶調用, 可以領取代幣)
+  
+### 2024.10.10        
+學習內容  
+筆記:  
+
+#### 空投代幣合約
+- 邏輯: 利用循環, 讓一筆交易將 ERC20 代幣發送給多個地址
+
+結構
+- 由兩個函數組成
+- getSim() 返回 uint 數組的和
+- multiTransferToken() 發送 ERC20 代幣空
+  需要做
+  1. require 空投地址的數量組和每個地址的空投數量組長度相等
+  2. require 授權代幣數量 >= 空投代幣總量
+  3. for 循環, 利用 transferFrom() 發送空投
+
+### 2024.10.11        
+學習內容  
+筆記:  
+
+#### ERC721
+- 用於非同質化物品, ex: NFT
+- ERC165, 檢查一個智能合約是否支援 ERC721, ERC1155 的接口
+- IERC721, 規定 ERC721 要實現的基本函數, 利用 tokenId 來表示特定的非同質化代幣, 授權和轉帳都要明確 tokenId, 包含 3 個事件, 9 個函數
+- IERC721Metadata, 實現 3 個查詢 metadata 元數據的常用函數
+- IERC721Receiver, 目標合約必須實現 IERC721Receiver 接口才能接收 ERC721 代幣, 不然會 revert
+- ERC721 主合約實現 IERC165, IERC721, IERC721Metadata 定義的所有功能, 包含 17 個函數
+
+實作一個免費鑄造的 APE  
+結構  
+- 需要設定總供給量
+- 構造函數, 調用父合約 ERC721 的構造函數, 需要傳入 NFT 的名稱 _Nname 和符號 _symbol
+- function _baseURI, 讓每個 NFT 的 tokenURI 基於 IPFS 上的資源進行生成
+- functnio mint(), 要檢查 tokenId 的範圍沒有超過總供給量, 並 mint
+
+### 2024.10.12        
+學習內容  
+筆記:  
+
+#### 荷蘭拍賣 DutchAuction
+- 也稱減價拍賣, 拍賣是由高到低依次遞減直到第一個人應價或是超過底價
+- 優點: 1.拍賣價格由最高慢慢下降, 項目方能獲得最大收入 2.拍賣時間通常 6h 以上, 可避免 gas war
+
+DutchAuction 合約
+- DutchAuction 合約繼承 ERC721, Ownable 合約
+- 有 9 個狀態變數, 其中 6 個和拍賣有關, 有 9 個函數
+
+結構
+1. setAuctionStartTime(), 設定拍賣起始時間
+2. getAuctionPrice(), 設定拍賣時的價格
+   要處理  
+   - block.timestamp 小於起始時間, 價格設定為最高價 action_start_price
+   - block.timestamp 大於結束時間, 價格設定為最低價 action_end_price
+   - block.timestamp 在兩著之間, 計算當前衰減價格
+4. auctionMint(), 用戶參與拍賣並鑄造 NFT
+   要處理
+   require 檢查是否設置起始時間, 拍賣是否開始
+   require 檢查是否超過 NFT 上限
+   mint 成本計算
+   require 用戶是否支付足夠 ETH
+   mint NFT
+   多餘 ETH 退款
+6. withdrawMoney(),項目方提取拍賣籌集的 ETH
 
 
 

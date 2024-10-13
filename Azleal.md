@@ -296,5 +296,80 @@ receive()   fallback()
       - `initcode`: 新合约的初始字节码（合约的Creation Code和构造函数的参数）。
    - 如何使用: `Contract x = new Contract{salt: _salt, value: _value}(params)`
 
+### 2024.10.06
+
+1. `selfdestruct`删除合约
+   - `selfdestruct`命令可以用来删除智能合约，并将该合约剩余ETH转到指定地址。
+   - 坎昆（Cancun）升级后:
+      - `selfdestruct`仅会被用来将合约中的ETH转移到指定地址
+      - 已经部署的合约无法被`SELFDESTRUCT`
+      - 如果要使用原先的`SELFDESTRUCT`功能，必须在同一笔交易中创建并`SELFDESTRUCT`
+   - 用法: `selfdestruct(_addr);` 表示销毁当前合约，且将合约内ETH转移至`_addr`. `_addr`地址不需要有`receive()`或`fallback()`也能接收ETH。
+     
+2. ABI编码解码
+> ABI (Application Binary Interface，应用二进制接口)是与以太坊智能合约交互的标准。数据基于他们的类型编码；并且由于编码后不包含类型信息，解码时需要注明它们的类型。
+   - 编码: ABI编码有4个函数：`abi.encode`, `abi.encodePacked`, `abi.encodeWithSignature`, `abi.encodeWithSelector`.
+   - 解码: ABI解码有1个函数：`abi.decode`，用于解码`abi.encode`的数据。
+
+### 2024.10.07
+
+1. `Hash`
+   - 概念: 它可以将任意长度的消息转换为一个固定长度的值，这个值也称作哈希（hash）
+   - 性质: 单向性; 灵敏性; 高效性; 均一性; 抗碰撞性(弱抗碰撞性, 强抗碰撞性);
+   - 应用: 生成数据唯一标识; 加密签名; 安全加密;
+   - solidity中使用: `hash = keccak256(data);`
+
+2. 选择器`selector`
+   - method id定义为函数签名的`Keccak`哈希后的前4个字节，当`selector`与method id相匹配时，即表示调用该函数
+   - `bytes4(keccak256("mint(address)"));` 其中`"mint(address)"`为方法签名
+  
+### 2024.10.08
+1. ERC20: 是以太坊上的代币标准，来自[EIP20](https://eips.ethereum.org/EIPS/eip-20)
+   - 基本逻辑: 账户余额(balanceOf());转账(transfer());授权转账(transferFrom());授权(approve());代币总供给(totalSupply());授权转账额度(allowance());代币信息（可选）：名称(name())，代号(symbol())，小数位数(decimals())
+2. IERC20: ERC20的接口
+   - 事件
+   - 函数
+3. 代币水龙头
+   
+4. 空投合约
+
+### 2024.10.09
+1. ERC721
+
+2. 荷兰拍卖
+
+3. 默克尔树 Merkle Tree
+
+
+### 2024.10.10
+1. 数字签名
+
+2. NFT交易所
+
+3. 链上随机数
+
+### 2024.10.11
+1. ERC1155
+
+2. WETH
+
+3. 分账
+
+### 2024.10.12
+1. 线性释放
+
+2. 代币锁
+
+3. 时间锁
+
+### 2024.10.13
+1. 代理合约
+
+2. 可升级合约
+
+3. 透明代理
+
+4. 通用可升级代理
+   
 
 <!-- Content_END -->

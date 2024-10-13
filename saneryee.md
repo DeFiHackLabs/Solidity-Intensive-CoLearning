@@ -50,6 +50,623 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 ## Notes
 
 <!-- Content_START -->
+
+### 2024.10.12
+
+Day 16
+
+WTF Academy Solidity 101 48_TransparentProxy
+
+TransparentProxy
+
+- "selector clash" in proxy contract and logic contracts
+- The admin can only upgrade the contract by calling the upgradable function of the proxy contract, without calling the fallback function to call the logic contract.
+- Other users cannot call the upgradable function but can call functions of the logic contract.
+
+---
+### 2024.10.11
+
+Day 15
+
+WTF Academy Solidity 101 46_ProxyContract, 47_Upgrade
+
+**Deep dive into proxy contracts**
+
+Procee of WTF Proxy Example code
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant Proxy
+    participant Logic
+    
+    Caller->>Proxy: 1. call(abi.encodeWithSignature("increment()"))
+    Note over Proxy: 2. Trigger fallback() function
+    Note over Proxy: 3. execute _delegate()
+    Proxy-->>Logic: 4. delegatecall
+    Note over Logic: 5. execute increment() 
+    Note over Logic: 6. change state variables in  Proxy contract
+    Logic-->>Proxy: 7. return result
+    Proxy-->>Caller: 8. return data
+```
+1. Initially, the Caller contract calls the increase() function.
+2. The call is forwarded to the Proxy contract. Since the Proxy doesn't have an increment() function, the fallback() function is triggered.
+3. The _delegate() function uses inline assembly to perform the following:
+   - Reads the logic contract address (implementation).
+   - Copies the call data (calldatacopy).
+   - Calls the logic contract using delegatecall.
+   - Processes the return data.
+
+**Slots in Proxy contract**
+```solidity
+contract Proxy {
+    address public implementation; // Slot 0
+    // Slot 1: Undeclared but exist and available
+}
+
+contract Logic {
+    address public implementation; // Slot 0
+    uint public x = 99;           // Slot 1
+}
+```
+
+Process and Slots
+
+```mermaid
+graph TD
+    subgraph "Proxy Contract Storage"
+        PS0[Slot 0: implementation address]
+        PS1[Slot 1: x value]
+    end
+    
+    subgraph "Logic Contract Code"
+        LC0[Slot 0: implementation]
+        LC1[Slot 1: x = 99]
+        LC2[Code: increment function]
+    end
+    
+    LC2 -- "delegatecall" --> PS1
+    note["Note: Data is stored in the Proxy, <br/>but the code logic is implemented in the Logic."]
+```
+
+Slot mapping
+```mermaid
+graph TD
+    subgraph "Proxy Contract Storage Slots"
+        PS0[Slot 0: implementation address<br/>0x123...]
+        PS1[Slot 1: Undeclared but available<br/>Store x ]
+    end
+    
+    subgraph "Logic Contract Layout"
+        LS0[Slot 0: implementation<br/>map to Proxy Slot 0]
+        LS1[Slot 1: x = 99<br/>map to Proxy Slot 1]
+    end
+    
+    LS0 -.mapping.-> PS0
+    LS1 -.mapping.-> PS1
+```
+
+Process of Proxy contract
+
+```mermaid
+sequenceDiagram
+    participant C as Caller
+    participant P as Proxy 
+    participant L as Logic (x=88)
+    
+    Note over L: x = 88 when contract deploy 
+    C->>P: increase()
+    Note over P: call fallback()
+    P->>L: delegatecall(increment())
+    Note over L: read x (from Proxy contract slot)
+    Note over L: return x + 1
+    L-->>P: Return 1 (0 + 1)
+    P-->>C: Return 1
+```
+
+**About Data and Logic sparate using Proxy contract pattern**
+
+```solidity
+// Logic Contract A
+contract LogicA {
+    address public implementation;
+    uint public x;
+    mapping(address => uint) public balances; 
+
+    function initialize() external {
+        x = 88;
+        // Although the initialization logic is here
+        // the data is actually stored in the Proxy's storage
+    }
+    
+    function deposit() external payable {
+        balances[msg.sender] += msg.value;
+        // The data for this mapping is also stored in the Proxy.
+    }
+}
+
+// Logic contract B (upgraded new logic)
+contract LogicB {
+    address public implementation;
+    uint public x;
+    mapping(address => uint) public balances;
+    
+    function withdraw(uint amount) external {
+        require(balances[msg.sender] >= amount, "Insufficient balance");
+        balances[msg.sender] -= amount;
+        payable(msg.sender).transfer(amount);
+        // Note: The data read and modified here is still stored in the Proxy's storage
+    }
+}
+
+// Proxy 合约
+contract Proxy {
+    address public implementation;
+    // The actual storage space is here
+    // Even though it's not explicitly declared, both x and balances data are stored here.
+}
+```
+
+**Key Points of Data and Logic Separation**
+
+1. Storage Location
+   * All data is actually stored in the storage of the Proxy contract.*
+   * The Logic contract merely provides instructions on how to manipulate this data.*
+
+2. Data Persistence
+```
+// Assuming the following operations:
+1. A user deposits 100 ETH via the Proxy by calling deposit()
+2. The admin upgrades the implementation to LogicB
+3. A user withdraws their funds via the Proxy by calling withdraw()
+// The user's balance data remains in the Proxy's storage, even though the logic contract has changed.
+```
+
+1. How Storage Actually Works
+```
+contract Proxy {
+    // The storage layout is as follows:
+    // slot0: implementation address
+    // slot1: x
+    // slot2-n: mapping data for balances
+    // Although these variables are not explicitly declared, the storage is indeed present.
+}
+```
+
+1. Tracking Data Flow with an Example
+```
+// 1. User calls deposit
+User -> Proxy.fallback() -> LogicA.deposit()
+// Data is written to: Proxy's storage
+
+// 2. Contract upgrade
+Admin -> Proxy.upgrade(LogicB_address)
+// Data remains unchanged, only the implementation address is modified
+
+// 3. User calls withdraw
+User -> Proxy.fallback() -> LogicB.withdraw()
+// Data is read from: Still the Proxy's storage
+```
+
+Summary
+
+1. The Proxy contract provides the storage space to hold all state data.
+2. The Logic contract provides the methods to operate on this data.
+3. Through delegatecall, the Logic contract's code executes in the context of the Proxy's storage.
+4. The Logic contract can be replaced to change how the data is manipulated without affecting the data itself.
+
+Key Points Explained:
+* Data and logic separation: The Proxy contract stores the data, while the Logic contracts define how to interact with that data.
+* Data persistence: Once data is stored in the Proxy, it remains there even if the Logic contract is upgraded.
+* Storage layout: The Proxy contract has a specific storage layout to store the implementation address and other data.
+* Delegatecall: This mechanism allows the Logic contract to execute in the context of the Proxy, providing access to the Proxy's storage.
+* Upgradeability: By changing the implementation address, the behavior of the contract can be modified without deploying a new contract.
+
+**47_Upgrade**
+
+An other important upgrade contract protocol
+
+[Diamonds, Multi-Facet Proxy (EIP-2535)](https://eips.ethereum.org/EIPS/eip-2535)
+
+[Diamond Implementations](https://github.com/mudgen/Diamond)
+
+[Awesome Diamonds](https://github.com/mudgen/awesome-diamonds)
+
+```mermaid
+graph TB
+    C[Client] --> D[Diamond Proxy]
+    
+    subgraph Facets
+        F1[Facet A<br/>User Management]
+        F2[Facet B<br/>Tokens Logic]
+        F3[Facet C<br/>Governance Logic]
+        F4[Facet D<br/>Staking Logic]
+    end
+    
+    D --> F1
+    D --> F2
+    D --> F3
+    D --> F4
+    
+    S[Storage Contract]
+    
+    F1 -.-> S
+    F2 -.-> S
+    F3 -.-> S
+    F4 -.-> S
+    
+    note["Diamond the addresses of all Facets and routes function calls to the appropriate Facet based on the function selector."]
+```
+
+---
+### 2024.10.10
+
+Day 14
+
+WTF Academy Solidity 101 44_TokenLocker, 45_Timelock
+
+Token Locker
+1. Sprcifically designed for locking tokens
+2. Commonly used for:
+   - Project team token locking to increase investor confidence
+   - Token locking after ICO/IDO
+   - Liquidity mining rewards locking
+3. Functional chatacteristics:
+   - Can set linear release
+   - Can set batch unlocking
+   - Usually only locks ERC20 tokens
+   - Generally cannot modify lock time
+
+Time Lock
+1. More general time-locking mechanism
+2. Main uses:
+   - Delayed execution of DAO governance proposals
+   - Delayed implementation of DeFi protocol parameter updates
+   - Delayed execution of smart contract upgrades
+3. Functional characteristics:
+   - Can lock any contract all
+   - Usually includes cancellation mechanism
+   - Can set multiple administrators
+   - Supports queue management for multiple operations
+
+Key Differences:
+1. Code structure:
+   - TokenLocker focuses on token locking and unlocking logic
+   - TimeLock focuses on delayed execution mechanism for general transactions
+2. Flexbility:
+   - TokenLocker specializes in token locking, relatively single-purpose
+   - TimeLock can execute any contract calls, more flexible
+
+---
+
+### 2024.10.09
+
+Day 13
+
+WTF Academy Solidity 101 42_PaymentSplit, 43_TokenVesting
+
+**Pull Payment**
+
+Advantages
+
+1. **Reduced Risk of Denial of Service (DOS)**: IF sending payments to multiple recipients, a single failing transfer won't block the entire operation since each recipient withdraws independently.
+2. **Reentrancy Protection**: In the Push Payment approach, the contract directly transfers funds, which can be vulnerable to re-entrancy attacks if the recipient’s fallback or receive function attempts to call back into the contract. With Pull Payments, the recipient initiates the transfer, reducing this attack surface.
+3. **Prevents Failed Transactions from Halting Payment Distribution**: If the contract uses a loop to pay multiple recipients in a push-style approach, a single failed transaction can halt the entire loop, preventing other recipients from being paid. With Pull Payments, each recipient’s withdrawal is handled individually, so one recipient’s failure does not impact others.
+4. **Reduces Gas Costs on Payment Execution**
+5. **Better Fund Management** Recipients can choose when to withdraw their funds, which can be advantageous for tax planning or gas price optimization.
+
+Common use cases:
+
+- Marketplaces where sellers receive payments
+- Reward distribution systems
+- Dividend payments
+
+Reference:
+[Openzeppelin PaymentSplitter](https://docs.openzeppelin.com/contracts/4.x/api/finance#PaymentSplitter)
+[Openzeppelin PullPayment](https://docs.openzeppelin.com/contracts/4.x/api/security#PullPayment)
+
+
+**TokenVesting**
+
+Reference:
+[Openzeppelin VestingWallet](https://docs.openzeppelin.com/contracts/4.x/api/finance#VestingWallet)
+
+**Cliff Vesting**
+
+Cliff vesting is a token release strategy where tokens are completely locked during an initial period (cliff period). Once the cliff period ends, a predetemined portion of tokens is immediately released, and the remaining tokens.
+
+Example:
+
+1. Cliff Period
+
+   - Initial period where tokens are completely locked
+   -  No tokens can be withdrawn during this time
+   -  Typically 6-12 months for team tokens
+
+2. Cliff Release
+
+   - Immediate release of a predetermined amount when cliff ends
+   - Usually 20-25% of total tokens
+   - Provides initial liquidity to beneficiaries
+
+3. Linear Vesting
+
+   - Remaining tokens are released linearly over time
+   - Smooth release curve reduces market impact
+   - Continuous incentive for long-term participation
+
+```
+   Total Amount: 1,000,000 tokens
+   Cliff Period: 6 months
+   Cliff Release: 200,000 tokens (20%)
+   Total Duration: 12 months
+
+   Timeline:
+   Months 0-6: 0 tokens (locked)
+   Month 6: 200,000 tokens (cliff release)
+   Months 7-12: ~133,333 tokens/month (linear)
+   Month 12: All tokens released
+```
+
+Types of Vesting:
+
+- With time-based vesting, tokens are progressively released to holders over a set amount of time.
+
+- Milestone-based vesting releases tokens upon the achievement of certain project milestones.
+
+- Hybrid vesting combines elements of both time-based and milestone-based vesting.
+
+- Reverse vesting involves tokens being released all at once, with the potential for them to be repurchased if certain conditions are not met.
+
+---
+### 2024.10.08
+
+Day 13
+
+WTF Academy Solidity 101 40_ERC1155, 41_WETH
+
+**ERC1155**
+- Allows sending multiple different tokens in a single trancation. Commonly used in blockchain games.
+
+**WETH**
+
+`WETH9` is a commonly used implementation of Wrapped Ether (`WETH`) on the Ethereum blockchain. It’s essentially an ERC-20 compliant contract that allows users to convert their native Ether (`ETH`) into an ERC-20 token (`WETH`).
+
+- `WETH9` is the ninth version of the `WETH` contract and is widely used in Ethereum applications.
+
+`WETH9` well-known issues:
+
+  1. Silent Fallback Method
+  2. no `permit` function: 1 + 2 = attack [https://medium.com/zengo/without-permit-multichains-exploit-explained-8417e8c1639b](https://medium.com/zengo/without-permit-multichains-exploit-explained-8417e8c1639b)
+  3. Inefficient Common Patterns
+
+- [https://ethereum-magicians.org/t/rfc-improving-weth9-moving-to-a-better-wrapped-ether-implementation/12487](https://ethereum-magicians.org/t/rfc-improving-weth9-moving-to-a-better-wrapped-ether-implementation/12487)
+
+----
+### 2024.10.07
+
+Day 12
+
+WTF Academy Solidity 101 38_NFTSwap, 39_Random
+
+**NFT Exchange**
+
+- There are two main contract
+  - NFT contract: `WTFApe.sol`
+  - NFT exchange contract: `NFTSwap.sol`
+- first: The NFT owner need `approve` NFT exchange contract to list the NFT for sale in NFT contract.
+- All trancations recorded in the NFT contract.
+
+**Random**
+
+Migrating Code from Chainlink VRF V2 to V2.5
+
+```Solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+import "https://github.com/AmazingAng/WTF-Solidity/blob/main/34_ERC721/ERC721.sol";
+import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
+import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
+
+contract Random is ERC721, VRFConsumerBaseV2Plus{
+    // NFT parameters
+    uint256 public totalSupply = 100; // total supply
+    uint256[100] public ids; // used to calculate tokenId that can be mint
+    uint256 public mintCount; // the number of mint, the default value is 0
+
+    // VRF events
+    event RequestSent(uint256 requestId, uint numWords);
+    event RequestFulfilled(uint256 requestId, uint256[] randomWords);
+    event DebugLog(string message);
+    event ErrorLog(string message);
+
+    // NFT mint event
+    event NFTMinted(address indexed to, uint256 indexed tokenId, uint256 requestId);
+
+    // Request status struct
+    struct RequestStatus {
+        bool fulfilled; // 0: Request not fulfilled, 1: fulfilled
+        bool exists; // 0: Request Id not exists, 1: exists
+        uint256[] randomWords;
+        uint256 tokenId;
+    }
+
+    mapping(uint256 => RequestStatus) public s_requests; // requestId --> requestStatus
+    mapping(uint256 => address) public requestToSender; // requestId --> minter address
+    mapping(address => uint256[]) public userMints;
+
+
+    // chainlink VRF parameters
+    
+    uint256 public s_subscriptionId; // VRF subscription id
+    uint256[] public requestIds; // history subscription ids
+    uint256 public  lastRequestId; // last request Id
+
+    // Sepolia testnet settings
+    bytes32 public keyHash = 0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae;
+    uint32 public callbackGasLimit = 2_000_000;
+    uint16 public requestConfirmations = 3;
+    uint32 public numWords = 1;
+
+        
+    ///// No need to declare a coordinator variable /////
+    ///// Use the `s_vrfCoordinator` from VRFConsumerBaseV2Plus.sol /////
+    constructor(
+        uint256 subscriptionId
+    ) VRFConsumerBaseV2Plus(0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B) // Sepolia VRF Coordinator
+        ERC721("WTF Random", "WTF"){
+            s_subscriptionId = subscriptionId;
+            emit DebugLog("Contract initialized with subscription ID");
+    }
+
+    /** 
+    * Input a uint256 number and return a tokenId that can be mint
+    */
+    function pickRandomUniqueId(uint256 random) private returns (uint256 tokenId) {
+        // Calculate the subtraction first, then calculate ++, pay attention to the difference between (a++, ++a)
+        uint256 len = totalSupply - mintCount++; // mint quantity
+        require(len > 0, "mint close"); // all tokenIds are mint finished
+        uint256 randomIndex = random % len; // get the random number on the chain
+
+        // Take the modulus of the random number to get the tokenId as an array subscript, and record the value as len-1 at the same time. If the value obtained by taking the modulus already exists, then tokenId takes the value of the array subscript
+        tokenId = ids[randomIndex] != 0 ? ids[randomIndex] : randomIndex; // get tokenId
+        ids[randomIndex] = ids[len - 1] == 0 ? len - 1 : ids[len - 1]; // update ids list
+        ids[len - 1] = 0; // delete the last element, can return gas
+    }
+
+    /**
+    * On-chain pseudo-random number generation
+    * keccak256(abi.encodePacked() fill in some global variables/custom variables on the chain
+    * Convert to uint256 type when returning
+    */
+    function getRandomOnchain() public view returns(uint256){
+    /*
+        * In this case, randomness on the chain only depends on block hash, caller address, and block time,
+        * If you want to improve the randomness, you can add some attributes such as nonce, etc., but it cannot fundamentally solve the security problem
+        */
+        bytes32 randomBytes = keccak256(abi.encodePacked(blockhash(block.number-1), msg.sender, block.timestamp));
+        return uint256(randomBytes);
+    }
+
+    // Use the pseudo-random number on the chain to cast NFT
+    function mintRandomOnchain() public {
+        uint256 _tokenId = pickRandomUniqueId(getRandomOnchain()); // Use the random number on the chain to generate tokenId
+        _mint(msg.sender, _tokenId);
+    }
+    
+    function mintRandomVRFWithLINK() public returns (uint256 requestId) {
+        return  mintRandomVRF(false);
+    }
+
+    /**
+    * Call VRF to get random number and mintNFT
+    * To call the requestRandomness() function to obtain, the logic of consuming random numbers is written in the VRF callback function fulfillRandomness()
+    * Before calling, transfer LINK tokens to this contract
+    */
+    ///// UPDATE TO NEW V2.5 REQUEST FORMAT /////
+    // To enable payment in native tokens, set nativePayment to true.
+    // Use the `s_vrfCoordinator` from VRFConsumerBaseV2Plus.sol
+    function mintRandomVRF(bool enableNativePayment) public returns (uint256 requestId) {
+        requestId = s_vrfCoordinator.requestRandomWords(
+            VRFV2PlusClient.RandomWordsRequest({
+                keyHash: keyHash,
+                subId: s_subscriptionId,
+                requestConfirmations: requestConfirmations,
+                callbackGasLimit: callbackGasLimit,
+                numWords: numWords,
+                extraArgs: VRFV2PlusClient._argsToBytes(
+                    VRFV2PlusClient.ExtraArgsV1({
+                        nativePayment: enableNativePayment
+                    })
+                )
+            })
+        );
+
+        s_requests[requestId] = RequestStatus({
+            randomWords: new uint256[](0),
+            exists: true,
+            fulfilled: false,
+            tokenId: 0
+        });
+        requestToSender[requestId] = msg.sender; // record sender
+        requestIds.push(requestId);
+        lastRequestId = requestId;
+        emit RequestSent(requestId, numWords);
+        emit DebugLog("Random number requested successfully");
+        return requestId;
+    }
+
+    /**
+    * VRF callback function, called by VRF Coordinator
+    * The logic of consuming random numbers is written in this function
+    */
+    function fulfillRandomWords(
+        uint256 _requestId, 
+        uint256[] calldata _randomWords
+    ) internal override{
+        //require(s_requests[_requestId].exists, "request not found");
+        emit DebugLog("Fulfilling random words");
+
+        s_requests[_requestId].fulfilled = true;
+        s_requests[_requestId].randomWords = _randomWords; // Update the request status
+        
+        address sender = requestToSender[_requestId]; // Get minter user address from requestToSender
+        uint256 tokenId = pickRandomUniqueId(_randomWords[0]); // Use the random number returned by VRF to generate tokenId
+        _mint(sender, tokenId); // mint NFT
+
+        s_requests[_requestId].tokenId = tokenId;
+        userMints[sender].push(tokenId);
+
+        emit RequestFulfilled(_requestId, _randomWords);
+        emit NFTMinted(sender, tokenId, _requestId);
+        emit DebugLog("Random words fulfilled and NFT minted");
+    }
+
+    /**
+    *
+    */
+    function getRequestStatus(
+        uint256 _requestId
+    ) external view  returns (
+        bool fufilled, 
+        uint256[] memory randomWords,
+        uint256 tokenId
+    ){
+        require(s_requests[_requestId].exists, "request not found");
+        RequestStatus memory request = s_requests[_requestId];
+        return (request.fulfilled, request.randomWords, request.tokenId);
+    }
+
+    function getUserMints(address user) external view returns (uint256[] memory) {
+        return userMints[user];
+    }
+
+    function getLastMintResult() external view returns (
+        uint256 requestId,
+        bool fulfilled,
+        uint256 tokenId
+    ) {
+        require(lastRequestId != 0, "No minting history");
+        RequestStatus memory request = s_requests[lastRequestId];
+        return (lastRequestId, request.fulfilled, request.tokenId);
+    }
+
+    function getContractState() external view returns (
+        uint256 currentSubscriptionId,
+        uint256 totalMinted,
+        uint256 remainingSupply,
+        uint256 lastRequestIdentifier
+    ) {
+        return (
+            s_subscriptionId,
+            mintCount,
+            totalSupply - mintCount,
+            lastRequestId
+        );
+    }       
+
+}
+```
 ### 2024.10.05
 
 Day 11
@@ -742,7 +1359,8 @@ WTF Academy Solidity 101 13-15
     
      Abstract
 
-     - At least oun unimplemented function (empty in `{}` )
+     - At least one unimplemented function (empty in `{}` )
+     - A contract can be marked as abstract even if all functions have implementations
      
      Interface
 

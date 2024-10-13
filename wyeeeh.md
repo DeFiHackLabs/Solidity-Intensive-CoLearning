@@ -842,7 +842,7 @@ function changeOwner(address _newOwner) external onlyOwner {
 - **响应**：事件可以让前端应用通过 `RPC` 接口订阅并监听某个合约的状态变化，接收到事件后可以做出对应的响应。例如，用户在DApp上发起了代币转账，DApp会通过监听事件来实时更新用户的余额或显示通知。
 - **经济性**：事件是记录合约数据的一种经济方式。相比于直接将数据存储在链上，事件的 `gas` 消耗较少（每次大约消耗2,000 `gas`），而链上存储一个新变量至少需要 20,000 `gas`。
 
-###### 声明事件
+##### 声明事件
 使用 `event` 关键字，后面跟随事件名称和事件参数（需要记录的变量）。例如，在`ERC20`代币合约中，通常定义一个 `Transfer` 事件，用于记录每次代币的转账操作：
 
 ```solidity
@@ -857,7 +857,7 @@ event Transfer(address indexed from, address indexed to, uint256 value);
 **`indexed` 参数的作用**：在以太坊上，事件的参数可以标记为 `indexed`，这样这些参数的值就会存储在以太坊虚拟机日志的 `topics` 部分，供用户快速检索。一个事件**最多**可以有三个 `indexed` 参数，因为日志的`topics`最多可以存储4个元素（见EVM日志`log`部分）。
 
   
-###### 释放事件
+##### 释放事件
 事件定义后，可以通过 `emit` 关键字在函数中释放事件，也就是记录并广播这个事件的发生。
 
 下面的代码展示了如何在代币转账函数 `_transfer` 中释放 `Transfer` 事件：
@@ -880,7 +880,7 @@ function _transfer(
 
 在这个例子中，每次执行 `_transfer` 函数时，都会通过 `emit` 释放 `Transfer` 事件，并记录转账的相关数据。前端应用或其他外部程序可以通过监听这个事件来更新用户的界面或执行其他逻辑。
 
-###### EVM 日志 `Log`
+##### EVM 日志 `Log`
 事件在EVM中的表现形式是日志 `Log`，每个日志包含两个部分：
 
 - **主题（topics）**：保存的是事件的**索引信息**，即事件签名的哈希值（即事件的名称和参数类型经过`keccak256`哈希后得到的值）。
@@ -924,7 +924,7 @@ function _transfer(
 - **数据（data）**：保存的是事件中**不带`index`索引**的参数。在 `Transfer` 事件中，`value` 就存储在 `data` 部分。**`data` 部分不能被直接检索**，但它可以存储任意大小的数据，因此适合用来存储复杂的数据结构，如数组和字符串。
 
 
-###### 代码总结
+##### 代码总结
 
 **事件**：
 
@@ -976,17 +976,1121 @@ data: [
 ### 2024.10.05
 #### WTF Academy Solidity 101.13 继承
 
-###### 笔记
+###### `Virtural`
+父合约中的函数如果希望被子合约重写，需要加上`virtual`关键字。
+`virtual`关键字用于标记一个函数，表示它**可以被子合约重写**。如果父合约中的函数没有`virtual`，那么子合约**不能**对该函数进行重写。
+```solidity
+contract Parent {
+    function greet() public virtual returns (string memory) {
+        return "Hello from Parent";
+    }
+}
+```
+在这个例子中，`greet`函数加了`virtual`，表示子合约可以对它进行重写。
+
+###### `Override`
+子合约重写了父合约中的函数，需要加上`override`关键字。 `override`关键字用于在子合约中**重写**父合约中带有`virtual`的函数。它告诉编译器，当前子合约中的函数是对父合约中某个`virtual`函数的重写。
+```solidity
+contract Child is Parent {
+    function greet() public override returns (string memory) {
+        return "Hello from Child";
+    }
+}
+```
+`Child`合约中的`greet`函数使用了`override`，表示它是对`Parent`合约中`greet`函数的重写。
+
+##### 简单继承
+定义父合约`Yeye`
+```solidity
+contract Yeye {
+    event Log(string msg);
+
+    function hip() public virtual {
+        emit Log("Yeye");
+    }
+
+    function pop() public virtual {
+        emit Log("Yeye");
+    }
+
+    function yeye() public virtual {
+        emit Log("Yeye");
+    }
+}
+```
+继承合约`Baba`，继承了`Yeye`，并重写了`hip()`和`pop()`函数（加了`override`关键字），同时新增`baba()`函数。
+```solidity
+contract Baba is Yeye {
+    function hip() public virtual override {
+        emit Log("Baba");
+    }
+
+    function pop() public virtual override {
+        emit Log("Baba");
+    }
+
+    function baba() public {
+        emit Log("Baba");
+    }
+}
+```
+##### 多重继承
+1. **继承顺序**：必须从辈分高的合约到低的合约，比如`contract Erzi is Yeye, Baba`。如果顺序写错会报错。
+2. **函数冲突**：如果父合约中有重名函数，比如这里的`hip()`和`pop()`，在子合约中必须重写，并且`override`中要标明所有父合约名字。
+
+##### 修饰器的继承
+```solidity
+contract Base1 {
+    // 修饰器：检查输入的数字是否同时能被2和3整除
+    modifier exactDividedBy2And3(uint _a) virtual {
+        require(_a % 2 == 0 && _a % 3 == 0, "Not divisible by 2 and 3");
+        _; // 继续执行函数
+    }
+}
+```
+子合约`Identifier`继承了`Base1`，并且在函数`getExactDividedBy2And3`中使用了这个修饰器：
+```solidity
+contract Identifier is Base1 {
+
+    // 使用父合约中的修饰器 exactDividedBy2And3
+    function getExactDividedBy2And3(uint _dividend) public exactDividedBy2And3(_dividend) pure returns(uint, uint) {
+        return getExactDividedBy2And3WithoutModifier(_dividend);
+    }
+
+    function getExactDividedBy2And3WithoutModifier(uint _dividend) public pure returns(uint, uint){
+        uint div2 = _dividend / 2;
+        uint div3 = _dividend / 3;
+        return (div2, div3);
+    }
+}
+```
+在这里，`Identifier`合约继承了`Base1`合约的修饰器`exactDividedBy2And3`，并在函数`getExactDividedBy2And3`中使用了它。只要传入的数字`_dividend`能同时被2和3整除，函数才会执行。
+
+##### 构造函数的继承
+###### 在继承时传递参数
+当定义子合约时，直接在继承声明时传递父合约构造函数的参数。
+```solidity
+// 父合约 A
+contract A {
+    uint public a;
+
+    // 父合约 A 的构造函数
+    constructor(uint _a) {
+        a = _a;
+    }
+}
+
+// 子合约 B 继承 A
+contract B is A(10) { // 直接在继承时传递参数
+}
+```
+在这个例子中，合约 `B` 继承了 `A`，并且在继承时通过 `A(10)` 直接将参数传给了父合约 `A` 的构造函数。所以，当部署 `B` 合约时，`A` 的状态变量 `a` 会被初始化为 10。
+###### 在子合约的构造函数中调用父合约的构造函数
+如果希望在子合约的构造函数中动态传递参数给父合约，可以在子合约的构造函数中显式调用父合约的构造函数。
+```solidity
+// 父合约 A
+contract A {
+    uint public a;
+
+    // 父合约 A 的构造函数
+    constructor(uint _a) {
+        a = _a;
+    }
+}
+
+// 子合约 C 继承 A
+contract C is A {
+    // 子合约的构造函数传递参数给 A 的构造函数
+    constructor(uint _c) A(_c * 2) {
+    }
+}
+```
+在这个例子中，子合约 `C` 的构造函数接收参数 `_c`，并将 `_c * 2` 传递给父合约 `A` 的构造函数。这意味着当你部署 `C` 合约时，`A` 的状态变量 `a` 会被初始化为 `_c * 2`。
+
+**什么时候用哪种方法？**
+- 如果参数是固定的，可以直接在继承声明时传递参数（第一种方法）。
+- 如果参数需要动态计算或者传递，则可以在子合约的构造函数中调用父合约的构造函数（第二种方法）。
+
+##### 调用父合约的函数
+1. **直接调用**：可以通过`父合约名.函数名()`来调用，比如`Yeye.pop()`。
+    
+    ```solidity
+    function callParent() public {
+        Yeye.pop();
+    }
+    ```
+2. **`super`关键字**：使用`super`可以调用最近的父合约。例如，`super.pop()`会调用继承链条上最近的父合约的`pop()`函数。
+    - 这里的“最近的父合约”指的是根据继承顺序，最接近当前合约的那个父合约。
+    
+    ```solidity
+    function callParentSuper() public {
+        super.pop();  // 调用的是Baba.pop()，因为Baba是最近的父合约
+    }
+    ```
+
+###### 举例
+假设我们有三个合约 `Yeye`（爷爷）, `Baba`（爸爸）, 和 `Child`（孩子），并且它们之间有继承关系。`Child` 继承自 `Baba`，而 `Baba` 继承自 `Yeye`。每个合约都有一个 `pop()` 函数。
+
+```solidity
+// 爷爷合约
+contract Yeye {
+    function pop() public virtual returns (string memory) {
+        return "Yeye's pop";
+    }
+}
+
+// 爸爸合约
+contract Baba is Yeye {
+    function pop() public virtual override returns (string memory) {
+        return "Baba's pop";
+    }
+}
+
+// 孩子合约
+contract Child is Baba {
+    // 直接调用父合约的函数
+    function callParent() public returns (string memory) {
+        return Baba.pop();  // 调用 Baba 的 pop() 函数
+    }
+
+    // 使用 super 调用最近的父合约的函数
+    function callParentSuper() public returns (string memory) {
+        return super.pop();  // 调用继承链中最近的父合约的 pop() 函数，这里是 Baba 的 pop()
+    }
+
+    // 使用 Yeye 直接调用 Yeye 的 pop() 函数
+    function callYeyeDirectly() public returns (string memory) {
+        return Yeye.pop();  // 明确调用 Yeye 的 pop() 函数
+    }
+}
+```
+1. **继承关系**：
+    - `Child` 继承了 `Baba`，而 `Baba` 继承了 `Yeye`。因此，`Child` 是最底层的合约，`Baba` 是中间层，`Yeye` 是顶层。
+2. **直接调用父合约的函数**：
+    - 在 `callParent()` 函数中，`Baba.pop()` 明确调用了父合约 `Baba` 的 `pop()` 函数。因为 `Baba` 重写了 `Yeye` 的 `pop()` 函数，所以调用 `Baba.pop()` 时，结果会是 `"Baba's pop"`。
+3. **`super` 关键字**：
+    - 在 `callParentSuper()` 中，`super.pop()` 调用了继承链中最近的父合约的 `pop()` 函数。因为 `Child` 继承了 `Baba`，而 `Baba` 是最近的父合约，所以 `super.pop()` 实际上调用的是 `Baba` 的 `pop()` 函数，结果仍然是 `"Baba's pop"`。
+    - 如果 `Baba` 没有重写 `Yeye` 的 `pop()` 函数，那么 `super.pop()` 会调用 `Yeye` 的 `pop()` 函数。
+4. **调用更上层的父合约**：
+    - 在 `callYeyeDirectly()` 中，`Yeye.pop()` 明确调用了顶层合约 `Yeye` 的 `pop()` 函数，即便 `Baba` 已经重写了 `pop()`。因此，结果是 `"Yeye's pop"`。
+
+
+**输出**
+- 调用 `callParent()`：返回 `"Baba's pop"`。
+- 调用 `callParentSuper()`：返回 `"Baba's pop"`，因为 `super.pop()` 调用了最近的父合约 `Baba`。
+- 调用 `callYeyeDirectly()`：返回 `"Yeye's pop"`，因为明确调用了顶层合约 `Yeye` 的函数。
+##### 钻石继承
+代码示例
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.13;
+
+/* 继承树：
+  God
+ /  \
+Adam Eve
+ \  /
+people
+*/
+
+contract God {
+    event Log(string message);
+
+    function foo() public virtual {
+        emit Log("God.foo called");
+    }
+
+    function bar() public virtual {
+        emit Log("God.bar called");
+    }
+}
+
+contract Adam is God {
+    function foo() public virtual override {
+        emit Log("Adam.foo called");
+        super.foo();
+    }
+
+    function bar() public virtual override {
+        emit Log("Adam.bar called");
+        super.bar();
+    }
+}
+
+contract Eve is God {
+    function foo() public virtual override {
+        emit Log("Eve.foo called");
+        super.foo();
+    }
+
+    function bar() public virtual override {
+        emit Log("Eve.bar called");
+        super.bar();
+    }
+}
+
+contract people is Adam, Eve {
+    function foo() public override(Adam, Eve) {
+        super.foo();
+    }
+
+    function bar() public override(Adam, Eve) {
+        super.bar();
+    }
+}
+
+```
+###### 合约继承树
+```solidity
+/* 继承树：
+  God
+ /  \
+Adam Eve
+ \  /
+people
+*/
+```
+- `Adam` 和 `Eve` 都继承自 `God`，且都重写了 `God` 中的 `foo()` 和 `bar()` 函数。
+- 合约 `people` 同时继承了 `Adam` 和 `Eve`，并重写了 `foo()` 和 `bar()`，调用 `super.foo()` 和 `super.bar()`。
+###### 继承顺序
+在 Solidity 中，多重继承的顺序由合约声明的顺序决定。合约继承链的调用顺序（也称为**继承线性化顺序**或 C3 线性化）从左到右，是根据继承关系树来确定的。这个顺序定义了哪个父合约的函数会先被调用，而哪些会在之后调用。
+
+Solidity 中的继承顺序是**从左到右**的，这里的“左”和“右”是根据继承声明的顺序来定义的。当你写出一个合约，并从多个父合约继承时，继承链的线性化顺序会基于合约声明时的顺序：
+
+```solidity
+contract people is Adam, Eve { }
+```
+
+在这个例子中，`people` 继承了 `Adam` 和 `Eve`，**左**边的父合约是 `Adam`，**右**边的父合约是 `Eve`。
+
+**为什么是 `Eve` 先调用？**
+虽然 `people` 继承顺序看起来是 `Adam` 在 `Eve` 之前，但继承调用遵循 Solidity 的**C3 线性化规则**。在 C3 线性化中，子合约会先继承所有右侧的父合约，然后再继承左侧的父合约。
+
+**Solidity 的线性化规则**
+1. **父合约的合并**：当写 `contract people is Adam, Eve` 时，`people` 需要先遍历 `Eve`，然后遍历 `Adam`。因为在 `Eve` 和 `Adam` 中，都有对 `God` 的继承，所以 `God` 只会在最终调用时执行一次。
+2. **从右到左继承**：线性化顺序遵循从右至左继承的原则。`people` 合约先会调用右侧的父合约 `Eve`，再去调用左侧的父合约 `Adam`，最后调用最顶层的 `God`，这是线性化的特点。
+
+**最终继承顺序**
+调用 `people.foo()` 时，函数执行顺序是：
+1. **调用 `Eve.foo()`**：首先执行右边的父合约，即 `Eve.foo()`，输出 `Eve.foo called`。
+2. **调用 `Adam.foo()`**：接着执行左边的父合约 `Adam.foo()`，输出 `Adam.foo called`。
+3. **调用 `God.foo()`**：由于 `Eve` 和 `Adam` 都继承自 `God`，最终调用 `God.foo()`，输出 `God.foo called`。
+
+输出结果：
+```
+Eve.foo called
+Adam.foo called
+God.foo called
+```
+
+调用 `people.bar()` 时，函数执行顺序与 `foo()` 类似：
+
+1. **调用 `Eve.bar()`**：首先执行右边的父合约 `Eve.bar()`，输出 `Eve.bar called`。
+2. **调用 `Adam.bar()`**：接着执行左边的父合约 `Adam.bar()`，输出 `Adam.bar called`。
+3. **调用 `God.bar()`**：最后调用 `God.bar()`，输出 `God.bar called`。
+
+输出结果：
+```
+Eve.bar called
+Adam.bar called
+God.bar called
+```
+
+**如果没有C3 线性化规则避免重复输出呢？**
+1. **`people.foo()` 的调用顺序**：
+    - `people` 先调用 `Eve.foo()`，`Eve.foo()` 调用 `super.foo()`，它指向 `God.foo()`；
+    - 接着 `people` 调用 `Adam.foo()`，`Adam.foo()` 也调用 `super.foo()`，它再次指向 `God.foo()`；
+    
+    因为没有线性化原则，`God.foo()` 会被调用两次，一次在 `Eve` 中，一次在 `Adam` 中。
+
+    ```
+    Eve.foo called
+    God.foo called
+    Adam.foo called
+    God.foo called
+    ```
+    
+2. **`people.bar()` 的调用顺序**：
+    - 同理，`people` 先调用 `Eve.bar()`，`Eve.bar()` 调用 `super.bar()`，指向 `God.bar()`；
+    - 然后调用 `Adam.bar()`，`Adam.bar()` 也调用 `super.bar()`，再次指向 `God.bar()`；
+    
+    因为没有线性化原则，`God.bar()` 也会被重复调用两次。
+
+    ```
+    Eve.bar called
+    God.bar called
+    Adam.bar called
+    God.bar called
+    ```
+##### 测验结果
+- 85/100
+- 100/100
+
+##### 测验错题
+`function a() public override{}`意思是？
+
+这个函数`重写`（`override`）了一个父合约中的同名函数 `a`。
+- `public`：表示该函数的可见性为公共（public），即可以从合约外部以及合约内部调用。
+- `override`：意味着该函数是对父合约中同名函数 a 的重写。父合约中必须有一个函数签名与此函数相同，并且该父合约的函数必须被标记为 virtual，允许子合约进行重写。
+- `{}`：函数体为空，表示该函数目前没有实现任何逻辑操作。
+
+### 2024.10.06
+#### WTF Academy Solidity 101.14 抽象合约和接口
+
+##### 抽象合约
+**定义**：抽象合约是指至少包含一个未实现函数的合约。这意味着这个函数没有实际的逻辑实现，只提供一个接口，具体的实现留给继承这个合约的子合约完成。
+
+1. **未实现的函数**：在抽象合约中，未实现的函数必须使用 `virtual` 关键字，表示这个函数可以被重写。
+2. **抽象合约的使用场景**：当你定义一些通用的接口或功能，但不打算在这个合约中具体实现这些功能时，可以使用抽象合约。子合约可以继承抽象合约，并实现这些函数。当一个子合约继承了一个抽象合约时，子合约**必须重写**抽象合约中所有未实现的函数，否则子合约本身也必须被标记为 `abstract`。这意味着，抽象合约中的未实现函数在子合约中需要被实现，才能编译和部署成功。
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.13;
+
+abstract contract InsertionSort {
+    // 定义一个抽象函数，只提供接口，不提供实现
+    function insertionSort(uint[] memory a) public pure virtual returns (uint[] memory);
+}
+```
+
+在上面的例子中，`InsertionSort` 是一个抽象合约，它定义了一个插入排序函数 `insertionSort()`，但没有具体实现。这个函数被标记为 `virtual`，意思是任何继承该合约的子合约都可以并且必须重写这个函数。
+
+##### 接口
+**定义**：接口类似于抽象合约，但更加严格。接口只定义函数的签名和事件，不能包含任何实现细节。它也不能有状态变量或构造函数。
+
+**规则**：
+1. 不能包含状态变量。
+2. 不能有构造函数。
+3. 只能包含函数签名（必须为 `external` 类型）和事件声明。
+4. 不能继承除其他接口以外的合约。
+5. 继承接口的非抽象合约必须实现接口定义的所有功能。
+
+**接口的作用**：接口定义了合约的功能和交互方式，其他合约只需要知道接口就可以与实现了该接口的合约进行交互，而无需了解合约的具体实现。
+
+接口与合约`ABI`（Application Binary Interface）等价，可以相互转换：编译接口可以得到合约的`ABI`，利用[abi-to-sol工具](https://gnidan.github.io/abi-to-sol/)，也可以将`ABI json`文件转换为`接口sol`文件。
+
+###### 代码示例：定义`IERC721`接口
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.13;
+
+// 定义 IERC721 接口
+interface IERC721 {
+    // 定义事件
+    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+
+    // 定义外部函数
+    function balanceOf(address owner) external view returns (uint256 balance);
+    function ownerOf(uint256 tokenId) external view returns (address owner);
+    function safeTransferFrom(address from, address to, uint256 tokenId) external;
+}
+```
+
+- **事件**：`Transfer` 事件记录 NFT 的转账操作，`from` 是发送方，`to` 是接收方，`tokenId` 是 NFT 的 ID。
+- **函数**：
+    - `balanceOf`：返回某个地址持有的 NFT 数量。
+    - `ownerOf`：返回某个 `tokenId` 的拥有者地址。
+    - `safeTransferFrom`：安全转账 NFT，确保接收方能处理 NFT，否则操作失败。
+
+###### 代码示例：使用`IERC721`接口
+```solidity
+contract interactBAYC {
+    // 利用BAYC合约地址创建接口合约变量
+    IERC721 BAYC = IERC721(0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D);
+
+    // 通过接口调用BAYC的balanceOf()查询持仓量
+    function balanceOfBAYC(address owner) external view returns (uint256 balance) {
+        return BAYC.balanceOf(owner); // 查询owner拥有的BAYC数量
+    }
+
+    // 通过接口调用BAYC的safeTransferFrom()安全转账
+    function safeTransferFromBAYC(address from, address to, uint256 tokenId) external {
+        BAYC.safeTransferFrom(from, to, tokenId); // 将BAYC转账给另一个地址
+    }
+}
+```
+- **接口合约变量**：
+    - `IERC721 BAYC = IERC721(0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D);`
+        - `IERC721` 是我们定义的 `ERC721` 接口。
+        - `0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D` 是 Bored Ape Yacht Club (BAYC) 的智能合约地址。
+        - `BAYC` 是通过这个地址创建的接口变量，我们可以用它调用 `IERC721` 接口中的函数来与 BAYC 合约交互。
+- **查询持仓量**：
+    - `balanceOfBAYC(address owner)` 函数使用 `BAYC.balanceOf(owner)`，查询某个地址的 BAYC NFT 数量。
+- **安全转账**：
+    - `safeTransferFromBAYC(address from, address to, uint256 tokenId)` 使用 `BAYC.safeTransferFrom(from, to, tokenId)`，将 BAYC NFT 从 `from` 地址转账到 `to` 地址。
+###### 接口应用：标准库继承
+开发者在编写和部署合约时，**不需要手动再次定义`IERC721`接口**，因为这个接口已经是**标准化的**，可以直接通过继承的方式使用。这意味着你可以直接写`contract MyNFT is IERC721`，并通过`override`关键字实现接口中的函数。
+通常来说，开发者可以直接从**已有的标准库**中继承接口。这些标准库（如`OpenZeppelin`提供的库）已经包含了`IERC721`接口的定义和实现，所以开发者可以直接从中继承，而不需要再定义接口。
+例如，使用[OpenZeppelin库](https://github.com/OpenZeppelin/openzeppelin-contracts)，可以直接引入`IERC721`接口，并编写自己的实现：
+    
+    ```solidity
+    // 从OpenZeppelin导入IERC721接口
+    import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+    
+    contract MyNFT is IERC721 {
+        mapping(address => uint256) private _balances;
+    
+        function balanceOf(address owner) external view override returns (uint256) {
+            return _balances[owner];
+        }
+    
+        // 其他函数的实现...
+    }
+    
+    ```
+使用这种方法，开发者不需要重复编写接口部分，只需要关注具体实现。这样代码更加简洁、规范，并且减少了错误的可能。
+##### 测验结果
+- 57/100
+- 85/100
+- 100/100
+##### 测验错题
+1. 被标记为`abstract`的合约能否被部署？
+    不能。被标记为`abstract`的合约不能被直接部署。抽象合约包含未实现的函数，意味着它不完整，无法在区块链上运行。如果想要部署一个合约，必须确保该合约实现了所有的函数，或者继承它的子合约实现了所有未实现的函数。
+2. 已知Azuki合约中存在approve(address to, uint256 tokenId)函数可以让NFT的拥有者将自己某一NFT的许可权授予另一地址，且该函数没有返回值，现在某个Azuki拥有者想利用上文中创建的接口合约变量调用这一函数 ，那么他写出的代码可能是？
+
+    ```solidity
+    function approveAzuki(address to, uint256 id) external { Azuki.approve(to, id); }
+    ```
+
+    解释：
+    - `approve(address to, uint256 tokenId)` 是一个改变链上状态的函数，因此它不能是 `view` 函数（`view` 函数表示不会修改链上数据）。
+    - 该函数没有返回值，而不是返回一个布尔值。因为它没有 `view` 限制，也没有错误的返回值定义。
+3. 已知Azuki合约中存在ownerOf(uint256 tokenId)函数可用来查询某一NFT的拥有者，现在vitalik想利用上文中创建的接口合约变量调用这一函数，并写出了如下代码：
+    ```solidity
+    function  ownerOfAzuki(uint256 id) external view returns (address){ 
+        _________________________________
+    }
+    ```
+    横线处应该是：
+    ```solidity
+    return Azuki.ownerOf(id);
+    ```
+
+    解释：
+    - `return Azuki.ownerOf(id);`正确使用了`Azuki`接口变量调用`ownerOf`函数，并传入了`id`作为参数，返回该`tokenId`对应的地址。
+
+    - `return ownerOf(id);`错误，因为直接调用`ownerOf(id)`会导致编译错误，必须通过合约变量`Azuki`来调用接口中的函数。
+
+    - `return Azuki.ownerOfAzuki(id);`错误，`ownerOfAzuki`并不是`IERC721`接口中的函数名。
+
+    - `return Azuki(ownerOf, id);`错误，`Azuki(ownerOf, id)`是无效的语法，函数调用不应以这种形式进行。
+
+### 2024.10.07
+#### WTF Academy Solidity 101.15 异常 `Error`
+
+##### `error` 与 `revert`
+`error` 是在 Solidity 0.8.4 中引入的，用来定义自定义异常。通过 `error`，开发者可以高效地抛出错误并返回相关的错误信息。`error` 通常与 `revert` 搭配使用，当程序遇到错误条件时，`revert`会将状态回滚。
+
+- 节省`gas`：由于不会输出过多的字符串信息，`error`在提供错误信息的同时更节省`gas`。
+- 参数支持：可以向异常携带相关的参数，提供更精确的调试信息。
+
+在同一个合约中，可以同时定义同名的 `error`，一个是没有参数的，另一个是带参数的。 Solidity 允许这种方式，因为它支持函数和错误的重载（overloading），即同名但参数不同的定义是合法的。下面是一个示例：
+###### 代码示例
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.13;
+
+contract Example {
+    // 自定义的无参数错误
+    error TransferNotOwner();
+
+    // 自定义的带参数错误
+    error TransferNotOwner(address sender);
+
+    mapping(uint256 => address) private _owners;
+
+    function transferOwner(uint256 tokenId, address newOwner) public {
+        // 检查是否为代币的拥有者
+        if (_owners[tokenId] != msg.sender) {
+            revert TransferNotOwner(); // 抛出无参数错误
+        }
+        // 更新拥有者
+        _owners[tokenId] = newOwner;
+    }
+
+    function transferOwnerWithDetails(uint256 tokenId, address newOwner) public {
+        // 检查是否为代币的拥有者
+        if (_owners[tokenId] != msg.sender) {
+            revert TransferNotOwner(msg.sender); // 抛出带参数错误
+        }
+        // 更新拥有者
+        _owners[tokenId] = newOwner;
+    }
+}
+```
+- `TransferNotOwner()` 是一个没有参数的错误，适用于不需要提供额外信息的场景。
+- `TransferNotOwner(address sender)` 是一个带参数的错误，可以在抛出错误时提供调用者的地址，方便调试和错误跟踪。
+- 然而，尽管可以在同一个合约中同时定义同名的错误，**在实际开发中，为了代码的可读性和可维护性，建议尽量避免使用相同的名字**。这样可以减少混淆，尤其是在较大的合约中。
+
+**类比 Python**：
+在 Python 中可以使用自定义异常类来模拟 Solidity 中的 `error`。同时，当条件不满足时通过 `raise` 抛出异常并传递参数。
+
+```python
+class TransferNotOwner(Exception):
+    def __init__(self, sender):
+        self.sender = sender
+
+def transfer_owner(token_id, new_owner, owners, sender):
+    if owners[token_id] != sender:
+        raise TransferNotOwner(sender)  # 自定义异常带参数
+    owners[token_id] = new_owner
+```
+
+##### `require`
+`require` 是 Solidity 中用于条件检查的常见方法。它通过验证条件是否为真，若不满足则抛出异常并回滚交易，同时可以带有描述错误原因的字符串。`require` 常用于合约函数的入口检查，比如验证用户权限或合约的输入。
+
+- 友好的用户提示：可以附带字符串信息解释错误。
+- 常用于权限验证和函数前置条件检查。
+
+###### 代码示例
+```solidity
+contract MyToken {
+    mapping(uint256 => address) private _owners;
+
+    function transferOwner(uint256 tokenId, address newOwner) public {
+        require(_owners[tokenId] == msg.sender, "Transfer Not Owner"); // 权限检查
+        _owners[tokenId] = newOwner;
+    }
+}
+```
+
+##### `assert`
+`assert` 主要用于开发者调试过程中检查程序的内部逻辑。它的功能类似于`require`，但通常用于合约的不可变状态或代码内部的逻辑错误。如果条件不成立，合约会回滚并抛出异常。但相比`require`，`assert`不附带（可自定义的）错误提示信息。
+
+- 用于合约内部逻辑的断言，适用于不可变状态。
+- 通常用于表示**不应发生的情况**。
+
+###### 代码示例
+```solidity
+
+contract MyToken {
+    mapping(uint256 => address) private _owners;
+
+    function transferOwner(uint256 tokenId, address newOwner) public {
+        assert(_owners[tokenId] == msg.sender); // 内部逻辑检查，与require比少字符串
+        _owners[tokenId] = newOwner;
+    }
+}
+```
+
+##### `require`和修饰器的区别
+- **使用场景**：
+    - `require` 一般用于简单的条件检查，适合在单一函数中执行，尤其是在处理逻辑简单、并且条件检查不重复的场景。
+    - 修饰器更适合用于多次重复出现的条件检查和代码复用，减少重复代码的写入。
+- **代码复用**：
+    - `require` 只能在函数内直接使用，无法抽象成可重复利用的逻辑。
+    - 修饰器可以被多个函数复用，用于共享检查逻辑，比如权限控制或其他共同的条件。
+- **可读性**：
+    - `require` 通常更直观，因为条件和操作在同一个地方定义，适合短小的逻辑。
+    - 修饰器可以简化函数体，使函数主体更专注于核心逻辑，提升代码的可读性。
+
+可以将 `require` 理解为一种内联的"修饰器"，用于单次条件验证，而修饰器则是一个结构化的工具，用来抽象条件检查并提高代码复用性。它们确实有相似的功能，但应用场景有所不同。
+如果你的条件检查逻辑只在某一个函数中使用，`require` 是更简单直接的选择。如果需要重复检查同样的条件，修饰器则是更高效、优雅的选择。
+
+**修饰器代码**
+```solidity
+modifier onlyOwner(uint256 tokenId) {
+    require(_owners[tokenId] == msg.sender, "Not the owner");
+    _;
+}
+
+function transferOwner(uint256 tokenId, address newOwner) public onlyOwner(tokenId) {
+    _owners[tokenId] = newOwner;
+}
+```
+
+**类比 Python**：
+Python 中可以通过 `assert` 或 `if` 语句检查条件，并使用 `raise` 抛出异常。
+**代码示例**
+```python
+class MyTokenRequire:
+    def __init__(self):
+        self._owners = {}
+
+    def transfer_owner(self, token_id, new_owner, sender):
+        # 使用 if 语句进行检查，类似于 Solidity 中的 require
+        if self._owners.get(token_id) != sender:
+            raise Exception("Transfer Not Owner")  # 抛出异常，类似于 revert 或 require
+        self._owners[token_id] = new_owner
+    # 报错结果：Exception: Transfer Not Owner
+
+class MyTokenAssert:
+    def __init__(self):
+        self._owners = {}
+
+    def transfer_owner(self, token_id, new_owner, sender):
+        # 使用 assert 进行内部逻辑检查
+        assert self._owners.get(token_id) == sender, "Transfer Not Owner"
+        self._owners[token_id] = new_owner
+    # 报错结果：AssertionError: Transfer Not Owner
+```
+
+##### 测验结果
+- 85/100
+- 100/100
+
+##### 测验错题
+`error`必须搭配`revert`使用
+
+### 2024.10.08
+#### WTF Academy Solidity 102.16 函数重载
+
+##### 函数重载`overloading`
+Solidity允许函数重载（Overloading），即定义多个同名函数，但具有不同参数类型或参数数量。
+需要注意的是，Solidity 不允许修饰器进行重载。修饰器与函数的语法不同，它们在逻辑上更像是对函数的封装，而不是不同的实现。因此，当使用修饰器时，函数的名称必须是唯一的。
+
+**不同参数类型**
+
+```solidity
+pragma solidity ^0.8.0;
+
+contract OverloadExample {
+    function saySomething() public pure returns (string memory) {
+        return "Nothing"; // 没有参数的函数
+    }
+
+    function saySomething(string memory something) public pure returns (string memory) {
+        return something; // 带一个字符串参数的函数
+    }
+}
+```
+
+**不同参数数量**
+
+```solidity
+pragma solidity ^0.8.0;
+
+contract OverloadExample {
+    function add(uint a, uint b) public pure returns (uint) {
+        return a + b; // 两个参数的加法
+    }
+
+    function add(uint a, uint b, uint c) public pure returns (uint) {
+        return a + b + c; // 三个参数的加法
+    }
+}
+```
+###### 函数选择
+在 Solidity 中，重载函数的名称相同，但由于参数类型的不同，它们被编译成不同的函数选择器。函数选择器是根据函数的签名生成的前四个字节，签名包括函数名称及其参数类型。例如：
+
+- `saySomething()` 的选择器是根据函数签名 `"saySomething()"` 生成的。
+- `saySomething(string memory)` 的选择器是根据签名 `"saySomething(string)"` 生成的。
+
+##### 实参匹配（Argument Matching）
+当调用重载函数时，Solidity 会尝试根据提供的实参（实际参数）来匹配最适合的重载函数，。如果传入的参数能够匹配多个重载函数，将会导致编译错误，因此必须确保传入的实参能明确匹配某一个重载函数。
+```solidity
+pragma solidity ^0.8.0;
+
+contract Example {
+    function f(uint8 _in) public pure returns (uint8) {
+        return _in; // uint8 的 f 函数
+    }
+
+    function f(uint256 _in) public pure returns (uint256) {
+        return _in; // uint256 的 f 函数
+    }
+}
+
+// 当调用 f(50) 时，会报错：
+// TypeError: Function call argument type mismatch.
+```
+
+在这个例子中，如果调用 `f(50)`，编译器会发现 `50` 同时可以被视为 `uint8` 和 `uint256`，因为它可以在这两种类型之间进行转换。这时，编译器无法确定调用哪个版本的 `f()` 函数，因此会报错。
+
+##### 测验结果
+- 100/100
+
+### 2024.10.09
+#### WTF Academy Solidity 102.17 库合约
+
+##### 库合约（Library Contract）
+
+在 Solidity 中，库合约是一种特殊的合约，旨在提高代码的复用性并减少交易成本（gas 消耗）。库合约像传统的代码库一样，提供了一系列的函数，但它们与普通合约有一些显著的区别：
+- **不能存在状态变量**：库合约不能存储状态，所有的变量都是局部的。
+- **不能继承或被继承**：库合约无法继承其他合约，也不允许其他合约继承它。
+- **不能接收以太币**：库合约不能接收以太币，所有操作都是纯粹的计算。
+- **不可以被销毁**：库合约一旦部署，不可被销毁。
+- **可见性设置**：库合约的函数如果设置为 `public` 或 `external`，调用时会触发一次 `delegatecall`。而 `internal` 则不会触发 `delegatecall`，`private` 函数只能在库合约内部调用。
+
+##### 库合约的使用方法
+**3.1 使用 `using for` 指令**
+通过 `using A for B;` 可以将库合约 A 的函数附加到类型 B。使用这个指令后，库 A 中的函数会自动成为 B 类型变量的成员，可以直接调用。
+
+```solidity
+// 利用using for指令
+using Strings for uint256;
+
+function getString1(uint256 _number) public pure returns(string memory) {
+    return _number.toHexString(); // 调用库合约中的函数
+}
+```
+
+**3.2 直接通过库合约名调用**
+可以直接使用库合约的名称来调用函数，这样更为直观。
+
+```solidity
+// 直接通过库合约名调用
+function getString2(uint256 _number) public pure returns(string memory) {
+    return Strings.toHexString(_number); // 调用库合约中的函数
+}
+```
+
+##### 测验结果
+- 100/100
+
+### 2024.10.10
+#### WTF Academy Solidity 102.18 Import
+
+#####  `import` 导入方法
+1. **通过文件相对位置导入**
+    - 使用相对路径导入本地的 Solidity 文件。这种方式常见于项目中的文件之间的引用。
+    - 例子：
+    在项目结构中，如果 `Import.sol` 和 `Yeye.sol` 位于同一目录下，则可以通过相对路径导入 `Yeye.sol` 文件中的所有内容。
+        
+        ```solidity
+        import './Yeye.sol';
+        
+        ```
+        
+2. **通过网址导入**
+    - 直接从网络上引用合约文件，例如从 GitHub 上的公开 Solidity 文件。这种方式常见于引入远程的库或合约。
+    - 例子：
+    这种引用方式非常方便，尤其是在开发过程中想要快速测试和使用现有的第三方库。
+        
+        ```solidity
+        import '<https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol>';
+        
+        ```
+        
+3. **通过 npm 导入**
+    - 这种方式通常用于导入项目依赖中的库，例如通过 npm 安装的 OpenZeppelin 库。
+    - 例子：
+    使用这种方式时，项目必须配置好 npm 依赖，例如通过 `npm install` 安装相关库。
+        
+        ```solidity
+        import '@openzeppelin/contracts/access/Ownable.sol';
+        
+        ```
+        
+4. **通过指定全局符号导入**
+    - 通过这种方式可以只导入指定的符号（例如合约、结构体等），避免导入整个文件的所有内容。这种方式适用于文件中包含多个合约或定义，但我们只需要使用其中的某一部分。
+    - 例子：
+    这样只导入 `Yeye.sol` 文件中的 `Yeye` 合约。
+        
+        ```solidity
+        import {Yeye} from './Yeye.sol';
+        ```
+
+##### 测验结果
+- 100/100
+
+### 2024.10.11
+#### WTF Academy Solidity 102.19 接收ETH receive和fallback
+
+##### `receive`函数
+`receive()` 函数专门用于处理合约收到ETH的情况。当合约接收到ETH并且 `msg.data` 为空时（即没有调用任何函数），如果存在 `receive()` 函数，它就会被触发。
+- **`receive()` 函数的触发条件**：
+    - 当合约接收ETH，且 `msg.data` 为空时会触发 `receive()`。
+    - 在上述例子中，当有人向合约发送ETH时（例如通过钱包的发送功能），`receive()` 会被调用，并触发 `Received` 事件。
+- **语法规则**：
+    - 一个合约最多有一个`receive()`函数
+    - 声明方式与一般函数不一样，不需要`function`关键字：`receive() external payable { ... }`。
+    - `receive()`函数不能有任何的参数，不能返回任何值，必须包含`external`和`payable`。
+- **逻辑简单**：为了避免超过 `gas` 限制，`receive()` 函数最好尽量简单，在这里我们仅仅记录ETH发送者和金额。
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract ReceiveExample {
+    event Received(address sender, uint value);
+
+    // receive 函数，用于接收ETH
+    receive() external payable {
+        emit Received(msg.sender, msg.value); // 触发事件记录发送者和金额
+    }
+
+    // 用于查询合约的余额
+    function getBalance() public view returns (uint) {
+        return address(this).balance;
+    }
+}
+
+```
+
+##### `fallback`函数
+`fallback()` 函数在两个主要场景下被调用：
+1. 当调用一个不存在的函数时。
+2. 当向合约发送ETH且 `msg.data` 不为空，或者合约没有定义 `receive()` 函数时。
+- **`fallback()` 函数的触发条件**：
+    - 当调用合约中不存在的函数时，或者向合约发送ETH但 `msg.data` 不为空时，`fallback()` 会被触发。
+    - 在这个例子中，我们定义了一个 `fallback()` 函数，当它被触发时，记录发送者、金额和 `msg.data`。
+- **`payable` 修饰符**：为了确保 `fallback()` 能够接收ETH，它通常也会使用 `payable` 修饰符。
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract FallbackExample {
+    event FallbackCalled(address sender, uint value, bytes data);
+
+    // fallback 函数，用于接收ETH或处理不存在的函数调用
+    fallback() external payable {
+        emit FallbackCalled(msg.sender, msg.value, msg.data); // 触发事件记录发送者、金额和data
+    }
+
+    // 用于查询合约的余额
+    function getBalance() public view returns (uint) {
+        return address(this).balance;
+    }
+}
+
+```
+##### `receive`和`fallback`的区别
+
+| 触发条件 | `receive()` | `fallback()` |
+| --- | --- | --- |
+| 接收ETH，且 `msg.data` 为空 | 触发 | 不触发 |
+| 接收ETH，且 `msg.data` 不为空 | 不触发 | 触发（如果存在） |
+| 调用不存在的函数 | 不触发 | 触发 |
+| 合约没有 `receive()`，接收ETH | 不触发 | 触发 |
+
+```text
+触发fallback() 还是 receive()?
+           接收ETH
+              |
+         msg.data是空？
+            /  \
+          是    否
+          /      \
+receive()存在?   fallback()
+        / \
+       是  否
+      /     \
+receive()   fallback()
+```
+##### 同时实现`receive`和`fallback`
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract ReceiveFallbackExample {
+    event Received(address sender, uint value);
+    event FallbackCalled(address sender, uint value, bytes data);
+
+    // receive 函数
+    receive() external payable {
+        emit Received(msg.sender, msg.value);
+    }
+
+    // fallback 函数
+    fallback() external payable {
+        emit FallbackCalled(msg.sender, msg.value, msg.data);
+    }
+
+    // 查询合约余额
+    function getBalance() public view returns (uint) {
+        return address(this).balance;
+    }
+}
+
+```
+
+在这个合约中：
+- 如果向合约发送ETH而不附带数据，则 `receive()` 函数会被触发。
+- 如果向合约发送ETH并附带数据，或者调用了一个不存在的函数，`fallback()` 函数会被触发。
+
+##### 测验结果
+- 100/100
+
+### 2024.10.12
+#### WTF Academy Solidity 102.20 发送ETH
+
+##### 发送-接收ETH合约
+**接收ETH合约 `ReceiveETH`**
+
+简单的接收ETH的合约包含`receive()`函数，允许它接收ETH，并记录交易信息。
+
+```solidity
+contract ReceiveETH {
+    // 事件，用于记录ETH接收情况
+    event Log(uint amount, uint gas);
+
+    // receive函数，每次接收ETH时触发
+    receive() external payable {
+        emit Log(msg.value, gasleft());
+    }
+
+    // 查询合约当前余额
+    function getBalance() public view returns (uint) {
+        return address(this).balance;
+    }
+}
+
+```
+**发送ETH合约 `SendETH`**
+
+发送ETH的合约`SendETH`，这个合约通过不同的方法向`ReceiveETH`合约发送ETH。
+
+```solidity
+contract SendETH {
+    // 构造函数，使得部署时可以转入ETH
+    constructor() payable {}
+
+    // receive函数，接收ETH时被触发
+    receive() external payable {}
+
+    // transfer()发送ETH的示例
+    function transferETH(address payable _to, uint256 amount) external payable {
+        _to.transfer(amount);
+    }
+
+    // send()发送ETH的示例
+    error SendFailed();  // 如果发送失败，触发自定义错误
+    function sendETH(address payable _to, uint256 amount) external payable {
+        bool success = _to.send(amount);
+        if (!success) {
+            revert SendFailed();  // 发送失败则revert交易
+        }
+    }
+
+    // call()发送ETH的示例
+    error CallFailed();  // 如果发送失败，触发自定义错误
+    function callETH(address payable _to, uint256 amount) external payable {
+        (bool success, ) = _to.call{value: amount}("");
+        if (!success) {
+            revert CallFailed();  // 发送失败则revert交易
+        }
+    }
+}
+
+```
+
+##### 三种发送ETH方法
+**1. `transfer()`**
+
+**语法**：
+
+```solidity
+_to.transfer(amount);
+
+```
+
+- **参数**：
+    - `_to`：接收ETH的目标地址，类型是`address payable`。
+    - `amount`：发送的ETH数额，以`wei`为单位。
+- **返回值**：
+    - `transfer()` 没有返回值。
+    - 如果转账失败（例如目标合约消耗的`gas`超过了2300 gas），会自动`revert`（回滚交易），并抛出异常，停止执行合约后续的代码。
+- **用法特点**：
+    - 固定的2300 gas限制，适合简单的转账，不适用于执行复杂逻辑。
+    - 如果失败，会自动回滚交易，无需手动处理。
+
+**示例**：
+
+```solidity
+function transferETH(address payable _to, uint256 amount) external {
+    _to.transfer(amount);
+}
+
+```
+
+**2. `send()`**
+
+**语法**：
+
+```solidity
+bool success = _to.send(amount);
+
+```
+
+- **参数**：
+    - `_to`：接收ETH的目标地址，类型是`address payable`。
+    - `amount`：发送的ETH数额，以`wei`为单位。
+- **返回值**：
+    - 返回一个`bool`值，表示转账是否成功。
+        - `true`：转账成功。
+        - `false`：转账失败。
+    - 由于返回值是`bool`，需要手动检查返回值来决定是否要回滚（例如使用`require`或`revert`来处理）。
+- **用法特点**：
+    - 和`transfer()`一样有2300 gas限制，但转账失败不会自动`revert`，需要手动处理失败情况。
+    - 因为没有自动`revert`机制，使用场景较少。
+
+**示例**：
+
+```solidity
+error SendFailed(); // 自定义错误
+
+function sendETH(address payable _to, uint256 amount) external {
+    bool success = _to.send(amount);
+    if (!success) {
+        revert SendFailed(); // 手动回滚
+    }
+}
+
+```
+
+**3. `call()`**
+
+**语法**：
+
+```solidity
+(bool success, bytes memory data) = _to.call{value: amount}("");
+
+```
+
+- **参数**：
+    - `_to`：接收ETH的目标地址，类型是`address payable`。
+    - `amount`：发送的ETH数额，以`wei`为单位。
+    - `{value: amount}`：指定转账的ETH数额。
+    - `""`：调用的函数签名（空字符串代表调用目标合约的`fallback()`或`receive()`函数）。
+- **返回值**：
+    - `call()`返回一个元组：
+        - `bool success`：表示调用是否成功。
+            - `true`：调用成功。
+            - `false`：调用失败。
+        - `bytes memory data`：表示调用返回的`data`，在发送ETH时通常不使用（因为没有调用任何具体函数），但在函数调用中可以解析返回数据。
+- **用法特点**：
+    - 没有固定的gas限制，适合复杂逻辑的执行（可以手动设置`gas`）。
+    - 如果失败，不会自动`revert`，需要手动检查`bool success`，决定是否要回滚交易。
+
+**示例**：
+
+```solidity
+error CallFailed(); // 自定义错误
+
+function callETH(address payable _to, uint256 amount) external {
+    (bool success, ) = _to.call{value: amount}(""); // 发送ETH
+    if (!success) {
+        revert CallFailed(); // 手动回滚
+    }
+}
+
+```
+
+##### 主要区别总结：
+
+| 方法 | 语法规则 | 返回值 | gas 限制 | 失败时行为 | 用法场景 |
+| --- | --- | --- | --- | --- | --- |
+| `transfer()` | `_to.transfer(amount)` | 无返回值 | 固定 2300 gas | 自动`revert` | 简单ETH转账，确保安全 |
+| `send()` | `bool success = _to.send(amount)` | `bool success` | 固定 2300 gas | 不自动`revert` | 不推荐，必须手动检查返回值 |
+| `call()` | `(bool success, bytes memory data) = _to.call{value: amount}("")` | `bool success`, `bytes data` | 无限制 | 不自动`revert` | 推荐用于复杂逻辑或可控的ETH发送 |
+##### 测验结果
+- 100/100
+
+### 2024.10.13
+#### WTF Academy Solidity 102.21 调用其他合约
+
+##### 笔记
 
 ##### 测验结果
 
 ##### 测验错题
 
 
-### 2024.10.06
-#### WTF Academy Solidity 101.14 抽象合约和接口
+### 2024.10.14
+#### WTF Academy Solidity 102.22 Call
 
-###### 笔记
+##### 笔记
 
 ##### 测验结果
 

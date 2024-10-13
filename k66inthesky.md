@@ -153,5 +153,134 @@ mapping(uint => address) public i2addr;
     \  /
    people
    ```
+### 2024.10.06
+學習內容: `14.Interface`
++ `ERC721`的`abstract`和`Interface`
++ 定義: 抽象合約為: 若智能合約內有一位實現的函數，則須將合約標為`abtract`、而未實現的函數需加`virtual`否則會報錯。
++ 什麼時候用接口? 當我們知道一個合約實現了`IERC721`接口，則我們不需它的源碼只需知道它的合約地址，就能用`IERC721`接口與它進行交互。
++ 作者以`IERC721`為例剛好能實作與`無聊猿BAYC`進行交互。
+
+### 2024.10.07
+學習內容: `15.異常`
++ 異常: `error`、`require`和`assert`
++ `require`缺點gas隨描述異常的字串長度增加，比`error`高，`v0.8版後用error就好`
++ `error`好處省gas，必須搭`revert`，`v0.8版才有error`
++ `assert`好處是方便，`無需像require一樣寫字串`
+
+### 2024.10.08
+學習內容: `16.Overloading`
++ Solidity允許函數overloading，但不允許modifier overloading。
++ 函數overloading: 名字相同但輸入參數類型不同
+
+學習內容: `17.Library`
++ Library(庫合約)是一種特殊的合約，為了提升代碼重複性與減少gas，通常是項目方或大神寫的。
++ 和普通合約不同:
+   - 不同存在狀態變數
+   - 不能繼承或被繼承
+   - 不能接受乙太幣
+   - 不可以被銷毀
++ 如何使用Library?
+   - `using for`: using A for B
+        * 舉例: `using Strings for uint256; function xx(uinit256 _n){.._n.toHexString();}`
+        * 也可以這樣寫 `function xx(uint256 _n){..Strings.toHexString(_n);}`
+   - 常用的Library: `Strings`、`Address`、`Create2`、`Arrays`
+
+學習內容: `18.import`
++ 3種import:
+   - import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+   - import '@openzeppelin/contracts/access/Ownable.sol';
+   - import {Yeye} from './Yeye.sol';
+
+學習內容: `19.recieve和fallback`
++ `v0.6.x`以前只有`fallback()`，後來將fallback()拆成`fallback()`和`receive()`
++ 一個合約最多一個`receive()`且receive()不能有參數、不能返回任何值、必須含有`external`和`payable`
+     - 有些惡意合約，會在`receive()或舊版的fallback()`遷入惡意消耗gas的內容，導致一些退款和轉帳邏輯的合約不能正常工作，須注意。
++ `fallback()`可用於接收ETH，也可用於代理合約(proxy contact)，必須由`external`修飾。
+```
+觸發fallback()還是receive()?
+           接收ETH
+              |
+         msg.data是空？
+            /  \
+          是    否
+          /      \
+receive()存在?   fallback()
+        / \
+       是  否
+      /     \
+receive()   fallback()
+```
+
+學習內容: `20.send ETH`
++ Solidity有3種方法向其他合約發送ETH，分別為: `transfer()`、`send()`、`call()`
+   ```
+   contract ReceiveETH {
+       // 收到eth event，記錄amount和gas
+       event Log(uint amount, uint gas);
+       
+       // receive方法，接收eth时被觸發
+       receive() external payable{
+           emit Log(msg.value, gasleft());
+       }
+       
+       // 返回合约ETH餘額
+       function getBalance() view public returns(uint) {
+           return address(this).balance;
+       }
+   }
+   ```
+### 2024.10.09
+學習內容: `21.Call Contact`
++ 合約呼叫合約
++ 例子
+   ```
+   contract OtherContract{...}
+   function callSetX(address _Address, uint256 x) external {
+      OtherContract(_Address).setX(x);
+   }
+   ```
+### 2024.10.10
+學習內容: `22. Call`
++ 返回值: (bool, bytes memory)
++ 用法: `目標合約地址.call(字節碼)`，其中字節碼`abi.encodeWithSignature("函數簽名", 參數)`如`bi.encodeWithSignature("f(uint256,address)", _x, _addr)`
++ 另外call可以設定ETH數量和gas: `目標合約地址.call{value:ETH發送數量, gas:gas數量}(字節碼);`
+
+
+### 2024.10.11
+學習內容: `23. Delegatecall`
++ 與call類似，是委託/代表的意思。
++ 與call不同處:
+   - 舉例: 用戶A透過合約B來callㄥdelegatecall合約C。
+   - call: 執行的是合約C的函數，上下文也是合約C的。
+   - delegatecall:  執行的是合約C的函數，上下文卻是合約B的。
++ 何時用到delegatecall?
+  1. Proxy Contact
+  2. EIP-2535 Diamonds
+
+### 2024.10.12
+學習內容: `24. Create`
++ 乙太坊鏈上，EOA(外部帳戶)可創建智能合約、智能合約也能創智能合約。
++ DEX(Uniswap)就是用PairFactory創了無數個Pair
++ PairFactory範例
+   ```
+   contract PairFactory{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair(address tokenA, address tokenB) external returns (address pairAddr) {
+        // 创建新合约
+        Pair pair = new Pair(); 
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+   ```
+### 2024.10.13
+學習內容: `25. CREATE2`
++ `CREATE2`和前一篇的`CREATE`不同，`Uniswap v2`用來驅動factory合約。
 
 <!-- Content_END -->

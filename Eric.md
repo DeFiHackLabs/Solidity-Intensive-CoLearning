@@ -83,35 +83,81 @@ day09:
 
 day10:
 
-[WTF Academy Solidity 102 18-19 Note](/content/Eric/110.md)
+[WTF Academy Solidity 102 19-20 Note](/content/Eric/110.md)
 
 
 ### 2024.10.03
 
 day11:
 
-[WTF Academy Solidity 102 20-21 Note](/content/Eric/111.md)
+[WTF Academy Solidity 102 21-22 Note](/content/Eric/111.md)
 
 ### 2024.10.04
 
 day12:
 
-[WTF Academy Solidity 102 22-23 Note](/content/Eric/112.md)
+[WTF Academy Solidity 102 23-24 Note](/content/Eric/112.md)
 
 ### 2024.10.05
 
 day13:
 
-[WTF Academy Solidity 102 24-25 Note](/content/Eric/113.md)
+[WTF Academy Solidity 102 25-26 Note](/content/Eric/113.md)
+
+### 2024.10.06
+
+day14:
+
+[WTF Academy Solidity 102 27-28 Note](/content/Eric/114.md)
+
+### 2024.10.07
+
+day15:
+
+[WTF Academy Solidity 102 29-30 Note](/content/Eric/115.md)
+
+
+### 2024.10.08
+
+day16:
+
+[WTF Academy Solidity 103 31-32 Note](/content/Eric/116.md)
+
+
+### 2024.10.09
+
+day17:
+
+[WTF Academy Solidity 103 33-34 Note](/content/Eric/117.md)
+
+
+### 2024.10.10
+
+day18:
+
+[WTF Academy Solidity 103 35-36 Note](/content/Eric/118.md)
+
+
+### 2024.10.11
+
+day19:
+
+[WTF Academy Solidity 103 37-38 Note](/content/Eric/119.md)
 
 
 
+### 2024.10.12
+
+day20:
+
+[WTF Academy Solidity 103 39-40 Note](/content/Eric/120.md)
 
 
+### 2024.10.13
 
+day21:
 
-
-
+[WTF Academy Solidity 103 41-42 Note](/content/Eric/121.md)
 
 
 

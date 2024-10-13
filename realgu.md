@@ -156,4 +156,33 @@ sha3由keccak标准化而来，在很多场合下Keccak和SHA3是同义词，但
 7. 如果try执行成功，返回变量必须声明，并且与返回的变量类型相同。
 8. SuccessEvent是调用成功会释放的事件，而CatchEvent和CatchByte是抛出异常时会释放的事件，分别对应require/revert和assert异常的情况。even是个OnlyEven合约类型的状态变量。
 
+### 2024.10.06
+1. IERC20是ERC20代币标准的接口合约，规定了ERC20代币需要实现的函数和事件
+2. IERC20定义了2个事件：Transfer事件和Approval事件，分别在转账和授权时被释放
+3. IERC20定义了6个函数: totalSupply, balanceOf, transfer, allowance, approve, transferFrom
+
+### 2024.10.07
+1. 最早的代币水龙头是比特币（BTC）水龙头：现在BTC一枚要$30,000，但是在2010年，BTC的价格只有不到$0.1，并且持有人很少。为了扩大影响力，比特币社区的Gavin Andresen开发了BTC水龙头，让别人可以免费领BTC。撸羊毛大家都喜欢，当时就有很多人去撸，一部分变为了BTC的信徒。BTC水龙头一共送出了超过19,700枚BTC，现在价值约6亿美元！
+2. 注释代码有Dos攻击风险, 并且transfer 也是不推荐写法: _addresses[i].transfer(_amounts[i]);
+3. 这里的漏洞在于，refund() 函数中利用循环退款的时候，是使用的 call 函数，将激活目标地址的回调函数，如果目标地址为一个恶意合约，在回调函数中加入了恶意逻辑，退款将不能正常进行。
+4. 通过ERC165标准，智能合约可以声明它支持的接口，供其他合约检查。简单的说，ERC165就是检查一个智能合约是不是支持了ERC721，ERC1155的接口。
+5. EIP可以是 Ethereum 生态中任意领域的改进, 比如新特性、ERC、协议改进、编程工具等等。ERC全称 Ethereum Request For Comment (以太坊意见征求稿), 用以记录以太坊上应用级的各种开发标准和协议。如典型的Token标准(ERC20, ERC721)、名字注册(ERC26, ERC13), URI范式(ERC67), Library/Package格式(EIP82), 钱包格式(EIP75,EIP85)。ERC协议标准是影响以太坊发展的重要因素, 像ERC20, ERC223, ERC721, ERC777等, 都是对以太坊生态产生了很大影响。所以最终结论：EIP包含ERC。  
+
+很多逻辑错误都可能导致智能合约拒绝服务，所以开发者在写智能合约时要万分谨慎。以下是一些需要特别注意的地方：  
+
+1. 外部合约的函数调用（例如 call）失败时不会使得重要功能卡死，比如将上面漏洞合约中的 require(success, "Refund Fail!"); 去掉，退款在单个地址失败时仍能继续运行。
+2. 合约不会出乎意料的自毁。
+3. 合约不会进入无限循环。
+4. require 和 assert 的参数设定正确。
+5. 退款时，让用户从合约自行领取（push），而非批量发送给用户(pull)。
+6. 确保回调函数不会影响正常合约运行。
+7. 确保当合约的参与者（例如 owner）永远缺席时，合约的主要业务仍能顺利运行。
+
+### 2024.10.08
+1. IERC165接口合约只声明了一个supportsInterface函数，输入要查询的interfaceId接口id，若合约实现了该接口id，则返回true.当查询的是IERC721或IERC165的接口id时，返回true；反之返回false。
+2. 利用tokenId来表示特定的非同质化代币，授权或转账都要明确tokenId；而ERC20只需要明确转账的数额即可。
+3. 对于有N个叶子结点的Merkle Tree，在已知root根值的情况下，验证某个数据是否有效（属于Merkle Tree叶子结点）只需要ceil(log₂N)个数据（也叫proof），非常高效
+4. 一份拥有800个地址的白名单，更新一次所需的gas fee很容易超过1个ETH。而由于Merkle Tree验证时，leaf和proof可以存在后端，链上仅需存储一个root的值，非常节省gas，项目方经常用它来发放白名单。很多ERC721标准的NFT和ERC20标准代币的白名单/空投都是利用Merkle Tree发出的，比如optimism的空投。
+5. 
+
 <!-- Content_END -->

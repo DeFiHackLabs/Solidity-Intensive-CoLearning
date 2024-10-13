@@ -80,5 +80,63 @@ interface那邊，對於選擇器怎麼理解比較好，就是一個指標，�
 ### 2024.10.05
 WTF solidity 102開始
 
+### 2024.10.06
+1.solidity的function可以overloading, 目前自己尚未有應用的實例
+2.使用 library有兩種，
+一種是 using A for B, 將B擴展功能．Kotlin也有這樣的功能．
+另一種是直接使用，例如 String.toHexString()．
+
+### 2024.10.07
+先記錄補充教材
+來自SunSec整理
+DEV - Learning Solidity, Blockchain, DeFi
+https://github.com/Cyfrin/foundry-full-course-f23
+https://www.levelupweb3.xyz/solidity
+https://github.com/ethereumbook/ethereumbook
+https://cryptozombies.io/
+https://solidity-by-example.org/
+https://github.com/OffcierCia/DeFi-Developer-Road-Map 
+https://github.com/LearnWeb3DAO/14-Days-of-Solidity 
+https://github.com/0xronin/30-days-SmartContractProgrammer
+https://github.com/OffcierCia/DeFi-Developer-Road-Map
+https://www.youtube.com/watch?v=hMwdd664_iw&list=PLO5VPQH6OWdULDcret0S0EYQ7YcKzrigz
+https://www.youtube.com/watch?v=M576WGiDBdQ
+https://www.youtube.com/watch?v=wXo3S8k1ueg&list=PLgPmWS2dQHW9u6IXZq5t5GMQTpW7JL33i
+https://www.youtube.com/playlist?list=PLFcDwmPMBkzu5xMbFh3Vi1COI3bAoBaSI
+
+### 2024.10.08
+import和 receive
+
+### 2024.10.09
+調用其他合約和詳解call
+一個合約錢包預設即有 receive和send功能
+
+### 2024.10.10
+在合約中創建合約 is done.
+
+### 2024.10.11
+`create`的合約地址不好預測
+
+CREATE2的目的是为了让合约地址独立于未来的事件。不管未来区块链上发生了什么，你都可以把合约部署在事先计算好的地址上。用CREATE2创建的合约地址由4个部分决定：
+新地址 = hash("0xFF",创建者地址, salt, initcode)
+
+### 2024.10.12
+在以太坊坎昆（Cancun）升级中，EIP-6780被纳入升级以实现对Verkle Tree更好的支持。EIP-6780减少了SELFDESTRUCT操作码的功能。根据提案描述，当前SELFDESTRUCT仅会被用来将合约中的ETH转移到指定地址，而原先的删除功能只有在合约创建-自毁这两个操作处在同一笔交易时才能生效。所以目前来说：
+
+已经部署的合约无法被SELFDESTRUCT了。
+如果要使用原先的SELFDESTRUCT功能，必须在同一笔交易中创建并SELFDESTRUCT。
+
+### 2024.10.13
+1.
+Keccak256和sha3
+这是一个很有趣的事情：
+
+sha3由keccak标准化而来，在很多场合下Keccak和SHA3是同义词，但在2015年8月SHA3最终完成标准化时，NIST调整了填充算法。所以SHA3就和keccak计算的结果不一样，这点在实际开发中要注意。
+以太坊在开发的时候sha3还在标准化中，所以采用了keccak，所以Ethereum和Solidity智能合约代码中的SHA3是指Keccak256，而不是标准的NIST-SHA3，为了避免混淆，直接在合约代码中写成Keccak256是最清晰的。
+
+2.
+method id、selector和函数签名
+method id定义为函数签名的Keccak哈希后的前4个字节，当selector与method id相匹配时，即表示调用该函数
+
 
 <!-- Content_END -->

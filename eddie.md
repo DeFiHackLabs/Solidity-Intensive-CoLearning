@@ -15,6 +15,250 @@ timezone: Asia/Shanghai
 ## Notes
 <!-- Content_START -->
 
+### 2024.10.13
+
+Ethers101章节：检索事件，监听合约事件、事件过滤、BigInt和单位转换
+
+102章节：StaticCall
+
+- 监听合约
+    
+    ```tsx
+    contract.on("eventName", function)//持续监听
+    contract.once("eventName", function)//监听一次
+    const contractUSDT = new ethers.Contract(contractAddress, abi, provider);
+    contractUSDT.once('Transfer', (from, to, value)=>{
+        console.log()
+      })
+    ```
+    
+- 事件过滤
+    
+    ```tsx
+    contract.filters.Transfer(myAddress)//过滤来自myAddress地址的Transfer事件
+    contract.filters.Transfer(null, myAddress)//过滤所有发给 myAddress地址的Transfer事件
+    contract.filters.Transfer(myAddress, otherAddress)//过滤所有从 myAddress发给otherAddress的Transfer事件
+    contract.filters.Transfer(null, [ myAddress, otherAddress ])//过滤所有发给myAddress或otherAddress的Transfer事件
+    ```
+    
+- StaticCall
+    
+    ```tsx
+    //调用节点的eth_call、用于模拟状态改变函数的结果；在发送交易之前检查交易是否会失败
+    const tx2 = await contractDAI.transfer.staticCall("vitalik.eth", ethers.parseEther("10000"), {from: address})
+    ```
+
+### 2024.10.12
+
+Ethers101章节：提供其Provider、读取合约信息、发送ETH、合约交互、部署合约
+
+[ethers.js Documentation](https://docs.ethers.org/v6/)
+
+- Contract读取
+    
+    ```tsx
+    const abiERC20 = [
+      "function name() view returns (string)",
+      "function symbol() view returns (string)",
+      "function totalSupply() view returns (uint256)",
+      "function balanceOf(address) view returns (uint)",
+    ];
+    const addressDAI = '0x6B175474E89094C44Da98b954EedeAC495271d0F'
+    let provider = new ethers.InfuraProvider("mainnet", INFURA_API_KEY);
+    const contract = new ethers.Contract(addressDAI, abiERC20, provider);//只读
+    const wallet1 = ethers.Wallet.createRandom()
+    const contract = new ethers.Contract(addressDAI, abiERC20, wallet1);//可写
+    ```
+    
+- 创建钱包的api
+    
+    ```tsx
+    const wallet1 = ethers.Wallet.createRandom()//创建钱包
+    const wallet2 = new ethers.Wallet(privateKey, provider)//从私钥导入
+    const wallet3 = ethers.Wallet.fromPhrase(mnemonic.phrase)//从助记词导入
+    ```
+
+### 2024.10.11
+
+EVM opcode101章节: Hello Opcodes
+
+Solidity 103章节：去中心化交易所、闪电贷
+
+- EVM的执行模型
+    
+  1. 当一个交易被接收并准备执行时，以太坊会初始化一个新的执行环境并加载合约的字节码。
+  
+  2. 字节码被翻译成Opcode，被逐一执行。每个Opcodes代表一种操作，比如算术运算、逻辑运算、存储操作或者跳转到其他操作码。
+
+  3. 每执行一个Opcodes，都要消耗一定数量的Gas。如果Gas耗尽或者执行出错，执行就会立即停止，所有的状态改变（除了已经消耗的Gas）都会被回滚。
+
+  4. 执行完成后，交易的结果会被记录在区块链上，包括Gas的消耗、交易日志等信息。
+    
+- gas 计算
+
+  通过opcodes，以太坊规定了每个opcode的gas消耗，复杂度越高的opcodes消耗越多的gas；如ADD操作消耗3 gas，SSTORE操作消耗20000 gas等等
+- flashloan
+
+  即为在一笔TX中同时完成借贷-执行-还款三个行为；
+
+### 2024.10.10
+
+Solidity 103章节：ERC-2612 ERC20Permit，多重调用
+
+- Nonce补充
+
+  nonce用于确认交易顺序，撤销pending中的交易，确定生成的合约地址
+
+- ERC20Permit
+
+  这里的用途主要是分离permit的发起者和gas的付费人（实际进行approve）的两个角色，用户仅仅需要进行签名即可进行交易，用于近似的cex体验；
+
+- Multicall
+
+  calldata同样可以修饰结构体的声明，Call calldata calli；calli直接从调用数据中读取，不需要复制到内存，从而节省gas；
+
+- 相关代码
+
+  [ERC20Permit.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/ERC20Permit)
+
+  [MultiCall.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/MultiCall)
+
+
+### 2024.10.09
+
+Solidity 103章节：ERC4626代币化金库标准、EIP712类型化数据签名
+
+- ERC4626
+
+  用vault这个名称不太好理解到底在干嘛，应该换为shareToken，这个名称会好理解一些，可以视作veToken的前身；
+  
+- EIP712
+
+  钱包会展示签名消息的原始数据，用户可以在验证数据符合预期之后签名；
+    
+  ```solidity
+  //EIP712Domain,它包含了合约的 name，version（一般约定为 “1”），chainId，和 verifyingContract（验证签名的合约地址）
+  bytes32 private constant EIP712DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+  //使用场景自定义一个签名的数据类型,如果需要修改number，那么需要指定；
+  bytes32 private constant STORAGE_TYPEHASH = keccak256("Storage(address spender,uint256 number)");
+  bytes32 private DOMAIN_SEPARATOR;
+  uint256 number;
+  address owner;
+
+  constructor(){
+      DOMAIN_SEPARATOR = keccak256(abi.encode(
+	  EIP712DOMAIN_TYPEHASH, // type hash
+	  keccak256(bytes("EIP712Storage")), // name
+	  keccak256(bytes("1")), // version
+	  block.chainid, // chain id
+	  address(this) // contract address
+      ));
+      owner = msg.sender;
+  }
+  ```
+    
+- 相关代码
+    
+    [sharedToken.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/ERC4626)
+    
+    [EIP712Storage.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/EIP712Storage)
+
+### 2024.10.08
+
+Solidity 103章节：多签钱包
+
+- 多签钱包
+
+  通过一个bytes数组来存储签名，之后根据每个签名的长度为65进行分离，挨个验证，当通过数目大于等于threshold后，执行交易；
+    
+  ```solidity
+  currentOwner = ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", dataHash)), v, r, s);
+  ```
+    
+- 代码
+  [MultisigWallet.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/MultisigWallet)
+
+### 2024.10.07
+
+Solidity 103章节内容：代理合约、可升级合约、透明代理、通用可升级代理
+
+- 代理合约
+
+在fallback()回调函数中基于delegatecall来调用被代理合约；
+    
+```solidity
+//需要注意这一段汇编，目的是使得fallback()能够返回值
+assembly {
+	// 将msg.data拷贝到内存里
+	// calldatacopy操作码的参数: 内存起始位置，calldata起始位置，calldata长度
+	calldatacopy(0, 0, calldatasize())
+
+	// 利用delegatecall调用implementation合约
+	// delegatecall操作码的参数：gas, 目标合约地址，input mem起始位置，input mem长度，output area mem起始位置，output area mem长度
+	// output area起始位置和长度位置，所以设为0
+	// delegatecall成功返回1，失败返回0
+	let result := delegatecall(gas(), _implementation, 0, calldatasize(), 0, 0)
+
+	// 将return data拷贝到内存
+	// returndata操作码的参数：内存起始位置，returndata起始位置，returndata长度
+	returndatacopy(0, 0, returndatasize())
+
+	switch result
+	// 如果delegate call失败，revert
+	case 0 {
+	    revert(0, returndatasize())
+	}
+	// 如果delegate call成功，返回mem起始位置为0，长度为returndatasize()的数据（格式为bytes）
+	default {
+	    return(0, returndatasize())
+	}
+    }
+```
+    
+- 选择器冲突
+
+  函数选择器为函数签名的哈希的前4个字节；
+    
+  如”burn(uint256)”和(collate_propagate_storage()”具有相同的选择器；
+    
+- 透明代理
+
+  管理员：调用代理合约的可升级函数对合约升级，不能通过回调函数调用逻辑合约
+
+  其他用户：不能调用可升级函数，但是可以调用逻辑合约的函数。
+
+- 通用可升级代理
+
+  将升级函数放在逻辑合约中，并检查调用者是否为管理员；
+  
+- 相关代码
+
+  [ProxyContract case](https://github.com/eddiehsu66/SolidityCase/tree/main/ProxyContract)
+    
+  [UUProxyContract case](https://github.com/eddiehsu66/SolidityCase/tree/main/UUProxyContract)
+
+### 2024.10.06
+
+Solidity 103章节内容：WETH、分账、线性释放、代币锁
+
+- 函数参数的位置指定
+
+  主要针对引用类型：数组、结构体、映射、字符串
+
+  `memory`:表示数据将被存储在内存中，适用于需要修改或者临时存储的数据，允许在函数内容 修改参数内容，但会消耗更多gas；
+
+  `calldata`:calldata为只读，最省gas，直接从调用数据中读取，不需要复制到内存；
+
+- 代码
+    
+    [WETH.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/WETH)
+    
+    [PaymentSplit.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/PaymentSplit)
+    
+    [TokenVesting.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/TokenVesting)
+    
+    [TokenLocker.sol](https://github.com/eddiehsu66/SolidityCase/tree/main/TokenLocker)
+
 ### 2024.10.05
 
 Solidity 103章节内容：NFT交易所、ERC1155

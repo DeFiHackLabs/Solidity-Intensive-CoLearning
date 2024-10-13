@@ -83,4 +83,72 @@ timezone: Asia/Taipei
 ### 2024.10.05
   day13:
   [WTF Academy Solidity 102 28-29 Note](/content/0xRory/113.md)
+
+### 2024.10.06
+  day14:
+
+  [WTF Academy Solidity 103 31 ERC20 Note](/content/0xRory/114-ERC20/114-ERC20.md)
+
+  [WTF Academy Solidity 103 32 水龍頭 Note](/content/0xRory/114-水龍頭、空投/114-水龍頭.md)
+
+  [WTF Academy Solidity 103 33 空投 Note](/content/0xRory/114-水龍頭、空投/114-空投.md)
+
+### 2024.10.07
+  day15:
+
+  [WTF Academy Solidity 103 34-35 NFT,荷蘭拍賣 Note](/content/0xRory/115-ERC721/115-ERC721.md)
+
+### 2024.10.08
+  day16:
+
+  [WTF Academy Solidity 103 36 MerkleTree Note](/content/0xRory/115-MerkleTree/115-MerkleTree.md)
+
+  [WTF Academy Solidity 103 37 數位簽章 Note](/content/0xRory/115-數位簽章/signature.md)
+
+  [WTF Academy Solidity 103 38 NFTSwap Note](/content/0xRory/115-NFTSwap/NFTSwap.md)
+
+### 2024.10.09
+  day17:
+
+  [WTF Academy Solidity 103 39 鏈上隨機數 Note](/content/0xRory/115-鏈上隨機數/115-鏈上隨機數.md)
+
+  [WTF Academy Solidity 103 40 ERC1155 Note](/content/0xRory/116-ERC1155/116-ERC1155.md)
+
+  [WTF Academy Solidity 103 41 WETH Note](/content/0xRory/116-WETH/WETH.md)
+
+### 2024.10.10
+  day18:
+
+  [WTF Academy Solidity 103 42 分帳 Note](/content/0xRory/116-分帳/PaymentSplit.md)
+
+  [WTF Academy Solidity 103 43 線性釋放 Note](/content/0xRory/116-TokenVesting/TokenVesting.md)
+
+  [WTF Academy Solidity 103 44 代幣鎖 Note](/content/0xRory/117-TokenLocker/TokenLocker.md)
+
+  [WTF Academy Solidity 103 45 時間鎖 Note](/content/0xRory/117-TimeLock/TimeLock.md)
+
+### 2024.10.11
+  day19:
+
+  [WTF Academy Solidity 103 46 Proxy Note](/content/0xRory/117-ProxyContract/ProxyContract.md)
+
+  [WTF Academy Solidity 103 47 Upgradeable Note](/content/0xRory/117-Upgradeable/Upgradeable.md)
+
+### 2024.10.12
+  day20:
+
+  [WTF Academy Solidity 103 48 透明代理 Note](/content/0xRory/118-TransparentProxy/TransparentProxy.md)
+
+  [WTF Academy Solidity 103 49 UUPS Note](/content/0xRory/118-UUPS/UUPS.md)
+
+  [WTF Academy Solidity 103 50 多簽錢包 Note](/content/0xRory/118-MultisigWallet/MultisigWallet.md)
+
+### 2024.10.13
+  day21:
+
+  [WTF Academy Solidity 103 51 ERC4626 Note](/content/0xRory/119-ERC4626/119-ERC4626.md)
+
+  [WTF Academy Solidity 103 52 EIP712 Note](/content/0xRory/119-EIP712/119-ERC712.md)
+
+
 <!-- Content_END -->

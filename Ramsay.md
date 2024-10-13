@@ -938,4 +938,704 @@ Contract x = new Contract{value: _value}(params);
 
 这种天生的分布式让我想起的Erlang的进程设计, 创建的进程也是默认分布式的, 但是相比之下，智能合约更强大。
 
+### 2024.10.06
+#### 25 Create2
+
+`Create2` 对比 `create` 最大的变化或者说是优点就是地址可以是固定的，因为计算地址的四个参数都是确定的，所以生成出来的地址自然就是确定的, 而 `create` 用的创建者的地址 + nonce (该地址发送的交易总数) 来生成新地址, nonce 会随时间变化而变化, 地址就可能发生变化.
+
+除了文中提到的优点外，`create2` 还有一些额外的优点，我觉得比较有用的就是：
+
+##### 支持重新部署合约
+
+上文提到，`create` 创建的合约地址与 nonce 相关，那么在删除合约后，重新部署合约，合约地址就有可用发生改变。而如果使用 `create2`, 只要使用相同的部署者地址，相同的 salt 和相同的 initcode, 就能保证部署后的合约地址不变，那么合约的删除与重新部署对于客户来说就是无感的.
+
+##### 节省 Gas 
+
+在某些情况下，CREATE2 可以通过允许在部署前对合约地址进行操作来节省 Gas 费用。例如，用户可以将资金发送到尚未部署的合约地址，而后在需要时部署该合约。这样可以避免不必要的多次部署或地址查找操作。
+
+理论虽然可行，但是往没有部署的合约打钱，难免会虚的.
+
+
+##### 不足
+凡事有利就有弊， `create2` 也不例外，如果不同的合约使用相同的 `salt` 和 `initcode`, 且由同一个地址部署，那么就会出现地址冲突的问题，所以需要确保 `salt` 的唯一.
+
+### 2024.10.07
+#### 26 Delete Contract
+
+`selfdestruct` 是用来删除合约，如果从Web2的视角来理解，创建合约就相当将代码部署上线，而删除合约就相当于是将代码下线，正常业务肯定是希望业务7x24小时运行，100%可用的，需要将网站下线的情况一般都比较极端，比如遭受攻击，例如曾经的索尼，或者是提桶跑路。
+
+DAO 指的是Decentralized Autonomous Organization，去中心化的投资资金, 而课程中的提到的The DAO攻击原理就是我在笔记中提到的重入攻击:
+1. 用户可以在DAO提现，正常情况下，用户想要提现，那么就会向指定合约打钱，然后合约再更新余额
+2. 而重入攻击就是黑客调用提现功能，在合约更新余额前再递归调用，就可以在一次交易中实现多次提现，以耗尽DAO的钱.
+
+而2016年那次攻击，黑客通过重入攻击转走了当时价值3.6 M的资金，但是被盗资金因为DAO的机制，需要先被锁定28天，就给了Ethereum 基金会反应的时间，当时有3个选项：
+1. 啥都不干
+2. Soft Fork: 修改代码，冻结被盗奖金
+3. Hark Fork: 将区块链回滚到被盗前的状态
+
+最后基金会选择了选项3，回滚。
+
+这个决定引发了极大的争议，也导致了社区的分裂，毕竟区块链标榜的就是不可窜改，现在创始人带头回滚改状态，相当于与设计初衷相背了, Ethereum 就分裂成 Ethereum(ETH) 和 Ethereum(ETC)
+
+言归正传, `selfdestruct` 就可以理解成一键清空余额并删库的操作，现在 `Remix` 都给出编译警告了:
+
+```
+Warning: "selfdestruct" has been deprecated. Note that, starting from the Cancun hard fork, the underlying opcode no longer deletes the code and data associated with an account and only transfers its Ether to the beneficiary, unless executed in the same transaction in which the contract was created (see EIP-6780). Any use in newly deployed contracts is strongly discouraged even if the new behavior is taken into account. Future changes to the EVM might further reduce the functionality of the opcode.
+  --> contracts/DeleteContract.sol:10:9:
+   |
+10 |         selfdestruct(payable(msg.sender));
+   |         ^^^^^^^^^^^^
+```
+
+而 `selfdestruct(_addr)` 中的 `_addr` 是接收合约中剩余 `ETH` 的地址， `_addr` 地址不需要有 `receive` 或 `fallback` 也能接收 `ETH`（这个就种coinbase 地址一样了）, 也就是没有拒收的余地.
+
+利用这个自毁并且强制转账的功能, 也可以实现某种攻击手段.
+
+例如有这么个游戏，每次只能转入1个ETH，当你是第7个转入者，合约余额累计到7ETH的时候，你就可以把钱给领走:
+
+```
+contract EtherGame {
+    uint256 public targetAmount = 7 ether;
+    address public winner;
+
+    function deposit() public payable {
+        require(msg.value == 1 ether, "You can only send 1 Ether");
+
+        uint256 balance = address(this).balance;
+        require(balance <= targetAmount, "Game is over");
+
+        if (balance == targetAmount) {
+            winner = msg.sender;
+        }
+    }
+
+    function claimReward() public {
+        require(msg.sender == winner, "Not winner");
+
+        (bool sent,) = msg.sender.call{value: address(this).balance}("");
+        require(sent, "Failed to send Ether");
+    }
+}
+```
+
+上面的代码作了限制，如果转入的金额不是1ETH，转出就会失败，最后比较余额是否等于7，但是作为攻击者，就可以利用 `selfdestruct` 的强制转账的机制，可以直接把游戏给搞挂：
+
+```solidity
+
+contract Attack {
+    EtherGame etherGame;
+
+    constructor(EtherGame _etherGame) {
+        etherGame = EtherGame(_etherGame);
+    }
+
+    function attack() public payable {
+        address payable addr = payable(address(etherGame));
+        selfdestruct(addr);
+    }
+}
+```
+
+假如我合约余额是 0.00000324 ETH, 强制转账就能绕过 `require(msg.value==1)` 的限制，那么这个游戏就永远不会有赢家，因为它每次只能转入1ETH，没法实现 `balance==targetAmount`, 除非你用类似的攻击手段，再转入个 `0.99999676`, 湊够 1ETH.
+
+更进一步，这里的预防手段是不要依赖 `address(this).blanace`, 而是要用自定义的变量:
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.26;
+
+contract EtherGame {
+    uint256 public targetAmount = 3 ether;
+    uint256 public balance;
+    address public winner;
+
+    function deposit() public payable {
+        require(msg.value == 1 ether, "You can only send 1 Ether");
+
+        balance += msg.value;
+        require(balance <= targetAmount, "Game is over");
+
+        if (balance == targetAmount) {
+            winner = msg.sender;
+        }
+    }
+
+    function claimReward() public {
+        require(msg.sender == winner, "Not winner");
+
+        (bool sent,) = msg.sender.call{value: balance}("");
+        require(sent, "Failed to send Ether");
+    }
+}
+```
+
+### 2024.10.08
+
+#### ABI encode/decode
+在理解ABI 编码之前，首先要了解什么ABI.
+
+在其他编程语言的语境下（主要是C），ABI(Application Binary Interface)指的是应用程序或操作系统中的二进制接口，定义了不同程序模块（例如函数，库，操作系统内核用户究竟程序）在编译后的二进制是如何交互的, 包括函数调用方式，参数传递方式，返回值的处理，系统调用，内存布局等等。
+
+而智能合约的ABI(Application Binary Interface), 是智能合约在以太坊等区块链网络中与外部应用程序(类如其他合约或前端应用)通信的标准.
+
+例如有这样的ABI 部署在地址 `0xC1666a11E5Ac3feAE09388f31AEff1ac014f9900`:
+
+```py
+erc_20_abi = [
+    {
+        "constant": False,
+        "inputs": [
+            {
+                "name": "_to",
+                "type": "address"
+            },
+            {
+                "name": "_value",
+                "type": "uint256"
+            }
+        ],
+        "name": "transfer",
+        "outputs": [
+            {
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "type": "function"
+    }
+]
+```
+
+就可以通过Python 脚本来调用这个合约，完成Web2与Web3的交互.
+```py
+w3 = Web3()
+my_contract = w3.eth.contract(address=0xC1666a11E5Ac3feAE09388f31AEff1ac014f9900, abi=erc_20_abi)
+my_contract.functions.transfer(_to=other_account.address,_value=420202020).call()
+```
+
+而所谓的ABI编码就是把数据编码成十六进制(或者二进制, 其实都可以), 例如 0x7a58c0be72be218b41c608b7fe7c5bb630736c71000000, 编码的方式多种多样, 比如有数据 `uint a = 1`, `string b = "string"`, 你可以把它们都转换成对应的十六进制，然后拼接起来
+
+`a = 1` 的十六进制就是 `0x1`, 但是uint是uint256, 是256位长度的, 换成十六进制, 就是有64位长, 补0之后变成: `0x1000000000000000000000000000000000000000000000000000000000000000`
+
+所以 `abi.encode` 就是补0版本的, 而 `abi.encodePacked` 就是不补0版本的, 可以直观看到 `abi.encode` 更耗费存储空间，但是如果是合约相互调用, 你使用 `abi.encodePacked` 来编码，使用`abi.decode` 解码就会报错，因为decode uint256, 它就是按照256个bit 来解码的，但是你说应该只取一个1bit,那么它就解不出正确的数值了.
+
+而`abi.encodeWithSignature()` 就是配合 `call` 使用的, 其实参数类型 `abi.encode` 和 `abi.encodePacked` 都可以通过传入参数推断出来，而 `abi.encodeWithSignature` 特别之处在于它还传入了调用的函数名.
+
+`abi.encodeWithSelector` 与 `abi.encodeWithSignature`功能类似，只不过第一个参数为函数选择器，为函数签名Keccak哈希的前4个字节
+
+```
+function encodeWithSelector() public view returns(bytes memory result) {
+    result = abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array);
+}
+```
+但是任何哈希相关的操作，尤其是截取部分hash的情况，都需要注意可能会出现的哈希冲突，我没有深挖到 `keccak256` 的实现原理，但是如果有两个函数生成的hash 如下:
+
+0x5467872....
+0x5467087....
+
+他们的前4个字节就是一样的，当然这个只是存在理论冲突的可能，总不能无限地创建函数.
+
+abi解码就是把对应的十六进制/二进制数据翻译成原来正常的参数，因为标准的解码就是按照参数类型解码，你是`uint256`, 就把256个bit 转换成数字， 所以就只有一种解码方式.
+
+#### Hash
+
+Hash 这个概念在编程中就非常常见了，在Java和C++中就有不同的Hash函数实现，而整个区块链技术都可以说是在构建在 hash function 之上的。
+
+所谓的区块链，不同之间的区块(block) 就是通过每个区块自身的 hash 以及记录前一个区块的 hash 串连起来，成为「链」的。
+
+生成钱包地址，交易的唯一标识，这些都和 hash function 息息相关。谈起好的 hash function, 最关键的是它是否能尽量降低 hash 碰撞的函数，即两个不同的参数，生成了相同的 hash 值。
+
+不过按照已知技术（2024）年，想要碰撞出相同值的 hash 也是非常难的.
+
+另外一个关于 keccak hash function 的趣事是, keccak hash function 是赢得了美国国家标准与技术研究院(National Institute of Standards and Technology)的 hash function 大赛，然后被选为SHA3的标准.
+
+### 2024.10.09
+#### Selector
+
+要理解什么是 selector, 就要先了解 `method_id` 与函数签名。
+
+所谓的函数签名，是指函数的名称和参数类型的组合，用来唯一标识一个函数，不包含返回类型。例如有函数：
+
+```
+function transfer(address recipient, uint256 amount) public returns (bool)
+```
+
+那么它的函数签名就是 `transfer(address,uint256)`，而 `method id` 就是函数签名的 keccak256 hash 之后的前4个字节, 如 `transfer` 函数的 `method id` 就是: 
+
+```
+bytes4(keccak256("transfer(address,uint256)"))
+```
+
+当我们调用智能合约时，本质是向目标合约发送一段 `calldata`, 发送的 `calldata` 的前4个字节就是 `selector`，当 `selector` 和 `method id` 相匹配时，即表示调用对应的函数.
+
+讲 abi encode/decode 的时候提到的第4个函数就是， `abi.encodeWithSelector`，知道目标合约函数的 `selector` 和地址，就可以直接调用目标函数了.
+
+```
+address targetAddress = ''
+targetAddress.call(abi.encodeWithSelector(0x3ec37834, 1, 0));
+```
+
+所谓知其然知其所以然，为什么Solidity会使用 `selector` 和 `method id` 这样的机制呢，而不是像C++那样搞编译期解析呢？
+
+追根溯源，还是要回到EVM的Blockchain架构上，使用 `selector`和 `method id`比直接使用函数签约最大的好处就是可以节省 gas fee. 
+
+因为无法预测开发者可能会给一个函数定义多长的名字，或者定义多少个参数，如果传递函数签名的话，那么gas fee就会随着函数名的变长或者参数数量的变多而线性增加。
+
+使用 `method_id` 就能把函数签名的结果固定在4个字节，既可以节省gas，也避免了gas fee会随函数签名的长度增加而增加.
+
+#### Try/Catch
+
+说起 try/catch, 也不是所有的现代语言都会有，像 Rust/Golang 都选择了不使用 `try/catch`, 一个是判断返回值，一个是处理 `Result`。
+
+我在前面讲异常处理的笔记中，也预先提到了 `try/catch` 的内容.
+
+在 Solidity 中， `try/catch` 只能被用于 `external` 函数或创建合约时的 `constructor`(被视为 `external` 函数调用)
+
+```solidity
+try externalContract.f() {
+    // call成功的情况下 运行一些代码
+} catch {
+    // call失败的情况下 运行一些代码
+}
+```
+
+如果调用的函数有返回值，那么必须在try之后声明 `returns(returnType val)，`并且在try模块中可以使用返回的变量（这个时候, 命名式返回就派上用场了）；如果是创建合约，那么返回值是新创建的合约变量。
+
+
+```solidity
+try externalContract.f() returns(returnType){
+    // call成功的情况下 运行一些代码
+} catch Error(string memory /*reason*/) {
+    // 捕获revert("reasonString") 和 require(false, "reasonString")
+} catch Panic(uint /*errorCode*/) {
+    // 捕获Panic导致的错误 例如assert失败 溢出 除零 数组访问越界
+} catch (bytes memory /*lowLevelData*/) {
+    // 如果发生了revert且上面2个异常类型匹配都失败了 会进入该分支
+    // 例如revert() require(false) revert自定义类型的error
+}
+```
+
+如果想要确保能 `catch` 到异常， `catch` 最后的分支要不是 `catch (bytes memory)`, 要不是 `catch {}`
+
+问题就来了，为什么只支持 `external` function呢? 个人猜测是因为:
+
+external 调用不确定性更高，可能出来 gas 不够，或者是其他异常，所以需要引入 try/catch 来作异常处理; 而对于合约内的调用，因为 Solidity 的异常模型是 `state-revert` exception, 所以当内部调用出现问题了(`require` 或者 `assert`)，状态就自动回滚了，无须 `try/catch` 处理
+
+WTF Solidity 102 is done, I should pat myself on the back for completing this project.
+
+### 2024.10.10
+#### ERC20
+
+为了方便交互，Ethereum 基金会定义了 ERC-20 标准，只要你的合约包含如下 methods，那么你的 token 就可以作为一种标准 ERC-20 FT 被其他的钱包和交易所所支持.
+
+```solidity
+totalSupply()
+balanceOf(account)
+transfer(to, amount)
+allowance(owner, spender)
+approve(spender, amount)
+transferFrom(from, to, amount)
+```
+
+代码非常简单易懂，没有并行和并发，不需要考虑任何数据冲突。 所谓的挖矿，就是调用一下合约的 `mint` 方法，然后编辑账本，给某个地址增加一点余额。 所谓的转账，就是调用一下合约的 `transfer` 方法，然后编辑账本，给一个地址减少一点余额，给另一个地址增加一点余额。
+
+只要你的 `contract` 符合 ERC-20 标准，就可以将合约地址作为一个 FT Token，登记到任何支持 ERC-20 的平台或钱包。
+
+通过以下代码就创建了一个符合ERC20标准的Token:
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.4;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+contract ERC20Token is IERC20 {
+    mapping(address => uint256) public override balanceOf;
+    mapping(address => mapping(address => uint256)) public override allowance;
+
+    uint256 public override totalSupply; 
+
+    string public name;
+    string public symbol;
+
+    uint8 public decimals = 18;
+
+    constructor(string memory name_, string memory symbol_) {
+        name = name_;
+        symbol = symbol_;
+    }
+
+    function transfer(address recipient, uint amount) public override returns (bool){
+        balanceOf[msg.sender] -= amount;
+        balanceOf[recipient] += amount;
+        emit Transfer(msg.sender, recipient, amount);
+        return true;
+    }
+
+    function approve(address spender, uint amount) public override returns (bool) {
+        allowance[msg.sender][spender] = amount;
+        emit Approval(msg.sender, spender, amount);
+        return true ;
+    }
+
+    function transferFrom(address sender, address recipient, uint amount) public override returns (bool) {
+        allowance[sender][msg.sender] -= amount;
+        balanceOf[sender] -= amount;
+        balanceOf[recipient] += amount;
+        emit Transfer(sender, recipient, amount);
+        return true;
+    }
+
+    function mint(uint amount) external {
+        balanceOf[msg.sender] += amount;
+        totalSupply += amount;
+        emit Transfer(address(0), msg.sender, amount);
+    }
+
+    function burn(uint amount) external {
+        balanceOf[msg.sender] -= amount;
+        totalSupply -= amount;
+        emit Transfer(msg.sender, address(0), amount);
+    }
+}
+```
+
+本来打算上线测试网的，但是一直报错 `gas required exceeds allowance (85717)`, 我的 Sepolia ETH又不多，只好作罢.
+
+虽然可以通过智能合约实现一个 ERC20 的Token, 但是 `openzeppelin` 甚至把 ERC20 Token的代码都写好了，只需要继承 [`ERC20.sol`](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/ERC20.sol) 即可, 网页点击下就可以一键发币.
+
+通过继承 ERC20 来发行一个貔貅币(PIXIU Token)
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.4;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+contract PIXIU is ERC20 {
+  constructor(uint256 initialSupply) public ERC20("PIXIU", "PX") {
+	_mint(msg.sender, initialSupply);
+  }
+}
+```
+
+### 2024.10.11
+#### Faucet
+
+通过智能合约来实现简易版本的 `ERC20` 水龙头：
+
+```solidity
+pragma solidity ^0.8.4;
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+contract Facuet {
+    uint256 public amountAllowed = 100;
+    address public tokenContract;
+    mapping(address => bool) public requestedAddress;
+    event SendToken(address indexed Receiver, uint256 indexed Amount);
+    constructor (address _tokenContract) {
+        tokenContract = _tokenContract;
+    }
+
+    function requestTokens() external {
+        require(!requestedAddress[msg.sender], "Can't request multiple times!");
+        IERC20 token = IERC20(tokenContract);
+        require(token.balanceOf(address(this))>= amountAllowed, "Faucet Empty!");
+
+        token.transfer(msg.sender, amountAllowed);
+        requestedAddress[msg.sender] = true;
+
+        emit SendToken(msg.sender, amountAllowed);
+    }
+}
+```
+
+但实际的水龙头肯定会比这个复杂，因为代币数量有限，会限制每个地址领取的时间间隔（假设能重复领取的话）; 为了避免被爬虫直接把水龙头给薅光，还会加上类似 Google 的 Recaptcha 或者是 Cloudflare 的 Turnstile 人机校验服务; 更严格的还会接入链上 passport 服务，超过一定分数才能领水。
+
+这让我意识到, 即使领水是 Web3 的概念，但是水龙头的实现不能是单纯的 Solidity 智能合约，更进一步地说，如果把区块链理解成分布式的数据库，那么 Solidity 是否就算是数据库的存储过程呢？
+
+我们当然可以把逻辑计算放到存储过程，但是鉴于其成本较高（数据库的存储过程成本就是维护成本，存储成本，而区块链就是 gas fee）, 部分逻辑适合放到逻辑层（Web2），部分逻辑可以放到存储层（智能合约）
+
+课程提到最早的代币水龙头是BTC水龙头，但是那个时候还没有智能合约，所以肯定是使用 Web2 的技术栈实现的.
+
+#### 空投合约
+
+通过智能合约来发送空投，其实就是一个 for 循环来给符合条件的地址列表打固定金额的钱，转账前做参数校验:
+
+```solidity
+// 数组求和函数
+function getSum(uint256[] calldata _arr) public pure returns(uint sum){
+    for(uint i = 0; i < _arr.length; i++)
+        sum = sum + _arr[i];
+}
+
+/// @notice 向多个地址转账ERC20代币，使用前需要先授权
+///
+/// @param _token 转账的ERC20代币地址
+/// @param _addresses 空投地址数组
+/// @param _amounts 代币数量数组（每个地址的空投数量）
+function multiTransferToken(
+    address _token,
+    address[] calldata _addresses,
+    uint256[] calldata _amounts
+    ) external {
+    // 检查：_addresses和_amounts数组的长度相等
+    require(_addresses.length == _amounts.length, "Lengths of Addresses and Amounts NOT EQUAL");
+    IERC20 token = IERC20(_token); // 声明IERC合约变量
+    uint _amountSum = getSum(_amounts); // 计算空投代币总量
+    // 检查：授权代币数量 >= 空投代币总量
+    require(token.allowance(msg.sender, address(this)) >= _amountSum, "Need Approve ERC20 token");
+
+    // for循环，利用transferFrom函数发送空投
+    for (uint8 i; i < _addresses.length; i++) {
+        token.transferFrom(msg.sender, _addresses[i], _amounts[i]);
+    }
+}
+```
+
+上面的空投代码的 gas fee 会随着地址列表的增多而线性增加, 关于 gas fee, 我现在觉得是一个相当巧妙的设计:
+
+矿工（节点）的算力是相当宝贵的，但是你的代码运行在节点上，并不能像云上的虚拟机一样提供一个沙箱环境，那么对于恶意的代码，可能一个死循环就把矿工的算力给耗尽了，但是在程序运行之前，并没有办法判断代码是否可以及时返回的，可穷尽的。
+
+而引入 gas fee 就相当于把金融手段解决工程问题，死循环的代码你可以写，只要你付对应的 gas fee 就可以了，相当于每个人都用钱包为其写的代码负责。
+
+不过上面的空投代码没有做余额的检查，例如地址列表有100个，转账到99个的时候余额不足，然后回滚，但是回滚前的 gas fee 还是要照付，毕竟前面的转账矿工也干活了，不能让人家白干。
+
+> 我撸空投收获最大的一次是ENS空投，你们呢？
+
+还没有撸到过 :( 
+
+### 2024.10.12
+
+#### ERC721
+
+ERC20 本质上就只是一个 mapping, 记录了每一个地址的余额，仅此而已。它的缺点是，每一个 Token 都是一样的，没有任何区别。
+
+为了能更好的和独特的资产建立联系，Ethereum基金会定义了ERC-721标准，用来定义一种独特的 token, 也就是 NFT(Non-Fungible Token) 
+
+NFT能证明某个数字资产是正版，但是无法阻止别人使用盗版，这是两个不同的问题.
+
+而课程中反复提及的 `ERC165` 其实就是一个类型检查，判断合约是否实现了指定的接口, 以Rust 的代码为例:
+
+```rs
+// Define a trait
+trait MyTrait {
+    fn my_method(&self);
+}
+
+// Implement the trait for a struct
+struct MyStruct;
+
+impl MyTrait for MyStruct {
+    fn my_method(&self) {
+        println!("MyStruct implements MyTrait");
+    }
+}
+
+// Function that requires the struct to implement MyTrait
+fn requires_trait<T: MyTrait>(item: T) {
+    item.my_method();
+}
+
+fn main() {
+    let my_struct = MyStruct;
+    requires_trait(my_struct); // Will compile, because MyStruct implements MyTrait
+}
+```
+
+用 Solidity 的话来理解上面的代码，`MyTrait` 就类似是 `ERC721` 这样的接口, `MyStruct` 就类似合约，只有合约实现了某个指定的接口，功能才能正常运行.
+
+强类型的编程语言编译器一般都实现了这样的能力，而因为 Solidity 编译器或者是 EVM 的限制，就需要额外提出一个 ERC 来实现这个功能, 相当于是把编译器搬到分布式环境上来了.
+
+按照 [`EIP165`](https://eips.ethereum.org/EIPS/eip-165), `interface id`是某个接口所有函数 `selector` 异或的结果, 代码示例如下:
+
+```solidity
+pragma solidity ^0.4.20;
+
+interface Solidity101 {
+    function hello() external pure;
+    function world(int) external pure;
+}
+
+contract Selector {
+    function calculateSelector() public pure returns (bytes4) {
+        Solidity101 i;
+        return i.hello.selector ^ i.world.selector;
+    }
+}
+
+```
+如果某个接口只有一个函数，那么这个接口的接口ID自然就是函数的 `selector`。
+
+我看课程中的 `ERC165` 和 `ERC721` 内容看得头疼，后面对照着 OpenZeppelin 的源码，我终于明白了我为什么头疼，同样的名词在不同语境下表达的是不过的意思.
+
+`ERC`: 全称 Ethereum Request For Comment (以太坊意见征求稿), 用以记录以太坊上应用级的各种开发标准和协议, 就是正常的RFC, 各种标准和修正方案.
+
+> 我们可以看下ERC721是如何实现supportsInterface()函数的：
+```
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool)
+    {
+        return
+            interfaceId == type(IERC721).interfaceId ||
+            interfaceId == type(IERC165).interfaceId;
+    }
+```
+
+看到这里，我非常费解，为什么 `ERC721` 提案要实现 `ERC165`, 看了源码才意识到 [`ERC721`](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC721/ERC721.sol#L45) 是实现了 `IERC721` 接口和 `IERC165` 接口的抽象合约:
+
+```solidity
+abstract contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, IERC721Errors {
+...
+}
+```
+
+`ERC721` 要实现 `supportsInterface` 的函数，恰好就是 `IERC165` 接口中的函数, 而一个合约所支持的接口，自然包含它所实现的接口，所以 `ERC721` 是支持 `IERC165` 和 `IERC721`.
+
+看到这个函数的时候，我又疑惑了，这个非常关键的条件：`retval != IERC721Receiver.onERC721Received.selector` 究竟是什么意思:
+```solidity
+function _checkOnERC721Received(
+    address operator,
+    address from,
+    address to,
+    uint256 tokenId,
+    bytes memory data
+) internal {
+    if (to.code.length > 0) {
+        try IERC721Receiver(to).onERC721Received(operator, from, tokenId, data) returns (bytes4 retval) {
+            if (retval != IERC721Receiver.onERC721Received.selector) {
+                // Token rejected
+                revert IERC721Errors.ERC721InvalidReceiver(to);
+            }
+        } catch (bytes memory reason) {
+            if (reason.length == 0) {
+                // non-IERC721Receiver implementer
+                revert IERC721Errors.ERC721InvalidReceiver(to);
+            } else {
+                /// @solidity memory-safe-assembly
+                assembly {
+                    revert(add(32, reason), mload(reason))
+                }
+            }
+        }
+    }
+}
+```
+
+阅读 [`IERC721Receiver`](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/72c152dc1c41f23d7c504e175f5b417fccc89426/contracts/token/ERC721/IERC721Receiver.sol) 接口的代码注释，我才终于理解是什么意思:
+
+```solidity
+interface IERC721Receiver {
+    /**
+     * @dev Whenever an {IERC721} `tokenId` token is transferred to this contract via {IERC721-safeTransferFrom}
+     * by `operator` from `from`, this function is called.
+     *
+     * It must return its Solidity selector to confirm the token transfer.
+     * If any other value is returned or the interface is not implemented by the recipient, the transfer will be
+     * reverted.
+     *
+     * The selector can be obtained in Solidity with `IERC721Receiver.onERC721Received.selector`.
+     */
+    function onERC721Received(
+        address operator,
+        address from,
+        uint256 tokenId,
+        bytes calldata data
+    ) external returns (bytes4);
+}
+```
+
+课程完全没有提及, 为了确认 token 转账，`IERC721Receiver.onERC721Received` 规定，必须返回 `onERC721Received` 这个函数的 selector, 返回其他值或者接口未实现都会导致转账被回滚.
+
+但是课程完全没有提及这个关键信息, 遇事不决看源码好了.
+
+另外, ERC721 的示例代码是有问题的:
+
+> ERC721主合约实现了IERC721，IERC165和IERC721Metadata定义的所有功能，包含4个状态变量和17个函数。
+
+但是实际的示例代码并没有实现 `IERC165` 接口:
+
+```
+contract ERC721 is IERC721, IERC721Metadata{ 
+    // 实现IERC165接口supportsInterface
+    function supportsInterface(bytes4 interfaceId)
+        external
+        pure
+        override
+        returns (bool)
+    {
+        return
+            interfaceId == type(IERC721).interfaceId ||
+            interfaceId == type(IERC165).interfaceId ||
+            interfaceId == type(IERC721Metadata).interfaceId;
+    }
+}
+```
+
+我创建了一个 [PR](https://github.com/WTFAcademy/frontend/pull/244) 来修复我所遇到的问题.
+
+### 2024.10.13
+
+#### 荷兰拍卖
+
+荷兰拍卖是指，拍卖人先将价格设定在足以阻止所有竞拍者的水平，然后由高价往低价喊，第一个应价的竞拍者获胜，并支付当时所喊到的价格。
+
+拍卖合约继承了 `Owner` 合约，我看了 `Owner` 合约的[文档](https://docs.openzeppelin.com/contracts/2.x/access-control), 权限控制在智能合约非常关键，最常见和最基本的权限抽近就是只有合约的所有者才有权限做管理操作，而每个合约只拥有一个所有者就是件理所当然的事了。
+
+默认的情况，继承`Owner`合约的所有者就是部署合约的地址，只有它才有权限进行操作, 比如课程中的设置拍卖开始时间和提款操作.
+
+虽然荷兰拍卖的原理是每过 `AUCTION_DROP_INTERVAL` 价格就衰减一次，但是并没有一个定时器或者 `crontab` 不停的更新时间并且广播，而是当有竞拍者调用 `getAuctionPrice` 时函数，根据已经过去的时间，再根据时间动态算出价格.
+```solidity
+    function getAuctionPrice()
+        public
+        view
+        returns (uint256)
+    {
+        if (block.timestamp < auctionStartTime) {
+        return AUCTION_START_PRICE;
+        }else if (block.timestamp - auctionStartTime >= AUCTION_TIME) {
+        return AUCTION_END_PRICE;
+        } else {
+        uint256 steps = (block.timestamp - auctionStartTime) /
+            AUCTION_DROP_INTERVAL;
+        return AUCTION_START_PRICE - (steps * AUCTION_DROP_PER_STEP);
+        }
+    }
+```
+
+```solidity
+    // 拍卖mint函数
+    function auctionMint(uint256 quantity) external payable{
+        uint256 _saleStartTime = uint256(auctionStartTime); // 建立local变量，减少gas花费
+        require(
+        _saleStartTime != 0 && block.timestamp >= _saleStartTime,
+        "sale has not started yet"
+        ); // 检查是否设置起拍时间，拍卖是否开始
+        require(
+        totalSupply() + quantity <= COLLECTOIN_SIZE,
+        "not enough remaining reserved for auction to support desired mint amount"
+        ); // 检查是否超过NFT上限
+
+        uint256 totalCost = getAuctionPrice() * quantity; // 计算mint成本
+        require(msg.value >= totalCost, "Need to send more ETH."); // 检查用户是否支付足够ETH
+        
+        // Mint NFT
+        for(uint256 i = 0; i < quantity; i++) {
+            uint256 mintIndex = totalSupply();
+            _mint(msg.sender, mintIndex);
+            _addTokenToAllTokensEnumeration(mintIndex);
+        }
+        // 多余ETH退款
+        if (msg.value > totalCost) {
+            payable(msg.sender).transfer(msg.value - totalCost); //注意一下这里是否有重入的风险
+        }
+    }
+```
+
+现实中的拍卖可能是把藏品给到竞拍者，而上面的拍卖函数是通过合约收你钱，然后「现场」铸造出来，即产即销了.
+
+这里"建立local变量，减少gas花费", 类似于 caching 的技巧，相当于把多次访问并且只读的状态变量缓存起来，以减少 gas fee, 减少一次 `SLOAD` 指令，大概能节省 2100 gas fee. 
+
+荷兰拍卖中，直接和价格关联的就是 `block.timestamp`, 我在想，是否有可能控制 `block.timestamp`，比如直接把区块链时间戳直接改到起始时间+拍卖时长之后，那么不就可以直接以最低价/地板价拍到手了嘛?
+
+不过看起来，validator 只有几秒的空间来调整，时间戳应该不存在被利用的漏洞.
+
 <!-- Content_END -->

@@ -328,4 +328,133 @@ Hardhat：https://hardhat.org/
 
 通过配置hardhat.config.js，也可以部署到非本地测试网
 
+### 2024.10.06
+**学习内容：**<br>
+合约给用户转账的方法：
+
+1、transfer：会自动转送2300gas给接收方，用于执行其fallback函数。如果fallback函数使用超过2300gas，转账将失败，并回滚交易。（安全性比较好）但0.8版本后，gas限额改变
+
+```
+address payable recipient = payable(0xRecipientAddress);
+recipient.transfer(1 ether);
+
+```
+
+2、send：
+
+与transfer类似，不过在失败时不会抛出异常，而是返回false，可让合约处理异常情况。（因为需要手动处理失败情况，所以安全性不如transfer）
+
+```
+address payable recipient = payable(0xRecipientAddress);
+bool success = recipient.send(1 ether);
+require(success, "Send failed");
+```
+
+3、call方法：
+
+call是一个底层函数，用于发起外部函数调用。因为它蕴蓄指定要发送的gas量，因此也算是可以用于转账。交易失败返回false，需要手动处理异常。
+
+```
+(bool success, ) = payable(0xRecipientAddress).call{value: 1 ether}("");
+require(success, "Call failed");
+```
+
+### 2024.10.07
+**学习内容：**<br>
+Hardhat中内置了Hardhat Network，一个专门为开发而设计的本地以太坊网络，允许部署合约、运行测试和调试代码。
+
+Hardhat是使用JavaScript编写的，因此需要本地环境配置Node.js（version >= 18.0）。
+
+创建一个新的Hardhat项目，通过npm安装Hardhat
+
+```
+npm init   // 初始化npm项目
+npm install --save-dev hardhat   // 安装Hardhat
+npx hardhat init    // 初始化Hardhat项目
+```
+
+Hardhat项目的配置文件：`hardhat.config.js`
+
+Hardhat是围绕**任务**和**插件**的概念设计的。
+
+任务：每次从命令行运行Hardhat时，都看作是在运行一项任务。如：`npx hardhat compile`是要运行编译任务。（也可以创建任务）
+
+```
+npx hardhat   // 查看当前可用的任务
+npx hardhat help [task]  // 任务手册
+```
+
+插件：
+
+> Hardhat 不会对您最终使用的工具发表意见，但它确实带有一些内置默认值。所有这些都可以被覆盖。大多数情况下，使用给定工具的方式是使用将其集成到 Hardhat 中的插件。
+
+推荐的一个插件：`@nomicfoundation/hardhat-toolbox`, 拥有开发智能合约的一切
+
+```
+npm install --save-dev @nomicfoundation/hardhat-toolbox  // 安装
+```
+
+在`hardhat.config.js`中添加：
+
+```
+require("@nomicfoundation/hardhat-toolbox");
+```
+
+### 2024.10.08
+**学习内容：**<br>
+配置环境变量：
+
+```
+npx hardhat vars set TEST_API_KEY // 设置环境变量
+npx hardhat vars get TEST_API_KEY  // 获取
+npx hardhat vars list   // 列出所有变量
+npx hardhat vars deletes TEST_API_KEY  // 删除
+npx hardhat vars setup  // 列出所有
+```
+
+
+
+创建智能合约：
+
+新建`contracts`目录，用于存放.sol合约文件。
+
+在项目根目录执行：`npx hardhat compile`进行编译。
+
+### 2024.10.09
+**学习内容：**<br>
+`IERC721`是`ERC721`标准的接口合约，规定了`ERC721`要实现的基本函数。它利用`tokenId`来表示特定的非同质化代币，授权或转账都要明确`tokenId`；而`ERC20`只需要明确转账的数额即可。
+
+在编写和部署 ERC721 合约时，使用 OpenZeppelin 的实现可以简化很多工作，因为它们已经实现了 IERC721、IERC721Receiver 和 IERC721Metadata 接口。
+
+- **IERC721Receiver**：用于处理 ERC721 代币的安全转账。如果接收方是合约，必须实现这个接口来接受代币。
+- **IERC721Metadata**：扩展了 ERC721 标准，允许设置代币的名称、符号和每个代币的 URI。
+
+### 2024.10.10
+**学习内容：**<br>
+ Gas 优化：
+
+Solidity 中的 Gas 是针对可能导致以太坊网络资源耗尽的攻击的一种防御措施。由于以太坊在去中心化平台上运行智能合约，因此恶意人士可能会试图耗尽所有资源来干扰网络。为了防止这种情况发生，以太坊网络使用一种称为“gas”的系统来限制在单个交易或函数执行中可以完成的工作量。
+
+存储优化：
+
+1. 最小化链上数据：减少存储在合约变量中的数据量。
+2. 变量打包：尽可能地将多个变量合并到一个存储槽中。（通过struct）
+
+退款：
+
+1. 释放存储槽：当不在需要存储槽时，将其值设置为零可导致大量gas退款。
+2. 使用自毁：Solidity中的`selfdestruct`操作码可用于从区块链中删除合约。使用此操作码销毁合约时，会退还24,000gas。
+
+### 2024.10.11
+**学习内容：**<br>
+跨链桥是一种区块链协议，它允许在两个或多个区块链之间移动数字资产和信息。（跨链桥不是区块链原生支持的，跨链操作需要可信的第三方来执行）
+
+跨链桥的三种类型：
+
+1. Burn/Mint
+2. Stake/Mint
+3. Stake/Unstake
+
+通过js脚本作为桥梁，监听一条链上的跨链操作，然后触发，执行另外一条链的反应操作。
+
 <!-- Content_END -->

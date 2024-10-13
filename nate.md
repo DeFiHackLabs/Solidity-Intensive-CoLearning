@@ -63,7 +63,7 @@ timezone: Asia/Shanghai
      - 所有函数都必须是external且不能有函数体
      - 继承接口的非抽象合约必须实现接口定义的所有功能
   7. error，require，assert
-     ```js
+     ``` js
      // 自定义error
      error TransferNotOwner()
      // 自定义带参数的error
@@ -101,7 +101,7 @@ timezone: Asia/Shanghai
    ```
    其中Contract是要创建的合约名，x是合约对象，如果构造函数是payable，可以创建时转入_value数量的ETH，_salt为随机的bytes32值，params是新合约构造函数的参数
    - CREATE如何计算地址
-``` text
+   ``` text
    智能合约可以由其他合约和普通账户利用CREATE操作码创建。 在这两种情况下，新合约的地址都以相同的方式计算：创建者的地址(通常为部署的钱
 包地址或者合约地址)和nonce(该地址发送交易的总数,对于合约账户是创建的合约总数,每创建一个合约nonce+1)的哈希。
 
@@ -157,14 +157,271 @@ initcode: 新合约的初始字节码（合约的Creation Code和构造函数的
    的话，合约地址会随创建账户的状态而变化不好预测
    ```
 ### 2024.09.27
-WTF solidity16-20
+WTF solidity34-35
+1. [ERC721](https://eips.ethereum.org/EIPS/eip-165)
+2. [openzeppelin erc721实现](https://github.com/OpenZeppelin/openzeppelin-contracts/tree/master/contracts/token/ERC721)
+3. IERC721函数
+- `balanceOf`：返回某地址的NFT持有量`balance`。
+- `ownerOf`：返回某`tokenId`的主人`owner`。
+- `transferFrom`：普通转账，参数为转出地址`from`，接收地址`to`和`tokenId`。
+- `safeTransferFrom`：安全转账（如果接收方是合约地址，会要求实现`ERC721Receiver`接口）。参数为转出地址`from`，接收地址`to`和`tokenId`。
+- `approve`：授权另一个地址使用你的NFT。参数为被授权地址`approve`和`tokenId`。
+- `getApproved`：查询`tokenId`被批准给了哪个地址。
+- `setApprovalForAll`：将自己持有的该系列NFT批量授权给某个地址`operator`。
+- `isApprovedForAll`：查询某地址的NFT是否批量授权给了另一个`operator`地址。
+- `safeTransferFrom`：安全转账的重载函数，参数里面包含了`data`。 
+4. [ERC165](https://eips.ethereum.org/EIPS/eip-165)
+5. 荷兰拍卖合约实现
 ### 2024.09.29
-WTF solidity21-25
+WTF solidity41
+1. WETH
+   合约将用户传来的Eth转换为wrapped eth,即符合ERC20标准的代币，方便用户交互DAPP。用户也可销毁存储在合约中的WETH来换取eth  
 ### 2024.09.30
-WTF solidity26-30
+WTF solidity42
+1. PaymentSplit  
+   分账合约，通过构造器初始化各个账户所在份额，用户根据份额可通过合约将收益进行提款   
 ### 2024.10.01
-WTF solidity31-35
+WTF solidity43-44
+1. 实现锁仓合约tokenLocker和tokenvest合约
 ### 2024.10.02
-WTF solidity36-40
+WTF solidity45
+1. 实现时间锁合约
+### 2024.10.03
+WTF solidity16-18   
+1. 库合约和普通合约区别：  
+    - 不能存在状态变量
+    - 不能够继承或被继承
+    - 不能接收以太币
+    - 不可以被销毁
+2. library两种使用方法
+   ``` solidity
+   // 使用Strings库
+   contract WTF17{
+   
+    // 1. 使用指令 using A for B, B类型可以直接使用A库内中方法并且该变量作为第一个参数参数 
+    using Strings for uint256;
 
+    function f1(uint256 _in) public pure returns (string memory) {
+        return _in.toHexString();
+    }
+
+   // 2. 直接通过库名调用
+    function f2(uint256 _in) public pure returns (string memory) {
+        return Strings.toHexString(_in);
+    }
+   }
+   ```
+3. import三种引用方式
+   ``` solidity
+   // SPDX-License-Identifier: MIT
+   pragma solidity ^0.8.21;
+
+   // 1. 通过文件相对位置import
+   import './Yeye.sol';
+   // 通过全局符号导入特定的合约
+   import {Yeye} from './Yeye.sol';
+   // 2. 通过网址引用
+   import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+   // 3. 通过npm的目录导入
+   import '@openzeppelin/contracts/access/Ownable.sol';
+
+   contract Import {
+      // 成功导入Address库
+       using Address for address;
+      // 声明yeye变量
+       Yeye yeye = new Yeye();
+
+      // 测试是否能调用yeye的函数
+      function test() external{
+        yeye.hip();
+      }
+   }
+   ```   
+### 2024.10.04
+WTF solidity19-20
+1. receive和fallback
+   两种特殊的回调方法，可用来接收以太（fallback用payable修饰时），当向合约转账未call指定方法（data域为空）则会调用receive(),
+   若data域不为空但其函数未在合约中则调用fallback()
+2. call,transfer,send使用
+   ``` solidity
+   
+   // 2300 gas fee限制
+   function transferEth(address payable _to, uint256 amount) external payable {
+       _to.transfer(amount);
+    }
+
+    function sendEth(address payable _to, uint256 amount) external payable {
+       bool success = _to.send(amount);
+       if(!success) revert SendFailed();
+    }
+
+    // call可选择gas fee
+    function callEth(address payable _to, uint256 amount) external payable {
+       (bool success,) = _to.call{value:amount}("");
+       if(!success) revert CallFailed();
+    }
+   ``` 
+### 2024.10.05
+WTF solidity21-23  
+1. 调用其他合约    
+   ``` solidity
+   
+   // SPDX-License-Identifier: MIT
+   pragma solidity ^0.8.23;
+   import {OtherContract} from "./WTF21.sol";
+
+   contract OtherCall{
+    function callSetX(address _Address, uint256 x) external {
+       OtherContract(_Address).setX(x);
+    }
+
+    function callGetX(OtherContract _Address) external view returns(uint) {
+       return _Address.getX();
+    }
+
+    function callGetX2(address _Address) external view returns(uint) {
+       OtherContract oc = OtherContract(_Address);
+       return oc.getX();
+    }
+
+    // 调用合约并发送ETH
+    function callSetXWithETH(address _Address, uint256 x) external payable {
+       OtherContract(_Address).setX{value:msg.value}(x);
+    }
+   // 使用call调用getX()
+    function callGetX3(address _Address) external returns(uint256) {
+        (, bytes memory data) = _Address.call(abi.encodeWithSignature("getX()"));
+        return abi.decode(data, (uint256));
+    }
+
+    // 使用call调用setX()
+    function callSetX3(address _Address, uint x) external payable returns(uint256) {
+        (, bytes memory data) = _Address.call{value:msg.value}(abi.encodeWithSignature("setX(uint256)",x));
+        return abi.decode(data, (uint256));
+    }
+
+    // 使用call调用不存在的方法会报错
+    function callFoo(address _Address, uint x) external payable returns(uint256) {
+        (, bytes memory data) = _Address.call{value:msg.value}(abi.encodeWithSignature("Foo(uint256)",x));
+        return abi.decode(data, (uint256));
+    }
+    }
+   ```
+2.  delegatecall  
+    当B call C，上下文是C，当B delegetecall C，上下文为B  
+### 2024.10.06
+WTF solidity26-28  
+1. selfdestruct  
+   使用`selfdestruct(_target)`可进行合约自毁并将剩余以太转移到_target地址。
+   `SELFDESTRUCT will recover all funds to the target but not delete the account, except when called in the same transaction as creation` 在Cancun硬分叉之后，只有合约创建和自毁在一个交易中才会删除合约
+2. abi编码
+   abi提供四种编码方式`encode/encodePacked/encodeWithSignature/encodeWithSelector`，`encodePacked`是`encode`的压缩版，
+   `encodeWithSignature/encodeWithSelector`和函数有关生成的编码开头带有四字节的函数选择器，`encodeWithSignature`第一个参数为函数签名，`encodeWithSelector`第一个参数为函数选择器
+   ``` solidity
+   contract abi{
+    uint x = 10;
+    address addr = 0x7A58c0Be72BE218B41C608b7Fe7C5bB630736C71;
+    string name = "0xAA";
+    uint[2] array = [5, 6]; 
+
+    function encode() view external returns(bytes memory){
+        return abi.encode(x,addr,name,array);
+    } 
+
+    function encodePacked() view external returns(bytes memory){
+        return abi.encodePacked(x,addr,name,array);
+    } 
+
+    function encodeWithSignature() public view returns(bytes memory result) {
+        result = abi.encodeWithSignature("foo(uint256,address,string,uint256[2])", x, addr, name, array);
+    }
+
+    function encodeWithSelector() public view returns(bytes memory result) {
+        result = abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")),
+    x, addr, name, array);
+    }
+    }
+   ```
+3. solidity最常用的哈希函数keccak256     
+### 2024.10.07
+WTF solidity29-30
+1. 函数选择器   
+   发送给合约的calldata其实为合约中函数的method id和参数abi编码组成的16进制字节码，其中method id为函数签名`函数名（逗号分隔的参数类型)`
+   后通过 keccak256 hash后的前四个字节
+2. 计算method id -> `bytes4(keccak256("函数名(参数类型1,参数类型2,...)"))`
+   - 基础类型参数中uint需写成uint256，int为int256
+   - 固定长度类型参数 如uint8[3]写为uint8[3]
+   - 可变长度类型参数 如address[]写为address[]
+   - 映射类型参数 合约对象需转成address，结构体为(成员类型1,成员类型2,...)，枚举为uint8
+3. try/catch     
+### 2024.10.08
+WTF solidity31-33
+1. [ERC-20](https://eips.ethereum.org/EIPS/eip-20)  
+   [OpenZeppelin实现](https://github.com/OpenZeppelin/openzeppelin-contracts/tree/master/contracts/token/ERC20)
+2. IERC721函数
+- `totalSupply`：返回代币总供给
+- `balanceOf`：返回账户余额
+- `transfer`：转账
+- `allowance`：返回授权额度
+- `approve`：授权
+- `transferFrom`：授权转账 
+3. 两个简单的ERC20应用合约faucet和airdrop   
+### 2024.10.09
+WTF solidity36-37
+#### 以太坊中密码学应用
+1. Merkle tree
+   节点由hash关联，父节点为孩子节点的hash。其特征方便证明一个值是否存在于merkle tree当中，只需要提供merkle proof即可。比特币和以太坊
+   中应用其验证交易是否存在
+2. 签名
+   以太坊中采用双椭圆曲线数字签名算法（ECDSA）
+   1. 先将需要签名的信息进行`abi.encodePacked()`编码，再用`keccak256`进行hash
+   2. 将处理过的信息前加上`"\x19Ethereum Signed Message:\n32"`字符，再用`keccak256`进行hash
+   3. 将处理后的信息利用钱包和私钥进行签名
+   4. 通过签名和处理后的信息获取公钥
+      ``` solidity
+      // @dev 从_msgHash和签名_signature中恢复signer地址
+      function recoverSigner(bytes32 _msgHash, bytes memory _signature) internal pure returns (address){
+        // 检查签名长度，rsv格式签名一般长度为65位，r32位，s32位，v1位
+        require(_signature.length == 65, "invalid signature length");
+        bytes32 r;
+        bytes32 s;
+        uint8 v;
+        // 目前只能用assembly (内联汇编)来从签名中获得r,s,v的值
+        assembly {
+            /*
+            solidity中动态数组前32字节存的是数组的长度
+            add(sig, 32) = sig的指针 + 32
+            等效为略过signature的前32 bytes
+            mload(p) 载入从内存地址p起始的接下来32 bytes数据
+            */
+            // 略过前32位获取r
+            r := mload(add(_signature, 0x20))
+            // 略过前64位获取r
+            s := mload(add(_signature, 0x40))
+            // 最后一个byte为v
+            v := byte(0, mload(add(_signature, 0x60)))
+        }
+        // 使用ecrecover(全局函数)：利用 msgHash 和 r,s,v 恢复 signer 地址
+        return ecrecover(_msgHash, v, r, s);
+      }
+      ```
+### 2024.10.10
+WTF solidity38-39 
+1. nftswap合约实现
+### 2024.10.11
+WTF solidity40
+1. ERC1155
+   较ERC20和ERC721不同，ERC1155标准允许一个合约中包含多个同质化和非同质化代币，每一种代币有一个id来标识。`mapping(uint256 => mapping(address => uint256)) private _balances`
+### 2024.10.12
+WTF solidity46-50
+1. 代理模式  
+   合约在部署之后无法修改，为了更改和升级可采用代理模式。代理模式将合约数据和逻辑分开，数据存在代理合约中，逻辑则写在
+   逻辑合约里，用户直接调用代理合约，代理合约再通过delegate call调用逻辑合约
+2. 合约升级  
+   升级合约只需要管理者调用升级函数修改代理合约里的逻辑合约地址即可
+3. 相关问题  
+   由于代理合约和逻辑为不同合约，所以两个合约可能产生选择器冲突问题，即用户在调用逻辑合约中相关函数，由于该函数的method id和代理合约中的函数的method id相同。解决方案（针对代理合约中升级函数和逻辑合约中的函数选择器冲突）：
+   - `透明代理`代理合约里的升级函数智能管理员调用，管理员不可以调用逻辑合约里的函数
+   - `可升级代理（uups，universal upgradeable proxy standard）`将升级函数写在逻辑合约中
+4. 实现多签钱包合约      
 <!-- Content_END -->
