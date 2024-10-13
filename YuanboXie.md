@@ -3054,7 +3054,49 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 <!-- Content_END -->
 ### 2024.10.15
 
-- [104-S10] 貔貅
+- [104-S10] 貔貅合约(蜜罐代币 honeypot token)
+    - 貔貅盘的特点：投资人只能买不能卖，仅有项目方地址能卖出。
+        - 恶意项目方部署貔貅代币合约。
+        - 宣传貔貅代币让散户上车，由于只能买不能卖，代币价格会一路走高。
+        - 项目方rug pull卷走资金。
+    ```solidity
+    contract HoneyPot is ERC20, Ownable { // 只能买，不能卖
+        address public pair;
+        constructor() ERC20("HoneyPot", "Pi Xiu") {
+            address factory = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f; // goerli uniswap v2 factory
+            address tokenA = address(this); // 貔貅代币地址
+            address tokenB = 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6; //  goerli WETH
+            (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); //将tokenA和tokenB按大小排序
+            bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+            // calculate pair address
+            pair = address(uint160(uint(keccak256(abi.encodePacked(
+            hex'ff',
+            factory,
+            salt,
+            hex'96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f'
+            )))));
+        }
+
+        function mint(address to, uint amount) public onlyOwner {
+            _mint(to, amount);
+        }
+
+        function _update(address from,address to,uint256 amount) internal virtual override {
+            if(to == pair){
+                require(from == owner(), "Can not Transfer"); // 只有 owner 才能卖币
+            }
+            super._update(from, to, amount);
+        }
+    }
+    ```
+    - 为了绕过相关的貔貅检查，有些貔貅合约还进行了一系列的伪装：
+        - 譬如对于非特权用户的转账，不会进行回滚，而是保持状态不变，表面上显示交易成功，实际上依旧没有实现用户的真实交易意图。
+        - 伪造错误的事件，通过emit不存在的事件误导正在监听事件的钱包和浏览器，使其进行错误的显示，从而使用户产生错误的判断。
+    - 预防方法：
+        - 在区块链浏览器上（比如etherscan）查看合约是否开源，如果开源，则分析它的代码，看是否有貔貅漏洞。
+        - 使用貔貅识别工具，比如 [Token Sniffer](https://tokensniffer.com/) 和 [Ave Check](https://ave.ai/check)，分低的话大概率是貔貅。
+        - 看项目是否有审计报告。
+        - 使用tenderly、phalcon分叉模拟卖出貔貅，如果失败则确定是貔貅代币。
 - [104-S11] 抢先交易
 - [104-S12] tx.origin 钓鱼攻击
 
