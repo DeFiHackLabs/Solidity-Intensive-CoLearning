@@ -1774,4 +1774,59 @@ contract ERC721 is IERC721, IERC721Metadata{
 
 假如我想计算我ETH地址 `0x5B38Da6a701c568545dCfcB03FcB875f56beddC4` 是否在白名单内，这个地址的Proof要怎么生成？
 
+另外一个问题是，这种将白名单的Merkle Tree Root存在合约的方式有点不灵活，这意味着白名单不能动态变化，毕竟只要白名单变化了，Merkle Tree Root 和 Proof 都得变.
+
+### 2024.10.15
+#### Signature
+
+在阅读第37课的时候发现了个问题, 讲解到「步骤4通过签名和消息恢复公钥」和「步骤5 对比公钥并验证签名」, 通过截图展示了在Remix IDE 上 调用 `recoverSigner` 函数和 `verify` 函数的过程:
+
+![](https://www.wtf.academy/assets/images/37-8-50f993208c23bea33eacd5ed18de69ff.png)
+
+![](https://www.wtf.academy/assets/images/37-9-2e2029b1978cafb7cd211511f2769082.png)
+
+但是 `recoverSigner` 和 `verify` 函数都被声明成 `internal` 函数，`internal` 函数是无论从合约外被调用的，即使是使用 Remix IDE进行调试
+
+```solidity
+    // @dev 从_msgHash和签名_signature中恢复signer地址
+    function recoverSigner(bytes32 _msgHash, bytes memory _signature) internal pure returns (address){
+    }
+
+    /**
+     * @dev 通过ECDSA，验证签名地址是否正确，如果正确则返回true
+     * _msgHash为消息的hash
+     * _signature为签名
+     * _signer为签名地址
+     */
+    function verify(bytes32 _msgHash, bytes memory _signature, address _signer) internal pure returns (bool) {
+        return recoverSigner(_msgHash, _signature) == _signer;
+    }
+```
+
+我顺便提了个[PR](https://github.com/WTFAcademy/frontend/pull/246)来修复这个问题.
+
+而签名中的包含的 `r`,`s`,`v` 信息，是 ECDSA（椭圆曲线数字签名算法）签名的三个组成部分。
+
+- r：一个32字节的值，代表签名的第一部分，通常对应于签名过程中随机选取点的x坐标。
+- s：另一个32字节的值，与 r 共同用于验证签名的唯一性和有效性。
+- v：1字节的值，通常为27或28，表示 recovery id，帮助确定签名使用的两个可能的公钥中的哪一个，从而可以恢复出签名者的地址。
+
+因为对非对称加密算法研究不深, 只能理解是3个关键要素了.
+
+我很喜欢这种通过签名来下发NFT的方式，相当于它把白名单管理和领取的逻辑给分离出来，项目方只要给白名单内的地址进行签名，白名单内的地址就可以拿着签名来领取NFT了, 还能节省 gas fee, 既灵活也经济, 智能合约在这里的作用相当是白名单验证+Token下发.
+
+> 由于签名是链下的，不需要gas，因此这种白名单发放模式比Merkle Tree模式还要经济；
+> 但由于用户要请求中心化接口去获取签名，不可避免的牺牲了一部分去中心化；
+
+但是即使使用 Merkle Tree 模式，还是要向中心化接口请求，获取Merkle Proof。
+
+我觉得还是要看清楚技术的价值所在，去中心化是手段，而不是目的, 更何况现在虽然有Web3 的概念，但是现在绝大多数的项目还是跑在Web2上的，各个项目的官网不还是要跑在服务器上嘛.
+
+作为用户，既不会关心你的网站是用Java写的，还是用PHP写的，只会关心网站的体验好不好。
+
+同理，用户也不会关心你是用Web2或者是Web3方案做的，也只关心这个东西好不好用，区块链的确通过不可变性解决了信任问题，但是就好像EVM
+可以通过gas fee经济模型来处理计算成本的问题，会有多种方案来解决同一个问题的，比如也可以通过法律来解决信任问题。
+
+技术终究是手段，能解决问题才是目的.
+
 <!-- Content_END -->
