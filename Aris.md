@@ -66,14 +66,13 @@ timezone: Asia/Shanghai
 
 ### 2024.09.24
 
-#### 学习内容 第02 节: 值类型 第03节:函数类型
+#### 学习内容 第02 节: 值类型
 
-- 第02 节: 值类型
+1. 值类型
   - 值类型: Value Type 
   - 引用类型: Reference Type
   - 映射类型: Mapping Type
-  
-- 值类型:
+2. 值类型:
   - 布尔型
     - 与`&&`,或`||`,非`!` 等于`=`,不等于`!=`
     - `&&` 和` ||` 遵循短路规则
@@ -88,14 +87,17 @@ timezone: Asia/Shanghai
     - 定长字节数组时值类型,数组长度在声明以后不能改变,分为 bytes1,bytes8,bytes32等,最大bytes 32
   - 枚举 enum
     - 为uint 分配名称,从 0 开始.
-  
-- 合约部署截图
+3. 合约部署截图
+    - ![image-20240924200304434](./content/Aris/image-20240924200304434.png)
 
-- ![image-20240924200304434](./content/Aris/image-20240924200304434.png)
+4. 第 02 节测验得分 100,答案:C,D,C,B,D
 
-- 第节: 函数类型
+---
 
-- `function <function name>(<parameter types>) {internal|external|public|private} [pure|view|payable] [returns (<return types>)]`
+#### 学习内容 第03节:函数类型
+
+1. 函数类型
+  - `function <function name>(<parameter types>) {internal|external|public|private} [pure|view|payable] [returns (<return types>)]`
   - function: 函数声明的固定写法
   - name: 函数名
   - 函数可见性修饰符 (必须指定)
@@ -108,14 +110,9 @@ timezone: Asia/Shanghai
     - view: 外部变量,能读,不能写 | 无 gas 消耗 | 注意: 调用任何非标记 pure/view 函数需要支付 gas 费
     - payable: 调用函数可以转入 ETH (下面截图中,调用`minusPayable()` 传入了1 个 ETH,合约余额就受到了 1ETH)
   - retuns: 函数返回的变量类型和名称
-  
-- 合约部署截图
-
-- ![image-20240924204906756](./content/Aris/image-20240924204906756.png)
-
-- 第 02 节测验得分 100,答案:C,D,C,B,D
-
-- 第 03 节测验得分 100,答案:
+2. 合约部署截图
+    - ![image-20240924204906756](./content/Aris/image-20240924204906756.png)
+3. 第 03 节测验得分 100,答案:CBAAC
 
 ---
 
@@ -1208,7 +1205,7 @@ timezone: Asia/Shanghai
     - ![image-20241009171201571](content/Aris/image-20241009171201571.png)
     - ![image-20241009171653387](content/Aris/image-20241009171653387.png)
 
-7. 第 26 节测验得分: 100, 答案: 
+7. 第 26 节测验得分: 100, 答案: BBBAB
 
 ---
 
