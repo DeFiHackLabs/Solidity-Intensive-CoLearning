@@ -1905,6 +1905,181 @@ contract ReceiveFallbackExample {
 ### 2024.10.12
 #### WTF Academy Solidity 102.20 发送ETH
 
+##### 发送-接收ETH合约
+**接收ETH合约 `ReceiveETH`**
+
+简单的接收ETH的合约包含`receive()`函数，允许它接收ETH，并记录交易信息。
+
+```solidity
+contract ReceiveETH {
+    // 事件，用于记录ETH接收情况
+    event Log(uint amount, uint gas);
+
+    // receive函数，每次接收ETH时触发
+    receive() external payable {
+        emit Log(msg.value, gasleft());
+    }
+
+    // 查询合约当前余额
+    function getBalance() public view returns (uint) {
+        return address(this).balance;
+    }
+}
+
+```
+**发送ETH合约 `SendETH`**
+
+发送ETH的合约`SendETH`，这个合约通过不同的方法向`ReceiveETH`合约发送ETH。
+
+```solidity
+contract SendETH {
+    // 构造函数，使得部署时可以转入ETH
+    constructor() payable {}
+
+    // receive函数，接收ETH时被触发
+    receive() external payable {}
+
+    // transfer()发送ETH的示例
+    function transferETH(address payable _to, uint256 amount) external payable {
+        _to.transfer(amount);
+    }
+
+    // send()发送ETH的示例
+    error SendFailed();  // 如果发送失败，触发自定义错误
+    function sendETH(address payable _to, uint256 amount) external payable {
+        bool success = _to.send(amount);
+        if (!success) {
+            revert SendFailed();  // 发送失败则revert交易
+        }
+    }
+
+    // call()发送ETH的示例
+    error CallFailed();  // 如果发送失败，触发自定义错误
+    function callETH(address payable _to, uint256 amount) external payable {
+        (bool success, ) = _to.call{value: amount}("");
+        if (!success) {
+            revert CallFailed();  // 发送失败则revert交易
+        }
+    }
+}
+
+```
+
+##### 三种发送ETH方法
+**1. `transfer()`**
+
+**语法**：
+
+```solidity
+_to.transfer(amount);
+
+```
+
+- **参数**：
+    - `_to`：接收ETH的目标地址，类型是`address payable`。
+    - `amount`：发送的ETH数额，以`wei`为单位。
+- **返回值**：
+    - `transfer()` 没有返回值。
+    - 如果转账失败（例如目标合约消耗的`gas`超过了2300 gas），会自动`revert`（回滚交易），并抛出异常，停止执行合约后续的代码。
+- **用法特点**：
+    - 固定的2300 gas限制，适合简单的转账，不适用于执行复杂逻辑。
+    - 如果失败，会自动回滚交易，无需手动处理。
+
+**示例**：
+
+```solidity
+function transferETH(address payable _to, uint256 amount) external {
+    _to.transfer(amount);
+}
+
+```
+
+**2. `send()`**
+
+**语法**：
+
+```solidity
+bool success = _to.send(amount);
+
+```
+
+- **参数**：
+    - `_to`：接收ETH的目标地址，类型是`address payable`。
+    - `amount`：发送的ETH数额，以`wei`为单位。
+- **返回值**：
+    - 返回一个`bool`值，表示转账是否成功。
+        - `true`：转账成功。
+        - `false`：转账失败。
+    - 由于返回值是`bool`，需要手动检查返回值来决定是否要回滚（例如使用`require`或`revert`来处理）。
+- **用法特点**：
+    - 和`transfer()`一样有2300 gas限制，但转账失败不会自动`revert`，需要手动处理失败情况。
+    - 因为没有自动`revert`机制，使用场景较少。
+
+**示例**：
+
+```solidity
+error SendFailed(); // 自定义错误
+
+function sendETH(address payable _to, uint256 amount) external {
+    bool success = _to.send(amount);
+    if (!success) {
+        revert SendFailed(); // 手动回滚
+    }
+}
+
+```
+
+**3. `call()`**
+
+**语法**：
+
+```solidity
+(bool success, bytes memory data) = _to.call{value: amount}("");
+
+```
+
+- **参数**：
+    - `_to`：接收ETH的目标地址，类型是`address payable`。
+    - `amount`：发送的ETH数额，以`wei`为单位。
+    - `{value: amount}`：指定转账的ETH数额。
+    - `""`：调用的函数签名（空字符串代表调用目标合约的`fallback()`或`receive()`函数）。
+- **返回值**：
+    - `call()`返回一个元组：
+        - `bool success`：表示调用是否成功。
+            - `true`：调用成功。
+            - `false`：调用失败。
+        - `bytes memory data`：表示调用返回的`data`，在发送ETH时通常不使用（因为没有调用任何具体函数），但在函数调用中可以解析返回数据。
+- **用法特点**：
+    - 没有固定的gas限制，适合复杂逻辑的执行（可以手动设置`gas`）。
+    - 如果失败，不会自动`revert`，需要手动检查`bool success`，决定是否要回滚交易。
+
+**示例**：
+
+```solidity
+error CallFailed(); // 自定义错误
+
+function callETH(address payable _to, uint256 amount) external {
+    (bool success, ) = _to.call{value: amount}(""); // 发送ETH
+    if (!success) {
+        revert CallFailed(); // 手动回滚
+    }
+}
+
+```
+
+##### 主要区别总结：
+
+| 方法 | 语法规则 | 返回值 | gas 限制 | 失败时行为 | 用法场景 |
+| --- | --- | --- | --- | --- | --- |
+| `transfer()` | `_to.transfer(amount)` | 无返回值 | 固定 2300 gas | 自动`revert` | 简单ETH转账，确保安全 |
+| `send()` | `bool success = _to.send(amount)` | `bool success` | 固定 2300 gas | 不自动`revert` | 不推荐，必须手动检查返回值 |
+| `call()` | `(bool success, bytes memory data) = _to.call{value: amount}("")` | `bool success`, `bytes data` | 无限制 | 不自动`revert` | 推荐用于复杂逻辑或可控的ETH发送 |
+##### 测验结果
+- 100/100
+
+### 2024.10.13
+#### WTF Academy Solidity 102.21 调用其他合约
+
 ##### 笔记
 
 ##### 测验结果
@@ -1912,8 +2087,8 @@ contract ReceiveFallbackExample {
 ##### 测验错题
 
 
-### 2024.10.13
-#### WTF Academy Solidity 102.21 调用其他合约
+### 2024.10.14
+#### WTF Academy Solidity 102.22 Call
 
 ##### 笔记
 
