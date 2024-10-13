@@ -2909,7 +2909,7 @@ contract NFTSwap is IERC721Receiver{
         emit Purchase(msg.sender, _nftAddr, _tokenId, _order.price);
     }
     ```
-### 2024.10.11
+### 2024.10.13
 # 鏈上隨機數
 許多以太坊上的應用都需要用到隨機數，例如 NFT 隨機抽取 tokenId、抽盲盒、gamefi 戰鬥中隨機分勝負等等。但由於以太坊上所有資料都是公開透明（public）且確定性（deterministic）的，它沒法像其他程式語言一樣提供開發者產生隨機數的方法。今天將介紹鏈上（雜湊函數）和鏈下（chainlink 預言機）隨機數產生的兩種方法，並利用它們做一款 tokenId 隨機鑄造的NFT。
 ## 鏈上隨機數生成
