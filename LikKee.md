@@ -4662,6 +4662,52 @@ Bridges are the most attacked protocol in the decentralized system. Never trust 
 
 #### Chapter 55: Multicall
 
+`multicall` refer to execute multiple functions in single transaction
+Benefits:
+
+- Convenience: Perform multiple action once instead of waiting for previous transaction to execute successfully
+- Gas saving: Reduce execution cost, reduce some steps during computation
+- Atomic operation: `multicall` can ensure transaction integrity; the transaction is successful if only all functions call success. If any of the function calls fail, the transaction will be reverted
+
+Multicall Contract Demo
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+contract Multicall {
+    // Call structure: Target address, allow of failure, encoded call data
+    struct Call {
+        address target;
+        bool allowFailure;
+        bytes callData;
+    }
+
+    // Result structure
+    struct Result {
+        bool success;
+        bytes returnData;
+    }
+
+    function multicall(Call[] calldata calls) public returns (Result[] memory returnData) {
+        uint256 length = calls.length;
+        returnData = new Result[](length);
+        Call calldata calli;
+
+        // Loop and intepret each call
+        for (uint256 i = 0; i < length; i++) {
+            Result memory result = returnData[i];
+            calli = calls[i];
+            (result.success, result.returnData) = calli.target.call(calli.callData);
+            // If calli.allowFailure and result.success are false，revert it
+            if (!(calli.allowFailure || result.success)){
+                revert("Multicall: call failed");
+            }
+        }
+    }
+}
+```
+
 ### 2024.10.15
 
 #### Chapter 56: Decentralized Exchange
