@@ -1153,9 +1153,50 @@ contract WETH is ERC20 {
         emit WithDraw(msg.sender, _amount);
     }
 
-
 }
 ```
 
 ###
+
+### 10.13
+
+#### 时间锁
+
+跟之前的线性释放区别不大，都是因为合约无法直接定时做动作，所以是在用户release的时候，计算现在合理的状况。
+
+```solidity
+pragma solidity >=0.8.2 <0.9.0;
+
+import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+
+contract TokenLock {
+    event LockStart(address indexed beneficiary,address indexed token,uint256 startTime,uint256 lockTime);
+    event Release(address indexed beneficiary,address indexed token,uint256 releaseTime,uint256 amount);
+
+    address public immutable beneficiary;
+    address public immutable token;
+    uint256 public immutable startTime;
+    uint256 public immutable lockTime;
+
+    constructor(address _beneficiary,address _token,uint256 _lockTime){
+        beneficiary = _beneficiary;
+        token = _token;
+        startTime = block.timestamp;
+        lockTime = _lockTime;
+
+        emit LockStart(beneficiary, token, startTime, lockTime);
+    }
+
+    function release() public {
+        require(block.timestamp>= startTime+lockTime,"not end");
+        IERC20 tt = IERC20(token);
+        uint256 count1=tt.balanceOf(address(this));
+
+        require(count1 > 0,"not enough token");
+        tt.transfer(beneficiary, count1);
+
+        emit Release(beneficiary, token, block.timestamp, count1);
+    }
+```
+
 <!-- Content_END -->
