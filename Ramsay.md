@@ -1572,4 +1572,70 @@ contract ERC721 is IERC721, IERC721Metadata{
 
 我创建了一个 [PR](https://github.com/WTFAcademy/frontend/pull/244) 来修复我所遇到的问题.
 
+### 2024.10.13
+
+#### 荷兰拍卖
+
+荷兰拍卖是指，拍卖人先将价格设定在足以阻止所有竞拍者的水平，然后由高价往低价喊，第一个应价的竞拍者获胜，并支付当时所喊到的价格。
+
+拍卖合约继承了 `Owner` 合约，我看了 `Owner` 合约的[文档](https://docs.openzeppelin.com/contracts/2.x/access-control), 权限控制在智能合约非常关键，最常见和最基本的权限抽近就是只有合约的所有者才有权限做管理操作，而每个合约只拥有一个所有者就是件理所当然的事了。
+
+默认的情况，继承`Owner`合约的所有者就是部署合约的地址，只有它才有权限进行操作, 比如课程中的设置拍卖开始时间和提款操作.
+
+虽然荷兰拍卖的原理是每过 `AUCTION_DROP_INTERVAL` 价格就衰减一次，但是并没有一个定时器或者 `crontab` 不停的更新时间并且广播，而是当有竞拍者调用 `getAuctionPrice` 时函数，根据已经过去的时间，再根据时间动态算出价格.
+```solidity
+    function getAuctionPrice()
+        public
+        view
+        returns (uint256)
+    {
+        if (block.timestamp < auctionStartTime) {
+        return AUCTION_START_PRICE;
+        }else if (block.timestamp - auctionStartTime >= AUCTION_TIME) {
+        return AUCTION_END_PRICE;
+        } else {
+        uint256 steps = (block.timestamp - auctionStartTime) /
+            AUCTION_DROP_INTERVAL;
+        return AUCTION_START_PRICE - (steps * AUCTION_DROP_PER_STEP);
+        }
+    }
+```
+
+```solidity
+    // 拍卖mint函数
+    function auctionMint(uint256 quantity) external payable{
+        uint256 _saleStartTime = uint256(auctionStartTime); // 建立local变量，减少gas花费
+        require(
+        _saleStartTime != 0 && block.timestamp >= _saleStartTime,
+        "sale has not started yet"
+        ); // 检查是否设置起拍时间，拍卖是否开始
+        require(
+        totalSupply() + quantity <= COLLECTOIN_SIZE,
+        "not enough remaining reserved for auction to support desired mint amount"
+        ); // 检查是否超过NFT上限
+
+        uint256 totalCost = getAuctionPrice() * quantity; // 计算mint成本
+        require(msg.value >= totalCost, "Need to send more ETH."); // 检查用户是否支付足够ETH
+        
+        // Mint NFT
+        for(uint256 i = 0; i < quantity; i++) {
+            uint256 mintIndex = totalSupply();
+            _mint(msg.sender, mintIndex);
+            _addTokenToAllTokensEnumeration(mintIndex);
+        }
+        // 多余ETH退款
+        if (msg.value > totalCost) {
+            payable(msg.sender).transfer(msg.value - totalCost); //注意一下这里是否有重入的风险
+        }
+    }
+```
+
+现实中的拍卖可能是把藏品给到竞拍者，而上面的拍卖函数是通过合约收你钱，然后「现场」铸造出来，即产即销了.
+
+这里"建立local变量，减少gas花费", 类似于 caching 的技巧，相当于把多次访问并且只读的状态变量缓存起来，以减少 gas fee, 减少一次 `SLOAD` 指令，大概能节省 2100 gas fee. 
+
+荷兰拍卖中，直接和价格关联的就是 `block.timestamp`, 我在想，是否有可能控制 `block.timestamp`，比如直接把区块链时间戳直接改到起始时间+拍卖时长之后，那么不就可以直接以最低价/地板价拍到手了嘛?
+
+不过看起来，validator 只有几秒的空间来调整，时间戳应该不存在被利用的漏洞.
+
 <!-- Content_END -->

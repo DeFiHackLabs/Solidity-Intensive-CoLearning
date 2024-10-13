@@ -134,4 +134,16 @@ LFG～～～～～ 會完成的
 
 [**WTF Solidity 極簡入門：40. ERC1155**](<content/Haoder/md/340.md>)
 
+### 2024.10.13
+
+[**WTF Solidity 極簡入門：41. WETH**](<content/Haoder/md/341.md>)
+
+[**WTF Solidity 極簡入門：42. 分帳**](<content/Haoder/md/342.md>)
+
+[**WTF Solidity 極簡入門：43. 線性釋放**](<content/Haoder/md/343.md>)
+
+[**WTF Solidity 極簡入門：44. 代幣鎖**](<content/Haoder/md/344.md>)
+
+[**WTF Solidity 極簡入門：45. 時間鎖**](<content/Haoder/md/345.md>)
+
 <!-- Content_END -->

@@ -6672,10 +6672,180 @@ console.log(`mint成功，地址${tokens[0]} 的NFT余额: ${await contractNFT.b
 4. 用户铸造时，向后端请求地址对应的proof。
 5. 用户调用mint()函数进行铸造NFT。
 
+### 2024.10.12
+### 数字签名
+以太坊使用的数字签名算法叫双椭圆曲线数字签名算法（ECDSA），基于双椭圆曲线“私钥-公钥”对的数字签名算法。它主要起到了三个作用：
+1. 身份认证：证明签名方是私钥的持有人。
+2. 不可否认：发送方不能否认发送过这个消息。
+3. 完整性：消息在传输过程中无法被修改。
+### 数字签名合约
+```
+// 创建消息
+const account = "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"
+const tokenId = "0"
+// 等效于Solidity中的keccak256(abi.encodePacked(account, tokenId))
+const msgHash = ethers.solidityPackedKeccak256(
+    ['address', 'uint256'],
+    [account, tokenId])
+console.log(`msgHash：${msgHash}`)
+// msgHash：0x1bf2c0ce4546651a1a2feb457b39d891a6b83931cc2454434f39961345ac378c
+// 签名
+const messageHashBytes = ethers.getBytes(msgHash)
+const signature = await wallet.signMessage(messageHashBytes);
+console.log(`签名：${signature}`)
+// 签名：0x390d704d7ab732ce034203599ee93dd5d3cb0d4d1d7c600ac11726659489773d559b12d220f99f41d17651b0c1c6a669d346a397f8541760d6b32a5725378b241c
 
+// 准备 alchemy API 可以参考https://github.com/AmazingAng/WTF-Solidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md 
+const ALCHEMY_GOERLI_URL = 'https://eth-goerli.alchemyapi.io/v2/GlaeWuylnNM3uuOo-SAwJxuwTdqHaY5l';
+const provider = new ethers.JsonRpcProvider(ALCHEMY_GOERLI_URL);
+// 利用私钥和provider创建wallet对象
+const privateKey = '0x227dbb8586117d55284e26620bc76534dfbd2394be34cf4a09cb775d593b6f2b'
+const wallet = new ethers.Wallet(privateKey, provider)
 
+// 创建消息
+const account = "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"
+const tokenId = "0"
+// 等效于Solidity中的keccak256(abi.encodePacked(account, tokenId))
+const msgHash = ethers.solidityPackedKeccak256(
+    ['address', 'uint256'],
+    [account, tokenId])
+console.log(`msgHash：${msgHash}`)
+// 签名
+const messageHashBytes = ethers.getBytes(msgHash)
+const signature = await wallet.signMessage(messageHashBytes);
+console.log(`签名：${signature}`)
 
+// NFT的人类可读abi
+const abiNFT = [
+    "constructor(string memory _name, string memory _symbol, address _signer)",
+    "function name() view returns (string)",
+    "function symbol() view returns (string)",
+    "function mint(address _account, uint256 _tokenId, bytes memory _signature) external",
+    "function ownerOf(uint256) view returns (address)",
+    "function balanceOf(address) view returns (uint256)",
+];
+// 合约字节码，在remix中，你可以在两个地方找到Bytecode
+// i. 部署面板的Bytecode按钮
+// ii. 文件面板artifact文件夹下与合约同名的json文件中
+// 里面"object"字段对应的数据就是Bytecode，挺长的，608060起始
+// "object": "608060405260646000553480156100...
+const bytecodeNFT = contractJson.default.object;
+const factoryNFT = new ethers.ContractFactory(abiNFT, bytecodeNFT, wallet);
 
+// 部署合约，填入constructor的参数
+const contractNFT = await factoryNFT.deploy("WTF Signature", "WTF", wallet.address)
+console.log(`合约地址: ${contractNFT.target}`);
+console.log("等待合约部署上链")
+await contractNFT.waitForDeployment()
+// 也可以用 contractNFT.deployTransaction.wait()
+console.log("合约已上链")
+
+console.log(`NFT名称: ${await contractNFT.name()}`)
+console.log(`NFT代号: ${await contractNFT.symbol()}`)
+let tx = await contractNFT.mint(account, tokenId, signature)
+console.log("铸造中，等待交易上链")
+await tx.wait()
+console.log(`mint成功，地址${account} 的NFT余额: ${await contractNFT.balanceOf(account)}\n`)
+```
+在生产环境使用数字签名验证白名单发行NFT主要有以下步骤：
+1. 确定白名单列表。
+2. 在后端维护一个签名钱包，生成每个白名单对应的消息和签名。
+3. 部署NFT合约，并将签名钱包的公钥signer保存在合约中。
+4. 用户铸造时，向后端请求地址对应的签名。
+5. 用户调用mint()函数进行铸造NFT。
+
+### 监听Mempool
+### MEV
+Maximal Extractable Value，最大可提取价值
+在用户的交易被矿工打包进以太坊区块链之前，所有交易会汇集到Mempool（交易内存池）中。矿工也是在这里寻找费用高的交易优先打包，实现利益最大化。通常来说，gas price越高的交易，越容易被打包。
+
+同时，一些MEV机器人也会搜索mempool中有利可图的交易。比如，一笔滑点设置过高的swap交易可能会被三明治攻击：通过调整gas，机器人会在这笔交易之前插一个买单，之后发送一个卖单，等效于把把代币以高价卖给用户（抢跑）。
+![image](https://github.com/user-attachments/assets/82553464-aa6c-4f28-a652-7b41f3310e6b)
+
+### 监听Mempool
+你可以利用ethers.js的Provider类提供的方法，监听mempool中的pending（未决，待打包）交易：
+```
+provider.on("pending", listener)
+```
+```
+console.log("\n1. 连接 wss RPC")
+// 准备 alchemy API 可以参考https://github.com/AmazingAng/WTF-Solidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md 
+const ALCHEMY_MAINNET_WSSURL = 'wss://eth-mainnet.g.alchemy.com/v2/oKmOQKbneVkxgHZfibs-iFhIlIAl6HDN';
+const provider = new ethers.WebSocketProvider(ALCHEMY_MAINNET_WSSURL);
+function throttle(fn, delay) {
+    let timer;
+    return function(){
+        if(!timer) {
+            fn.apply(this, arguments)
+            timer = setTimeout(()=>{
+                clearTimeout(timer)
+                timer = null
+            },delay)
+        }
+    }
+}
+let i = 0
+provider.on("pending", async (txHash) => {
+    if (txHash && i < 100) {
+        // 打印txHash
+        console.log(`[${(new Date).toLocaleTimeString()}] 监听Pending交易 ${i}: ${txHash} \r`);
+        i++
+        }
+});
+let j = 0
+provider.on("pending", throttle(async (txHash) => {
+    if (txHash && j <= 100) {
+        // 获取tx详情
+        let tx = await provider.getTransaction(txHash);
+        console.log(`\n[${(new Date).toLocaleTimeString()}] 监听Pending交易 ${j}: ${txHash} \r`);
+        console.log(tx);
+        j++
+        }
+}, 1000));
+```
+
+### 未决交易
+ethers.js提供了Interface类方便解码交易数据。声明Interface类型和声明abi的方法差不多，例如：
+```
+const iface = ethers.Interface([
+    "function balanceOf(address) public view returns(uint)",
+    "function transfer(address, uint) public returns (bool)",
+    "function approve(address, uint256) public returns (bool)"
+]);
+```
+#### 解码交易数据
+```
+// 准备 alchemy API 可以参考https://github.com/AmazingAng/WTF-Solidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md 
+const ALCHEMY_MAINNET_WSSURL = 'wss://eth-mainnet.g.alchemy.com/v2/oKmOQKbneVkxgHZfibs-iFhIlIAl6HDN';
+const provider = new ethers.WebSocketProvider(ALCHEMY_MAINNET_WSSURL);
+let network = provider.getNetwork()
+network.then(res => console.log(`[${(new Date).toLocaleTimeString()}] 连接到 chain ID ${res.chainId}`));
+const iface = new ethers.Interface([
+"function transfer(address, uint) public returns (bool)",
+])
+const selector = iface.getFunction("transfer").selector
+console.log(`函数选择器是${selector}`)
+// 处理bigInt
+function handleBigInt(key, value) {
+    if (typeof value === "bigint") {
+        return value.toString() + "n"; // or simply return value.toString();
+    }
+return value;
+}
+
+provider.on('pending', async (txHash) => {
+if (txHash) {
+    const tx = await provider.getTransaction(txHash)
+    j++
+    if (tx !== null && tx.data.indexOf(selector) !== -1) {
+        console.log(`[${(new Date).toLocaleTimeString()}]监听到第${j + 1}个pending交易:${txHash}`)
+        console.log(`打印解码交易详情:${JSON.stringify(iface.parseTransaction(tx), handleBigInt, 2)}`)
+        console.log(`转账目标地址:${iface.parseTransaction(tx).args[0]}`)
+        console.log(`转账金额:${ethers.formatEther(iface.parseTransaction(tx).args[1])}`)
+        provider.removeListener('pending', this)
+    }
+}})
+```
 
     
 <!-- Content_END -->

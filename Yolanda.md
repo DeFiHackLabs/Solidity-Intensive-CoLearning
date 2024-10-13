@@ -156,4 +156,12 @@ timezone: Asia/Shanghai
 4. send()如果轉帳失敗，不會revert，gas限制是2300
 5. call()如果轉帳失敗，不會revert，没有gas限制
 
+
+### 2024.10.12
+1. 可以在函數裡傳入目標合約地址，生成目標合約的引用，然後調用目標函數
+2. 在函數裡傳入合約的引用，只需要把上面参數的address類型改為目標合約名
+3. 創建合約變量，接著通過它來調用目標函數
+4. 如果目標合約的函數是payable的，我們可以通過調用它來給合約轉帳：_Name(_Address).f{value: _Value}()
+5. _Name：合約名，_Address：合約地址，f：目標函數名，_Value：要轉的ETH數額（以wei為單位）
+
 <!-- Content_END -->

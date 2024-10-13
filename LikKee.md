@@ -4539,6 +4539,125 @@ Safety Note
 
 #### Chapter 54: Bridge
 
+Bridge allow assets to transfer from origin chain to destination chain, eg from Ethereum Mainnet to Optimism Mainnet.
+
+3 types of bridge architecture:
+
+- Burn/Mint: The assets burnt on origin chain and minting in destination chain. The protocol need the minting permission for the action
+- Stake/Mint: The assets staked on origin chain and minting a wrapped version or value-equivalent token in destination chain. It is convinient for protocol with limited permission but risky, the value on destination chain may effect if origin assets hacked
+- Stake/Unstake: The assets staked on origin chain and release in destination chain. It require the assets to stored in both chain, need liquidity support
+
+Burn/Mint Bridge Demo
+
+- Deploy ERC20 with burn and mint function on both chain
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract CrossChainToken is ERC20, Ownable {
+
+    // Bridge event
+    event Bridge(address indexed user, uint256 amount);
+    // Mint event
+    event Mint(address indexed to, uint256 amount);
+
+    /**
+     * @param name Token Name
+     * @param symbol Token Symbol
+     * @param totalSupply Token Supply
+     */
+    constructor(
+        string memory name,
+        string memory symbol,
+        uint256 totalSupply
+    ) payable ERC20(name, symbol) Ownable(msg.sender) {
+        _mint(msg.sender, totalSupply);
+    }
+
+    /**
+     * Bridge function
+     * @param amount: burn amount of token on the current chain and mint on the other chain
+     */
+    function bridge(uint256 amount) public {
+        _burn(msg.sender, amount);
+        emit Bridge(msg.sender, amount);
+    }
+
+    /**
+     * Mint function
+     */
+    function mint(address to, uint amount) external onlyOwner {
+        _mint(to, amount);
+        emit  Mint(to, amount);
+    }
+}
+```
+
+- A script/app on server listening to token events
+
+```
+import { ethers } from "ethers";
+
+// Initialize provider of both chains
+const providerGoerli = new ethers.JsonRpcProvider("Goerli_Provider_URL");
+const providerSepolia = new ethers.JsonRpcProvider("Sepolia_Provider_URL");
+
+// Contract owner with bridge/mint permission
+const privateKey = "Your_Key";
+const walletGoerli = new ethers.Wallet(privateKey, providerGoerli);
+const walletSepolia = new ethers.Wallet(privateKey, providerSepolia);
+
+// Contract address and ABI
+const contractAddressGoerli = "address";
+const contractAddressSepolia = "address";
+
+const abi = [
+    "event Bridge(address indexed user, uint256 amount)",
+    "function bridge(uint256 amount) public",
+    "function mint(address to, uint amount) external",
+];
+
+const contractGoerli = new ethers.Contract(contractAddressGoerli, abi, walletGoerli);
+const contractSepolia = new ethers.Contract(contractAddressSepolia, abi, walletSepolia);
+
+const main = async () => {
+    try{
+        console.log(`Listening to token events`)
+
+        // Listening to Bridge event of token on Sepolia
+        contractSepolia.on("Bridge", async (user, amount) => {
+            console.log(`Bridge event on Chain Sepolia: User ${user} burned ${amount} tokens`);
+
+            // Response to Bridge event and mint token
+            let tx = await contractGoerli.mint(user, amount);
+            await tx.wait();
+
+            console.log(`Minted ${amount} tokens to ${user} on Chain Goerli`);
+        });
+
+        // Listening to Bridge event of token on Goerli
+        contractGoerli.on("Bridge", async (user, amount) => {
+            console.log(`Bridge event on Chain Goerli: User ${user} burned ${amount} tokens`);
+
+            let tx = await contractSepolia.mint(user, amount);
+            await tx.wait();
+
+            console.log(`Minted ${amount} tokens to ${user} on Chain Sepolia`);
+        });
+    } catch(e) {
+        console.log(e);
+    }
+}
+
+main();
+```
+
+Bridges are the most attacked protocol in the decentralized system. Never trust any bridge protocols, limit the token allowance or revoke approval after each use.
+
 ### 2024.10.14
 
 #### Chapter 55: Multicall
