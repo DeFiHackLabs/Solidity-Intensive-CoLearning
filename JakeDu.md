@@ -159,4 +159,11 @@ day02
 
 [WTF Academy Solidity 103 Note 39-47](/content/JakeDu/20.md)
 <br>
+
+### 2024.10.13
+
+学习103的四十八课和五十课
+
+[WTF Academy Solidity 103 Note 48-50](/content/JakeDu/21.md)
+<br>
 <!-- Content_END -->
