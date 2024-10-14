@@ -150,5 +150,13 @@ timezone: Asia/Taipei
 
   [WTF Academy Solidity 103 52 EIP712 Note](/content/0xRory/119-EIP712/119-ERC712.md)
 
+### 2024.10.14
+  day22:
+
+  [WTF Academy Solidity 103 53 ERC2612 Note](/content/0xRory/120-ERC2612/ERC-2612.md)
+
+  [WTF Academy Solidity 103 54 跨鏈橋 Note](/content/0xRory/120-跨鏈橋/跨鏈橋.md)
+
+  [WTF Academy Solidity 103 55 MultiCall Note](/content/0xRory/120-Multicall/Multicall.md)
 
 <!-- Content_END -->

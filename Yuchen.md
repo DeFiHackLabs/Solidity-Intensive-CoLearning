@@ -2073,6 +2073,127 @@ function strong(
 
 <img src="https://github.com/user-attachments/assets/0be0c95b-a333-467d-8dd1-387e6ce1c5eb" height="400px" width="640px" />
 
+### 2024.10.13
+
+#### 函數選擇器(Selector)
+當調用智能合約時，本質上是向目標合約發送了一段`calldata`。
+
+
+**msg.data**  
+`msg.data`是Solidity中的一个全局變量，值為完整的`calldata`（調用函數時傳入的數據）。  
+在下面的代碼中，可以通過`Log`事件來輸出調用`mint`函數的`calldata`：
+```Solidity
+// event 返回msg.data
+event Log(bytes data);
+
+function mint(address to) external{
+    emit Log(msg.data);
+}
+```  
+当参数为0x2c44b726ADF1963cA47Af88B284C06f30380fC78时，输出的calldata为  
+```
+0x6a6278420000000000000000000000002c44b726adf1963ca47af88b284c06f30380fc78
+```  
+这段很乱的字节码可以分成两部分：  
+```
+前4个字节为函数选择器selector：
+0x6a627842
+
+后面32个字节为输入的参数：
+0x0000000000000000000000002c44b726adf1963ca47af88b284c06f30380fc78
+```  
+其实calldata就是告诉智能合约，我要调用哪个函数，以及参数是什么。  
+
+#### method id、selector和函数签名
+* `method id`定義為函數簽名的`Keccak`哈希后的前4个字節。
+* 當`selector`與`method id`相匹配時，即表示調用該函數。
+* 函數簽名，為`"函數名（逗號分隔的参數類型)"`。
+
+
+**基础类型参数**  
+`solidity`中，基础类型的参数有：`uint256`(`uint8`, ... , `uint256`)、`bool`, `address`等。在计算`method id`时，只需要计算`bytes4(keccak256("函数名(参数类型1,参数类型2,...)"))`。例如，如下函数，函数名为`elementaryParamSelector`，参数类型分别为`uint256`和`bool`。所以，只需要计算`bytes4(keccak256("elementaryParamSelector(uint256,bool)"))`便可得到此函数的`method id`。
+
+```Solidity
+    // elementary（基础）类型参数selector
+    // 输入：param1: 1，param2: 0
+    // elementaryParamSelector(uint256,bool) : 0x3ec37834
+    function elementaryParamSelector(uint256 param1, bool param2) external returns(bytes4 selectorWithElementaryParam){
+        emit SelectorEvent(this.elementaryParamSelector.selector);
+        return bytes4(keccak256("elementaryParamSelector(uint256,bool)"));
+    }
+```
+
+**固定长度类型参数**  
+固定长度的参数类型通常为固定长度的数组，例如：`uint256[5]`等。例如，如下函数`fixedSizeParamSelector`的参数为`uint256[3]`。因此，在计算该函数的`method id`时，只需要通过`bytes4(keccak256("fixedSizeParamSelector(uint256[3])"))`即可。  
+
+```Solidity
+    // fixed size（固定长度）类型参数selector
+    // 输入： param1: [1,2,3]
+    // fixedSizeParamSelector(uint256[3]) : 0xead6b8bd
+    function fixedSizeParamSelector(uint256[3] memory param1) external returns(bytes4 selectorWithFixedSizeParam){
+        emit SelectorEvent(this.fixedSizeParamSelector.selector);
+        return bytes4(keccak256("fixedSizeParamSelector(uint256[3])"));
+    }
+```
+
+**可变长度类型参数**  
+可变长度参数类型通常为可变长的数组，例如：`address[]`、`uint8[]`、`string`等。例如，如下函数`nonFixedSizeParamSelector`的参数为`uint256[]`和`string`。因此，在计算该函数的method id时，只需要通过`bytes4(keccak256("nonFixedSizeParamSelector(uint256[],string)"))`即可。
+```Solidity
+    // non-fixed size（可变长度）类型参数selector
+    // 输入： param1: [1,2,3]， param2: "abc"
+    // nonFixedSizeParamSelector(uint256[],string) : 0xf0ca01de
+    function nonFixedSizeParamSelector(uint256[] memory param1,string memory param2) external returns(bytes4 selectorWithNonFixedSizeParam){
+        emit SelectorEvent(this.nonFixedSizeParamSelector.selector);
+        return bytes4(keccak256("nonFixedSizeParamSelector(uint256[],string)"));
+    }
+```
+
+**映射类型参数**  
+映射类型参数通常有：`contract`、`enum`、`struct`等。在计算`method id`时，需要将该类型转化成为`ABI`类型。
+
+例如，如下函数`mappingParamSelector中DemoContract`需要转化为`address`，结构体`User`需要转化为`tuple`类型`(uint256,bytes)`，枚举类型`School`需要转化为`uint8`。因此，计算该函数的`method id`的代码为`bytes4(keccak256("mappingParamSelector(address,(uint256,bytes),uint256[],uint8)"))`。
+
+```Solidity
+contract DemoContract {
+    // empty contract
+}
+
+contract Selector{
+    // Struct User
+    struct User {
+        uint256 uid;
+        bytes name;
+    }
+    // Enum School
+    enum School { SCHOOL1, SCHOOL2, SCHOOL3 }
+    ...
+    // mapping（映射）类型参数selector
+    // 输入：demo: 0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99， user: [1, "0xa0b1"], count: [1,2,3], mySchool: 1
+    // mappingParamSelector(address,(uint256,bytes),uint256[],uint8) : 0xe355b0ce
+    function mappingParamSelector(DemoContract demo, User memory user, uint256[] memory count, School mySchool) external returns(bytes4 selectorWithMappingParam){
+        emit SelectorEvent(this.mappingParamSelector.selector);
+        return bytes4(keccak256("mappingParamSelector(address,(uint256,bytes),uint256[],uint8)"));
+    }
+    ...
+}
+```
+
+#### 使用selector
+我们可以利用`selector`来调用目标函数。例如我想调用`elementaryParamSelector`函数，我只需要利用`abi.encodeWithSelector`将`elementaryParamSelector`函数的`method id`作为`selector`和参数打包编码，传给`call`函数：
+
+```Solidity
+    // 使用selector来调用函数
+    function callWithSignature() external{
+    ...
+        // 调用elementaryParamSelector函数
+        (bool success1, bytes memory data1) = address(this).call(abi.encodeWithSelector(0x3ec37834, 1, 0));
+    ...
+    }
+```
+
+
+
+
 ### 2024.10.14
 
 #### Try Catch

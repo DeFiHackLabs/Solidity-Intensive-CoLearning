@@ -4662,12 +4662,459 @@ Bridges are the most attacked protocol in the decentralized system. Never trust 
 
 #### Chapter 55: Multicall
 
-### 2024.10.15
+`multicall` refer to execute multiple functions in single transaction
+Benefits:
+
+- Convenience: Perform multiple action once instead of waiting for previous transaction to execute successfully
+- Gas saving: Reduce execution cost, reduce some steps during computation
+- Atomic operation: `multicall` can ensure transaction integrity; the transaction is successful if only all functions call success. If any of the function calls fail, the transaction will be reverted
+
+Multicall Contract Demo
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+contract Multicall {
+    // Call structure: Target address, allow of failure, encoded call data
+    struct Call {
+        address target;
+        bool allowFailure;
+        bytes callData;
+    }
+
+    // Result structure
+    struct Result {
+        bool success;
+        bytes returnData;
+    }
+
+    function multicall(Call[] calldata calls) public returns (Result[] memory returnData) {
+        uint256 length = calls.length;
+        returnData = new Result[](length);
+        Call calldata calli;
+
+        // Loop and intepret each call
+        for (uint256 i = 0; i < length; i++) {
+            Result memory result = returnData[i];
+            calli = calls[i];
+            (result.success, result.returnData) = calli.target.call(calli.callData);
+            // If calli.allowFailure and result.success are false，revert it
+            if (!(calli.allowFailure || result.success)){
+                revert("Multicall: call failed");
+            }
+        }
+    }
+}
+```
 
 #### Chapter 56: Decentralized Exchange
 
-### 2024.10.16
+Automated Market Maker (AMM) is the most used algorithm in decentralized exchange
+
+- Eliminate the need of order book (Sell order, Buy order)
+- Require Liquidity Provider (LP) to provide initial fund of two or more tokens and set the ratio according to assets value
+
+Constant Sum Automated Market Maker (CSAMM)
+
+- Formula: `x + y = k`
+- Ensure that the relative price of tokens remains unchanged, which is very important in stablecoin exchange
+- The liquidity can easily exchausted if the exchange amount near to liquidity pool amount
+
+Constant Product Automated Market Maker (CPAMM)
+
+- Formula: `x * y = k`
+- Ensure the constant remain unchanged
+- Almost infinite liquidity as the relative price of token change linearly
+
+DEX Demo
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+contract SimpleSwap is ERC20 {
+    // Address of tokens
+    IERC20 public token0;
+    IERC20 public token1;
+
+    // Token amount stored
+    uint public reserve0;
+    uint public reserve1;
+
+    event Mint(address indexed sender, uint amount0, uint amount1);
+    event Burn(address indexed sender, uint amount0, uint amount1);
+    event Swap(
+        address indexed sender,
+        uint amountIn,
+        address tokenIn,
+        uint amountOut,
+        address tokenOut
+        );
+
+    constructor(IERC20 _token0, IERC20 _token1) ERC20("SimpleSwap", "SS") {
+        token0 = _token0;
+        token1 = _token1;
+    }
+
+    function min(uint x, uint y) internal pure returns (uint z) {
+        z = x < y ? x : y;
+    }
+
+    // Compute the square root (Babylonian method)
+    function sqrt(uint y) internal pure returns (uint z) {
+        if (y > 3) {
+            z = y;
+            uint x = y / 2 + 1;
+            while (x < z) {
+                z = x;
+                x = (y / x + x) / 2;
+            }
+        } else if (y != 0) {
+            z = 1;
+        }
+    }
+
+    // Adding liquidity, transfer the specific amount of both token, mint LP token
+    // First time adding, LP amount = sqrt(amount0 * amount1)
+    // Or else, LP amount = min(amount0/reserve0, amount1/reserve1)* totalSupply_LP
+    // @param amount0Desired token0 amount
+    // @param amount1Desired token1 amount
+    function addLiquidity(uint amount0Desired, uint amount1Desired) public returns(uint liquidity){
+        token0.transferFrom(msg.sender, address(this), amount0Desired);
+        token1.transferFrom(msg.sender, address(this), amount1Desired);
+
+        uint _totalSupply = totalSupply();
+        if (_totalSupply == 0) {
+            liquidity = sqrt(amount0Desired * amount1Desired);
+        } else {
+            liquidity = min(amount0Desired * _totalSupply / reserve0, amount1Desired * _totalSupply /reserve1);
+        }
+
+        require(liquidity > 0, 'INSUFFICIENT_LIQUIDITY_MINTED');
+
+        // Update reserved token amount
+        reserve0 = token0.balanceOf(address(this));
+        reserve1 = token1.balanceOf(address(this));
+
+        _mint(msg.sender, liquidity);
+
+        emit Mint(msg.sender, amount0Desired, amount1Desired);
+    }
+
+    // Remove liquidity, burn LP token, redeem tokens
+    // Tokens amount = (liquidity / totalSupply_LP) * reserve
+    // @param liquidity LP amount
+    function removeLiquidity(uint liquidity) external returns (uint amount0, uint amount1) {
+        uint balance0 = token0.balanceOf(address(this));
+        uint balance1 = token1.balanceOf(address(this));
+
+        uint _totalSupply = totalSupply();
+        amount0 = liquidity * balance0 / _totalSupply;
+        amount1 = liquidity * balance1 / _totalSupply;
+
+        require(amount0 > 0 && amount1 > 0, 'INSUFFICIENT_LIQUIDITY_BURNED');
+
+        _burn(msg.sender, liquidity);
+        token0.transfer(msg.sender, amount0);
+        token1.transfer(msg.sender, amount1);
+        reserve0 = token0.balanceOf(address(this));
+        reserve1 = token1.balanceOf(address(this));
+
+        emit Burn(msg.sender, amount0, amount1);
+    }
+
+    // Calculate the amount of another token to exchange
+    // Before swap: k = x * y
+    // After swap: k = (x + delta_x) * (y + delta_y)
+    // delta_y = - delta_x * y / (x + delta_x)
+    // Positive/Negative represent transfer in/out
+    function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) public pure returns (uint amountOut) {
+        require(amountIn > 0, 'INSUFFICIENT_AMOUNT');
+        require(reserveIn > 0 && reserveOut > 0, 'INSUFFICIENT_LIQUIDITY');
+        amountOut = amountIn * reserveOut / (reserveIn + amountIn);
+    }
+
+    // Swap token
+    // @param amountIn Amount to exchange
+    // @param tokenIn Token to exchange with
+    // @param amountOutMin Minimum amount to exchange of another token
+    function swap(uint amountIn, IERC20 tokenIn, uint amountOutMin) external returns (uint amountOut, IERC20 tokenOut){
+        require(amountIn > 0, 'INSUFFICIENT_OUTPUT_AMOUNT');
+        require(tokenIn == token0 || tokenIn == token1, 'INVALID_TOKEN');
+
+        uint balance0 = token0.balanceOf(address(this));
+        uint balance1 = token1.balanceOf(address(this));
+
+        if(tokenIn == token0){
+            tokenOut = token1;
+            amountOut = getAmountOut(amountIn, balance0, balance1);
+            require(amountOut > amountOutMin, 'INSUFFICIENT_OUTPUT_AMOUNT');
+
+            tokenIn.transferFrom(msg.sender, address(this), amountIn);
+            tokenOut.transfer(msg.sender, amountOut);
+        }else{
+            tokenOut = token0;
+            amountOut = getAmountOut(amountIn, balance1, balance0);
+            require(amountOut > amountOutMin, 'INSUFFICIENT_OUTPUT_AMOUNT');
+
+            tokenIn.transferFrom(msg.sender, address(this), amountIn);
+            tokenOut.transfer(msg.sender, amountOut);
+        }
+
+        reserve0 = token0.balanceOf(address(this));
+        reserve1 = token1.balanceOf(address(this));
+
+        emit Swap(msg.sender, amountIn, address(tokenIn), amountOut, address(tokenOut));
+    }
+}
+```
+
+This DEX demo are simplified version without considering fee and security feature.
 
 #### Chapter 57: Flashloan
+
+Flashloan is an example of `multicall`, an atomic operation, where the borrow and pay back of asset and interest in single transaction without the need of collateral.
+
+- Usually have beneficial action between borrow and pay back
+- The transaction will be reverted if pay back failed
+- Protocol have no risk like bad debt
+
+Flashloan with Uniswap V3 Demo
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.26;
+
+contract UniswapV3Flash {
+    struct FlashCallbackData {
+        uint256 amount0;
+        uint256 amount1;
+        address caller;
+    }
+
+    IUniswapV3Pool private immutable pool;
+    IERC20 private immutable token0;
+    IERC20 private immutable token1;
+
+    constructor(address _pool) {
+        pool = IUniswapV3Pool(_pool);
+        token0 = IERC20(pool.token0());
+        token1 = IERC20(pool.token1());
+    }
+
+    function flash(uint256 amount0, uint256 amount1) external {
+        bytes memory data = abi.encode(
+            FlashCallbackData({
+                amount0: amount0,
+                amount1: amount1,
+                caller: msg.sender
+            })
+        );
+        IUniswapV3Pool(pool).flash(address(this), amount0, amount1, data);
+    }
+
+    function uniswapV3FlashCallback(
+        // Pool fee x amount requested
+        uint256 fee0,
+        uint256 fee1,
+        bytes calldata data
+    ) external {
+        require(msg.sender == address(pool), "not authorized");
+
+        FlashCallbackData memory decoded = abi.decode(data, (FlashCallbackData));
+
+        // Write custom code here
+        if (fee0 > 0) {
+            token0.transferFrom(decoded.caller, address(this), fee0);
+        }
+        if (fee1 > 0) {
+            token1.transferFrom(decoded.caller, address(this), fee1);
+        }
+
+        // Repay borrow
+        if (fee0 > 0) {
+            token0.transfer(address(pool), decoded.amount0 + fee0);
+        }
+        if (fee1 > 0) {
+            token1.transfer(address(pool), decoded.amount1 + fee1);
+        }
+    }
+}
+
+interface IUniswapV3Pool {
+    function token0() external view returns (address);
+    function token1() external view returns (address);
+    function flash(
+        address recipient,
+        uint256 amount0,
+        uint256 amount1,
+        bytes calldata data
+    ) external;
+}
+
+interface IERC20 {
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address recipient, uint256 amount)
+        external
+        returns (bool);
+    function transferFrom(address sender, address recipient, uint256 amount)
+        external
+        returns (bool);
+    function allowance(address owner, address spender)
+        external
+        view
+        returns (uint256);
+    function approve(address spender, uint256 amount) external returns (bool);
+}
+```
+
+Test with Foundry
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.26;
+
+import {Test, console2} from "forge-std/Test.sol";
+import "../../../src/defi/uniswap-v3-flash/UniswapV3Flash.sol";
+
+contract UniswapV3FlashTest is Test {
+    address constant DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+    address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    // DAI / WETH 0.3% fee
+    address constant POOL = 0xC2e9F25Be6257c210d7Adf0D4Cd6E3E881ba25f8;
+    uint24 constant POOL_FEE = 3000;
+
+    IERC20 private constant weth = IERC20(WETH);
+    IERC20 private constant dai = IERC20(DAI);
+    UniswapV3Flash private uni;
+    address constant user = address(11);
+
+    function setUp() public {
+        uni = new UniswapV3Flash(POOL);
+
+        deal(DAI, user, 1e6 * 1e18);
+        vm.prank(user);
+        dai.approve(address(uni), type(uint256).max);
+    }
+
+    function test_flash() public {
+        uint256 dai_before = dai.balanceOf(user);
+        vm.prank(user);
+        uni.flash(1e6 * 1e18, 0);
+        uint256 dai_after = dai.balanceOf(user);
+
+        uint256 fee = dai_before - dai_after;
+        console2.log("DAI fee", fee);
+    }
+}
+
+```
+
+Flashloan with AAVE V3 Demo
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "./Lib.sol";
+
+interface IFlashLoanSimpleReceiver {
+    function executeOperation(
+        address asset,
+        uint256 amount,
+        uint256 premium,
+        address initiator,
+        bytes calldata params
+    ) external returns (bool);
+}
+
+contract AaveV3Flashloan {
+    address private constant AAVE_V3_POOL =
+        0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
+
+    address private constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+    ILendingPool public aave;
+
+    constructor() {
+        aave = ILendingPool(AAVE_V3_POOL);
+    }
+
+    function flashloan(uint256 wethAmount) external {
+        aave.flashLoanSimple(address(this), WETH, wethAmount, "", 0);
+    }
+
+    // Flashloan fallback, call by AAVE pool only
+    function executeOperation(address asset, uint256 amount, uint256 premium, address initiator, bytes calldata)
+        external
+        returns (bool)
+    {
+        require(msg.sender == AAVE_V3_POOL, "not authorized");
+        require(initiator == address(this), "invalid initiator");
+
+        uint fee = (amount * 5) / 10000 + 1;
+        uint amountToRepay = amount + fee;
+
+        IERC20(WETH).approve(AAVE_V3_POOL, amountToRepay);
+
+        return true;
+    }
+}
+```
+
+Test with Foundry
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "forge-std/Test.sol";
+import "../src/AaveV3Flashloan.sol";
+
+address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+contract UniswapV2FlashloanTest is Test {
+    IWETH private weth = IWETH(WETH);
+
+    AaveV3Flashloan private flashloan;
+
+    function setUp() public {
+        flashloan = new AaveV3Flashloan();
+    }
+
+    function testFlashloan() public {
+        weth.deposit{value: 1e18}();
+        weth.transfer(address(flashloan), 1e18);
+
+        uint amountToBorrow = 100 * 1e18;
+        flashloan.flashloan(amountToBorrow);
+    }
+
+    function testFlashloanFail() public {
+        weth.deposit{value: 1e18}();
+        weth.transfer(address(flashloan), 4e16);
+
+        uint amountToBorrow = 100 * 1e18;
+        vm.expectRevert();
+        flashloan.flashloan(amountToBorrow);
+    }
+}
+```
+
+Flashloan is widely used in risk-free arbitrage and vulnerability attacks.
+
+End of WTF Solidity 103
+
+### 2024.10.15
+
+#### Ether.js 101: Interaction with Ethereum
+
+### 2024.10.16
+
+#### Ether.js 102: Advanced
 
 <!-- Content_END -->

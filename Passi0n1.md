@@ -1112,6 +1112,68 @@ function transferOwner1(uint256 tokenId, address newOwner) public {
 <img width="1262" alt="image" src="https://github.com/user-attachments/assets/3ec38c2a-52c5-4d6a-9e53-ae5972ff52ba">
 
 
+### 2024.10.13
+#### 学习笔记
+
+
+## 三种转账 ETH 的差异
+
+### transfer
+	•	用法是接收方地址.transfer(发送ETH数额)。
+	•	transfer()的gas限制是2300，足够用于转账，但对方合约的fallback()或receive()函数不能实现太复杂的逻辑。
+	•	transfer()如果转账失败，会自动revert（回滚交易）。
+
+
+```
+// 用transfer()发送ETH
+function transferETH(address payable _to, uint256 amount) external payable{
+    _to.transfer(amount);
+}
+```
+
+
+
+### Send
+
+	•	用法是接收方地址.Send (发送 ETH 数额)。
+	•	send ()的 gas 限制是 2300，足够用于转账，但对方合约的 fallback ()或 receive ()函数不能实现太复杂的逻辑。
+	•	send ()如果转账失败，不会 revert。
+	•	send ()的返回值是 bool，代表着转账成功或失败，需要额外代码处理一下。
+
+```
+error SendFailed(); // 用send发送ETH失败error
+
+// send()发送ETH
+function sendETH(address payable _to, uint256 amount) external payable{
+    // 处理下send的返回值，如果失败，revert交易并发送error
+    bool success = _to.send(amount);
+    if(!success){
+        revert SendFailed();
+    }
+}
+```
+
+
+
+### call[​]( https://www.wtf.academy/docs/solidity-102/SendETH/#call "call 的直接链接")
+
+- 用法是`接收方地址.call{value: 发送ETH数额}("")`。
+- `call()`没有`gas`限制，可以支持对方合约`fallback()`或`receive()`函数实现复杂逻辑。
+- `call()`如果转账失败，不会`revert`。
+- `call()` 的返回值是 `(bool, bytes)`，其中 `bool` 代表着转账成功或失败，需要额外代码处理一下。
+```
+error CallFailed(); // 用call发送ETH失败error
+
+// call()发送ETH
+function callETH(address payable _to, uint256 amount) external payable{
+    // 处理下call的返回值，如果失败，revert交易并发送error
+    (bool success,) = _to.call{value: amount}("");
+    if(!success){
+        revert CallFailed();
+    }
+}
+```
+
 
    
 <!-- Content_END -->

@@ -1646,6 +1646,159 @@ contract MerkleTree is ERC721 {
 
 ### 2024.10.13
 
+37. 数字签名
+
+- 双椭圆曲线数字签名算法（ECDSA）
+- 私钥->公钥（address），私钥对消息签名，公钥用于验证签名
+- 创建签名
+
+  - 打包消息
+
+  ```solidity
+      /*
+      * 将mint地址（address类型）和tokenId（uint256类型）拼成消息msgHash
+      * _account: 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4
+      * _tokenId: 0
+      * 对应的消息msgHash: 0x1bf2c0ce4546651a1a2feb457b39d891a6b83931cc2454434f39961345ac378c
+      */
+      function getMessageHash(address _account, uint256 _tokenId) public pure returns(bytes32){
+          return keccak256(abi.encodePacked(_account, _tokenId));
+      }
+  ```
+
+  - 计算以太坊签名消息  
+    EIP191 提倡在消息前加上"\x19Ethereum Signed Message:\n32"字符，并再做一次 keccak256 哈希，作为以太坊签名消息
+
+  ```solidity
+      /*
+      * 将mint地址（address类型）和tokenId（uint256类型）拼成消息msgHash
+      * _account: 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4
+      * _tokenId: 0
+      * 对应的消息msgHash: 0x1bf2c0ce4546651a1a2feb457b39d891a6b83931cc2454434f39961345ac378c
+      */
+      function getMessageHash(address _account, uint256 _tokenId) public pure returns(bytes32){
+          return keccak256(abi.encodePacked(_account, _tokenId));
+  ```
+
+  - 利用钱包签名: 小狐狸钱包导入私钥后，用浏览器 console
+
+  ```js
+  ethereum.enable();
+  account = "0xe16C1623c1AA7D919cd2241d8b36d9E79C1Be2A2";
+  hash = "0x1bf2c0ce4546651a1a2feb457b39d891a6b83931cc2454434f39961345ac378c";
+  ethereum.request({ method: "personal_sign", params: [account, hash] });
+  ```
+
+  - 利用 web3.py 签名
+
+  ```python
+  from web3 import Web3, HTTPProvider
+  from eth_account.messages import encode_defunct
+
+  private_key = "0x227dbb8586117d55284e26620bc76534dfbd2394be34cf4a09cb775d593b6f2b"
+  address = "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"
+  rpc = 'https://rpc.ankr.com/eth'
+  w3 = Web3(HTTPProvider(rpc))
+
+  #打包信息
+  msg = Web3.solidity_keccak(['address','uint256'], [address,0])
+  print(f"消息：{msg.hex()}")
+  #构造可签名信息
+  message = encode_defunct(hexstr=msg.hex())
+  #签名
+  signed_message = w3.eth.account.sign_message(message, private_key=private_key)
+  print(f"签名：{signed_message['signature'].hex()}")
+  ```
+
+- 验证签名
+  - 通过签名和消息恢复公钥：签名是由数学算法生成的。这里我们使用的是 rsv 签名，签名中包含 r, s, v 三个值的信息。而后，我们可以通过 r, s, v 及以太坊签名消息来求得公钥。下面的 recoverSigner()函数实现了上述步骤，它利用以太坊签名消息 \_msgHash 和签名 \_signature 恢复公钥（使用了简单的内联汇编）：
+  ```solidity
+      // @dev 从_msgHash和签名_signature中恢复signer地址
+  function recoverSigner(bytes32 _msgHash, bytes memory _signature) internal pure returns (address){
+      // 检查签名长度，65是标准r,s,v签名的长度
+      require(_signature.length == 65, "invalid signature length");
+      bytes32 r;
+      bytes32 s;
+      uint8 v;
+      // 目前只能用assembly (内联汇编)来从签名中获得r,s,v的值
+      assembly {
+          /*
+          前32 bytes存储签名的长度 (动态数组存储规则)
+          add(sig, 32) = sig的指针 + 32
+          等效为略过signature的前32 bytes
+          mload(p) 载入从内存地址p起始的接下来32 bytes数据
+          */
+          // 读取长度数据后的32 bytes
+          r := mload(add(_signature, 0x20))
+          // 读取之后的32 bytes
+          s := mload(add(_signature, 0x40))
+          // 读取最后一个byte
+          v := byte(0, mload(add(_signature, 0x60)))
+      }
+      // 使用ecrecover(全局函数)：利用 msgHash 和 r,s,v 恢复 signer 地址
+      return ecrecover(_msgHash, v, r, s);
+  }
+  ```
+  - 对比公钥并验证签名  
+    接下来，我们只需要比对恢复的公钥与签名者公钥\_signer 是否相等：若相等，则签名有效；否则，签名无效
+    ```solidity
+     /**
+     * @dev 通过ECDSA，验证签名地址是否正确，如果正确则返回true
+     * _msgHash为消息的hash
+     * _signature为签名
+     * _signer为签名地址
+     */
+    function verify(bytes32 _msgHash, bytes memory _signature, address _signer) internal pure returns (bool) {
+        return recoverSigner(_msgHash, _signature) == _signer;
+    }
+    ```
+- 利用签名发放白名单
+  NFT 项目方可以利用 ECDSA 的这个特性发放白名单。由于签名是链下的，不需要 gas，因此这种白名单发放模式比 Merkle Tree 模式还要经济。方法非常简单，项目方利用项目方账户把白名单发放地址签名（可以加上地址可以铸造的 tokenId）。然后 mint 的时候利用 ECDSA 检验签名是否有效，如果有效，则给他 mint。  
+   SignatureNFT 合约实现了利用签名发放 NFT 白名单
+
+  ```solidity
+  contract SignatureNFT is ERC721 {
+      address immutable public signer; // 签名地址
+      mapping(address => bool) public mintedAddress;   // 记录已经mint的地址
+
+      // 构造函数，初始化NFT合集的名称、代号、签名地址
+      constructor(string memory _name, string memory _symbol, address _signer)
+      ERC721(_name, _symbol)
+      {
+          signer = _signer;
+      }
+
+      // 利用ECDSA验证签名并mint
+      function mint(address _account, uint256 _tokenId, bytes memory _signature)
+      external
+      {
+          bytes32 _msgHash = getMessageHash(_account, _tokenId); // 将_account和_tokenId打包消息
+          bytes32 _ethSignedMessageHash = ECDSA.toEthSignedMessageHash(_msgHash); // 计算以太坊签名消息
+          require(verify(_ethSignedMessageHash, _signature), "Invalid signature"); // ECDSA检验通过
+          require(!mintedAddress[_account], "Already minted!"); // 地址没有mint过
+          _mint(_account, _tokenId); // mint
+          mintedAddress[_account] = true; // 记录mint过的地址
+      }
+
+      /*
+      * 将mint地址（address类型）和tokenId（uint256类型）拼成消息msgHash
+      * _account: 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4
+      * _tokenId: 0
+      * 对应的消息: 0x1bf2c0ce4546651a1a2feb457b39d891a6b83931cc2454434f39961345ac378c
+      */
+      function getMessageHash(address _account, uint256 _tokenId) public pure returns(bytes32){
+          return keccak256(abi.encodePacked(_account, _tokenId));
+      }
+
+      // ECDSA验证，调用ECDSA库的verify()函数
+      function verify(bytes32 _msgHash, bytes memory _signature)
+      public view returns (bool)
+      {
+          return ECDSA.verify(_msgHash, _signature, signer);
+      }
+  }
+  ```
+
 ### 2024.10.14
 
 ### 2024.10.15
