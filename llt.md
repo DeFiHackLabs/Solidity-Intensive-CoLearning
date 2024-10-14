@@ -103,5 +103,17 @@ day15:
 
 [solidity-102 22-23(call-delegatecall) Note](./content/llt/115.md)
 
+### 2024.10.12
+
+day16:
+
+[solidity-102 24-25(在合约中创建新合约create-create2) Note](./content/llt/116.md)
+
+### 2024.10.14
+
+day17:
+
+[solidity-102 26(删除合约) Note](./content/llt/117.md)
+
 <!-- Content_END -->
 
