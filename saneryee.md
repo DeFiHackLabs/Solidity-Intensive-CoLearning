@@ -50,7 +50,20 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 ## Notes
 
 <!-- Content_START -->
+### 2024.10.14
 
+Day 18
+
+WTF Academy Solidity 101 49_UUPS
+
+**UUPS (Universal Upgradeable Proxy Standard)**
+| Standard | Upgrade function lies in | Selector-clashable|Drawbacks|
+|:--:|:--:|:--:|:--:|
+| Upgradeable Proxy | in Proxy contract | yes | selector clash |
+| TransparentProxy | in Proxy contract | no | cost more gas |
+| UUPS| in Logic contract| no | more complex |
+
+---
 ### 2024.10.12
 
 Day 16
