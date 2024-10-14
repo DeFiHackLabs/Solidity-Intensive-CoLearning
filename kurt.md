@@ -1055,6 +1055,47 @@ contract DutchAuction is Ownable ,ERC721{
 ![image](https://github.com/user-attachments/assets/0ce636a1-6d8c-4945-b14a-9b78b3b27b23)
 
 ### 2024.10.13
+MerkleProof 
+```
+pragma solidity ^0.8.26;
+import "contracts/ERC721.sol";
+
+library MerkleProof {
+    function verify(bytes32 leaf,bytes32 root,bytes32[] memory proof) internal pure returns (bool){
+        return processProof(leaf,proof) == root;
+    }
+    function processProof(bytes32 leaf,bytes32[] memory proof) internal pure returns (bytes32){
+       bytes32 computedHash = leaf;
+        for(uint256 i = 0;i<proof.length;i++){
+            computedHash = _hashPair(computedHash,proof[i]);
+        }
+        return computedHash;
+    }
+    function _hashPair(bytes32 a,bytes32 b) private pure returns (bytes32){
+        return a < b ? keccak256(abi.encodePacked(a,b)) :keccak256(abi.encodePacked(b,a));
+    }
+}
+
+contract merkleTree is ERC721 {
+    bytes32 public immutable root;
+    mapping (address=>bool) public  minedAddress;
+    constructor(string memory name,string memory symbol,bytes32  merkleroot) ERC721(name,symbol){
+        root = merkleroot;
+    }
+    function mint(address account,uint256 tokenId,bytes32[] calldata proof) external {
+            require(_verify(_leaf(account),proof),"Invalid merkle proo");
+            require(!minedAddress[account],"already mined");
+            minedAddress[account] = true;
+            _mint(account, tokenId);
+    }
+    function _leaf(address account) internal pure  returns (bytes32){
+        return keccak256(abi.encodePacked(account));
+    }
+    function _verify(bytes32 leaf,bytes32[] memory proof) internal view  returns (bool){
+        return MerkleProof.verify(leaf, root, proof);
+    }
+}
+```
 ### 2024.10.14
 ### 2024.10.15
     

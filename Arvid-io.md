@@ -1863,4 +1863,154 @@ enum: 枚举中的第一个元素
 address: 0x0000000000000000000000000000000000000000 (或 address(0))
 function
 internal: 空白函数
+
+### 2024.10.13
+
+数字签名signature 
+1 以太坊椭圆曲线数字签名算法ECDSA 
+2 私钥：掌握私钥就掌握资产 
+3 公钥：是从私钥派生出来，公开用于验证签名，用于生成以太坊地址，是验证所有权和签名过程的关键组成部分 
+4 消息：是你想要签名的消息的哈希值（以太坊签名过程中先对消息进行哈希处理（使用keccak256，确保消息传输中不被篡改）然后再进行签名） 
+5 以太坊签名消息：经过签名算法ECDSA生成的签名消息的哈希值 
+6 签名：由三部分组成（r，s，恢复标志v），签名用于证明消息是由持有私钥一方生成的，并且用于签证签名方的身份 
+7 getMessageHash函数：将传入的两个参数（地址和代币ID）拼起来，计算他们的哈希值 
+8 keccak256是solidity中加密哈希算法 
+9 abi.encodePacked：是一个编码函数，将多个变量打包成一个字节数组（这种打包方式将地址和数字拼接起来，方便对其哈希计算） 
+10 EIP-191 以太坊签名标准 
+11 返回值是bytes32类型：拼接了前缀后的新消息哈希，这个新哈希值可以作为消息签名的基础，确保安全 
+12 personal_sign是以太坊的签名方法去，专门用于签署消息（而不是交易），并会返回签名后的字符串（signnature），调用personal_sign之后，钱包会弹出一个对话框，提示用户确认签名要求 
+13 ethereum.request是新的MetaMask API推荐方法 
+14 免费的以太坊节点EPC 
+15 内联汇编assembly 
+16 以太坊的标准签名由65个字节组成，包含r（32字节），s（32字节），v（1字节） 
+17 mload函数主要作用就是从内存的某个特定位置读取32字节的数据 
+18 Ethereum 虚拟机EVM处理的数据块单位是 32 字节 
+19 ecrecover函数是利用 r、s、v 这三个参数和消息哈希（_msgHash）来计算出签名者的地址（签名者的地址可以用来验证消息的发送者，从而确保消息未被篡改且来自私钥的持有人） 
+20 address _signer 签名者地址
+
+荷兰拍卖
+荷兰拍卖（Dutch Auction）是一种特殊的拍卖形式。 亦称“减价拍卖”，它是指拍卖标的的竞价由高到低依次递减直到第一个竞买人应价（达到或超过底价）时击槌成交的一种拍卖。
+
+荷兰拍卖
+
+在币圈，很多NFT通过荷兰拍卖发售，其中包括Azuki和World of Women，其中Azuki通过荷兰拍卖筹集了超过8000枚ETH。
+
+项目方非常喜欢这种拍卖形式，主要有两个原因
+
+荷兰拍卖的价格由最高慢慢下降，能让项目方获得最大的收入。
+
+拍卖持续较长时间（通常6小时以上），可以避免gas war。
+
+DutchAuction合约
+代码基于Azuki的代码简化而成。DucthAuction合约继承了之前介绍的ERC721和Ownable合约：
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "https://github.com/AmazingAng/WTF-Solidity/blob/main/34_ERC721/ERC721.sol";
+
+contract DutchAuction is Ownable, ERC721 {
+
+Copy
+DutchAuction状态变量
+合约中一共有9个状态变量，其中有6个和拍卖相关，他们是：
+
+COLLECTOIN_SIZE：NFT总量。
+AUCTION_START_PRICE：荷兰拍卖起拍价，也是最高价。
+AUCTION_END_PRICE：荷兰拍卖结束价，也是最低价/地板价。
+AUCTION_TIME：拍卖持续时长。
+AUCTION_DROP_INTERVAL：每过多久时间，价格衰减一次。
+auctionStartTime：拍卖起始时间（区块链时间戳，block.timestamp）。
+    uint256 public constant COLLECTOIN_SIZE = 10000; // NFT总数
+    uint256 public constant AUCTION_START_PRICE = 1 ether; // 起拍价(最高价)
+    uint256 public constant AUCTION_END_PRICE = 0.1 ether; // 结束价(最低价/地板价)
+    uint256 public constant AUCTION_TIME = 10 minutes; // 拍卖时间，为了测试方便设为10分钟
+    uint256 public constant AUCTION_DROP_INTERVAL = 1 minutes; // 每过多久时间，价格衰减一次
+    uint256 public constant AUCTION_DROP_PER_STEP =
+        (AUCTION_START_PRICE - AUCTION_END_PRICE) /
+        (AUCTION_TIME / AUCTION_DROP_INTERVAL); // 每次价格衰减步长
+    
+    uint256 public auctionStartTime; // 拍卖开始时间戳
+    string private _baseTokenURI;   // metadata URI
+    uint256[] private _allTokens; // 记录所有存在的tokenId 
+
+Copy
+DutchAuction函数
+荷兰拍卖合约中共有9个函数，与ERC721相关的函数我们这里不再重复介绍，只介绍和拍卖相关的函数。
+
+设定拍卖起始时间：我们在构造函数中会声明当前区块时间为起始时间，项目方也可以通过setAuctionStartTime()函数来调整：
+    constructor() ERC721("WTF Dutch Auctoin", "WTF Dutch Auctoin") {
+        auctionStartTime = block.timestamp;
+    }
+
+    // auctionStartTime setter函数，onlyOwner
+    function setAuctionStartTime(uint32 timestamp) external onlyOwner {
+        auctionStartTime = timestamp;
+    }
+
+Copy
+获取拍卖实时价格：getAuctionPrice()函数通过当前区块时间以及拍卖相关的状态变量来计算实时拍卖价格。
+当block.timestamp小于起始时间，价格为最高价AUCTION_START_PRICE；
+
+当block.timestamp大于结束时间，价格为最低价AUCTION_END_PRICE；
+
+当block.timestamp处于两者之间时，则计算出当前的衰减价格。
+
+    // 获取拍卖实时价格
+    function getAuctionPrice()
+        public
+        view
+        returns (uint256)
+    {
+        if (block.timestamp < auctionStartTime) {
+        return AUCTION_START_PRICE;
+        }else if (block.timestamp - auctionStartTime >= AUCTION_TIME) {
+        return AUCTION_END_PRICE;
+        } else {
+        uint256 steps = (block.timestamp - auctionStartTime) /
+            AUCTION_DROP_INTERVAL;
+        return AUCTION_START_PRICE - (steps * AUCTION_DROP_PER_STEP);
+        }
+    }
+
+Copy
+用户拍卖并铸造NFT：用户通过调用auctionMint()函数，支付ETH参加荷兰拍卖并铸造NFT。
+该函数首先检查拍卖是否开始/铸造是否超出NFT总量。接着，合约通过getAuctionPrice()和铸造数量计算拍卖成本，并检查用户支付的ETH是否足够：如果足够，则将NFT铸造给用户，并退回超额的ETH；反之，则回退交易。
+
+    // 拍卖mint函数
+    function auctionMint(uint256 quantity) external payable{
+        uint256 _saleStartTime = uint256(auctionStartTime); // 建立local变量，减少gas花费
+        require(
+        _saleStartTime != 0 && block.timestamp >= _saleStartTime,
+        "sale has not started yet"
+        ); // 检查是否设置起拍时间，拍卖是否开始
+        require(
+        totalSupply() + quantity <= COLLECTOIN_SIZE,
+        "not enough remaining reserved for auction to support desired mint amount"
+        ); // 检查是否超过NFT上限
+
+        uint256 totalCost = getAuctionPrice() * quantity; // 计算mint成本
+        require(msg.value >= totalCost, "Need to send more ETH."); // 检查用户是否支付足够ETH
+        
+        // Mint NFT
+        for(uint256 i = 0; i < quantity; i++) {
+            uint256 mintIndex = totalSupply();
+            _mint(msg.sender, mintIndex);
+            _addTokenToAllTokensEnumeration(mintIndex);
+        }
+        // 多余ETH退款
+        if (msg.value > totalCost) {
+            payable(msg.sender).transfer(msg.value - totalCost); //注意一下这里是否有重入的风险
+        }
+    }
+
+Copy
+项目方取出筹集的ETH：项目方可以通过withdrawMoney()函数提走拍卖筹集的ETH。
+    // 提款函数，onlyOwner
+    function withdrawMoney() external onlyOwner {
+        (bool success, ) = msg.sender.call{value: address(this).balance}(""); // call函数的调用方式详见第22讲
+        require(success, "Transfer failed.");
+    }
+
 <!-- Content_END -->

@@ -6847,5 +6847,94 @@ if (txHash) {
 }})
 ```
 
+### 靓号生成器
+```
+const wallet = ethers.Wallet.createRandom() // 随机生成钱包，安全
+- 开头几位字符匹配，我们用`^`符号，例如`^0x000`就会匹配以`0x000`开头的地址。
+- 最后几位字符匹配，我们用`$`符号，例如`000$`就会匹配以`000`结尾的地址。
+- 中间几位我们不关心，可以利用`.*`通配符，例如`^0x000.*000$`就会匹配任何以`0x000`开头并以`000`结尾的地址。
+const regex = /^0x000.*$/ // 表达式，匹配以0x000开头的地址
+isValid = regex.test(wallet.address) // 检验正则表达式
+
+import { ethers } from "ethers";
+var wallet // 钱包
+const regex = /^0x000.*$/ // 表达式
+var isValid = false
+while(!isValid){
+    wallet = ethers.Wallet.createRandom() // 随机生成钱包，安全
+    isValid = regex.test(wallet.address) // 检验正则表达式
+}
+// 打印靓号地址与私钥
+console.log(`靓号地址：${wallet.address}`)
+console.log(`靓号私钥：${wallet.privateKey}`)
+```
+
+#### 顺序地址生成
+```
+import { ethers } from "ethers";
+
+var wallet // 钱包
+for (let i = 1; i <= 101; i += 1) {
+    // 填充3位数字，比如001，002，003，...，999
+    const paddedIndex = (i).toString().padStart(3, '0');
+    const regex = new RegExp(`^0x${paddedIndex}.*$`);  // 表达式
+    var isValid = false
+    while(!isValid){
+        wallet = ethers.Wallet.createRandom() // 随机生成钱包
+        isValid = regex.test(wallet.address) // 检验正则表达式
+    }
+    // 打印地址与私钥
+    console.log(`钱包地址：${wallet.address}`)
+    console.log(`钱包私钥：${wallet.privateKey}`)
+}
+
+// 生成正则匹配表达式，并返回数组
+function CreateRegex(total) {
+    const regexList = [];
+    for (let index = 0; index < total; index++) {
+        // 填充3位数字，比如001，002，003，...，999
+        const paddedIndex = (index + 1).toString().padStart(3, '0');
+        const regex = new RegExp(`^0x${paddedIndex}.*$`);
+        regexList.push(regex);
+    }
+    return regexList;
+}
+
+async function CreateWallet(regexList) {
+    let wallet;
+    var isValid = false;
+
+    //从21讲的代码扩充
+    //https://github.com/WTFAcademy/WTFEthers/blob/main/21_VanityAddress/readme.md
+    while (!isValid && regexList.length > 0) {
+        wallet = ethers.Wallet.createRandom();
+        const index = regexList.findIndex(regex => regex.test(wallet.address));
+        // 移除匹配的正则表达式
+        if (index !== -1) {
+            isValid = true;
+            regexList.splice(index, 1);
+        }
+    }
+    const data = `${wallet.address}:${wallet.privateKey}`
+    console.log(data);
+    return data
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     
 <!-- Content_END -->

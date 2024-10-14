@@ -826,6 +826,34 @@ DutchAuction 合約
    多餘 ETH 退款
 6. withdrawMoney(),項目方提取拍賣籌集的 ETH
 
+### 2024.10.13        
+學習內容  
+筆記:  
+
+#### 默克爾樹 Merkle Tree
+生成 Merkle Tree
+- 利用 https://lab.miguelmota.com/merkletreejs/example/ 來生成 Merkle Tree
+  步驟
+  1. 輸入地址作為葉子節點
+  2. 選擇 Keccak-256, hashLeaves, sortPairs 選項, 點擊 compute 生成 Merkle Tree
+     
+驗證 Merkle Tree
+結構
+- 4 個函數
+- verify(), 利用 proof 來驗證 leaf 是否屬於根 root, 調用 processProod()
+- processProof(), 用 proof, leaf 依序計算出 root, 調用了 _hashPair()
+- _hashPair(), 用 keccak256() 計算非根結點對應的兩個子節點的哈希
+
+利用 Merkle Tree 發放 NFT 白名單
+結構
+- MerkleTree 合約繼承 ERC721, 利用 MerkleProof 庫
+- 構造函數 + 3 個函數
+- mint(), 利用 Merkle 樹驗證地址並 mint
+- _leaf(), 計算 Merkle 樹葉的哈希值
+- _verify(), Merkle 驗證, 調用 MerkleProof 庫的 verify()
+
+
+
 
 
 <!-- Content_END -->
