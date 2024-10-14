@@ -576,7 +576,7 @@ receive()   fallback()
 transfer（接收方地址.transfer(发送ETH数额)）、send（接收方地址.send(发送ETH数额)）、call（接收方地址.call{value: 发送ETH数额}("")）都可用于发送ETH，三者的区别：
 
 1.transfer、send的gas限制都在2300，足够用于转账，但对方合约的fallback()或receive()函数不能实现太复杂的逻辑。区别在于，交易失败transfer会自动revert，send不会（send只会返回成功与否的bool值，需要额外代码处理一下）。
-2.call()没有gas限制，可以支持对方合约fallback()或receive()函数实现复杂逻辑，不会revert，call()的返回值是(bool, bytes)，其中bool代表着转账成功或失败，需要额外代码处理一下。
+2.call()没有gas限制，可以支持对方合约fallback()或receive()函数实现复杂逻辑，不会revert，call()的返回值是(bool, bytes memory)，其中bool代表着转账成功或失败，需要额外代码处理一下。
 ```
 error SendFailed(); // 用send发送ETH失败error
 
@@ -651,20 +651,381 @@ contract CallContract{
     }
 }
 ```
+call 是address类型的低级成员函数。
+call是Solidity官方推荐的通过触发fallback或receive函数发送ETH的方法。
+不推荐用call来调用另一个合约，因为当你调用不安全合约的函数时，你就把主动权交给了它。推荐的方法仍是声明合约变量后调用函数。
+当不知道对方合约的源代码或ABI，就没法生成合约变量；这时，我们仍可以通过call调用对方合约的函数。
+
+call的使用规则如下：
+```
+目标合约地址.call(字节码);
+```
+其中字节码利用结构化编码函数abi.encodeWithSignature获得：
+```
+abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)
+```
+(函数签名为"函数名（逗号分隔的参数类型）",如：abi.encodeWithSignature("f(uint256,address)", _x, _addr))
+在调用合约时可以指定交易发送的ETH数额和gas数额：
+```
+目标合约地址.call{value:发送数额, gas:gas数额}(字节码);
+```
+输出call来完成sucesscall的具体的完成情况。
+call不存在的函数。call仍能执行成功，并返回success，但其实调用的目标合约fallback函数。
+
+答案：
+
+PART 21
+1.	下列关于智能合约调用其他智能合约的说法，正确的一项是：智能合约调用其他智能合约这一功能，主要起到了方便代码复用的作用
+2.	假设我们部署了合约 OtherContract （合约内容见下）下列说法正确的是：
+(1)(2)均是调用其他合约的正确写法
+3.	假设我们新写了一个合约。下列说法正确的是：MyContract的函数call_setx可以实现，这意味着OtherContract中setX的权限没有门槛，存在安全隐患
+4.	在第2题的合约中，我们尝试依次进行如下操作：(2)(4)的返回结果分别是10,20
+5.	在第2题的合约中，OtherContract 中 setX 函数是 payable 的。如果我们想在已部署的合约 0xd9145CCE52D386f254917e481eB44e9943F39138 中调用 setX 的时候向合约转账 50 wei，那么正确的写法是：
+OtherContract(0xd9145CCE52D386f254917e481eB44e9943F39138).setX{value:50}(x)
+
+PART 22
+1.	call是什么类型的成员函数？address
+2.	call被推荐用来干什么？发送ETH
+3.	call的返回类型为:bool和bytes memory
+4.	下面哪种使用方式不正确? address.call{gas:1000000,value:1 ether}
+5.	如果我们给call输入的函数不存在于目标合约，那么目标合约的什么函数会被触发？fallback
+6.	call在什么情况下会调用失败？当调用不存在的函数时，被调用合约没有实现fallback
+
 ### 2024.10.03
 
-在外面完成，笔记后续补充
 章节23-28
+
+笔记：
+
+delegatecall与call类似，是Solidity中地址类型的低级成员函数。delegate中是委托/代表的意思。
+当用户A通过合约B来call合约C的时候，执行的是合约C的函数，上下文(Context，可以理解为包含变量和状态的环境)也是合约C的：msg.sender是B的地址，并且如果函数改变一些状态变量，产生的效果会作用于合约C的变量上。
+而当用户A通过合约B来delegatecall合约C的时候，执行的是合约C的函数，但是上下文仍是合约B的：msg.sender是A的地址，并且如果函数改变一些状态变量，产生的效果会作用于合约B的变量上。
+```
+总结：二级用call还是用delegatecall主要的区别：call的msg.sender是中间者，且改变状态变量会作用到二级的合约的变量上。delegatecal的msg.sender会指向本合约，并且改变状态变量会作用的中间者上。
+```
+delegatecall语法和call类似：
+```
+目标合约地址.delegatecall(二进制编码);
+```
+其中二进制编码利用结构化编码函数abi.encodeWithSignature获得：
+```
+abi.encodeWithSignature("函数签名", 逗号分隔的具体参数)
+```
+和call不一样，delegatecall在调用合约时可以指定交易发送的gas，但不能指定发送的ETH数额。delegatecall有安全隐患，使用时要保证当前合约和目标合约的状态变量存储结构相同，并且目标合约安全，不然会造成资产损失。
+
+目前delegatecall主要有两个应用场景：
+
+1.代理合约（Proxy Contract）：将智能合约的存储合约和逻辑合约分开：代理合约（Proxy Contract）存储所有相关的变量，并且保存逻辑合约的地址；所有函数存在逻辑合约（Logic Contract）里，通过delegatecall执行。当升级时，只需要将代理合约指向新的逻辑合约即可。
+
+2.EIP-2535 Diamonds（钻石）：钻石是一个支持构建可在生产中扩展的模块化智能合约系统的标准。钻石是具有多个实施合约的代理合约。 更多信息请查看：钻石标准简介（https://eip2535diamonds.substack.com/p/introduction-to-the-diamond-standard）。
+
+有两种方法可以在合约中创建新合约，create和create2。
+
+create的用法：
+```
+Contract x = new Contract{value: _value}(params)
+```
+
+其中Contract是要创建的合约名，x是合约对象（地址），如果构造函数是payable，可以创建时转入_value数量的ETH，params是新合约构造函数的参数。
+```
+contract PairFactory{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair(address tokenA, address tokenB) external returns (address pairAddr) {
+        // 创建新合约
+        Pair pair = new Pair(); 
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+}
+```
+智能合约可以由其他合约和普通账户利用CREATE操作码创建。 在这两种情况下，新合约的地址都以相同的方式计算：创建者的地址(通常为部署的钱包地址或者合约地址)和nonce(该地址发送交易的总数,对于合约账户是创建的合约总数,每创建一个合约nonce+1)的哈希。创建者地址不会变，但nonce可能会随时间而改变，因此用CREATE创建的合约地址不好预测。
+```
+新地址 = hash(创建者地址, nonce)
+```
+CREATE2的目的是为了让合约地址独立于未来的事件。
+用CREATE2创建的合约地址由4个部分决定：
+
+0xFF：一个常数，避免和CREATE冲突
+CreatorAddress: 调用 CREATE2 的当前合约（创建合约）地址。
+salt（盐）：一个创建者指定的bytes32类型的值，它的主要目的是用来影响新创建的合约的地址。
+initcode: 新合约的初始字节码（合约的Creation Code和构造函数的参数）。
+```
+新地址 = hash("0xFF",创建者地址, salt, initcode)
+```
+
+create2的用法：
+```
+Contract x = new Contract{salt: _salt, value: _value}(params)
+```
+
+```
+contract PairFactory2{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair2(address tokenA, address tokenB) external returns (address pairAddr) {
+        require(tokenA != tokenB, 'IDENTICAL_ADDRESSES'); //避免tokenA和tokenB相同产生的冲突
+        // 用tokenA和tokenB地址计算salt
+        (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); //将tokenA和tokenB按大小排序
+        bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+        // 用create2部署新合约
+        Pair pair = new Pair{salt: salt}(); 
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+}
+```
+
+事先预测create2地址：
+```
+// 提前计算pair合约地址
+function calculateAddr(address tokenA, address tokenB) public view returns(address predictedAddress){
+    require(tokenA != tokenB, 'IDENTICAL_ADDRESSES'); //避免tokenA和tokenB相同产生的冲突
+    // 计算用tokenA和tokenB地址计算salt
+    (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); //将tokenA和tokenB按大小排序
+    bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+    // 计算合约地址方法 hash()
+    predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+        bytes1(0xff),
+        address(this),
+        salt,
+        keccak256(type(Pair).creationCode)
+        )))));
+}
+```
+
+如果部署合约构造函数中存在参数
+例如当create2合约时：
+
+Pair pair = new Pair{salt: salt}(address(this));
+
+计算时，需要将参数和initcode一起进行打包：
+
+keccak256(type(Pair).creationCode) => keccak256(abi.encodePacked(type(Pair).creationCode, abi.encode(address(this))))
+
+```
+predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+                bytes1(0xff),
+                address(this),
+                salt,
+                keccak256(abi.encodePacked(type(Pair).creationCode, abi.encode(address(this))))
+            )))));
+```
+
+`selfdestruct`命令可以用来删除智能合约，并将该合约剩余`ETH`转到指定地址。在 [v0.8.18](https://blog.soliditylang.org/2023/02/01/solidity-0.8.18-release-announcement/) 版本中，`selfdestruct` 关键字被标记为「不再建议使用」，在一些情况下它会导致预期之外的合约语义，但由于目前还没有代替方案，目前只是对开发者做了编译阶段的警告，相关内容可以查看 [EIP-6049](https://eips.ethereum.org/EIPS/eip-6049)。
+
+然而，在以太坊坎昆（Cancun）升级中，[EIP-6780](https://eips.ethereum.org/EIPS/eip-6780)被纳入升级以实现对`Verkle Tree`更好的支持。EIP-6780减少了`SELFDESTRUCT`操作码的功能。根据提案描述，当前`SELFDESTRUCT`仅会被用来将合约中的ETH转移到指定地址，而原先的删除功能只有在`合约创建-自毁`这两个操作处在同一笔交易时才能生效。所以目前来说：
+
+1. 已经部署的合约无法被`SELFDESTRUCT`了。
+2. 如果要使用原先的`SELFDESTRUCT`功能，必须在同一笔交易中创建并`SELFDESTRUCT`。
+
+`selfdestruct`使用起来非常简单：
+```
+selfdestruct(_addr)；
+```
+其中_addr是接收合约中剩余ETH的地址。_addr 地址不需要有receive()或fallback()也能接收ETH
+
+以下合约在坎昆升级前可以完成合约的自毁，在坎昆升级后仅能实现内部ETH余额的转移。
+
+```
+contract DeleteContract {
+
+    uint public value = 10;
+
+    constructor() payable {}
+
+    receive() external payable {}
+
+    function deleteContract() external {
+        // 调用selfdestruct销毁合约，并把剩余的ETH转给msg.sender
+        selfdestruct(payable(msg.sender));
+    }
+
+    function getBalance() external view returns(uint balance){
+        balance = address(this).balance;
+    }
+}
+```
+#### 注意事项
+
+1. 对外提供合约销毁接口时，最好设置为只有合约所有者可以调用，可以使用函数修饰符`onlyOwner`进行函数声明。
+2. 当合约中有`selfdestruct`功能时常常会带来安全问题和信任问题，合约中的selfdestruct功能会为攻击者打开攻击向量(例如使用`selfdestruct`向一个合约频繁转入token进行攻击，这将大大节省了GAS的费用，虽然很少人这么做)，此外，此功能还会降低用户对合约的信心。
+
+Solidity中，ABI编码有4个函数：abi.encode, abi.encodePacked, abi.encodeWithSignature, abi.encodeWithSelector。而ABI解码有1个函数：abi.decode，用于解码abi.encode的数据。
+
+ABI解码四者对比：
+
+abi.encode:被设计用于与智能合约交互，他每个参数填充为32字节的数据，并拼接在一起，用0补足。
+```
+function encode() public view returns(bytes memory result) {
+    result = abi.encode(x, addr, name, array);
+}
+```
+
+abi.encodePacked:不与合约交互，可相对abi.encode省略填充的0来节省空间。
+```
+function encodePacked() public view returns(bytes memory result) {
+    result = abi.encodePacked(x, addr, name, array);
+}
+```
+
+abi.encodeWithSignature:第一个参数为函数签名，比如"foo(uint256,address,string,uint256[2])"。当调用其他合约的时候可以使用。等同于在`abi.encode`编码结果前加上了4字节的`函数选择器`[^说明]。
+[^说明]: 函数选择器就是通过函数名和参数进行签名处理(Keccak–Sha3)来标识函数，可以用于不同合约之间的函数调用。
+```
+function encodeWithSignature() public view returns(bytes memory result) {
+    result = abi.encodeWithSignature("foo(uint256,address,string,uint256[2])", x, addr, name, array);
+}
+```
+
+abi.encodeWithSelector:与abi.encodeWithSignature功能类似，只不过第一个参数为函数选择器，为函数签名Keccak哈希的前4个字节。[区别]:abi.encodeWithSelector需要自行计算函数选择器，而abi.encodeWithSignature可以直接通过函数签名获取。当已知函数hash,用abi.encodeWithSelector比较省gas。
+```
+function encodeWithSelector() public view returns(bytes memory result) {
+    result = abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array);
+}
+```
+
+一个好的哈希函数应该具有以下几个特性：
+
+- 单向性：从输入的消息到它的哈希的正向运算简单且唯一确定，而反过来非常难，只能靠暴力枚举。
+- 灵敏性：输入的消息改变一点对它的哈希改变很大。
+- 高效性：从输入的消息到哈希的运算高效。
+- 均一性：每个哈希值被取到的概率应该基本相等。
+- 抗碰撞性：
+  - 弱抗碰撞性：给定一个消息`x`，找到另一个消息`x'`，使得`hash(x) = hash(x')`是困难的。
+  - 强抗碰撞性：找到任意`x`和`x'`，使得`hash(x) = hash(x')`是困难的。
+ 
+1. sha3由keccak标准化而来，在很多场合下Keccak和SHA3是同义词，但在2015年8月SHA3最终完成标准化时，NIST调整了填充算法。**所以SHA3就和keccak计算的结果不一样**，这点在实际开发中要注意。
+2. 以太坊在开发的时候sha3还在标准化中，所以采用了keccak，所以Ethereum和Solidity智能合约代码中的SHA3是指Keccak256，而不是标准的NIST-SHA3，为了避免混淆，直接在合约代码中写成Keccak256是最清晰的。
+
+答案：
+
+PART 23
+1.	delegatecall是哪个类型的成员函数？address
+2.	当用户A通过合约B来delegatecall合约C时，执行了__的函数，语境是__，msg.sender和msg.value来自__， 并且如果函数改变一些状态变量，产生的效果会作用于__的变量上。C;B;A;B
+3.	delegatecall在调用合约时: 可以指定交易发送的gās,但不可以指定发送的ETH数额
+4.	使用delegatecall对当前合约和目标合约的状态变量有什么要求？变量名可以不同，变量类型、声明顺序必须相同 
+5.	假设存在如下函数，那么下面选项中可以填在横线上的是？
+(bool success,bytes memory data) = _addr.delegatecall(abi.encodeWithSignature("mint(uint256)",_num));
+6.	在代理合约中，存储所有相关的变量的是___，存储所有函数的是___，同时____________
+代理合约；逻辑合约；代理合约delegatecalli逻辑合约
+
+PART 24
+1.	Solidity中创建新合约的关键字是：new
+2.	Contract x = new Contract{value: _value}(params)，表达式中value代表什么？当前合约发送给新创建合约的ETH
+3.	Contract x = new Contract{value: _value}(params)，表达式中params代表什么？
+新合约的构造函数的参数
+4.	1个工厂合约PairFactory创建Pair合约的最大数量一般由什么决定？PairFactoryi合约逻辑
+5.	示例中Pair合约创建时的msg.sender是？工厂合约PairFactory
+
+PART 25
+1.	判断：Create2与Create的不同之处在于，Create2可以让合约地址独立于未来的事件。正确
+2.	Create2创建的合约地址不取决于：nonce
+3.	Create2的用法相比于Create，在new一个合约并传入构造函数所需参数时，需要多传入的为：一个创建者给定的数值：salt
+4.	下面利用Create2创建合约的代码中，参数salt等于：一对代币地址的哈希
+
+PART 26
+1.	关于删除合约的命令，现在常选用：selfdestruct
+2.	判断：所有合约创建时都必须包含“selfdestruct”的命令，否则会报错：错误
+3.	在以太坊坎昆（Cancun）升级后，在调用 deleteContract 删除合约后，读取value的结果为：10
+4.	判断：删除合约时，可以将合约中剩余的ETH发送出去：正确
+5.	判断：删除合约时，只可以将合约中的ETH发送到合约创建者的地址：错误
+
+PART 27
+1.	当我们调用智能合约时，传递给合约的数据的前若干个字节被称为“函数选择器 (Selector)”，它告诉合约我们想要调用哪个函数。假设我们想要调用的函数在智能合约中定义声明如下：
+bytes4(keccak256("foo(uint256,address,string)"))
+2.	下列有关ABI编码的函数中，返回值不可能当作调用智能合约的数据的一项是：abi.encodePacked
+3.	函数abi.decode用于将二进制编码解码，它对应的逆向操作函数（反函数）是：abi.encode
+4.	已知函数foo在智能合约中定义声明如下：那么，当我们希望调用函数foo()时，以下生成调用数据的写法中，正确且最节省gas的一项是：
+abi.encodewithSelector(bytes4(0x2fbebd38),a)
+
+PART 28
+1.	哈希函数（hash function）是一个密码学概念，它可以将任意长度的消息转换为一个固定长度的值，这个值也称作哈希（hash）。在Solidity语言中，最常用的哈希函数为____，它也是函数选择器所应用的函数。Keccak-256
+2.	一个好的哈希函数应当包含以下几种特性：单向性、灵敏性、高效性、均一性、抗碰撞性。下列关于这些特性中，描述不正确的一项是：强抗碰撞性意味着哈希函数的任意两个输入对应的输出都不同
+3.	如果对于某个哈希函数，我们统计大量不同字符串对应的哈希值（二进制串），发现其前 n 位全部为 0 的频率恰好约为 1/2^n，则我们认为该哈希函数具有良好的：均一性
+4.	我们对两个非常相近的字符串 "Hello world!" 和 "Hello world." 求取 sha3-256 哈希值，其结果如下：灵敏性
+5.	当我们下载大型文件时，有时候下载源会提供大型文件的哈希值；我们下载完成后，将本地下载好的大文件也计算其哈希值，并将两个哈希值对比。以下说法不准确的是： 如果哈希值相同，说明文件的内容一定完全相同，下载过程没有出现问题
 
 ### 2024.10.04
 
 完成章节29-32
+
+笔记：
+
+msg.data是Solidity中的一个全局变量，值为完整的calldata（调用函数时传入的数据）。
+
+method id定义为函数签名的Keccak哈希后的前4个字节，当selector与method id相匹配时，即表示调用该函数。注意，在函数签名中，uint和int要写为uint256和int256。
+
+在Solidity中，try-catch只能被用于external函数或创建合约时constructor（被视为external函数）的调用。基本语法如下：
+```
+try externalContract.f() {
+    // call成功的情况下 运行一些代码
+} catch {
+    // call失败的情况下 运行一些代码
+}
+```
+可以使用this.f()来替代externalContract.f()，this.f()也被视作为外部调用，但不可在构造函数中使用，因为此时合约还未创建。
+
+
+
+答案：
+
+PART 29
+1.	函数选择器有几个字节？4
+2.	如果一笔调用智能合约的交易的calldata如下，被调用函数的选择器是？0x6a627842
+3.	transfer函数的函数签名是？"transfer(address,uint256)"
+4.	上一题中transfer函数的选择器为？0xa9059cbb
+5.	.我想调用transfer函数将合约中的100枚 $PEOPLE 代币转给 0 地址，下面哪一个选项可以做到这一点。
+pp.call(abi.encodewithSelector(0xa9059cbb,address(0),uint256(100)));
+
+PART 30
+1.	try-catch可以捕获什么异常？revert()、require()、assert()
+2.	以下异常返回值类型为bytes的是：assert()
+3.	try-catch捕获到异常后是否会使try-catch所在的方法调用失败？不会
+4.	try代码块内的revert是否会被catch本身捕获？不会
 
 ### 2024.10.05
 
 完成章节32-35
 
 ### 2024.10.06
+
+完成章节35-37
+
+### 2024.10.07
+
+完成章节37-38
+
+### 2024.10.08
+
+完成章节39-40
+
+### 2024.10.09
+
+完成章节41-42
+
+### 2024.10.10
+
+完成章节43-44
+
+### 2024.10.11
+
+完成章节45-46
+
+### 2024.10.12
+
+完成章节47-48
 
 
 

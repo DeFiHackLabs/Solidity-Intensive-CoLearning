@@ -130,6 +130,46 @@ timezone: Asia/Shanghai
 2. Solidity中允許函數進行重載（overloading），名字相同但輸入參數類型不同的函數可以並存，被視為不同函數。但Solidity不允許修飾器（modifier）重載。
 3. 實参匹配（Argument Matching）：在調用重載函數時，會把輸入的實際參數和函數參數的變量類型做匹配。出現多個匹配的重載函數，就報錯。
 
+### 2024.10.08
+1. 庫合約：提升Solidity代碼的複用性和减少gas
+2. 庫合約和普通合約的差別：不能存在狀態變量、不能夠繼承或被繼承、不能接收以太幣、不可以被銷毀
+3. 庫合約重的函数可見性，如果被設成public或external，調用函數時會觸發一次delegatecall；被設成internal，則不會
+
+### 2024.10.09
+1. import語句，可以幫助我們在一個文件中引用另一個文件的内容，增加代碼的可重用性和組織性
+2. 通過源文件相對位置導入
+3. 通過源文件網址導入網上的合約的全局符號
+4. 通過npm的目錄導入
+5. 通過指定全局符號導入合約特定的全局符號
+6. 引用(import)在代碼中的位置：在聲明版本號之後，在其他代碼之前
+
+
+### 2024.10.10
+1. Solidity支持兩種特殊的回調函數，receive()和fallback()，他們主要在兩種情況下被使用：(1)接收ETH(2)處理合約中不存在的函數調用（代理合約proxy contract）
+2. 惡意合約，會在receive() 函數（舊版本的fallback() 函數）嵌入惡意消耗gas的内容或者使得執行故意失敗的代碼，讓一些退款、轉帳邏輯的合約不能正常工作
+3. receive()和payable fallback()都不存在的時候，向合約直接發送ETH將會報錯（你仍可以通過帶有payable的函數向合約發送ETH）
+
+### 2024.10.11
+1. Solidity有三種方法可以向其他合约約發送ETH：transfer()、send()、call()
+2. call()是最推薦的做法
+3. transfer()如果轉帳失敗，會自動revert（回滾交易），gas限制是2300
+4. send()如果轉帳失敗，不會revert，gas限制是2300
+5. call()如果轉帳失敗，不會revert，没有gas限制
+
+
+### 2024.10.12
+1. 可以在函數裡傳入目標合約地址，生成目標合約的引用，然後調用目標函數
+2. 在函數裡傳入合約的引用，只需要把上面参數的address類型改為目標合約名
+3. 創建合約變量，接著通過它來調用目標函數
+4. 如果目標合約的函數是payable的，我們可以通過調用它來給合約轉帳：_Name(_Address).f{value: _Value}()
+5. _Name：合約名，_Address：合約地址，f：目標函數名，_Value：要轉的ETH數額（以wei為單位）
+
+
+### 2024.10.13
+1. call是Solidity官方推荐的通過觸發fallback或receive函數發送ETH的方式
+2. 利用call調用目標合約：Response事件、調用setX函數、調用getX函數、調用不存在的函數、
+3. 目前delegatecall主要的應用場景：代理合約（Proxy Contract）、EIP-2535 Diamonds（鑽石）
+4. 代理合約（Proxy Contract）儲存所有相關變量後保存邏輯合約的地址。升級時，只需要將代理合約指向新的邏輯合約即可。
 
 
 <!-- Content_END -->

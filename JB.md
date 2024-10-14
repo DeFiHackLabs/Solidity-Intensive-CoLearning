@@ -680,5 +680,97 @@ contract People is Adam, Eve{
 
 ![image](https://github.com/user-attachments/assets/5fb3747f-e28e-49b7-bb14-2c033167b1ed)
 
+### 2024.10.08
+1. 学习了什么抽象合约，这个有点类似与java的模板类。并做了练习。
+   // SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
 
+abstract contract abstract_pratice{
+
+    event message(string message);
+    
+    function ab_1() public virtual {
+        emit message("message");
+    }
+}
+
+contract normal is abstract_pratice{
+   
+   function ab_2() public {
+    emit message("ab_2");
+   }
+
+   function ab_1() public virtual override  {
+    emit message("override ab_1");
+   }
+    
+}
+   
+### 2024.10.09
+1. 学习了接口并做了练习
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+interface IERC165 {
+    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+    event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
+    event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
+    
+    function balanceOf(address owner) external view returns (uint256 balance);
+
+    function ownerOf(uint256 tokenId) external view returns (address owner);
+
+    function safeTransferFrom(address from, address to, uint256 tokenId) external;
+
+    function transferFrom(address from, address to, uint256 tokenId) external;
+
+    function approve(address to, uint256 tokenId) external;
+
+    function getApproved(uint256 tokenId) external view returns (address operator);
+
+    function setApprovalForAll(address operator, bool _approved) external;
+
+    function isApprovedForAll(address owner, address operator) external view returns (bool);
+
+    function safeTransferFrom( address from, address to, uint256 tokenId, bytes calldata data) external;
+}
+### 2024.10.10
+1. 学习异常，分析代码。
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+contract test_error{
+
+    error TransferNotOwner(address sender);
+
+    function transferOwner1(uint256 tokenId, address newOwner) public {
+    if(_owners[tokenId] != msg.sender){
+        revert TransferNotOwner();
+        // revert TransferNotOwner(msg.sender);
+    }
+    _owners[tokenId] = newOwner;
+    }
+
+    function transferOwner2(uint256 tokenId, address newOwner) public {
+    require(_owners[tokenId] == msg.sender, "Transfer Not Owner");
+    _owners[tokenId] = newOwner;
+    }
+
+    function transferOwner3(uint256 tokenId, address newOwner) public {
+    assert(_owners[tokenId] == msg.sender);
+    _owners[tokenId] = newOwner;
+}
+}
+### 2024.10.12
+
+1. 复习前面的异常和合约抽象，以及接口。
+   function transferOwner1(uint256 tokenId, address newOwner) public {
+    if(_owners[tokenId] != msg.sender){
+        revert TransferNotOwner();
+        // revert TransferNotOwner(msg.sender);
+    }
+    _owners[tokenId] = newOwner;
+}
+function transferOwner2(uint256 tokenId, address newOwner) public {
+    require(_owners[tokenId] == msg.sender, "Transfer Not Owner");
+    _owners[tokenId] = newOwner;
+}
 <!-- Content_END -->

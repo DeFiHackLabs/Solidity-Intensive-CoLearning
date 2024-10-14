@@ -850,4 +850,149 @@ contract ContractB{
            - `initcode` 新合约的初始字节码（合约的Creation Code和构造函数的参数）
            - `salt` 一个创建者指定的bytes32类型的值，它的主要目的是用来影响新创建的合约的地址。
            - 创建者地址：调用 CREATE2 的当前合约（创建合约）地址。
+
+
+### 2024.10.08
+
+學習內容:
+
+- [x] 销毁合约
+
+    - 关键字selfdestruct
+    - 作用：销毁合约，将合约余额发送到指定地址
+    - 用法：`selfdestruct(_address);`, 其中_address为接收合约余额的地址
+    - 坎昆升级前：合约被销毁，合约余额会被转移到指定地址；坎昆升级后：同一笔交易内创建的合约可以被销毁，余额会被转到指定地址。已经部署的合约不会被销毁，但是余额会被转到指定账户。
+    - 调用selfdestruct时，指定的address没有fallback和receive函数，也能接收ETH
+    - 应用场景：selfdestruct时智能合约的紧急按钮，发生THE DAO攻击时，可以通过selfdestruct销毁合约，将合约余额转移到指定账户。
+
+
+### 2024.10.09
+
+學習內容:
+
+- [x] ABI的编码解码
+   - abi.encode
+       - 用法：`abi.encode(param1, param2, ...)`，将每个参数填充为32个字节的数据，并拼合在一起
+   - abi.encodePacked
+       - 用法：`abi.encodePacked(param1, param2, ...)`，与abi.encode类似， 但是会压缩空间。当想省空间且不与合约交互的时候可以使用，比如算一些数据的hash时
+   - abi.decode
+       - 用法：`(type1 var1, type2 var2, ...) = abi.decode(data, (type1, type2, ...))`，将abi.encode编码的数据解码为指定的数据类型
+   - abi.encodeWithSignature
+       - 用法：`abi.encodeWithSignature("functionName(parameterType[,...])", parameterValue[,...])`，第一个参数为函数签名，后面为函数参数，返回编码后的数据。当调用其他合约的时候可用  
+    - abi.encodeWithSelector
+       - 用法：`abi.encodeWithSelector(bytes4(keccak256("functionName(parameterType[,...])")), parameterValue[,...])`，与abi.encodeWithSignature功能类似，只不过第一个参数为函数选择器，为函数签名Keccak哈希的前4个字节。
+
+- [x] hash函数
+    - keccak256
+        - 用法：`keccak256(abi.encodePacked(param1, param2, ...))`，计算参数的keccak256哈希值
+        - 和sha3区别：sha3由keccak标准化而来，SHA3就和keccak计算的结果不一样
+        - Ethereum和Solidity智能合约代码中的SHA3是指Keccak256，而不是标准的NIST-SHA3
+    - hash的性质
+        - 单向性：从输入的消息到它的哈希的正向运算简单且唯一确定，而反过来非常难，只能靠暴力枚举
+        - 灵敏性：输入的消息改变一点对它的哈希改变很大
+        - 高效性：从输入的消息到哈希的运算高效
+        - 均一性：每个哈希值被取到的概率应该基本相等
+        - 弱抗碰撞性：给定一个消息x，找到另一个消息x'，使得hash(x) = hash(x')是困难的。
+        - 强抗碰撞性：找到任意x和x'，使得hash(x) = hash(x')是困难的
+    - hash的应用
+        - 生成数据唯一标识
+        - 加密签名
+        - 安全加密
+
+
+### 2024.10.10
+
+學習內容:
+
+- [x] 函数选择器
+    - 概念 calldata的前四个字节是函数选择器selector
+    - 用法 selector = ` byte4(keccak256("functionName(parameterType[,...])"))`
+    - 注意：uint和int在函数签名中要使用uint256和int256
+    - 利用函数选择器调用函数：` address(_address).call(abi.encodeWithSelector(byte4(keccak256("functionName(parameterType[,...])"))))`
+
+
+- [x] try-catch
+    - 概念：用于捕获合约内部的异常
+    - 用法：
+        ```solidity
+        try externalContract.f() returns (bool success) {
+            // 成功
+        } catch Error(string memory reason) {
+            // 失败
+        } catch (bytes memory lowLevelData) {
+            // 失败
+        }
+        ```
+    - 注意：只能被用于external函数或创建合约时constructor（被视为external函数）的调用
+
+### 2024.10.11
+
+學習內容:
+
+- [x] ERC20 以太坊上的代币标注，实现代币基本逻辑
+     - 账户余额 `balanceOf()`
+     - 转账 `transfer()`
+     - 授权转账`transferFrom()`
+     - 授权`approve()`
+     - 代币总供给`totalSupply()`
+     - 授权转账额度`allowance()`
+     - 代币信息（可选）：名称、符号、小数位数
+- [x] IERC20：ERC20标准的接口定义
+  - 两个事件
+    - 转账事件 Transfer `event Transfer(address indexed from, address indexed to, uint256 value);`
+    - 授权事件 Approval `event Approval(address indexed owner, address indexed spender, uint256 value);`
+  - 六个函数
+     - 返回代币总供给`function totalSupply() external view returns (uint256);`
+     - 返回账户余额`function balanceOf(address account) external view returns (uint256);`
+     - 返回授权转账额度`function allowance(address owner, address spender) external view returns (uint256);`
+     - 转账`function transfer(address recipient, uint256 amount) external returns (bool);`
+     - 授权转账` function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);`
+     - 授权`function approve(address spender, uint256 amount) external returns (bool);`
+
+
+### 2024.10.12
+
+學習內容:
+
+- [x] 代币水龙头
+- [x] 空投合约
+- [x] ERC721 标准 （根据EIP721改进建议形成的ERC721标准）
+   - ERC165用于检查合约是否是支持ERC721或者ERC1155的接口
+     ```solidity
+          function supportsInterface(bytes4 interfaceId) public view virtual returns (bool) {
+             return
+                interfaceId == 0x01ffc9a7 || // ERC165 Interface ID for ERC165
+                interfaceId == 0x80ac58cd || // ERC165 Interface ID for ERC721
+                interfaceId == 0x5b5e139f || // ERC165 Interface ID for ERC721Metadata
+                interfaceId == 0x780e9d63;   // ERC165 Interface ID for ERC721Enumerable 
+          }
+     ```
+   - IERC721是ERC721的接口定义
+   - IERC721包含三个事件：Transfer(转账时释放)、Approval（授权时释放）、ApprovalForAll（批量授权时释放）
+   - IERC721包含了9个函数
+      - balanceOf：返回某地址NTF的持有量
+      - ownerOf：返回某NTF的持有者
+      - transferFrom：转移NTF
+      - safeTransferFrom：安全转移NTF(接收方合约必须实现IERC721Receiver接口的onERC721Received函数)
+      - approve：授权NTF
+      - setApprovalForAll：批量授权NTF
+      - isApprovedForAll：检查是否批量授权
+      - safeTransferFrom：安全转移NTF(函数重载，多了data参数)
+   - IERC721Metadata是IERC721的扩展接口
+      - name：返回NTF的名称
+      - symbol：返回NTF的符号
+      - tokenURI：返回NTF的元数据URI（ERC721特有函数）
+
+### 2024.10.13
+
+學習內容:
+
+- [x] 荷兰拍卖，一种拍卖形式，价格由高逐渐降低，知道有人愿意购买，避免gas war
+    - 与荷兰拍卖相关的参数：
+        - COLLECTOIN_SIZE：NFT总量。
+        - AUCTION_START_PRICE：荷兰拍卖起拍价，也是最高价。
+        - AUCTION_END_PRICE：荷兰拍卖结束价，也是最低价/地板价。
+        - AUCTION_TIME：拍卖持续时长。
+        - AUCTION_DROP_INTERVAL：每过多久时间，价格衰减一次。
+        - auctionStartTime：拍卖起始时间（区块链时间戳，block.timestamp）
 <!-- Content_END -->

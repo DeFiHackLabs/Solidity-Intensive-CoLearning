@@ -1518,4 +1518,830 @@ function delegatecallSetVars(address _addr, uint _num) external payable{
 > * 邏輯合約（Logic Contract）存儲所有函數，實際的邏輯運行是在邏輯合約中定義的函數中完成的。
 > * 代理合約使用 delegatecall 呼叫邏輯合約來執行函數，這樣變更會影響代理合約的存儲。
 
+### 2024.10.08
+
+#### 在合約中創建新合約
+在乙太坊鏈上，用戶(外部帳戶，EOA)和智能合約都具備創建新的智能合約的能力。這種功能的實現使的合約之間可以互相交互、組合，並實現更複雜的去中心化應用(DApps)。  
+中心化交易所`uniswap`就是利用工廠合約(`PairFactory`)創建和管理無數個交易對合約(`Pair Contract`)，每個交易對合約代表一個特定的代幣對（如 ETH/DAI）。  
+
+**`create`**  
+有兩種方法可以在合約中創建新合約，`create`和`create2`。  
+`create`的用法很簡單，就是`new`一個合約，並傳入新合約構造函數所需的參數：  
+`Contract`是要創建的合約名，`x`是合約對象(地址)，如果構造函數是`payable`，可以創建時傳入`_value`數量的`ETH`，`params`是新合約構造函數的參數。  
+```Solidity
+Contract x = new Contract{value: _value}(params)
+```  
+
+#### 極簡Uniswap
+`Uniswap V2`核心合約中包含兩個合約：  
+1. UniswapV2Pair: 幣對合約，用於管理幣對地址、流動性、買賣。  
+2. UniswapV2Factory: 工廠合約，用於創建新幣對，並管理幣對地址。  
+
+以下用`create`方法實現簡易版的`Uniswap`。  
+
+**`Pair`合約**  
+```Solidity
+contract Pair{
+    address public factory; // 工厂合约地址
+    address public token0; // 代币1
+    address public token1; // 代币2
+
+    constructor() payable {
+        factory = msg.sender;
+    }
+
+    // called once by the factory at time of deployment
+    function initialize(address _token0, address _token1) external {
+        require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
+        token0 = _token0;
+        token1 = _token1;
+    }
+}
+```  
+`Pair`合約很簡單，包含3個狀態變量：`factory`, `token0`和`token1`。  
+構造函數`construct`在部署時將`factory`賦值為工廠合約的地址。`initialize`函數會由工廠合約在部署完成後手動調用已初始化代幣地址，將`token`和`token1`更新為幣對中兩種代幣的地址。  
+
+> 为什么uniswap不在constructor中将token0和token1地址更新好？
+> 
+> 因为uniswap使用的是create2创建合约，生成的合约地址可以实现预测，更多详情请阅读第25讲。
+
+**`PairFactory`**  
+```Solidity
+contract PairFactory{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair(address tokenA, address tokenB) external returns (address pairAddr) {
+        // 创建新合约
+        Pair pair = new Pair(); 
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+}
+```  
+
+工廠合約(PairFactory)有兩個狀態變量`getPair`是兩個代幣地址到幣對地址的map，方便根據代幣找到幣對地址。  
+
+`PairFactory`合約只有一個`createPair`函數，根據輸入的兩個代幣地址`tokenA`、`TokenB`來創建新的`Pair`合約。  
+以下為創建合約的程式：  
+```Solidity
+Pair pair = new Pair(); 
+```  
+
+```
+WBNB地址: 0x2c44b726ADF1963cA47Af88B284C06f30380fC78
+BSC链上的PEOPLE地址: 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c
+```
+
+### 2024.10.09
+
+#### Create2
+`create2`使在智慧合約部署在乙太坊網路之前就能預測合約的地址。而`CREATE`在部署合約前無法確定其具體地址。  
+`CREATE2`可以根據一組已知的參數來生成一個確定的合約地址，這樣的特性被廣泛應用於去中心化應用中，特別是像`Uniswap`，用來創建`Pair`合約。
+
+**為什麼使用 `CREATE2`？**  
+* 預測合約地址：CREATE2 能夠預測合約的最終部署地址，這在構建去中心化應用時具有極大的優勢。開發者可以提前知道合約地址，並進行相關的鏈上交互。
+* 可重複部署：由於合約地址是基於一些固定參數計算出的，如果之前的合約被刪除，可以在同樣的地址重新部署合約。
+* 提高確定性：能夠在不部署合約的情況下進行地址計算，有助於提升合約開發與部署的確定性和靈活性。
+
+#### CREATE 如何計算地址
+當使用`CREATE`部署新合約時，合約的地址是基於以下兩個參數計算的：  
+1. 部署者地址：發起合約創建的 EOA 或合約的地址。
+2. 部署者的`nonce`：部署者的交易計數，表示該部署者在當前狀態下發送的交易數量。  
+這兩個參數會通過 Ethereum 的哈希函數`keccak256`進行哈希，得出合約的最終地址。  
+```
+新地址 = hash(創建者地址, nonce)
+```
+創建者地址不會變，但`nonce`可能隨時間而改變，因此用`CREATE`創建的合約地址不好預測。
+
+#### CREATE2 如何計算地址
+`CREATE2`的合約地址是根據以下四個因素計算得出的：  
+1. `0xFF`：一个常數，避免和`CREATE`冲突。
+2. `CreatorAddress`(合約部署者地址)：調用`CREATE2`的當前合約（創建合約）地址。
+3. `salt`（鹽值）：一個隨機數(`bytes32`)，通常用於生成獨特的合約地址。
+4. `initcode`：新合約的初始字節碼，用來創建合約的編碼數據。
+```
+新地址 = hash("0xFF",创建者地址, salt, initcode)
+```
+其中`0xff`是一個常數，用來區分`CREATE2`生成的地址和`CREATE`生成的地址。  
+`CREATE2`確保若使用者使用`CREATE2`和提供的`salt`部署給定的合約`initcode`，將儲存在`新地址`中。
+
+#### 如何使用`CREATE2`
+其中`Contract`是要創建的合約名，`x`是合約對象（地址），`_salt`是指定的鹽；如果構造函數是`payable`，可以創建時轉入`_value`數量的ETH，`params`是`新合約構造函數的参數。
+```Solidity
+Contract x = new Contract{salt: _salt, value: _value}(params)
+```
+
+#### 極簡Uniswap2
+用`CREATE2`實現。  
+`Pair`  
+```Solidity
+contract Pair{
+    address public factory; // 工厂合约地址
+    address public token0; // 代币1
+    address public token1; // 代币2
+
+    constructor() payable {
+        factory = msg.sender;
+    }
+
+    // called once by the factory at time of deployment
+    function initialize(address _token0, address _token1) external {
+        require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
+        token0 = _token0;
+        token1 = _token1;
+    }
+}
+```
+
+`PairFactory2`  
+```Solidity
+contract PairFactory2{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair2(address tokenA, address tokenB) external returns (address pairAddr) {
+        require(tokenA != tokenB, 'IDENTICAL_ADDRESSES'); //避免tokenA和tokenB相同产生的冲突
+        // 用tokenA和tokenB地址计算salt
+        (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); //将tokenA和tokenB按大小排序
+        bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+        // 用create2部署新合约
+        Pair pair = new Pair{salt: salt}(); 
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+}
+```
+
+工廠合約（`PairFactory2`）有兩個狀態變量`getPair`是兩個代幣地址到幣對地址的`map`，方便根據代幣找到幣對地址；`allPairs`是幣對地址的數組，存儲了所有幣對地址。  
+`PairFactory2`合約只有一个`createPair2`函數，使用`CREATE2`根據輸入的兩個代幣地址`tokenA`和`tokenB`來創建新的`Pair`合約。其中
+```Solidity
+Pair pair = new Pair{salt: salt}(); 
+```  
+就是利用`CREATE2`創建合約的代碼，非常簡單，而`salt`為`token1`和`token2`的`hash`：  
+```Solidity
+bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+```  
+
+#### 事先计算`Pair`地址  
+```Solidity
+// 提前计算pair合约地址
+function calculateAddr(address tokenA, address tokenB) public view returns(address predictedAddress){
+    require(tokenA != tokenB, 'IDENTICAL_ADDRESSES'); //避免tokenA和tokenB相同产生的冲突
+    // 计算用tokenA和tokenB地址计算salt
+    (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); //将tokenA和tokenB按大小排序
+    bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+    // 计算合约地址方法 hash()
+    predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+        bytes1(0xff),
+        address(this),
+        salt,
+        keccak256(type(Pair).creationCode)
+        )))));
+}
+```
+
+```Solidity
+WBNB地址: 0x2c44b726ADF1963cA47Af88B284C06f30380fC78
+BSC链上的PEOPLE地址: 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c
+```
+**如果部署合約構造函數中存在参數**
+```
+Pair pair = new Pair{salt: salt}(address(this));
+```
+計算時，需要將參數和`initcode`一起打包：  
+```
+keccak256(type(Pair).creationCode) => keccak256(abi.encodePacked(type(Pair).creationCode, abi.encode(address(this))))
+```
+
+```Solidity
+predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+                bytes1(0xff),
+                address(this),
+                salt,
+                keccak256(abi.encodePacked(type(Pair).creationCode, abi.encode(address(this))))
+            )))));
+```
+#### 驗證  
+1. 首先用WBNB和PEOPLE的地址哈希作为salt来计算出Pair合约的地址
+2. 调用PairFactory2.createPair2传入参数为WBNB和PEOPLE的地址，获取出创建的pair合约地址
+3. 对比合约地址  
+<img src="https://github.com/user-attachments/assets/7d4d71a9-8713-4bfd-90b4-16f10509de14" height="340px" width="600px" />  
+
+
+### 2024.10.10
+
+#### 刪除合約
+
+`selfdestruct`
+* 此命令用來刪除智能合約，並將該合約剩餘`ETH`轉到指定地址。
+* 是為了應對合約出錯的極端情況而設計的。  
+
+1. 已经部署的合约无法被SELFDESTRUCT了。
+2. 如果要使用原先的SELFDESTRUCT功能，必须在同一笔交易中创建并SELFDESTRUCT。
+
+#### 如何使用`selfdestruct`：
+```Solidity
+selfdestruct(_addr)；
+```  
+其中_addr是接收合约中剩余ETH的地址。_addr 地址不需要有receive()或fallback()也能接收ETH。
+
+#### Demo-转移ETH功能
+當調用`deleteContract()`函數，合約將觸發`selfdestruct`操作。在坎昆升級前，合約會被自毁。但是在升級後，合約依然存在，只是將合約包含的ETH轉移到指定地址，而合約依然能够調用。    
+```Solidity
+contract DeleteContract {
+
+    uint public value = 10;
+
+    constructor() payable {}
+
+    receive() external payable {}
+
+    // 调用selfdestruct销毁合约，并把剩余的ETH转给msg.sender
+    function deleteContract() external {
+        selfdestruct(payable(msg.sender));
+    }
+
+    function getBalance() external view returns(uint balance){
+        balance = address(this).balance;
+    }
+}
+```
+
+
+**Demo-同笔交易内实现合约创建-自毁**  
+根据提案，原先的删除功能只有在合约创建-自毁这两个操作处在同一笔交易时才能生效。所以我们需要通过另一个合约进行控制。
+
+```Solidity
+contract DeployContract {
+
+    struct DemoResult {
+        address addr;
+        uint balance;
+        uint value;
+    }
+
+    constructor() payable {}
+
+    function getBalance() external view returns(uint balance){
+        balance = address(this).balance;
+    }
+
+    function demo() public payable returns (DemoResult memory){
+        DeleteContract del = new DeleteContract{value:msg.value}();
+        DemoResult memory res = DemoResult({
+            addr: address(del),
+            balance: del.getBalance(),
+            value: del.value()
+        });
+        del.deleteContract();
+        return res;
+    }
+}
+```
+
+**※注意：**  
+1. 对外提供合约销毁接口时，最好设置为只有合约所有者可以调用，可以使用函数修饰符onlyOwner进行函数声明。
+2. 当合约中有selfdestruct功能时常常会带来安全问题和信任问题，合约中的selfdestruct功能会为攻击者打开攻击向量(例如使用selfdestruct向一个合约频繁转入token进行攻击，这将大大节省了GAS的费用，虽然很少人这么做)，此外，此功能还会降低用户对合约的信心。
+
+**總結**  
+`selfdestruct`是智能合約的緊急按钮，銷毀合約並將剩餘`ETH`轉移到指定帳戶。
+
+> 判断：所有合约创建时都必须包含“selfdestruct”的命令，否则会报错：
+>
+> A. 正确
+> B. 错误
+> B. 错误。
+>
+>并不是所有合约在创建时都必须包含 selfdestruct 命令。selfdestruct 是一种可选的功能，用于销毁合约并将剩余的以太币发送到指定的地址。如果一个合约不需要销毁功能，它可以完全不包含 selfdestruct 命令，合约依然可以正常部署和运行，不会报错。
+
+### 2024.10.11
+
+#### ABI編碼解碼
+`ABI` (Application Binary Interface，應用二進制接口)是與以太坊智能合約交互的標準。數據基於他们的類型編碼；並且由於編碼後不包含類型信息，解碼時需要注明它們的類型。
+
+Solidity中，`ABI编码`有4個函數：`abi.encode`, `abi.encodePacked`, `abi.encodeWithSignature`, `abi.encodeWithSelector`。  
+`ABI解码`有1个函數：`abi.decode`，用于解码`abi.encode`的數據。  
+这一讲，我们将学习如何使用这些函數。
+
+#### ABI編碼
+4個變量：  
+```Solidity
+uint x = 10;
+address addr = 0x7A58c0Be72BE218B41C608b7Fe7C5bB630736C71;
+string name = "0xAA";
+uint[2] array = [5, 6]; 
+```
+`abi.encode`  
+將给定参數利用[ABI規則](<https://learnblockchain.cn/docs/solidity/abi-spec.html>)编碼。`ABI`被設計出来跟智能合約交互，他將每个參數填充為32字節的數據，並拼接在一起。如果你要和合約交互，要用的就是`abi.encode`。  
+```Solidity
+function encode() public view returns(bytes memory result) {
+    result = abi.encode(x, addr, name, array);
+}
+```  
+編碼的結果為编码的结果为`0x000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000043078414100000000000000000000000000000000000000000000000000000000`，由於`abi.encode`將每個數據都填充為32字節，中間有很多`0`。
+
+`abi.encodePacked`  
+將给定参數根據其所需最低空間編碼。它類似`abi.encode`，但是會把其中填充的很多0省略。比如，只用1字節來编碼`uint8`类型。当你想省空间，并且不與合約交互的時候，可以使用`abi.encodePacked`，例如算一些數據的`hash`時。
+```Solidity
+function encodePacked() public view returns(bytes memory result) {
+    result = abi.encodePacked(x, addr, name, array);
+}
+```
+
+编码的结果为`0x000000000000000000000000000000000000000000000000000000000000000a7a58c0be72be218b41c608b7fe7c5bb630736c713078414100000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000006`，由于`abi.encodePacked`对编码进行了压缩，长度比`abi.encode`短很多。
+
+`abi.encodeWithSignature`  
+与`abi.encode`功能类似，只不过第一个参数为`函数签名`，比如`"foo(uint256,address,string,uint256[2])"`。当调用其他合约的时候可以使用。  
+```Solidity
+function encodeWithSignature() public view returns(bytes memory result) {
+    result = abi.encodeWithSignature("foo(uint256,address,string,uint256[2])", x, addr, name, array);
+}
+```
+
+编码的结果为`0xe87082f1000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000043078414100000000000000000000000000000000000000000000000000000000`，等同于在`abi.encode`编码结果前加上了4字节的`函数选择器`说明。 说明: 函数选择器就是通过函数名和参数进行签名处理(Keccak–Sha3)来标识函数，可以用于不同合约之间的函数调用
+
+`abi.encodeWithSelector`  
+与`abi.encodeWithSignature`功能类似，只不过第一个参数为`函数选择器`，为`函数签名`Keccak哈希的前4个字节。
+```Solidity
+function encodeWithSelector() public view returns(bytes memory result) {
+    result = abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array);
+}
+```  
+编码的结果为`0xe87082f1000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000043078414100000000000000000000000000000000000000000000000000000000`，与`abi.encodeWithSignature`结果一样。  
+
+
+#### ABI解碼
+`abi.decode`  
+`abi.decode`用于解码`abi.encode`生成的二进制编码，将它还原成原本的参数。  
+```Solidity
+function decode(bytes memory data) public pure returns(uint dx, address daddr, string memory dname, uint[2] memory darray) {
+    (dx, daddr, dname, darray) = abi.decode(data, (uint, address, string, uint[2]));
+}
+```  
+將`abi.encode`的二進制編碼輸入給`decode`，將解碼出原來的参數：  
+<img src="https://github.com/user-attachments/assets/e1b46761-d5a1-466b-a1a1-f7a1f2e602e1" height="200px" width="300px" />
+
+#### ABI的使用場景
+1. 在合约开发中，ABI常配合call来实现对合约的底层调用。
+```Solidity
+bytes4 selector = contract.getValue.selector;
+
+bytes memory data = abi.encodeWithSelector(selector, _x);
+(bool success, bytes memory returnedData) = address(contract).staticcall(data);
+require(success);
+
+return abi.decode(returnedData, (uint256));
+```
+
+2. ethers.js中常用ABI实现合约的导入和函数调用。
+```Solidity
+const wavePortalContract = new ethers.Contract(contractAddress, contractABI, signer);
+    /*
+    * Call the getAllWaves method from your Smart Contract
+    */
+const waves = await wavePortalContract.getAllWaves();
+```
+
+3. 对不开源合约进行反编译后，某些函数无法查到函数签名，可通过ABI进行调用。
+    * 0x533ba33a() 是一个反编译后显示的函数，只有函数编码后的结果，并且无法查到函数签名  
+    <img src="https://github.com/user-attachments/assets/48fc14e8-a0b4-4df8-aa77-9bb108adadda" height="120px" width="360px" />
+    <img src="https://github.com/user-attachments/assets/5d9aea9a-eb18-48c2-baca-7905819c76d5" height="120px" width="600px" />
+
+    * 这种情况无法通过构造interface接口或contract来进行调用  
+    <img src="https://github.com/user-attachments/assets/e397fa4b-1acc-4e12-9369-c0ba32f577f7" height="120px" width="600px" />
+
+    ```Solidity
+    bytes memory data = abi.encodeWithSelector(bytes4(0x533ba33a));
+
+    (bool success, bytes memory returnedData) = address(contract).staticcall(data);
+    require(success);
+
+    return abi.decode(returnedData, (uint256));
+    ```
+
+**總結**  
+在以太坊中，数据必须编码成字节码才能和智能合约交互。
+
+
+> 1.当我们调用智能合约时，传递给合约的数据的前若干个字节被称为“函数选择器 (Selector)”，它告诉合约我们想要调用哪个函数。假设我们想要调用的函数在智能合约中定义声明如下：
+> ```
+> function foo(uint256 n, address sender, string s) public view returns(bool b)
+> ```
+> 那么该函数对应的函数选择器为：
+>
+> A. "foo(uint256,address,string)" 
+> B. "foo(uint256 n, address sender, string s)" 
+> C. keccak256("foo(uint256,address,string)") 
+> D. keccak256("foo(uint256 n, address sender, string s)") 
+> E. bytes4(keccak256("foo(uint256,address,string)")) 
+> F. bytes4(keccak256("foo(uint256 n, address sender, string s)"))
+> 
+> Ans: E. bytes4(keccak256("foo(uint256,address,string)"))。  
+> 解釋：  
+> 當我們想要調用智能合約中的函數時，使用的函數選擇器 (Selector) 是這個函數的簽名的 Keccak256 哈希值的前 4 個字節。  
+> 函數的簽名是函數名稱和參數類型（不包括參數名稱）的組合，例如 "foo(uint256,address,string)"。  
+> 然後對該簽名進行 keccak256 哈希計算，取哈希結果的前 4 個字節作為函數選擇器。
+
+
+
+> 2.下列有关ABI编码的函数中，返回值不可能当作调用智能合约的数据的一项是：  
+> A. abi.encode 
+> B. abi.encodePacked 
+> C. abi.encodeWithSignature 
+> D. abi.encodeWithSelector
+>
+> Ans: B. abi.encodePacked。
+>
+> 解釋：  
+> `abi.encode`、`abi.encodeWithSignature`和`abi.encodeWithSelector`都會返回可以直接作為呼叫合約時的`calldata`使用的編碼結果，它們分別針對不同的情境（如指定函數簽名或函數選擇器）。  
+> `abi.encodePacked`雖然也可以進行編碼，但其返回的是緊湊型編碼（packed encoding），這種編碼方式可能導致哈希碰撞或編碼數據不完整，因此不能直接用作智能合約的`calldata`。
+
+
+> 3.函数abi.decode用于将二进制编码解码，它对应的逆向操作函数（反函数）是：
+>
+> A. abi.encode  
+> B. abi.encodePacked  
+> C. abi.encodeWithSignature  
+> D. abi.encodeWithSelector
+>
+> 正確答案是 A. abi.encode  
+> 解釋：  
+> `abi.decode` 用於將二進制數據解碼回其原始的 Solidity 資料類型。  
+> `abi.encode` 是其逆向操作，它將 Solidity 資料類型編碼為二進制形式。
+
+> 4.已知函数foo在智能合约中定义声明如下：
+> ```
+> function foo(uint256 a) public view
+> ```
+> 而字符串"foo(uint256)"的keccak256哈希值为：
+>
+> ```
+> 0x2fbebd3821c4e005fbe0a9002cc1bd25dc266d788dba1dbcb39cc66a07e7b38b
+> ```  
+> 那么，当我们希望调用函数foo()时，以下生成调用数据的写法中，正确且最节省gas的一项是：  
+>
+> A. abi.encodeWithSignature("foo(uint256)", a)  
+> B. abi.encodeWithSelector("foo(uint256)", a)  
+> C. abi.encodeWithSelector(bytes(keccak256("foo(uint256)")), a)  
+> D. abi.encodeWithSelector(bytes4(0x2fbebd38), a)
+> 
+> 正確答案是 D. abi.encodeWithSelector(bytes4(0x2fbebd38), a)  
+> 解釋：  
+> abi.encodeWithSelector 是一個有效的方法來生成函數的調用數據，其中函數的 selector（前四個 bytes 的 Keccak256 哈希值）可以被直接使用。  
+> 選項 D 使用了已知的函數 selector 0x2fbebd38，並傳遞參數 a，這樣直接使用 selector，避免了在調用中再去計算哈希值，從而節省了 gas。
+
+### 2024.10.12
+
+哈希函數(hash)是一個密碼學概念，它可以將任意長度的消息轉換為一個固定長度的值，這個值也稱作哈希(hash)。
+
+#### Hash
+好的哈希函數具有以下幾個特徵：  
+* 單向性：从输入的消息到它的哈希的正向运算简单且唯一确定，而反过来非常难，只能靠暴力枚举。
+* 靈敏性：输入的消息改变一点对它的哈希改变很大。
+* 高效性：从输入的消息到哈希的运算高效。
+* 均一性：每个哈希值被取到的概率应该基本相等。
+* 抗碰撞性：
+    * 弱抗碰撞性：給定一個`x`，找到另個`x'`，使的`hash(x)=hash(x')`是困難的。
+    * 強抗碰撞性：找到兩個不同的輸入導致相同的輸出（哈希值）非常困難，但若長度是無限的，必然會有碰撞。
+
+#### Hash的應用
+* 生成數據唯一標識
+* 加密签名
+* 安全加密
+
+**Keccak256**  
+Keccak256函数是Solidity中最常用的哈希函数，用法：  
+```Solidity
+哈希 = keccak256(数据);
+```
+
+**Keccak256和sha3**  
+1. sha3由keccak标准化而来，在很多场合下Keccak和SHA3是同义词，但在2015年8月SHA3最终完成标准化时，NIST调整了填充算法。所以SHA3就和keccak计算的结果不一样，这点在实际开发中要注意。
+2. 以太坊在开发的时候sha3还在标准化中，所以采用了keccak，所以Ethereum和Solidity智能合约代码中的SHA3是指Keccak256，而不是标准的NIST-SHA3，为了避免混淆，直接在合约代码中写成Keccak256是最清晰的。
+
+#### 生成数据唯一标识  
+
+可以利用keccak256来生成一些数据的唯一标识。比如我们有几个不同类型的数据：uint，string，address，我们可以先用abi.encodePacked方法将他们打包编码，然后再用keccak256来生成唯一标识：
+
+```Solidity
+function hash(
+    uint _num,
+    string memory _string,
+    address _addr
+    ) public pure returns (bytes32) {
+    return keccak256(abi.encodePacked(_num, _string, _addr));
+}
+```
+
+#### 弱抗碰撞性
+我们用`keccak256`演示一下之前讲到的弱抗碰撞性，即给定一个消息`x`，找到另一个消息`x'`，使得`hash(x) = hash(x')`是困难的。
+
+给定一个消息`0xAA`，试图去找另一个消息，使得它们的哈希值相等：  
+```Solidity
+// 弱抗碰撞性
+function weak(
+    string memory string1
+    )public view returns (bool){
+    return keccak256(abi.encodePacked(string1)) == _msg;
+}
+```
+
+#### 强抗碰撞性
+我们用`keccak256`演示一下之前讲到的强抗碰撞性，即找到任意不同的`x`和`x'`，使得`hash(x) = hash(x')`是困难的。
+
+我们构造一个函数`strong`，接收两个不同的`string`参数`string1`和`string2`，然后判断它们的哈希是否相同：  
+```Solidity
+// 强抗碰撞性
+function strong(
+        string memory string1,
+        string memory string2
+    )public pure returns (bool){
+    return keccak256(abi.encodePacked(string1)) == keccak256(abi.encodePacked(string2));
+}
+```
+
+<img src="https://github.com/user-attachments/assets/0be0c95b-a333-467d-8dd1-387e6ce1c5eb" height="400px" width="640px" />
+
+### 2024.10.13
+
+#### 函數選擇器(Selector)
+當調用智能合約時，本質上是向目標合約發送了一段`calldata`。
+
+
+**msg.data**  
+`msg.data`是Solidity中的一个全局變量，值為完整的`calldata`（調用函數時傳入的數據）。  
+在下面的代碼中，可以通過`Log`事件來輸出調用`mint`函數的`calldata`：
+```Solidity
+// event 返回msg.data
+event Log(bytes data);
+
+function mint(address to) external{
+    emit Log(msg.data);
+}
+```  
+当参数为0x2c44b726ADF1963cA47Af88B284C06f30380fC78时，输出的calldata为  
+```
+0x6a6278420000000000000000000000002c44b726adf1963ca47af88b284c06f30380fc78
+```  
+这段很乱的字节码可以分成两部分：  
+```
+前4个字节为函数选择器selector：
+0x6a627842
+
+后面32个字节为输入的参数：
+0x0000000000000000000000002c44b726adf1963ca47af88b284c06f30380fc78
+```  
+其实calldata就是告诉智能合约，我要调用哪个函数，以及参数是什么。  
+
+#### method id、selector和函数签名
+* `method id`定義為函數簽名的`Keccak`哈希后的前4个字節。
+* 當`selector`與`method id`相匹配時，即表示調用該函數。
+* 函數簽名，為`"函數名（逗號分隔的参數類型)"`。
+
+
+**基础类型参数**  
+`solidity`中，基础类型的参数有：`uint256`(`uint8`, ... , `uint256`)、`bool`, `address`等。在计算`method id`时，只需要计算`bytes4(keccak256("函数名(参数类型1,参数类型2,...)"))`。例如，如下函数，函数名为`elementaryParamSelector`，参数类型分别为`uint256`和`bool`。所以，只需要计算`bytes4(keccak256("elementaryParamSelector(uint256,bool)"))`便可得到此函数的`method id`。
+
+```Solidity
+    // elementary（基础）类型参数selector
+    // 输入：param1: 1，param2: 0
+    // elementaryParamSelector(uint256,bool) : 0x3ec37834
+    function elementaryParamSelector(uint256 param1, bool param2) external returns(bytes4 selectorWithElementaryParam){
+        emit SelectorEvent(this.elementaryParamSelector.selector);
+        return bytes4(keccak256("elementaryParamSelector(uint256,bool)"));
+    }
+```
+
+**固定长度类型参数**  
+固定长度的参数类型通常为固定长度的数组，例如：`uint256[5]`等。例如，如下函数`fixedSizeParamSelector`的参数为`uint256[3]`。因此，在计算该函数的`method id`时，只需要通过`bytes4(keccak256("fixedSizeParamSelector(uint256[3])"))`即可。  
+
+```Solidity
+    // fixed size（固定长度）类型参数selector
+    // 输入： param1: [1,2,3]
+    // fixedSizeParamSelector(uint256[3]) : 0xead6b8bd
+    function fixedSizeParamSelector(uint256[3] memory param1) external returns(bytes4 selectorWithFixedSizeParam){
+        emit SelectorEvent(this.fixedSizeParamSelector.selector);
+        return bytes4(keccak256("fixedSizeParamSelector(uint256[3])"));
+    }
+```
+
+**可变长度类型参数**  
+可变长度参数类型通常为可变长的数组，例如：`address[]`、`uint8[]`、`string`等。例如，如下函数`nonFixedSizeParamSelector`的参数为`uint256[]`和`string`。因此，在计算该函数的method id时，只需要通过`bytes4(keccak256("nonFixedSizeParamSelector(uint256[],string)"))`即可。
+```Solidity
+    // non-fixed size（可变长度）类型参数selector
+    // 输入： param1: [1,2,3]， param2: "abc"
+    // nonFixedSizeParamSelector(uint256[],string) : 0xf0ca01de
+    function nonFixedSizeParamSelector(uint256[] memory param1,string memory param2) external returns(bytes4 selectorWithNonFixedSizeParam){
+        emit SelectorEvent(this.nonFixedSizeParamSelector.selector);
+        return bytes4(keccak256("nonFixedSizeParamSelector(uint256[],string)"));
+    }
+```
+
+**映射类型参数**  
+映射类型参数通常有：`contract`、`enum`、`struct`等。在计算`method id`时，需要将该类型转化成为`ABI`类型。
+
+例如，如下函数`mappingParamSelector中DemoContract`需要转化为`address`，结构体`User`需要转化为`tuple`类型`(uint256,bytes)`，枚举类型`School`需要转化为`uint8`。因此，计算该函数的`method id`的代码为`bytes4(keccak256("mappingParamSelector(address,(uint256,bytes),uint256[],uint8)"))`。
+
+```Solidity
+contract DemoContract {
+    // empty contract
+}
+
+contract Selector{
+    // Struct User
+    struct User {
+        uint256 uid;
+        bytes name;
+    }
+    // Enum School
+    enum School { SCHOOL1, SCHOOL2, SCHOOL3 }
+    ...
+    // mapping（映射）类型参数selector
+    // 输入：demo: 0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99， user: [1, "0xa0b1"], count: [1,2,3], mySchool: 1
+    // mappingParamSelector(address,(uint256,bytes),uint256[],uint8) : 0xe355b0ce
+    function mappingParamSelector(DemoContract demo, User memory user, uint256[] memory count, School mySchool) external returns(bytes4 selectorWithMappingParam){
+        emit SelectorEvent(this.mappingParamSelector.selector);
+        return bytes4(keccak256("mappingParamSelector(address,(uint256,bytes),uint256[],uint8)"));
+    }
+    ...
+}
+```
+
+#### 使用selector
+我们可以利用`selector`来调用目标函数。例如我想调用`elementaryParamSelector`函数，我只需要利用`abi.encodeWithSelector`将`elementaryParamSelector`函数的`method id`作为`selector`和参数打包编码，传给`call`函数：
+
+```Solidity
+    // 使用selector来调用函数
+    function callWithSignature() external{
+    ...
+        // 调用elementaryParamSelector函数
+        (bool success1, bytes memory data1) = address(this).call(abi.encodeWithSelector(0x3ec37834, 1, 0));
+    ...
+    }
+```
+
+
+
+
+### 2024.10.14
+
+#### Try Catch
+
+`try-catch`只能被用於`external`函數或創建合約時`constructor`（被視為`external`函數）的調用。  
+`externalContract.f()`是某個外部合約的函數調用，`try`在調用成功的情况下運行，而`catch`則在調用失敗時執行。  
+可以使用`this.f()`來替代`externalContract.f()`，`this.f()`也被視作為外部調用，但不可在構造函數中使用，因為此時合約還未創建。  
+```Solidity
+try externalContract.f() {
+    // call成功的情况下 运行一些代码
+} catch {
+    // call失败的情况下 运行一些代码
+}
+```  
+
+如果調用的函數有返回值，那麼必須在`try`之後聲明`returns(returnType val)`，並且在`try`中可以使用返回的變量；如果是創建合約，那麼返回值是新創建的合約變量。  
+`catch`支持特殊的異常原因：  
+```Solidity
+try externalContract.f() returns(returnType){
+    // call成功的情况下 运行一些代码
+} catch Error(string memory /*reason*/) {
+    // 捕获revert("reasonString") 和 require(false, "reasonString")
+} catch Panic(uint /*errorCode*/) {
+    // 捕获Panic导致的错误 例如assert失败 溢出 除零 数组访问越界
+} catch (bytes memory /*lowLevelData*/) {
+    // 如果发生了revert且上面2个异常类型匹配都失败了 会进入该分支
+    // 例如revert() require(false) revert自定义类型的error
+}
+```
+
+#### `try-catch`實例
+`OnlyEven`
+```Solidity
+# 创建一个外部合约OnlyEven，并使用try-catch来处理异常
+contract OnlyEven{
+    # 当a=0时，require会抛出异常；当a=1时，assert会抛出异常；其他情况均正常。
+    constructor(uint a){
+        require(a != 0, "invalid number");
+        assert(a != 1);
+    }
+
+    # 当b为奇数时，require会抛出异常。
+    function onlyEven(uint256 b) external pure returns(bool success){
+        // 输入奇数时revert
+        require(b % 2 == 0, "Ups! Reverting");
+        success = true;
+    }
+}
+```
+
+**处理外部函数调用异常**  
+```Solidity
+// 调用成功会释放的事件
+event SuccessEvent();
+
+// CatchEvent和CatchByte是抛出异常时会释放的事件，分别对应require/revert和assert异常的情况。
+event CatchEvent(string message);
+event CatchByte(bytes data);
+
+// 声明even是个OnlyEven合约变量
+OnlyEven even;
+
+constructor() {
+    even = new OnlyEven(2);
+}
+
+
+// 在execute函数中使用try-catch处理调用外部函数onlyEven中的异常
+function execute(uint amount) external returns (bool success) {
+    try even.onlyEven(amount) returns(bool _success){
+        // call成功的情况下
+        emit SuccessEvent();
+        return _success;
+    } catch Error(string memory reason){
+        // call不成功的情况下
+        emit CatchEvent(reason);
+    }
+}
+```
+
+<img src="https://github.com/user-attachments/assets/9c1dc954-3162-4426-95ea-0c60a5c756cb" height="330px" width="640px" />
+
+<img src="https://github.com/user-attachments/assets/58366fda-8148-40fe-a38b-711d9167eda9" height="330px" width="640px" />
+
+
+**处理合约创建异常**  
+利用`try-catch`来处理合约创建时的异常。只需要把`try`改写为`OnlyEven`合约的创建就行：  
+```Solidity
+// 在创建新合约中使用try-catch （合约创建被视为external call）
+// executeNew(0)会失败并释放`CatchEvent`
+// executeNew(1)会失败并释放`CatchByte`
+// executeNew(2)会成功并释放`SuccessEvent`
+function executeNew(uint a) external returns (bool success) {
+    try new OnlyEven(a) returns(OnlyEven _even){
+        // call成功的情况下
+        emit SuccessEvent();
+        success = _even.onlyEven(a);
+    } catch Error(string memory reason) {
+        // catch失败的 revert() 和 require()
+        emit CatchEvent(reason);
+    } catch (bytes memory reason) {
+        // catch失败的 assert()
+        emit CatchByte(reason);
+    }
+}
+```
+
+<img src="https://github.com/user-attachments/assets/6c95b81b-d35f-4fac-a3ea-8fefc9a0898e" height="330px" width="640px" />
+
+<img src="https://github.com/user-attachments/assets/2f1707a4-edae-44e9-9daf-a651bba32ca1" height="330px" width="640px" />
+
+<img src="https://github.com/user-attachments/assets/bd9c3a2e-a299-4cff-8cb7-9de48ace1307" height="330px" width="640px" />
+
+#### 總結  
+使用try-catch来处理智能合约运行中的异常：  
+* 只能用于外部合约调用和合约创建。
+* 如果try执行成功，返回变量必须声明，并且与返回的变量类型相同。
+
+
+> 1.try-catch可以捕获什么异常？  
+> A. revert()  
+> B. require()  
+> C. assert()  
+> D. 以上都可以
+>
+> Ans:D
+
+
+> 2.以下异常返回值类型为bytes的是：  
+> A. revert()  
+> B. require()  
+> C. assert()  
+> D. 以上都是  
+>
+> Ans:C
+
+> 3.try-catch捕获到异常后是否会使try-catch所在的方法调用失败？  
+> A. 会  
+> B. 不会
+>
+> Ans:B
+
+> 4.try代码块内的revert是否会被catch本身捕获？  
+> A. 会  
+> B. 不会
+>
+> Ans:B
+
+
+
 <!-- Content_END -->

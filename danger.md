@@ -524,8 +524,275 @@ do-while循环
 
 
 
-###  2024.10.07
+###  2024.10.08
 
+事件
+
+Solidity中的事件（event）是EVM上日志的抽象，它具有两个特点：
+
+响应：应用程序（ethers.js）可以通过RPC接口订阅和监听这些事件，并在前端做响应。
+
+经济：事件是EVM上比较经济的存储数据的方式，每个大概消耗2,000 gas；相比之下，链上存储一个新变量至少需要20,000 gas。
+
+声明事件
+
+事件的声明由event关键字开头，接着是事件名称，括号里面写好事件需要记录的变量类型和变量名。以ERC20代币合约的Transfer事件为例：
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+我们可以看到，Transfer事件共记录了3个变量from，to和value，分别对应代币的转账地址，接收地址和转账数量，其中from和to前面带有indexed关键字，他们会保存在以太坊虚拟机日志的topics中，方便之后检索。
+
+释放事件
+
+我们可以在函数里释放事件。在下面的例子中，每次用_transfer()函数进行转账操作的时候，都会释放Transfer事件，并记录相应的变量。
+
+// 定义_transfer函数，执行转账逻辑
+function _transfer(
+    address from,
+    address to,
+    uint256 amount
+) external {
+
+    _balances[from] = 10000000; // 给转账地址一些初始代币
+
+    _balances[from] -=  amount; // from地址减去转账数量
+    _balances[to] += amount; // to地址加上转账数量
+
+    // 释放事件
+    emit Transfer(from, to, amount);
+}
+
+EVM日志 Log
+以太坊虚拟机（EVM）用日志Log来存储Solidity事件，每条日志记录都包含主题topics和数据data两部分。 
+
+![image](https://github.com/user-attachments/assets/c8c13ed5-e92f-46fa-9260-5fde3ea53d56)
+
+
+主题 topics
+日志的第一部分是主题数组，用于描述事件，长度不能超过4。它的第一个元素是事件的签名（哈希）。对于上面的Transfer事件，它的事件哈希就是：
+
+keccak256("Transfer(address,address,uint256)")
+
+//0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+
+除了事件哈希，主题还可以包含至多3个indexed参数，也就是Transfer事件中的from和to。
+
+indexed标记的参数可以理解为检索事件的索引“键”，方便之后搜索。每个 indexed 参数的大小为固定的256比特，如果参数太大了（比如字符串），就会自动计算哈希存储在主题中。
+
+数据 data
+
+事件中不带 indexed的参数会被存储在 data 部分中，可以理解为事件的“值”。data 部分的变量不能被直接检索，但可以存储任意大小的数据。因此一般 data 部分可以用来存储复
+
+杂的数据结构，例如数组和字符串等等，因为这些数据超过了256比特，即使存储在事件的 topics 部分中，也是以哈希的方式存储。另外，data 部分的变量在存储上消耗的gas相比
+
+于 topics 更少。
+
+在Etherscan上查询事件
+
+我们尝试用_transfer()函数在Sepolia测试网络上转账100代币，可以在Etherscan上查询到相应的tx：网址。
+
+点击Logs按钮，就能看到事件明细：
+
+![image](https://github.com/user-attachments/assets/7415fea8-4dd8-4aa9-9395-8ce33975e347)
+
+Topics里面有三个元素，[0]是这个事件的哈希，[1]和[2]是我们定义的两个indexed变量的信息，即转账的转出地址和接收地址。Data里面是剩下的不带indexed的变量，也就是转账数量。
+
+
+
+
+###  2024.10.10
+
+Solidity中的继承（inheritance），包括简单继承，多重继承，以及修饰器（Modifier）和构造函数（Constructor）的继承。
+
+继承
+
+继承是面向对象编程很重要的组成部分，可以显著减少重复代码。如果把合约看作是对象的话，Solidity也是面向对象的编程，也支持继承。
+
+规则
+
+virtual: 父合约中的函数，如果希望子合约重写，需要加上virtual关键字。
+
+override：子合约重写了父合约中的函数，需要加上override关键字。
+
+注意：用override修饰public变量，会重写与变量同名的getter函数，
+
+简单继承
+
+我们先写一个简单的爷爷合约Yeye，里面包含1个Log事件和3个function: hip(), pop(), yeye()，输出都是”Yeye”。
+
+
+contract Yeye {
+    event Log(string msg);
+
+    // 定义3个function: hip(), pop(), man()，Log值为Yeye。
+    function hip() public virtual{
+        emit Log("Yeye");
+    }
+
+    function pop() public virtual{
+        emit Log("Yeye");
+    }
+
+    function yeye() public virtual {
+        emit Log("Yeye");
+    }
+}
+
+我们再定义一个爸爸合约Baba，让他继承Yeye合约，语法就是contract Baba is Yeye，非常直观。在Baba合约里，我们重写一下hip()和pop()这两个函数，加上override关键字，并将他们的输出改为”Baba”；并且加一个新的函数baba，输出也是”Baba”。
+
+contract Baba is Yeye{
+    // 继承两个function: hip()和pop()，输出改为Baba。
+    function hip() public virtual override{
+        emit Log("Baba");
+    }
+
+    function pop() public virtual override{
+        emit Log("Baba");
+    }
+
+    function baba() public virtual{
+        emit Log("Baba");
+    }
+}
+
+Solidity的合约可以继承多个合约。规则：
+
+继承时要按辈分最高到最低的顺序排。比如我们写一个Erzi合约，继承Yeye合约和Baba合约，那么就要写成contract Erzi is Yeye, Baba，而不能写成contract Erzi is Baba, Yeye，不然就会报错。
+
+如果某一个函数在多个继承的合约里都存在，比如例子中的hip()和pop()，在子合约里必须重写，不然会报错。
+
+重写在多个父合约中都重名的函数时，override关键字后面要加上所有父合约名字，例如override(Yeye, Baba)。
+
+修饰器的继承
+
+Solidity中的修饰器（Modifier）同样可以继承，用法与函数继承类似，在相应的地方加virtual和override关键字即可。
+
+调用父合约的函数
+子合约有两种方式调用父合约的函数，直接调用和利用super关键字。
+
+直接调用：子合约可以直接用父合约名.函数名()的方式来调用父合约函数，
+
+super关键字：子合约可以利用super.函数名()来调用最近的父合约函数。Solidity继承关系按声明时从右到左的顺序是：contract Erzi is Yeye, Baba，那么Baba是最近的父合约，super.pop()将调用Baba.pop()而不是Yeye.pop()：
+
+钻石继承
+在面向对象编程中，钻石继承（菱形继承）指一个派生类同时有两个或两个以上的基类。
+
+在多重+菱形继承链条上使用super关键字时，需要注意的是使用super会调用继承链条上的每一个合约的相关函数，而不是只调用最近的父合约。
+
+我们先写一个合约God，再写Adam和Eve两个合约继承God合约，最后让创建合约people继承自Adam和Eve，每个合约都有foo和bar两个函数。
+
+
+
+Solidity继承的基本用法，包括简单继承，多重继承，修饰器和构造函数的继承、调用父合约中的函数，以及多重继承中的菱形继承问题。
+
+
+###  2024.10.13
+
+抽象合约和接口
+
+抽象合约
+如果一个智能合约里至少有一个未实现的函数，即某个函数缺少主体{}中的内容，则必须将该合约标为abstract，不然编译会报错；另外，未实现的函数需要加virtual，以便子合约重写。拿我们之前的插入排序合约为例，如果我们还没想好具体怎么实现插入排序函数，那么可以把合约标为abstract，之后让别人补写上。
+
+    abstract contract InsertionSort{
+    function insertionSort(uint[] memory a) public pure virtual returns(uint[] memory);
+    }
+
+    接口
+    
+接口类似于抽象合约，但它不实现任何功能。接口的规则：
+
+不能包含状态变量
+不能包含构造函数
+不能继承除接口外的其他合约
+所有函数都必须是external且不能有函数体
+继承接口的非抽象合约必须实现接口定义的所有功能
+虽然接口不实现任何功能，但它非常重要。接口是智能合约的骨架，定义了合约的功能以及如何触发它们：如果智能合约实现了某种接口（比如ERC20或ERC721），其他Dapps和智能合约就知道如何与它交互。因为接口提供了两个重要的信息：
+
+合约里每个函数的bytes4选择器，以及函数签名函数名(每个参数类型）。
+
+接口id（更多信息见EIP165）
+
+另外，接口与合约ABI（Application Binary Interface）等价，可以相互转换：编译接口可以得到合约的ABI，利用abi-to-sol工具，也可以将ABI json文件转换为接口sol文件。
+
+我们以ERC721接口合约IERC721为例，它定义了3个event和9个function，所有ERC721标准的NFT都实现了这些函数。我们可以看到，接口和常规合约的区别在于每个函数都以;代替函数体{ }结尾。
+
+    interface IERC721 is IERC165 {
+    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+    event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
+    event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
+    
+    function balanceOf(address owner) external view returns (uint256 balance);
+
+    function ownerOf(uint256 tokenId) external view returns (address owner);
+
+    function safeTransferFrom(address from, address to, uint256 tokenId) external;
+
+    function transferFrom(address from, address to, uint256 tokenId) external;
+
+    function approve(address to, uint256 tokenId) external;
+
+    function getApproved(uint256 tokenId) external view returns (address operator);
+
+    function setApprovalForAll(address operator, bool _approved) external;
+
+    function isApprovedForAll(address owner, address operator) external view returns (bool);
+
+    function safeTransferFrom( address from, address to, uint256 tokenId, bytes calldata data) external;
+     }
+
+
+IERC721事件
+
+IERC721包含3个事件，其中Transfer和Approval事件在ERC20中也有。
+
+Transfer事件：在转账时被释放，记录代币的发出地址from，接收地址to和tokenId。
+
+Approval事件：在授权时被释放，记录授权地址owner，被授权地址approved和tokenId。
+
+ApprovalForAll事件：在批量授权时被释放，记录批量授权的发出地址owner，被授权地址operator和授权与否的approved。
+
+IERC721函数
+
+balanceOf：返回某地址的NFT持有量balance。
+
+ownerOf：返回某tokenId的主人owner。
+
+transferFrom：普通转账，参数为转出地址from，接收地址to和tokenId。
+
+safeTransferFrom：安全转账（如果接收方是合约地址，会要求实现ERC721Receiver接口）。参数为转出地址from，接收地址to和tokenId。
+
+approve：授权另一个地址使用你的NFT。参数为被授权地址approve和tokenId。
+
+getApproved：查询tokenId被批准给了哪个地址。
+
+setApprovalForAll：将自己持有的该系列NFT批量授权给某个地址operator。
+
+isApprovedForAll：查询某地址的NFT是否批量授权给了另一个operator地址。
+
+safeTransferFrom：安全转账的重载函数，参数里面包含了data。
+
+
+什么时候使用接口？
+
+如果我们知道一个合约实现了IERC721接口，我们不需要知道它具体代码实现，就可以与它交互。
+
+无聊猿BAYC属于ERC721代币，实现了IERC721接口的功能。我们不需要知道它的源代码，只需知道它的合约地址，用IERC721接口就可以与它交互，比如用balanceOf()来查询某个地址的BAYC余额，用safeTransferFrom()来转账BAYC。
+
+
+     contract interactBAYC {
+    // 利用BAYC地址创建接口合约变量（ETH主网）
+    IERC721 BAYC = IERC721(0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D);
+
+    // 通过接口调用BAYC的balanceOf()查询持仓量
+    function balanceOfBAYC(address owner) external view returns (uint256 balance){
+        return BAYC.balanceOf(owner);
+    }
+
+    // 通过接口调用BAYC的safeTransferFrom()安全转账
+    function safeTransferFromBAYC(address from, address to, uint256 tokenId) external{
+        BAYC.safeTransferFrom(from, to, tokenId);
+    }
+    }
 
 
 <!-- Content_END -->

@@ -326,4 +326,51 @@ interface IERC721Receiver {
 }
 ```
 - 目标合约需要实现接口完善处理逻辑
+  
+### 2024.10.08
+学习了DutchAuction和MerkleTree,并且研究了源码，在remix进行验证
+**value选项框中可以指定传入给payable函数的eth，我之前竟然不知道，想了好久该如何调用函数的同时传入eth:(**
+
+### 2024.10.09
+学习了数字签名 和 NFT交易所 源码，并在remix上进行了验证
+- 数字签名
+- 签名的内容利用abi.encodePacked()函数打包，然后用keccak256()计算哈希，作为消息的摘要，然后利用私钥对摘要进行签名，得到r,s,v三个参数，v是0或1，代表使用的曲线类型，r,s是签名结果，然后利用公钥验证签名。
+- 消息可以是能被执行的交易，也可以是其他任何形式。为了避免用户误签了恶意交易，EIP191提倡在消息前加上"\x19Ethereum Signed Message:\n32"字符，并再做一次keccak256哈希，作为以太坊签名消息。经过toEthSignedMessageHash()函数处理后的消息，不能被用于执行交易
+- 利用签名发放白名单 (https://github.com/AmazingAng/WTF-Solidity/blob/main/37_Signature/Signature.sol)
+### 2024.10.10
+- 学习了链上随机数，分账，weth合约，研究了相关源码
+```solidity
+    /** 
+    * 输入uint256数字，返回一个可以mint的tokenId
+    * 算法过程可理解为：totalSupply个空杯子（0初始化的ids）排成一排，每个杯子旁边放一个球，编号为[0, totalSupply - 1]。
+    每次从场上随机拿走一个球（球可能在杯子旁边，这是初始状态；也可能是在杯子里，说明杯子旁边的球已经被拿走过，则此时新的球从末尾被放到了杯子里）
+    再把末尾的一个球（依然是可能在杯子里也可能在杯子旁边）放进被拿走的球的杯子里，循环totalSupply次。相比传统的随机排列，省去了初始化ids[]的gas。
+    */
+    function pickRandomUniqueId(uint256 random) private returns (uint256 tokenId) {
+        //先计算减法，再计算++, 关注(a++，++a)区别
+        uint256 len = totalSupply - mintCount++; // 可mint数量
+        require(len > 0, "mint close"); // 所有tokenId被mint完了
+        uint256 randomIndex = random % len; // 获取链上随机数
+
+        //随机数取模，得到tokenId，作为数组下标，同时记录value为len-1，如果取模得到的值已存在，则tokenId取该数组下标的value
+        tokenId = ids[randomIndex] != 0 ? ids[randomIndex] : randomIndex; // 获取tokenId
+        ids[randomIndex] = ids[len - 1] == 0 ? len - 1 : ids[len - 1]; // 更新ids 列表
+        ids[len - 1] = 0; // 删除最后一个元素，能返还gas
+    }
+```
+- 有趣的随机数算法
+- WETH
+ - 因为eth不支持一些defi，所以包装成weth
+- 分账
+### 2024.10.11
+学习了线性释放，代币锁，时间锁合约，并在remix上进行了验证
+通过bytes32 txHash = getTxHash(target, value, signature, data, executeTime);来确定交易唯一
+
+### 2024.10.12
+学习了代理合约的相关知识，并在remix上进行了验证
+- 代理合约
+- 可升级合约
+- 透明代理(解决 逻辑合约 和 代理合约 abi重名问题)
+- UUPS代理(将升级函数放在逻辑合约中，逻辑合约必须保证有相关的升级函数)
+- := 在 Solidity 中，:= 是一种特殊的符号，用于 Yul 代码（Solidity 的低级中间语言）。它用于赋值操作
 <!-- Content_END -->

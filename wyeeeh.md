@@ -1383,7 +1383,6 @@ interface IERC721 {
     function ownerOf(uint256 tokenId) external view returns (address owner);
     function safeTransferFrom(address from, address to, uint256 tokenId) external;
 }
-
 ```
 
 - **事件**：`Transfer` 事件记录 NFT 的转账操作，`from` 是发送方，`to` 是接收方，`tokenId` 是 NFT 的 ID。
@@ -1635,23 +1634,634 @@ class MyTokenAssert:
 ### 2024.10.08
 #### WTF Academy Solidity 102.16 函数重载
 
-##### 笔记
+##### 函数重载`overloading`
+Solidity允许函数重载（Overloading），即定义多个同名函数，但具有不同参数类型或参数数量。
+需要注意的是，Solidity 不允许修饰器进行重载。修饰器与函数的语法不同，它们在逻辑上更像是对函数的封装，而不是不同的实现。因此，当使用修饰器时，函数的名称必须是唯一的。
+
+**不同参数类型**
+
+```solidity
+pragma solidity ^0.8.0;
+
+contract OverloadExample {
+    function saySomething() public pure returns (string memory) {
+        return "Nothing"; // 没有参数的函数
+    }
+
+    function saySomething(string memory something) public pure returns (string memory) {
+        return something; // 带一个字符串参数的函数
+    }
+}
+```
+
+**不同参数数量**
+
+```solidity
+pragma solidity ^0.8.0;
+
+contract OverloadExample {
+    function add(uint a, uint b) public pure returns (uint) {
+        return a + b; // 两个参数的加法
+    }
+
+    function add(uint a, uint b, uint c) public pure returns (uint) {
+        return a + b + c; // 三个参数的加法
+    }
+}
+```
+###### 函数选择
+在 Solidity 中，重载函数的名称相同，但由于参数类型的不同，它们被编译成不同的函数选择器。函数选择器是根据函数的签名生成的前四个字节，签名包括函数名称及其参数类型。例如：
+
+- `saySomething()` 的选择器是根据函数签名 `"saySomething()"` 生成的。
+- `saySomething(string memory)` 的选择器是根据签名 `"saySomething(string)"` 生成的。
+
+##### 实参匹配（Argument Matching）
+当调用重载函数时，Solidity 会尝试根据提供的实参（实际参数）来匹配最适合的重载函数，。如果传入的参数能够匹配多个重载函数，将会导致编译错误，因此必须确保传入的实参能明确匹配某一个重载函数。
+```solidity
+pragma solidity ^0.8.0;
+
+contract Example {
+    function f(uint8 _in) public pure returns (uint8) {
+        return _in; // uint8 的 f 函数
+    }
+
+    function f(uint256 _in) public pure returns (uint256) {
+        return _in; // uint256 的 f 函数
+    }
+}
+
+// 当调用 f(50) 时，会报错：
+// TypeError: Function call argument type mismatch.
+```
+
+在这个例子中，如果调用 `f(50)`，编译器会发现 `50` 同时可以被视为 `uint8` 和 `uint256`，因为它可以在这两种类型之间进行转换。这时，编译器无法确定调用哪个版本的 `f()` 函数，因此会报错。
 
 ##### 测验结果
-
-##### 测验错题
+- 100/100
 
 ### 2024.10.09
 #### WTF Academy Solidity 102.17 库合约
 
-##### 笔记
+##### 库合约（Library Contract）
+
+在 Solidity 中，库合约是一种特殊的合约，旨在提高代码的复用性并减少交易成本（gas 消耗）。库合约像传统的代码库一样，提供了一系列的函数，但它们与普通合约有一些显著的区别：
+- **不能存在状态变量**：库合约不能存储状态，所有的变量都是局部的。
+- **不能继承或被继承**：库合约无法继承其他合约，也不允许其他合约继承它。
+- **不能接收以太币**：库合约不能接收以太币，所有操作都是纯粹的计算。
+- **不可以被销毁**：库合约一旦部署，不可被销毁。
+- **可见性设置**：库合约的函数如果设置为 `public` 或 `external`，调用时会触发一次 `delegatecall`。而 `internal` 则不会触发 `delegatecall`，`private` 函数只能在库合约内部调用。
+
+##### 库合约的使用方法
+**3.1 使用 `using for` 指令**
+通过 `using A for B;` 可以将库合约 A 的函数附加到类型 B。使用这个指令后，库 A 中的函数会自动成为 B 类型变量的成员，可以直接调用。
+
+```solidity
+// 利用using for指令
+using Strings for uint256;
+
+function getString1(uint256 _number) public pure returns(string memory) {
+    return _number.toHexString(); // 调用库合约中的函数
+}
+```
+
+**3.2 直接通过库合约名调用**
+可以直接使用库合约的名称来调用函数，这样更为直观。
+
+```solidity
+// 直接通过库合约名调用
+function getString2(uint256 _number) public pure returns(string memory) {
+    return Strings.toHexString(_number); // 调用库合约中的函数
+}
+```
 
 ##### 测验结果
-
-##### 测验错题
+- 100/100
 
 ### 2024.10.10
 #### WTF Academy Solidity 102.18 Import
+
+#####  `import` 导入方法
+1. **通过文件相对位置导入**
+    - 使用相对路径导入本地的 Solidity 文件。这种方式常见于项目中的文件之间的引用。
+    - 例子：
+    在项目结构中，如果 `Import.sol` 和 `Yeye.sol` 位于同一目录下，则可以通过相对路径导入 `Yeye.sol` 文件中的所有内容。
+        
+        ```solidity
+        import './Yeye.sol';
+        
+        ```
+        
+2. **通过网址导入**
+    - 直接从网络上引用合约文件，例如从 GitHub 上的公开 Solidity 文件。这种方式常见于引入远程的库或合约。
+    - 例子：
+    这种引用方式非常方便，尤其是在开发过程中想要快速测试和使用现有的第三方库。
+        
+        ```solidity
+        import '<https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol>';
+        
+        ```
+        
+3. **通过 npm 导入**
+    - 这种方式通常用于导入项目依赖中的库，例如通过 npm 安装的 OpenZeppelin 库。
+    - 例子：
+    使用这种方式时，项目必须配置好 npm 依赖，例如通过 `npm install` 安装相关库。
+        
+        ```solidity
+        import '@openzeppelin/contracts/access/Ownable.sol';
+        
+        ```
+        
+4. **通过指定全局符号导入**
+    - 通过这种方式可以只导入指定的符号（例如合约、结构体等），避免导入整个文件的所有内容。这种方式适用于文件中包含多个合约或定义，但我们只需要使用其中的某一部分。
+    - 例子：
+    这样只导入 `Yeye.sol` 文件中的 `Yeye` 合约。
+        
+        ```solidity
+        import {Yeye} from './Yeye.sol';
+        ```
+
+##### 测验结果
+- 100/100
+
+### 2024.10.11
+#### WTF Academy Solidity 102.19 接收ETH receive和fallback
+
+##### `receive`函数
+`receive()` 函数专门用于处理合约收到ETH的情况。当合约接收到ETH并且 `msg.data` 为空时（即没有调用任何函数），如果存在 `receive()` 函数，它就会被触发。
+- **`receive()` 函数的触发条件**：
+    - 当合约接收ETH，且 `msg.data` 为空时会触发 `receive()`。
+    - 在上述例子中，当有人向合约发送ETH时（例如通过钱包的发送功能），`receive()` 会被调用，并触发 `Received` 事件。
+- **语法规则**：
+    - 一个合约最多有一个`receive()`函数
+    - 声明方式与一般函数不一样，不需要`function`关键字：`receive() external payable { ... }`。
+    - `receive()`函数不能有任何的参数，不能返回任何值，必须包含`external`和`payable`。
+- **逻辑简单**：为了避免超过 `gas` 限制，`receive()` 函数最好尽量简单，在这里我们仅仅记录ETH发送者和金额。
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract ReceiveExample {
+    event Received(address sender, uint value);
+
+    // receive 函数，用于接收ETH
+    receive() external payable {
+        emit Received(msg.sender, msg.value); // 触发事件记录发送者和金额
+    }
+
+    // 用于查询合约的余额
+    function getBalance() public view returns (uint) {
+        return address(this).balance;
+    }
+}
+
+```
+
+##### `fallback`函数
+`fallback()` 函数在两个主要场景下被调用：
+1. 当调用一个不存在的函数时。
+2. 当向合约发送ETH且 `msg.data` 不为空，或者合约没有定义 `receive()` 函数时。
+- **`fallback()` 函数的触发条件**：
+    - 当调用合约中不存在的函数时，或者向合约发送ETH但 `msg.data` 不为空时，`fallback()` 会被触发。
+    - 在这个例子中，我们定义了一个 `fallback()` 函数，当它被触发时，记录发送者、金额和 `msg.data`。
+- **`payable` 修饰符**：为了确保 `fallback()` 能够接收ETH，它通常也会使用 `payable` 修饰符。
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract FallbackExample {
+    event FallbackCalled(address sender, uint value, bytes data);
+
+    // fallback 函数，用于接收ETH或处理不存在的函数调用
+    fallback() external payable {
+        emit FallbackCalled(msg.sender, msg.value, msg.data); // 触发事件记录发送者、金额和data
+    }
+
+    // 用于查询合约的余额
+    function getBalance() public view returns (uint) {
+        return address(this).balance;
+    }
+}
+
+```
+##### `receive`和`fallback`的区别
+
+| 触发条件 | `receive()` | `fallback()` |
+| --- | --- | --- |
+| 接收ETH，且 `msg.data` 为空 | 触发 | 不触发 |
+| 接收ETH，且 `msg.data` 不为空 | 不触发 | 触发（如果存在） |
+| 调用不存在的函数 | 不触发 | 触发 |
+| 合约没有 `receive()`，接收ETH | 不触发 | 触发 |
+
+```text
+触发fallback() 还是 receive()?
+           接收ETH
+              |
+         msg.data是空？
+            /  \
+          是    否
+          /      \
+receive()存在?   fallback()
+        / \
+       是  否
+      /     \
+receive()   fallback()
+```
+##### 同时实现`receive`和`fallback`
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract ReceiveFallbackExample {
+    event Received(address sender, uint value);
+    event FallbackCalled(address sender, uint value, bytes data);
+
+    // receive 函数
+    receive() external payable {
+        emit Received(msg.sender, msg.value);
+    }
+
+    // fallback 函数
+    fallback() external payable {
+        emit FallbackCalled(msg.sender, msg.value, msg.data);
+    }
+
+    // 查询合约余额
+    function getBalance() public view returns (uint) {
+        return address(this).balance;
+    }
+}
+
+```
+
+在这个合约中：
+- 如果向合约发送ETH而不附带数据，则 `receive()` 函数会被触发。
+- 如果向合约发送ETH并附带数据，或者调用了一个不存在的函数，`fallback()` 函数会被触发。
+
+##### 测验结果
+- 100/100
+
+### 2024.10.12
+#### WTF Academy Solidity 102.20 发送ETH
+
+##### 发送-接收ETH合约
+**接收ETH合约 `ReceiveETH`**
+
+简单的接收ETH的合约包含`receive()`函数，允许它接收ETH，并记录交易信息。
+
+```solidity
+contract ReceiveETH {
+    // 事件，用于记录ETH接收情况
+    event Log(uint amount, uint gas);
+
+    // receive函数，每次接收ETH时触发
+    receive() external payable {
+        emit Log(msg.value, gasleft());
+    }
+
+    // 查询合约当前余额
+    function getBalance() public view returns (uint) {
+        return address(this).balance;
+    }
+}
+
+```
+**发送ETH合约 `SendETH`**
+
+发送ETH的合约`SendETH`，这个合约通过不同的方法向`ReceiveETH`合约发送ETH。
+
+```solidity
+contract SendETH {
+    // 构造函数，使得部署时可以转入ETH
+    constructor() payable {}
+
+    // receive函数，接收ETH时被触发
+    receive() external payable {}
+
+    // transfer()发送ETH的示例
+    function transferETH(address payable _to, uint256 amount) external payable {
+        _to.transfer(amount);
+    }
+
+    // send()发送ETH的示例
+    error SendFailed();  // 如果发送失败，触发自定义错误
+    function sendETH(address payable _to, uint256 amount) external payable {
+        bool success = _to.send(amount);
+        if (!success) {
+            revert SendFailed();  // 发送失败则revert交易
+        }
+    }
+
+    // call()发送ETH的示例
+    error CallFailed();  // 如果发送失败，触发自定义错误
+    function callETH(address payable _to, uint256 amount) external payable {
+        (bool success, ) = _to.call{value: amount}("");
+        if (!success) {
+            revert CallFailed();  // 发送失败则revert交易
+        }
+    }
+}
+
+```
+
+##### 三种发送ETH方法
+**1. `transfer()`**
+
+**语法**：
+
+```solidity
+_to.transfer(amount);
+
+```
+
+- **参数**：
+    - `_to`：接收ETH的目标地址，类型是`address payable`。
+    - `amount`：发送的ETH数额，以`wei`为单位。
+- **返回值**：
+    - `transfer()` 没有返回值。
+    - 如果转账失败（例如目标合约消耗的`gas`超过了2300 gas），会自动`revert`（回滚交易），并抛出异常，停止执行合约后续的代码。
+- **用法特点**：
+    - 固定的2300 gas限制，适合简单的转账，不适用于执行复杂逻辑。
+    - 如果失败，会自动回滚交易，无需手动处理。
+
+**示例**：
+
+```solidity
+function transferETH(address payable _to, uint256 amount) external {
+    _to.transfer(amount);
+}
+
+```
+
+**2. `send()`**
+
+**语法**：
+
+```solidity
+bool success = _to.send(amount);
+
+```
+
+- **参数**：
+    - `_to`：接收ETH的目标地址，类型是`address payable`。
+    - `amount`：发送的ETH数额，以`wei`为单位。
+- **返回值**：
+    - 返回一个`bool`值，表示转账是否成功。
+        - `true`：转账成功。
+        - `false`：转账失败。
+    - 由于返回值是`bool`，需要手动检查返回值来决定是否要回滚（例如使用`require`或`revert`来处理）。
+- **用法特点**：
+    - 和`transfer()`一样有2300 gas限制，但转账失败不会自动`revert`，需要手动处理失败情况。
+    - 因为没有自动`revert`机制，使用场景较少。
+
+**示例**：
+
+```solidity
+error SendFailed(); // 自定义错误
+
+function sendETH(address payable _to, uint256 amount) external {
+    bool success = _to.send(amount);
+    if (!success) {
+        revert SendFailed(); // 手动回滚
+    }
+}
+
+```
+
+**3. `call()`**
+
+**语法**：
+
+```solidity
+(bool success, bytes memory data) = _to.call{value: amount}("");
+
+```
+
+- **参数**：
+    - `_to`：接收ETH的目标地址，类型是`address payable`。
+    - `amount`：发送的ETH数额，以`wei`为单位。
+    - `{value: amount}`：指定转账的ETH数额。
+    - `""`：调用的函数签名（空字符串代表调用目标合约的`fallback()`或`receive()`函数）。
+- **返回值**：
+    - `call()`返回一个元组：
+        - `bool success`：表示调用是否成功。
+            - `true`：调用成功。
+            - `false`：调用失败。
+        - `bytes memory data`：表示调用返回的`data`，在发送ETH时通常不使用（因为没有调用任何具体函数），但在函数调用中可以解析返回数据。
+- **用法特点**：
+    - 没有固定的gas限制，适合复杂逻辑的执行（可以手动设置`gas`）。
+    - 如果失败，不会自动`revert`，需要手动检查`bool success`，决定是否要回滚交易。
+
+**示例**：
+
+```solidity
+error CallFailed(); // 自定义错误
+
+function callETH(address payable _to, uint256 amount) external {
+    (bool success, ) = _to.call{value: amount}(""); // 发送ETH
+    if (!success) {
+        revert CallFailed(); // 手动回滚
+    }
+}
+
+```
+
+##### 主要区别总结：
+
+| 方法 | 语法规则 | 返回值 | gas 限制 | 失败时行为 | 用法场景 |
+| --- | --- | --- | --- | --- | --- |
+| `transfer()` | `_to.transfer(amount)` | 无返回值 | 固定 2300 gas | 自动`revert` | 简单ETH转账，确保安全 |
+| `send()` | `bool success = _to.send(amount)` | `bool success` | 固定 2300 gas | 不自动`revert` | 不推荐，必须手动检查返回值 |
+| `call()` | `(bool success, bytes memory data) = _to.call{value: amount}("")` | `bool success`, `bytes data` | 无限制 | 不自动`revert` | 推荐用于复杂逻辑或可控的ETH发送 |
+##### 测验结果
+- 100/100
+
+### 2024.10.13
+#### WTF Academy Solidity 102.21 调用其他合约
+
+##### 传入合约地址
+**语法：**
+
+```solidity
+OtherContract(_Address).f();
+
+```
+
+- **`OtherContract`**：这是目标合约的类型，即我们调用的目标合约的名称。
+- **`_Address`**：这是目标合约的部署地址，类型为`address`。
+- **`f()`**：这是目标合约中我们要调用的函数。
+
+**示例：**
+
+```solidity
+function callSetX(address _Address, uint256 x) external {
+    OtherContract(_Address).setX(x);
+}
+
+```
+
+- **`_Address`**：传递目标合约的地址。
+- **`setX(x)`**：这是目标合约中的函数，用来设置状态变量`x`。
+
+##### 传入合约变量
+
+**语法：**
+
+```solidity
+function callGetX(OtherContract _Address) external view returns (uint x) {
+    x = _Address.getX();
+}
+
+```
+
+- **`OtherContract _Address`**：函数参数为目标合约的引用类型`OtherContract`，这个引用在外部生成并传递给函数。
+    ß- 参数`OtherContract _Address`底层类型仍然是`address`，生成的`ABI`中、调用`callGetX`时传入的参数都是`address`类型
+- **`_Address.getX()`**：直接通过传入的合约引用调用其函数。
+
+
+#####  创建合约变量
+在这种方式中，我们在函数内部创建目标合约的引用，然后通过该引用调用目标函数。相比第一种方式，这里我们将引用赋值给一个局部变量`oc`。这种方式适用于当我们在函数中要多次使用合约引用时，可以避免多次创建临时引用。通过将引用保存到一个局部变量中，可以提高代码的可读性。
+
+**语法：**
+
+```solidity
+function callGetX2(address _Address) external view returns (uint x) {
+    OtherContract oc = OtherContract(_Address);
+    x = oc.getX();
+}
+
+```
+
+- **`OtherContract oc = OtherContract(_Address);`**：在函数内部创建一个合约变量`oc`，它是目标合约的引用。
+- **`oc.getX()`**：通过这个局部变量调用目标函数。
+
+##### 调用合约并发送`ETH`
+如果目标合约的函数是`payable`的，允许发送`ETH`，我们可以在调用函数时通过**Solidity的特殊语法**`_Name(_Address).f{value: _Value}()`来发送`ETH`。此时我们需要通过`{value: _Value}`来指定发送的`ETH`数量。
+
+**语法：**
+
+```solidity
+function setXTransferETH(address otherContract, uint256 x) payable external {
+    OtherContract(otherContract).setX{value: msg.value}(x);
+}
+
+```
+
+- **`payable`**：函数必须使用`payable`关键字，表示该函数可以处理`ETH`转账。
+- **`msg.value`**：这是发送到目标合约的`ETH`金额，以`wei`为单位。
+- **`setX{value: msg.value}(x)`**：调用目标合约的`payable`函数，并通过`{value: msg.value}`的语法发送`ETH`。
+
+##### 总结表格
+| 方法 | 语法 | 使用规则 | 适用场景 |
+| --- | --- | --- | --- |
+| 通过合约地址创建引用 | `OtherContract(_Address).f()` | 需要目标合约地址，每次调用时传入地址 | 快速调用已知地址的合约 |
+| 通过合约变量传递引用 | `callGetX(OtherContract _Address)` | 需要目标合约引用（类型为合约），函数参数为引用 | 减少重复创建引用，适合频繁调用函数 |
+| 在函数内部创建合约引用 | `OtherContract oc = OtherContract(_Address)` | 在函数内部创建引用，多次使用同一个合约引用 | 在函数中多次使用同一个合约时 |
+| 调用`payable`函数并发送`ETH` | `_Name(_Address).f{value: _Value}()` | 需要目标函数为`payable`，发送`ETH`时需使用`value` | 调用`payable`函数并且发送`ETH` |
+##### 测验结果
+- 40/100
+- 80/100
+- 100/100
+
+##### 测验错题
+```solidity
+//OtherContract 合约如下：
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.6;
+
+interface IOtherContract {
+    function getBalance() external returns(uint);
+    function setX(uint256 x) external payable;
+    function getX() external view returns(uint x);
+}
+
+contract OtherContract is IOtherContract{
+    uint256 private _x = 0;
+    event Log(uint amount, uint gas);
+    
+    function getBalance() external view override returns(uint) {
+        return address(this).balance;
+    }
+
+    function setX(uint256 x) external override payable{
+        _x = x;
+        if(msg.value > 0){
+            emit Log(msg.value, gasleft());
+        }
+    }
+
+    function getX() external view override returns(uint x){
+        x = _x;
+    }
+}
+```
+1. 下列写法正确的是
+    ```solidity
+    (1) OtherContract other = OtherContract(0xd9145`CCE52D386f254917e481eB44e9943F39138)
+    (2) IOtherContract other = IOtherContract(0xd9145CCE52D386f254917e481eB44e9943F39138)`
+    ```
+    - (1) 正确。如果 `0xd9145CCE52D386f254917e481eB44e9943F39138` 是一个已部署的 `OtherContract` 合约的地址，那么你可以通过这个地址创建一个 `OtherContract` 类型的变量 `other`。这样你就可以调用 `OtherContract` 中的所有公开（public）和外部（external）函数。
+    
+    - (2) 正确。可以通过这个地址创建一个 `IOtherContract` 接口类型的变量 `other`。这样你只可以调用 `IOtherContract` 中声明的函数。这种方式可以增加代码的灵活性，因为你可以将不同合约实现的接口视为相同类型，从而使合约调用更具通用性。
+
+定义`MyContract`
+    ```solidity
+    contract MyContract {
+        OtherContract other = OtherContract(0xd9145CCE52D386f254917e481eB44e9943F39138);
+        function call_getX() external view returns(uint x){
+            x = other.getX();
+        }
+        function call_setX(uint256 x) external{
+            other.setX(x);
+        }
+    }
+    ```
+
+2. 下列说法正确的是：
+    A. `MyContract` 是 `OtherContract` 的子类
+    - **错误**。`MyContract` 不是 `OtherContract` 的子类。它只是通过合约地址引用了 `OtherContract` 的实例，而没有继承 `OtherContract` 的属性和方法。
+
+    B. `MyContract` 是 `IOtherContract` 的一个实现 
+    - **错误**。`MyContract` 并没有实现 `IOtherContract` 接口。它使用了 `OtherContract` 的实例，但自身并没有声明为实现该接口。
+
+    C. `MyContract` 需要 `0xd9145CCE52D386f254917e481eB44e9943F39138` 的某种许可，才可以调用其中的函数
+    - **错误**。在 Solidity 中，合约之间的调用不需要许可。只要合约地址正确且函数可见，`MyContract` 就可以直接调用 `OtherContract` 的公开函数。
+
+    D. `MyContract` 的函数 `call_setX` 可以实现，这意味着 `OtherContract` 中 `setX` 的权限没有门槛，存在安全隐患 
+    - **正确**。`call_setX` 函数直接调用了 `OtherContract` 的 `setX` 函数，并且没有任何权限检查，这可能会导致未授权的调用，存在安全隐患。特别是如果 `setX` 是一个 `payable` 函数，而没有适当的条件或限制，就可能被恶意合约滥用。
+
+3. 调用结果：
+    ```solidity
+    (1) 在 0xd9145CCE52D386f254917e481eB44e9943F39138 调用函数 setX(10);
+    (2) 在 0xd9145CCE52D386f254917e481eB44e9943F39138 调用函数 getX();
+    (3) 在 0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99 调用函数 call_setX(20);
+    (4) 在 0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99 调用函数 call_getX();
+    ```
+
+    - 初始状态下，`_x` 的值为 `0`。
+    - (1) 在 0xd9145CCE52D386f254917e481eB44e9943F39138 调用函数 setX(10);
+        - **执行结果**: 成功。
+        - **状态变化**: `OtherContract` 的 `_x` 变量被设置为 `10`。
+        - **返回值**: 该函数没有返回值，只有事件被触发（如果有 ETH 被发送的话）。
+    - (2) 在 0xd9145CCE52D386f254917e481eB44e9943F39138 调用函数 `getX();`
+        - **执行结果**: 成功。
+        - **返回值**: `10`（因为 `_x` 已被更新）。
+    - (3) 在 0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99 调用函数 `call_setX(20);`
+        - **执行结果**: 成功。
+        - **状态变化**: `OtherContract` 的 `_x` 变量被设置为 `20`。
+        - **返回值**: 该函数没有返回值。
+    - (4) 在 0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99 调用函数 `call_getX();`
+        - **执行结果**: 成功。
+        - **返回值**: `20`（因为 `_x` 已被更新到 `20`）。
+
+    - **(1)** 成功，返回值：无（状态变化：`_x = 10`）。
+    - **(2)** 成功，返回值：`10`。
+    - **(3)** 成功，返回值：无（状态变化：`_x = 20`）。
+    - **(4)** 成功，返回值：`20`。
+
+### 2024.10.14
+#### WTF Academy Solidity 102.22 Call
 
 ##### 笔记
 

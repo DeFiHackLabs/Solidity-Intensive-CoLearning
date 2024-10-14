@@ -5692,7 +5692,1247 @@ const providerSepolia = new ethers.JsonRpcProvider(ALCHEMY_SEPOLIA_URL)
     console.log(code);
 ```
 
+### 2024.10.8
 ### 读取合约信息
+#### Contract类
+在ethers中，Contract类是部署在以太坊网络上的合约（EVM字节码）的抽象。通过它，开发者可以非常容易的对合约进行读取call和交易transaction，并可以获得交易的结果和事件。
+
+#### 创建Contract变量
+Contract对象分为两类，只读和可读写。只读Contract只能读取链上合约信息，执行call操作，即调用合约中view和pure的函数，而不能执行交易transaction。
+```
+只读Contract：参数分别是合约地址，合约abi和provider变量（只读）。
+const contract = new ethers.Contract(`address`, `abi`, `provider`);
+可读写Contract：参数分别是合约地址，合约abi和signer变量。Signer签名者是ethers中的另一个类，用于签名交易，之后我们会讲到。
+const contract = new ethers.Contract(`address`, `abi`, `signer`);
+```
+
+#### 读取合约信息
+```
+import { ethers } from "ethers";
+// 利用Infura的rpc节点连接以太坊网络
+// 准备Infura API Key, 教程：https://github.com/AmazingAng/WTFSolidity/blob/main/Topics/Tools/TOOL02_Infura/readme.md
+const INFURA_ID = ''
+// 连接以太坊主网
+const provider = new ethers.JsonRpcProvider(`https://mainnet.infura.io/v3/${INFURA_ID}`)
+// 第1种输入abi的方式: 复制abi全文
+// WETH的abi可以在这里复制：https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2#code
+const abiWETH = '[{"constant":true,"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view",...太长后面省略...';
+const addressWETH = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2' // WETH Contract
+const contractWETH = new ethers.Contract(addressWETH, abiWETH, provider)
+// 第2种输入abi的方式：输入程序需要用到的函数，逗号分隔，ethers会自动帮你转换成相应的abi
+// 人类可读abi，以ERC20合约为例
+const abiERC20 = [
+    "function name() view returns (string)",
+    "function symbol() view returns (string)",
+    "function totalSupply() view returns (uint256)",
+    "function balanceOf(address) view returns (uint)",
+];
+const addressDAI = '0x6B175474E89094C44Da98b954EedeAC495271d0F' // DAI Contract
+const contractDAI = new ethers.Contract(addressDAI, abiERC20, provider)
+
+const main = async () => {
+    // 1. 读取WETH合约的链上信息（WETH abi）
+    const nameWETH = await contractWETH.name()
+    const symbolWETH = await contractWETH.symbol()
+    const totalSupplyWETH = await contractWETH.totalSupply()
+    console.log("\n1. 读取WETH合约信息")
+    console.log(`合约地址: ${addressWETH}`)
+    console.log(`名称: ${nameWETH}`)
+    console.log(`代号: ${symbolWETH}`)
+    console.log(`总供给: ${ethers.formatEther(totalSupplyWETH)}`)
+    const balanceWETH = await contractWETH.balanceOf('vitalik.eth')
+    console.log(`Vitalik持仓: ${ethers.formatEther(balanceWETH)}\n`)
+
+    // 2. 读取DAI合约的链上信息（IERC20接口合约）
+    const nameDAI = await contractDAI.name()
+    const symbolDAI = await contractDAI.symbol()
+    const totalSupplDAI = await contractDAI.totalSupply()
+    console.log("\n2. 读取DAI合约信息")
+    console.log(`合约地址: ${addressDAI}`)
+    console.log(`名称: ${nameDAI}`)
+    console.log(`代号: ${symbolDAI}`)
+    console.log(`总供给: ${ethers.formatEther(totalSupplDAI)}`)
+    const balanceDAI = await contractDAI.balanceOf('vitalik.eth')
+    console.log(`Vitalik持仓: ${ethers.formatEther(balanceDAI)}\n`)
+}
+
+main()
+```
+
+### 发送ETH
+#### Signer签名者类
+在ethers中，Signer签名者类是以太坊账户的抽象，可用于对消息和交易进行签名，并将签名的交易发送到以太坊网络，并更改区块链状态。Signer类是抽象类，不能直接实例化，我们需要使用它的子类：Wallet钱包类。
+
+#### Wallet钱包类
+#### 创建Wallet实例
+```
+// 创建随机的wallet对象
+const wallet1 = ethers.Wallet.createRandom()
+// 利用私钥和provider创建wallet对象
+const privateKey = '0x227dbb8586117d55284e26620bc76534dfbd2394be34cf4a09cb775d593b6f2b'
+const wallet2 = new ethers.Wallet(privateKey, provider)
+// 从助记词创建wallet对象
+const wallet3 = ethers.Wallet.fromPhrase(mnemonic.phrase)
+```
+还可以通过ethers.Wallet.fromEncryptedJson解密一个JSON钱包文件创建钱包实例，JSON文件即keystore文件
+
+#### 发送ETH
+```
+    // 创建交易请求，参数：to为接收地址，value为ETH数额
+    const tx = {
+        to: address1,
+        value: ethers.parseEther("0.001")
+    }
+        //发送交易，获得收据
+    const txRes = await wallet2.sendTransaction(tx)
+    const receipt = await txRes.wait() // 等待链上确认交易
+    console.log(receipt) // 打印交易的收据
+    ```
+
+#### 代码示例
+```
+// 利用Wallet类发送ETH
+// 由于playcode不支持ethers.Wallet.createRandom()函数，我们只能用VScode运行这一讲代码
+import { ethers } from "ethers";
+
+// 利用Alchemy的rpc节点连接以太坊测试网络
+// 准备 alchemy API 可以参考https://github.com/AmazingAng/WTFSolidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md 
+const ALCHEMY_GOERLI_URL = 'https://eth-goerli.alchemyapi.io/v2/GlaeWuylnNM3uuOo-SAwJxuwTdqHaY5l';
+const provider = new ethers.JsonRpcProvider(ALCHEMY_GOERLI_URL);
+// 创建随机的wallet对象
+const wallet1 = ethers.Wallet.createRandom()
+const wallet1WithProvider = wallet1.connect(provider)
+const mnemonic = wallet1.mnemonic // 获取助记词
+
+// 利用私钥和provider创建wallet对象
+const privateKey = '0x227dbb8586117d55284e26620bc76534dfbd2394be34cf4a09cb775d593b6f2b'
+const wallet2 = new ethers.Wallet(privateKey, provider)
+// 从助记词创建wallet对象
+const wallet3 = ethers.Wallet.fromPhrase(mnemonic.phrase)
+    const address1 = await wallet1.getAddress()
+    const address2 = await wallet2.getAddress() 
+    const address3 = await wallet3.getAddress() // 获取地址
+    console.log(`1. 获取钱包地址`);
+    console.log(`钱包1地址: ${address1}`);
+    console.log(`钱包2地址: ${address2}`);
+    console.log(`钱包3地址: ${address3}`);
+    console.log(`钱包1和钱包3的地址是否相同: ${address1 === address3}`);
+
+console.log(`钱包1助记词: ${wallet1.mnemonic.phrase}`)
+
+    console.log(`钱包2私钥: ${wallet2.privateKey}`)
+
+    const txCount1 = await provider.getTransactionCount(wallet1WithProvider)
+    const txCount2 = await provider.getTransactionCount(wallet2)
+    console.log(`钱包1发送交易次数: ${txCount1}`)
+    console.log(`钱包2发送交易次数: ${txCount2}`)
+
+    // 5. 发送ETH
+    // 如果这个钱包没goerli测试网ETH了，去水龙头领一些，钱包地址: 0xe16C1623c1AA7D919cd2241d8b36d9E79C1Be2A2
+    // 1. chainlink水龙头: https://faucets.chain.link/goerli
+    // 2. paradigm水龙头: https://faucet.paradigm.xyz/
+    console.log(`\n5. 发送ETH（测试网）`);
+    // i. 打印交易前余额
+    console.log(`i. 发送前余额`)
+    console.log(`钱包1: ${ethers.formatEther(await provider.getBalance(wallet1WithProvider))} ETH`)
+    console.log(`钱包2: ${ethers.formatEther(await provider.getBalance(wallet2))} ETH`)
+    // ii. 构造交易请求，参数：to为接收地址，value为ETH数额
+    const tx = {
+        to: address1,
+        value: ethers.parseEther("0.001")
+    }
+    // iii. 发送交易，获得收据
+    console.log(`\nii. 等待交易在区块链确认（需要几分钟）`)
+    const receipt = await wallet2.sendTransaction(tx)
+    await receipt.wait() // 等待链上确认交易
+    console.log(receipt) // 打印交易详情
+    // iv. 打印交易后余额
+    console.log(`\niii. 发送后余额`)
+    console.log(`钱包1: ${ethers.formatEther(await provider.getBalance(wallet1WithProvider))} ETH`)
+    console.log(`钱包2: ${ethers.formatEther(await provider.getBalance(wallet2))} ETH`)
+```
+
+### 2024.10.9
+### 合约交互
+```
+const contract = new ethers.Contract(address, abi, signer)
+const contract2 = contract.connect(signer)
+// 发送交易
+const tx = await contract.METHOD_NAME(args [, overrides])
+// 等待链上确认交易
+await tx.wait() 
+```
+
+#### 例子：与测试网WETH合约交互
+```
+import { ethers } from "ethers";
+
+// 利用Alchemy的rpc节点连接以太坊网络
+const ALCHEMY_GOERLI_URL = 'https://eth-goerli.alchemyapi.io/v2/GlaeWuylnNM3uuOo-SAwJxuwTdqHaY5l';
+const provider = new ethers.JsonRpcProvider(ALCHEMY_GOERLI_URL);
+
+// 利用私钥和provider创建wallet对象
+const privateKey = '0x227dbb8586117d55284e26620bc76534dfbd2394be34cf4a09cb775d593b6f2b'
+const wallet = new ethers.Wallet(privateKey, provider)
+// WETH的ABI
+const abiWETH = [
+    "function balanceOf(address) public view returns(uint)",
+    "function deposit() public payable",
+    "function transfer(address, uint) public returns (bool)",
+    "function withdraw(uint) public",
+];
+// WETH合约地址（Goerli测试网）
+const addressWETH = '0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6' // WETH Contract
+
+// 声明可写合约
+const contractWETH = new ethers.Contract(addressWETH, abiWETH, wallet)
+// 也可以声明一个只读合约，再用connect(wallet)函数转换成可写合约。
+// const contractWETH = new ethers.Contract(addressWETH, abiWETH, provider)
+// contractWETH.connect(wallet)
+const address = await wallet.getAddress()
+// 读取WETH合约的链上信息（WETH abi）
+console.log("\n1. 读取WETH余额")
+const balanceWETH = await contractWETH.balanceOf(address)
+console.log(`存款前WETH持仓: ${ethers.formatEther(balanceWETH)}\n`)
+    console.log("\n2. 调用desposit()函数，存入0.001 ETH")
+    // 发起交易
+    const tx = await contractWETH.deposit({value: ethers.parseEther("0.001")})
+    // 等待交易上链
+    await tx.wait()
+    console.log(`交易详情：`)
+    console.log(tx)
+    const balanceWETH_deposit = await contractWETH.balanceOf(address)
+    console.log(`存款后WETH持仓: ${ethers.formatEther(balanceWETH_deposit)}\n`)
+    console.log("\n3. 调用transfer()函数，给vitalik转账0.001 WETH")
+    // 发起交易
+    const tx2 = await contractWETH.transfer("vitalik.eth", ethers.parseEther("0.001"))
+    // 等待交易上链
+    await tx2.wait()
+    const balanceWETH_transfer = await contractWETH.balanceOf(address)
+    console.log(`转账后WETH持仓: ${ethers.formatEther(balanceWETH_transfer)}\n`)
+```
+
+### 部署合约
+在以太坊上，智能合约的部署是一种特殊的交易：将编译智能合约得到的字节码发送到0地址。如果这个合约的构造函数有参数的话，需要利用abi.encode将参数编码为字节码，然后附在在合约字节码的尾部一起发送。
+
+#### 合约工厂
+ethers.js创造了合约工厂ContractFactory类型，方便开发者部署合约。你可以利用合约abi，编译得到的字节码bytecode和签名者变量signer来创建合约工厂实例，为部署合约做准备。
+```
+const contractFactory = new ethers.ContractFactory(abi, bytecode, signer);
+const contract = await contractFactory.deploy(args)
+await contractERC20.waitForDeployment();
+```
+
+#### 例子：部署ERC20代币合约
+```
+import { ethers } from "ethers";
+
+// 利用Alchemy的rpc节点连接以太坊网络
+// 连接goerli测试网
+const ALCHEMY_GOERLI_URL = 'https://eth-goerli.alchemyapi.io/v2/GlaeWuylnNM3uuOo-SAwJxuwTdqHaY5l';
+const provider = new ethers.JsonRpcProvider(ALCHEMY_GOERLI_URL);
+
+// 利用私钥和provider创建wallet对象
+const privateKey = '0x227dbb8586117d55284e26620bc76534dfbd2394be34cf4a09cb775d593b6f2b'
+const wallet = new ethers.Wallet(privateKey, provider)
+// ERC20的人类可读abi
+const abiERC20 = [
+    "constructor(string memory name_, string memory symbol_)",
+    "function name() view returns (string)",
+    "function symbol() view returns (string)",
+    "function totalSupply() view returns (uint256)",
+    "function balanceOf(address) view returns (uint)",
+    "function transfer(address to, uint256 amount) external returns (bool)",
+    "function mint(uint amount) external",
+];
+// 填入合约字节码，在remix中，你可以在两个地方找到Bytecode
+// 1. 编译面板的Bytecode按钮
+// 2. 文件面板artifact文件夹下与合约同名的json文件中
+// 里面"bytecode"属性下的"object"字段对应的数据就是Bytecode，挺长的，608060起始
+// "object": "608060405260646000553480156100...
+const bytecodeERC20 = "60806040526012600560006101000a81548160ff021916908360ff1602179055503480156200002d57600080fd5b5060405162001166380380620011668339818101604052810190620000539190620001bb565b81600390805190602001906200006b9291906200008d565b508060049080519060200190620000849291906200008d565b505050620003c4565b8280546200009b90620002d5565b90600052602060002090601f016020900481019282620000bf57600085556200010b565b82601f10620000da57805160ff19168380011785556200010b565b828001600101855582156200010b579182015b828111156200010a578251825591602001919060010190620000ed565b5b5090506200011a91906200011e565b5090565b5b80821115620001395760008160009055506001016200011f565b5090565b6000620001546200014e8462000269565b62000240565b905082815260208101848484011115620001735762000172620003a4565b5b620001808482856200029f565b509392505050565b600082601f830112620001a0576200019f6200039f565b5b8151620001b28482602086016200013d565b91505092915050565b60008060408385031215620001d557620001d4620003ae565b5b600083015167ffffffffffffffff811115620001f657620001f5620003a9565b5b620002048582860162000188565b925050602083015167ffffffffffffffff811115620002285762000227620003a9565b5b620002368582860162000188565b9150509250929050565b60006200024c6200025f565b90506200025a82826200030b565b919050565b6000604051905090565b600067ffffffffffffffff82111562000287576200028662000370565b5b6200029282620003b3565b9050602081019050919050565b60005b83811015620002bf578082015181840152602081019050620002a2565b83811115620002cf576000848401525b50505050565b60006002820490506001821680620002ee57607f821691505b6020821081141562000305576200030462000341565b5b50919050565b6200031682620003b3565b810181811067ffffffffffffffff8211171562000338576200033762000370565b5b80604052505050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052602260045260246000fd5b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b600080fd5b600080fd5b600080fd5b600080fd5b6000601f19601f8301169050919050565b610d9280620003d46000396000f3fe608060405234801561001057600080fd5b50600436106100a95760003560e01c806342966c681161007157806342966c681461016857806370a082311461018457806395d89b41146101b4578063a0712d68146101d2578063a9059cbb146101ee578063dd62ed3e1461021e576100a9565b806306fdde03146100ae578063095ea7b3146100cc57806318160ddd146100fc57806323b872dd1461011a578063313ce5671461014a575b600080fd5b6100b661024e565b6040516100c39190610b02565b60405180910390f35b6100e660048036038101906100e19190610a14565b6102dc565b6040516100f39190610ae7565b60405180910390f35b6101046103ce565b6040516101119190610b24565b60405180910390f35b610134600480360381019061012f91906109c1565b6103d4565b6040516101419190610ae7565b60405180910390f35b610152610583565b60405161015f9190610b3f565b60405180910390f35b610182600480360381019061017d9190610a54565b610596565b005b61019e60048036038101906101999190610954565b61066d565b6040516101ab9190610b24565b60405180910390f35b6101bc610685565b6040516101c99190610b02565b60405180910390f35b6101ec60048036038101906101e79190610a54565b610713565b005b61020860048036038101906102039190610a14565b6107ea565b6040516102159190610ae7565b60405180910390f35b61023860048036038101906102339190610981565b610905565b6040516102459190610b24565b60405180910390f35b6003805461025b90610c88565b80601f016020809104026020016040519081016040528092919081815260200182805461028790610c88565b80156102d45780601f106102a9576101008083540402835291602001916102d4565b820191906000526020600020905b8154815290600101906020018083116102b757829003601f168201915b505050505081565b600081600160003373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020819055508273ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff167f8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925846040516103bc9190610b24565b60405180910390a36001905092915050565b60025481565b600081600160008673ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060003373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008282546104629190610bcc565b92505081905550816000808673ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008282546104b79190610bcc565b92505081905550816000808573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020600082825461050c9190610b76565b925050819055508273ffffffffffffffffffffffffffffffffffffffff168473ffffffffffffffffffffffffffffffffffffffff167fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef846040516105709190610b24565b60405180910390a3600190509392505050565b600560009054906101000a900460ff1681565b806000803373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008282546105e49190610bcc565b9250508190555080600260008282546105fd9190610bcc565b92505081905550600073ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff167fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef836040516106629190610b24565b60405180910390a350565b60006020528060005260406000206000915090505481565b6004805461069290610c88565b80601f01602080910402602001604051908101604052809291908181526020018280546106be90610c88565b801561070b5780601f106106e05761010080835404028352916020019161070b565b820191906000526020600020905b8154815290600101906020018083116106ee57829003601f168201915b505050505081565b806000803373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008282546107619190610b76565b92505081905550806002600082825461077a9190610b76565b925050819055503373ffffffffffffffffffffffffffffffffffffffff16600073ffffffffffffffffffffffffffffffffffffffff167fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef836040516107df9190610b24565b60405180910390a350565b6000816000803373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020600082825461083a9190610bcc565b92505081905550816000808573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020600082825461088f9190610b76565b925050819055508273ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff167fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef846040516108f39190610b24565b60405180910390a36001905092915050565b6001602052816000526040600020602052806000526040600020600091509150505481565b60008135905061093981610d2e565b92915050565b60008135905061094e81610d45565b92915050565b60006020828403121561096a57610969610d18565b5b60006109788482850161092a565b91505092915050565b6000806040838503121561099857610997610d18565b5b60006109a68582860161092a565b92505060206109b78582860161092a565b9150509250929050565b6000806000606084860312156109da576109d9610d18565b5b60006109e88682870161092a565b93505060206109f98682870161092a565b9250506040610a0a8682870161093f565b9150509250925092565b60008060408385031215610a2b57610a2a610d18565b5b6000610a398582860161092a565b9250506020610a4a8582860161093f565b9150509250929050565b600060208284031215610a6a57610a69610d18565b5b6000610a788482850161093f565b91505092915050565b610a8a81610c12565b82525050565b6000610a9b82610b5a565b610aa58185610b65565b9350610ab5818560208601610c55565b610abe81610d1d565b840191505092915050565b610ad281610c3e565b82525050565b610ae181610c48565b82525050565b6000602082019050610afc6000830184610a81565b92915050565b60006020820190508181036000830152610b1c8184610a90565b905092915050565b6000602082019050610b396000830184610ac9565b92915050565b6000602082019050610b546000830184610ad8565b92915050565b600081519050919050565b600082825260208201905092915050565b6000610b8182610c3e565b9150610b8c83610c3e565b9250827fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff03821115610bc157610bc0610cba565b5b828201905092915050565b6000610bd782610c3e565b9150610be283610c3e565b925082821015610bf557610bf4610cba565b5b828203905092915050565b6000610c0b82610c1e565b9050919050565b60008115159050919050565b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b6000819050919050565b600060ff82169050919050565b60005b83811015610c73578082015181840152602081019050610c58565b83811115610c82576000848401525b50505050565b60006002820490506001821680610ca057607f821691505b60208210811415610cb457610cb3610ce9565b5b50919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601160045260246000fd5b7f4e487b7100000000000000000000000000000000000000000000000000000000600052602260045260246000fd5b600080fd5b6000601f19601f8301169050919050565b610d3781610c00565b8114610d4257600080fd5b50565b610d4e81610c3e565b8114610d5957600080fd5b5056fea2646970667358221220f87d0662c51e3b4b5e034fe8e1e7a10185cda3c246a5ba78e0bafe683d67789764736f6c63430008070033";
+const factoryERC20 = new ethers.ContractFactory(abiERC20, bytecodeERC20, wallet);
+// 1. 利用contractFactory部署ERC20代币合约
+console.log("\n1. 利用contractFactory部署ERC20代币合约")
+// 部署合约，填入constructor的参数
+const contractERC20 = await factoryERC20.deploy("WTF Token", "WTF")
+console.log(`合约地址: ${contractERC20.target}`);
+console.log("部署合约的交易详情")
+console.log(contractERC20.deploymentTransaction())
+console.log("\n等待合约部署上链")
+await contractERC20.waitForDeployment()
+// 也可以用 contractERC20.deployTransaction.wait()
+console.log("合约已上链")
+
+// 打印合约的name()和symbol()，然后调用mint()函数，给自己地址mint 10,000代币
+console.log("\n2. 调用mint()函数，给自己地址mint 10,000代币")
+console.log(`合约名称: ${await contractERC20.name()}`)
+console.log(`合约代号: ${await contractERC20.symbol()}`)
+let tx = await contractERC20.mint("10000")
+console.log("等待交易上链")
+await tx.wait()
+console.log(`mint后地址中代币余额: ${await contractERC20.balanceOf(wallet)}`)
+console.log(`代币总供给: ${await contractERC20.totalSupply()}`)
+
+// 3. 调用transfer()函数，给Vitalik转账1000代币
+console.log("\n3. 调用transfer()函数，给Vitalik转账1,000代币")
+tx = await contractERC20.transfer("vitalik.eth", "1000")
+console.log("等待交易上链")
+await tx.wait()
+console.log(`Vitalik钱包中的代币余额: ${await contractERC20.balanceOf("vitalik.eth")}`)
+```
+
+### 检索事件
+#### 事件Event
+智能合约释放出的事件存储于以太坊虚拟机的日志中。日志分为两个主题topics和数据data部分，其中事件哈希和indexed变量存储在topics中，作为索引方便以后搜索；没有indexed变量存储在data中，不能被直接检索，但可以存储更复杂的数据结构。
+```
+event Transfer(address indexed from, address indexed to, uint256 amount);
+```
+可以利用Ethers中合约类型的queryFilter()函数读取合约释放的事件。
+```
+const transferEvents = await contract.queryFilter('事件名', 起始区块, 结束区块)
+
+#### 例子：检索WETH合约中的Transfer事件
+```
+import { ethers } from "ethers";
+// 利用Alchemy的rpc节点连接以太坊网络
+// 准备 alchemy API 可以参考https://github.com/AmazingAng/WTFSolidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md 
+const ALCHEMY_GOERLI_URL = 'https://eth-goerli.alchemyapi.io/v2/GlaeWuylnNM3uuOo-SAwJxuwTdqHaY5l';
+const provider = new ethers.JsonRpcProvider(ALCHEMY_GOERLI_URL);
+
+// WETH ABI，只包含我们关心的Transfer事件
+const abiWETH = [
+    "event Transfer(address indexed from, address indexed to, uint amount)"
+];
+
+// 测试网WETH地址
+const addressWETH = '0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6'
+// 声明合约实例
+const contract = new ethers.Contract(addressWETH, abiWETH, provider)
+
+// 得到当前block
+const block = await provider.getBlockNumber()
+console.log(`当前区块高度: ${block}`);
+console.log(`打印事件详情:`);
+const transferEvents = await contract.queryFilter('Transfer', block - 10, block)
+// 打印第1个Transfer事件
+console.log(transferEvents[0])
+// 解析Transfer事件的数据（变量在args中）
+console.log("\n2. 解析事件：")
+const amount = ethers.formatUnits(ethers.getBigInt(transferEvents[0].args["amount"]), "ether");
+console.log(`地址 ${transferEvents[0].args["from"]} 转账${amount} WETH 到地址 ${transferEvents[0].args["to"]}`)
+```
+
+### 监听合约事件
+```
+contract.on("eventName", function)
+contract.once("eventName", function)
+```
+
+#### 监听USDT合约
+```
+import { ethers } from "ethers";
+// 准备 alchemy API  
+// 可以参考https://github.com/AmazingAng/WTFSolidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md 
+const ALCHEMY_MAINNET_URL = 'https://eth-mainnet.g.alchemy.com/v2/oKmOQKbneVkxgHZfibs-iFhIlIAl6HDN';
+// 连接主网 provider
+const provider = new ethers.JsonRpcProvider(ALCHEMY_MAINNET_URL);
+
+// USDT的合约地址
+const contractAddress = '0xdac17f958d2ee523a2206206994597c13d831ec7'
+// 构建USDT的Transfer的ABI
+const abi = [
+  "event Transfer(address indexed from, address indexed to, uint value)"
+];
+// 生成USDT合约对象
+const contractUSDT = new ethers.Contract(contractAddress, abi, provider);
+  // 只监听一次
+  console.log("\n1. 利用contract.once()，监听一次Transfer事件");
+  contractUSDT.once('Transfer', (from, to, value)=>{
+    // 打印结果
+    console.log(
+      `${from} -> ${to} ${ethers.formatUnits(ethers.getBigInt(value),6)}`
+    )
+  })
+  // 持续监听USDT合约
+  console.log("\n2. 利用contract.on()，持续监听Transfer事件");
+  contractUSDT.on('Transfer', (from, to, value)=>{
+    console.log(
+     // 打印结果
+     `${from} -> ${to} ${ethers.formatUnits(ethers.getBigInt(value),6)}`
+    )
+  })
+```
+
+### 事件过滤
+#### 过滤器
+当合约创建日志（释放事件）时，它最多可以包含[4]条数据作为索引（indexed）。索引数据经过哈希处理并包含在布隆过滤器中，这是一种允许有效过滤的数据结构。因此，一个事件过滤器最多包含4个主题集，每个主题集是个条件，用于筛选目标事件。规则：
+- 如果一个主题集为null，则该位置的日志主题不会被过滤，任何值都匹配。
+- 如果主题集是单个值，则该位置的日志主题必须与该值匹配。
+- 如果主题集是数组，则该位置的日志主题至少与数组中其中一个匹配。
+![image](https://github.com/user-attachments/assets/e02ecda0-3fe8-445a-b45f-785cbc2d3b84)
+
+#### 构建过滤器
+```
+const filter = contract.filters.EVENT_NAME( ...args ) 
+contract.filters.Transfer(myAddress)
+contract.filters.Transfer(null, myAddress)
+contract.filters.Transfer(myAddress, otherAddress)
+contract.filters.Transfer(null, [ myAddress, otherAddress ])
+```
+
+#### 监听交易所的USDT转账
+```
+const provider = new ethers.JsonRpcProvider(ALCHEMY_MAINNET_URL);
+// 合约地址
+const addressUSDT = '0xdac17f958d2ee523a2206206994597c13d831ec7'
+// 交易所地址
+const accountBinance = '0x28C6c06298d514Db089934071355E5743bf21d60'
+// 构建ABI
+const abi = [
+  "event Transfer(address indexed from, address indexed to, uint value)",
+  "function balanceOf(address) public view returns(uint)",
+];
+// 构建合约对象
+const contractUSDT = new ethers.Contract(addressUSDT, abi, provider);
+const balanceUSDT = await contractUSDT.balanceOf(accountBinance)
+console.log(`USDT余额: ${ethers.formatUnits(balanceUSDT,6)}\n`)
+// 2. 创建过滤器，监听转移USDT进交易所
+console.log("\n2. 创建过滤器，监听USDT转进交易所")
+let filterBinanceIn = contractUSDT.filters.Transfer(null, accountBinance);
+console.log("过滤器详情：")
+console.log(filterBinanceIn);
+contractUSDT.on(filterBinanceIn, (res) => {
+  console.log('---------监听USDT进入交易所--------');
+  console.log(
+    `${res.args[0]} -> ${res.args[1]} ${ethers.formatUnits(res.args[2],6)}`
+  )
+})
+
+  // 3. 创建过滤器，监听交易所转出USDT
+  let filterToBinanceOut = contractUSDT.filters.Transfer(accountBinance);
+  console.log("\n3. 创建过滤器，监听USDT转出交易所")
+  console.log("过滤器详情：")
+  console.log(filterToBinanceOut);
+  contractUSDT.on(filterToBinanceOut, (res) => {
+    console.log('---------监听USDT转出交易所--------');
+    console.log(
+      `${res.args[0]} -> ${res.args[1]} ${ethers.formatUnits(res.args[2],6)}`
+    )
+  }
+  );
+```
+
+### BigInt和单位转换
+以太坊中，许多计算都对超出JavaScript整数的安全值（js中最大安全整数为9007199254740991）。因此，ethers.js使用 JavaScript ES2020 版本原生的 BigInt 类 安全地对任何数量级的数字进行数学运算。在ethers.js中，大多数需要返回值的操作将返回 BigInt，而接受值的参数也会接受它们。
+
+#### 创建BigInt
+```
+const oneGwei = ethers.getBigInt("1000000000"); // 从十进制字符串生成
+console.log(oneGwei)
+console.log(ethers.getBigInt("0x3b9aca00")) // 从hex字符串生成
+console.log(ethers.getBigInt(1000000000)) // 从数字生成
+// 不能从js最大的安全整数之外的数字生成BigNumber，下面代码会报错
+// ethers.getBigInt(Number.MAX_SAFE_INTEGER);
+console.log("js中最大安全整数：", Number.MAX_SAFE_INTEGER)
+
+// 运算
+console.log("加法：", oneGwei + 1n)
+console.log("减法：", oneGwei - 1n)
+console.log("乘法：", oneGwei * 2n)
+console.log("除法：", oneGwei / 2n)
+// 比较
+console.log("是否相等：", oneGwei == 1000000000n)
+![image](https://github.com/user-attachments/assets/a565abca-8fbe-4ff1-8fbf-83bdf50537d8)
+//代码参考：https://docs.ethers.org/v6/api/utils/#about-units
+console.group('\n2. 格式化：小单位转大单位，formatUnits');
+console.log(ethers.formatUnits(oneGwei, 0));
+// '1000000000'
+console.log(ethers.formatUnits(oneGwei, "gwei"));
+// '1.0'
+console.log(ethers.formatUnits(oneGwei, 9));
+// '1.0'
+console.log(ethers.formatUnits(oneGwei, "ether"));
+// `0.000000001`
+console.log(ethers.formatUnits(1000000000, "gwei"));
+// '1.0'
+console.log(ethers.formatEther(oneGwei));
+// `0.000000001` 等同于formatUnits(value, "ether")
+console.groupEnd();
+
+// 3. 解析：大单位转小单位
+// 例如将ether转换为wei：parseUnits(变量, 单位),parseUnits默认单位是 ether
+// 代码参考：https://docs.ethers.org/v6/api/utils/#about-units
+console.group('\n3. 解析：大单位转小单位，parseUnits');
+console.log(ethers.parseUnits("1.0").toString());
+// { BigNumber: "1000000000000000000" }
+console.log(ethers.parseUnits("1.0", "ether").toString());
+// { BigNumber: "1000000000000000000" }
+console.log(ethers.parseUnits("1.0", 18).toString());
+// { BigNumber: "1000000000000000000" }
+console.log(ethers.parseUnits("1.0", "gwei").toString());
+// { BigNumber: "1000000000" }
+console.log(ethers.parseUnits("1.0", 9).toString());
+// { BigNumber: "1000000000" }
+console.log(ethers.parseEther("1.0").toString());
+// { BigNumber: "1000000000000000000" } 等同于parseUnits(value, "ether")
+console.groupEnd();
+```
+
+### 2024.10.10
+### StaticCall
+在发送交易之前检查交易是否会失败，节省大量gas。
+在 ethers.js 中，你可以使用 contract.函数名.staticCall() 方法来模拟执行一个可能会改变状态的函数，但不实际向区块链提交这个状态改变。这相当于调用以太坊节点的 eth_call。这通常用于模拟状态改变函数的结果。如果函数调用成功，它将返回函数本身的返回值；如果函数调用失败，它将抛出异常。
+```
+    const tx = await contract.函数名.staticCall( 参数, {override})
+    console.log(`交易会成功吗？：`, tx)
+    ```
+####用StaticCall模拟DAI转账
+```
+import { ethers } from "ethers";
+
+//准备 alchemy API 可以参考https://github.com/AmazingAng/WTFSolidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md 
+const ALCHEMY_MAINNET_URL = 'https://eth-mainnet.g.alchemy.com/v2/oKmOQKbneVkxgHZfibs-iFhIlIAl6HDN';
+const provider = new ethers.JsonRpcProvider(ALCHEMY_MAINNET_URL);
+
+// 利用私钥和provider创建wallet对象
+const privateKey = '0x227dbb8586117d55284e26620bc76534dfbd2394be34cf4a09cb775d593b6f2b'
+const wallet = new ethers.Wallet(privateKey, provider)
+// DAI的ABI
+const abiDAI = [
+    "function balanceOf(address) public view returns(uint)",
+    "function transfer(address, uint) public returns (bool)",
+];
+// DAI合约地址（主网）
+const addressDAI = '0x6B175474E89094C44Da98b954EedeAC495271d0F' // DAI Contract
+// 创建DAI合约实例
+const contractDAI = new ethers.Contract(addressDAI, abiDAI, provider)
+const address = await wallet.getAddress()
+console.log("\n1. 读取测试钱包的DAI余额")
+const balanceDAI = await contractDAI.balanceOf(address)
+console.log(`DAI持仓: ${ethers.formatEther(balanceDAI)}\n`)
+console.log("\n2.  用staticCall尝试调用transfer转账1 DAI，msg.sender为Vitalik地址")
+// 发起交易
+const tx = await contractDAI.transfer.staticCall("vitalik.eth", ethers.parseEther("1"), {from:  await provider.resolveName("vitalik.eth")})
+console.log(`交易会成功吗？：`, tx)
+console.log("\n3.  用staticCall尝试调用transfer转账10000 DAI，msg.sender为测试钱包地址")
+const tx2 = await contractDAI.transfer.staticCall("vitalik.eth", ethers.parseEther("10000"), {from: address})
+console.log(`交易会成功吗？：`, tx2)
+```
+
+### 识别ERC721合约
+#### ERC165
+通过ERC165标准，智能合约可以声明它支持的接口，供其他合约检查。
+```
+interface IERC165 {
+    /**
+     * @dev 如果合约实现了查询的`interfaceId`，则返回true
+     * 规则详见：https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[EIP section]
+     *
+     */
+    function supportsInterface(bytes4 interfaceId) external view returns (bool);
+}
+
+
+   function supportsInterface(bytes4 interfaceId)
+        external
+        pure
+        override
+        returns (bool)
+    {
+        return
+            interfaceId == type(IERC721).interfaceId 
+    }
+```
+
+#### 识别ERC721
+```
+//准备 alchemy API 可以参考https://github.com/AmazingAng/WTFSolidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md 
+const ALCHEMY_MAINNET_URL = 'https://eth-mainnet.g.alchemy.com/v2/oKmOQKbneVkxgHZfibs-iFhIlIAl6HDN';
+const provider = new ethers.JsonRpcProvider(ALCHEMY_MAINNET_URL);
+// 合约abi
+const abiERC721 = [
+    "function name() view returns (string)",
+    "function symbol() view returns (string)",
+    "function supportsInterface(bytes4) public view returns(bool)",
+];
+// ERC721的合约地址，这里用的BAYC
+const addressBAYC = "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d"
+// 创建ERC721合约实例
+const contractERC721 = new ethers.Contract(addressBAYC, abiERC721, provider)
+
+// 1. 读取ERC721合约的链上信息
+const nameERC721 = await contractERC721.name()
+const symbolERC721 = await contractERC721.symbol()
+console.log("\n1. 读取ERC721合约信息")
+console.log(`合约地址: ${addressBAYC}`)
+console.log(`名称: ${nameERC721}`)
+console.log(`代号: ${symbolERC721}`)
+
+// 2. 利用ERC165的supportsInterface，确定合约是否为ERC721标准
+// ERC721接口的ERC165 identifier
+const selectorERC721 = "0x80ac58cd"
+const isERC721 = await contractERC721.supportsInterface(selectorERC721)
+console.log("\n2. 利用ERC165的supportsInterface，确定合约是否为ERC721标准")
+console.log(`合约是否为ERC721标准: ${isERC721}`)
+```
+
+### 编码calldata
+#### 接口类Interface
+ethers.js的接口类抽象了与以太坊网络上的合约交互所需的ABI编码和解码。ABI（Application Binary Interface）与API类似，是一格式，用于对合约可以处理的各种类型的数据进行编码，以便它们可以交互。
+```
+// 利用abi生成
+const interface = ethers.Interface(abi)
+// 直接从contract中获取
+const interface2 = contract.interface
+interface.getSighash("balanceOf");
+// '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
+interface.encodeDeploy("Wrapped ETH", "WETH");
+interface.encodeFunctionData("balanceOf", ["0xc778417e063141139fce010982780140aa0cd5ab"]);
+interface.decodeFunctionResult("balanceOf", resultData)
+```
+
+#### 例子：与测试网WETH合约交互
+```
+//准备 alchemy API 可以参考https://github.com/AmazingAng/WTFSolidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md 
+const ALCHEMY_GOERLI_URL = 'https://eth-rinkeby.alchemyapi.io/v2/GlaeWuylnNM3uuOo-SAwJxuwTdqHaY5l';
+const provider = new ethers.JsonRpcProvider(ALCHEMY_GOERLI_URL);
+
+// 利用私钥和provider创建wallet对象
+const privateKey = '0x227dbb8586117d55284e26620bc76534dfbd2394be34cf4a09cb775d593b6f2b'
+const wallet = new ethers.Wallet(privateKey, provider)
+
+// WETH的ABI
+const abiWETH = [
+    "function balanceOf(address) public view returns(uint)",
+    "function deposit() public payable",
+];
+// WETH合约地址（Goerli测试网）
+const addressWETH = '0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6'
+// 声明WETH合约
+const contractWETH = new ethers.Contract(addressWETH, abiWETH, wallet)
+
+const address = await wallet.getAddress()
+// 1. 读取WETH合约的链上信息（WETH abi）
+console.log("\n1. 读取WETH余额")
+// 编码calldata
+const param1 = contractWETH.interface.encodeFunctionData(
+    "balanceOf",
+    [address]
+  );
+console.log(`编码结果： ${param1}`)
+// 创建交易
+const tx1 = {
+    to: addressWETH,
+    data: param1
+}
+// 发起交易，可读操作（view/pure）可以用 provider.call(tx)
+const balanceWETH = await provider.call(tx1)
+console.log(`存款前WETH持仓: ${ethers.formatEther(balanceWETH)}\n`)
+// 编码calldata
+const param2 = contractWETH.interface.encodeFunctionData(
+    "deposit"          
+    );
+console.log(`编码结果： ${param2}`)
+// 创建交易
+const tx2 = {
+    to: addressWETH,
+    data: param2,
+    value: ethers.parseEther("0.001")}
+// 发起交易，写入操作需要 wallet.sendTransaction(tx)
+const receipt1 = await wallet.sendTransaction(tx2)
+// 等待交易上链
+await receipt1.wait()
+console.log(`交易详情：`)
+console.log(receipt1)
+const balanceWETH_deposit = await contractWETH.balanceOf(address)
+console.log(`存款后WETH持仓: ${ethers.formatEther(balanceWETH_deposit)}\n`)
+```
+
+### 2024.10.11
+### 批量生成钱包
+#### HD钱包Hierarchical Deterministic Wallet
+HD钱包（Hierarchical Deterministic Wallet，多层确定性钱包）是一种数字钱包 ，通常用于存储比特币和以太坊等加密货币持有者的数字密钥。
+
+#### BIP32
+在BIP32推出之前，用户需要记录一堆的私钥才能管理很多钱包。BIP32提出可以用一个随机种子衍生多个私钥，更方便的管理多个钱包。钱包的地址由衍生路径决定，例如“m/0/0/1”。
+![image](https://github.com/user-attachments/assets/a0811c12-b668-47a2-a71b-e35dd84aba96)
+#### BIP44
+BIP44为BIP32的衍生路径提供了一套通用规范，适配比特币、以太坊等多链。这一套规范包含六级，每级之间用"/"分割：
+```
+m / purpose' / coin_type' / account' / change / address_index
+```
+其中：
+m: 固定为"m"
+purpose：固定为"44"
+coin_type：代币类型，比特币主网为0，比特币测试网为1，以太坊主网为60
+account：账户索引，从0开始。
+change：是否为外部链，0为外部链，1为内部链，一般填0.
+address_index：地址索引，从0开始，想生成新地址就把这里改为1，2，3。
+举个例子，以太坊的默认衍生路径为"m/44'/60'/0'/0/0"。
+#### BIP39
+BIP39让用户能以一些人类可记忆的助记词的方式保管私钥，而不是一串16进制的数字：
+```
+//私钥
+0x813f8f0a4df26f6455814fdd07dd2ab2d0e2d13f4d2f3c66e7fd9e3856060f89
+//助记词
+air organ twist rule prison symptom jazz cheap rather dizzy verb glare jeans orbit weapon universe require tired sing casino business anxiety seminar hunt
+```
+
+#### 批量生成钱包
+```
+// 生成随机助记词
+const mnemonic = ethers.Mnemonic.entropyToPhrase(ethers.randomBytes(32))
+// 创建HD基钱包
+// 基路径："m / purpose' / coin_type' / account' / change"
+const basePath = "44'/60'/0'/0"
+const baseWallet = ethers.HDNodeWallet.fromPhrase(mnemonic, basePath)
+console.log(baseWallet);
+const numWallet = 20
+// 派生路径：基路径 + "/ address_index"
+// 我们只需要提供最后一位address_index的字符串格式，就可以从baseWallet派生出新钱包。V6中不需要重复提供基路径！
+let wallets = [];
+for (let i = 0; i < numWallet; i++) {
+    let baseWalletNew = baseWallet.derivePath(i.toString());
+    console.log(`第${i+1}个钱包地址： ${baseWalletNew.address}`)
+    wallets.push(baseWalletNew);
+}
+const wallet = ethers.Wallet.fromPhrase(mnemonic)
+console.log("通过助记词创建钱包：")
+console.log(wallet)
+// 加密json用的密码，可以更改成别的
+const pwd = "password"
+const json = await wallet.encrypt(pwd)
+console.log("钱包的加密json：")
+console.log(json)
+
+const wallet2 = await ethers.Wallet.fromEncryptedJson(json, pwd);
+console.log("\n4. 从加密json读取钱包：")
+console.log(wallet2)
+```
+
+### 批量转账
+```
+console.log("\n1. 创建HD钱包")
+// 通过助记词生成HD钱包
+const mnemonic = `air organ twist rule prison symptom jazz cheap rather dizzy verb glare jeans orbit weapon universe require tired sing casino business anxiety seminar hunt`
+const hdNode = ethers.HDNodeWallet.fromPhrase(mnemonic)
+console.log(hdNode);
+console.log("\n2. 通过HD钱包派生20个钱包")
+const numWallet = 20
+// 派生路径：m / purpose' / coin_type' / account' / change / address_index
+// 我们只需要切换最后一位address_index，就可以从hdNode派生出新钱包
+let basePath = "m/44'/60'/0'/0";
+let addresses = [];
+for (let i = 0; i < numWallet; i++) {
+    let hdNodeNew = hdNode.derivePath(basePath + "/" + i);
+    let walletNew = new ethers.Wallet(hdNodeNew.privateKey);
+    addresses.push(walletNew.address);
+}
+console.log(addresses)
+const amounts = Array(20).fill(ethers.parseEther("0.0001"))
+console.log(`发送数额：${amounts}`)
+
+//准备 alchemy API 可以参考https://github.com/AmazingAng/WTF-Solidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md 
+const ALCHEMY_GOERLI_URL = 'https://eth-goerli.alchemyapi.io/v2/GlaeWuylnNM3uuOo-SAwJxuwTdqHaY5l';
+const provider = new ethers.JsonRpcProvider(ALCHEMY_GOERLI_URL);
+
+// 利用私钥和provider创建wallet对象
+// 如果这个钱包没goerli测试网ETH了
+// 请使用自己的小号钱包测试，钱包地址: 0x338f8891D6BdC58eEB4754352459cC461EfD2a5E ,请不要给此地址发送任何ETH
+// 注意不要把自己的私钥上传到github上
+const privateKey = '0x21ac72b6ce19661adf31ef0d2bf8c3fcad003deee3dc1a1a64f5fa3d6b049c06'
+const wallet = new ethers.Wallet(privateKey, provider)
+
+// Airdrop的ABI
+const abiAirdrop = [
+    "function multiTransferToken(address,address[],uint256[]) external",
+    "function multiTransferETH(address[],uint256[]) public payable",
+];
+// Airdrop合约地址（Goerli测试网）
+const addressAirdrop = '0x71C2aD976210264ff0468d43b198FD69772A25fa' // Airdrop Contract
+// 声明Airdrop合约
+const contractAirdrop = new ethers.Contract(addressAirdrop, abiAirdrop, wallet)
+
+// WETH的ABI
+const abiWETH = [
+    "function balanceOf(address) public view returns(uint)",
+    "function transfer(address, uint) public returns (bool)",
+    "function approve(address, uint256) public returns (bool)"
+];
+// WETH合约地址（Goerli测试网）
+const addressWETH = '0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6' // WETH Contract
+// 声明WETH合约
+const contractWETH = new ethers.Contract(addressWETH, abiWETH, wallet)
+
+console.log("\n3. 读取一个地址的ETH和WETH余额")
+//读取WETH余额
+const balanceWETH = await contractWETH.balanceOf(addresses[10])
+console.log(`WETH持仓: ${ethers.formatEther(balanceWETH)}\n`)
+//读取ETH余额
+const balanceETH = await provider.getBalance(addresses[10])
+console.log(`ETH持仓: ${ethers.formatEther(balanceETH)}\n`)
+
+console.log("\n4. 调用multiTransferETH()函数，给每个钱包转 0.0001 ETH")
+// 发起交易
+const tx = await contractAirdrop.multiTransferETH(addresses, amounts, {value: ethers.parseEther("0.002")})
+// 等待交易上链
+await tx.wait()
+// console.log(`交易详情：`)
+// console.log(tx)
+const balanceETH2 = await provider.getBalance(addresses[10])
+console.log(`发送后该钱包ETH持仓: ${ethers.formatEther(balanceETH2)}\n`)
+
+console.log("\n5. 调用multiTransferToken()函数，给每个钱包转 0.0001 WETH")
+// 先approve WETH给Airdrop合约
+const txApprove = await contractWETH.approve(addressAirdrop, ethers.parseEther("1"))
+await txApprove.wait()
+// 发起交易
+const tx2 = await contractAirdrop.multiTransferToken(addressWETH, addresses, amounts)
+// 等待交易上链
+await tx2.wait()
+// console.log(`交易详情：`)
+// console.log(tx2)
+// 读取WETH余额
+const balanceWETH2 = await contractWETH.balanceOf(addresses[10])
+console.log(`发送后该钱包WETH持仓: ${ethers.formatEther(balanceWETH2)}\n`)
+```
+
+### 批量归集
+```
+// 准备 alchemy API 可以参考https://github.com/AmazingAng/WTF-Solidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md 
+const ALCHEMY_GOERLI_URL = 'https://eth-goerli.alchemyapi.io/v2/GlaeWuylnNM3uuOo-SAwJxuwTdqHaY5l';
+const provider = new ethers.JsonRpcProvider(ALCHEMY_GOERLI_URL);
+// 利用私钥和provider创建wallet对象
+const privateKey = '0x21ac72b6ce19661adf31ef0d2bf8c3fcad003deee3dc1a1a64f5fa3d6b049c06'
+const wallet = new ethers.Wallet(privateKey, provider)
+
+// WETH的ABI
+const abiWETH = [
+    "function balanceOf(address) public view returns(uint)",
+    "function transfer(address, uint) public returns (bool)",
+];
+// WETH合约地址（Goerli测试网）
+const addressWETH = '0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6' // WETH Contract
+// 声明WETH合约
+const contractWETH = new ethers.Contract(addressWETH, abiWETH, wallet)
+
+console.log("\n1. 创建HD钱包")
+// 通过助记词生成HD钱包
+const mnemonic = `air organ twist rule prison symptom jazz cheap rather dizzy verb glare jeans orbit weapon universe require tired sing casino business anxiety seminar hunt`
+const hdNode = ethers.HDNodeWallet.fromPhrase(mnemonic)
+console.log(hdNode);
+
+const numWallet = 20
+// 派生路径：m / purpose' / coin_type' / account' / change / address_index
+// 我们只需要切换最后一位address_index，就可以从hdNode派生出新钱包
+let basePath = "m/44'/60'/0'/0";
+let wallets = [];
+for (let i = 0; i < numWallet; i++) {
+    let hdNodeNew = hdNode.derivePath(basePath + "/" + i);
+    let walletNew = new ethers.Wallet(hdNodeNew.privateKey);
+    wallets.push(walletNew);
+    console.log(walletNew.address)
+}
+// 定义发送数额
+const amount = ethers.parseEther("0.0001")
+console.log(`发送数额：${amount}`)
+
+console.log("\n3. 读取一个地址的ETH和WETH余额")
+//读取WETH余额
+const balanceWETH = await contractWETH.balanceOf(wallets[19])
+console.log(`WETH持仓: ${ethers.formatEther(balanceWETH)}`)
+//读取ETH余额
+const balanceETH = await provider.getBalance(wallets[19])
+console.log(`ETH持仓: ${ethers.formatEther(balanceETH)}\n`)
+
+// 6. 批量归集钱包的ETH
+console.log("\n4. 批量归集20个钱包的ETH")
+const txSendETH = {
+    to: wallet.address,
+    value: amount
+}
+for (let i = 0; i < numWallet; i++) {
+    // 将钱包连接到provider
+    let walletiWithProvider = wallets[i].connect(provider)
+    var tx = await walletiWithProvider.sendTransaction(txSendETH)
+    console.log(`第 ${i+1} 个钱包 ${walletiWithProvider.address} ETH 归集开始`)
+}
+await tx.wait()
+console.log(`ETH 归集结束`)
+for (let i = 0; i < numWallet; i++) {
+    // 将钱包连接到provider
+    let walletiWithProvider = wallets[i].connect(provider)
+    // 将合约连接到新的钱包
+    let contractConnected = contractWETH.connect(walletiWithProvider)
+    var tx = await contractConnected.transfer(wallet.address, amount)
+    console.log(`第 ${i+1} 个钱包 ${wallets[i].address} WETH 归集开始`)
+}
+await tx.wait()
+console.log(`WETH 归集结束`)
+console.log("\n6. 读取一个地址在归集后的ETH和WETH余额")
+// 读取WETH余额
+const balanceWETHAfter = await contractWETH.balanceOf(wallets[19])
+console.log(`归集后WETH持仓: ${ethersfromPhrase.formatEther(balanceWETHAfter)}`)
+// 读取ETH余额
+const balanceETHAfter = await provider.getBalance(wallets[19])
+console.log(`归集后ETH持仓: ${ethersfromPhrase.formatEther(balanceETHAfter)}\n`)
+```
+
+### MerkleTree脚本
+Merkle Tree，也叫默克尔树或哈希树，是区块链的底层加密技术，被比特币和以太坊区块链广泛采用。Merkle Tree是一种自下而上构建的加密树，每个叶子是对应数据的哈希，而每个非叶子为它的2个子节点的哈希。
+![image](https://github.com/user-attachments/assets/1c8824e8-f130-44fd-ae53-af58417968e3)
+
+Merkle Tree允许对大型数据结构的内容进行有效和安全的验证（Merkle Proof）。对于有N个叶子结点的Merkle Tree，在已知root根值的情况下，验证某个数据是否有效（属于Merkle Tree叶子结点）只需要log(N)个数据（也叫proof），非常高效。如果数据有误，或者给的proof错误，则无法还原出root根植。
+![image](https://github.com/user-attachments/assets/0059873f-e8e9-4901-a5e2-8ac857a34202)
+
+```
+import { MerkleTree } from "merkletreejs";
+// 白名单地址
+const tokens = [
+    "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4", 
+    "0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2",
+    "0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db",
+    "0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB"
+];
+
+const leaf = tokens.map(x => ethers.keccak256(x))
+const merkletree = new MerkleTree(leaf, ethers.keccak256, { sortPairs: true });
+const root = merkletree.getHexRoot()
+const proof = merkletree.getHexProof(leaf[0]);
+
+// 1. 生成merkle tree
+console.log("\n1. 生成merkle tree")
+// 白名单地址
+const tokens = [
+    "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4", 
+    "0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2",
+    "0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db",
+    "0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB"
+];
+// leaf, merkletree, proof
+const leaf       = tokens.map(x => ethers.keccak256(x))
+const merkletree = new MerkleTree(leaf, ethers.keccak256, { sortPairs: true });
+const proof      = merkletree.getHexProof(leaf[0]);
+const root = merkletree.getHexRoot()
+console.log("Leaf:")
+console.log(leaf)
+console.log("\nMerkleTree:")
+console.log(merkletree.toString())
+console.log("\nProof:")
+console.log(proof)
+console.log("\nRoot:")
+console.log(root)
+
+// 准备 alchemy API 可以参考https://github.com/AmazingAng/WTF-Solidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md 
+const ALCHEMY_GOERLI_URL = 'https://eth-goerli.alchemyapi.io/v2/GlaeWuylnNM3uuOo-SAwJxuwTdqHaY5l';
+const provider = new ethers.JsonRpcProvider(ALCHEMY_GOERLI_URL);
+// 利用私钥和provider创建wallet对象
+const privateKey = '0x227dbb8586117d55284e26620bc76534dfbd2394be34cf4a09cb775d593b6f2b'
+const wallet = new ethers.Wallet(privateKey, provider)
+
+// 3. 创建合约工厂
+// NFT的abi
+const abiNFT = [
+    "constructor(string memory name, string memory symbol, bytes32 merkleroot)",
+    "function name() view returns (string)",
+    "function symbol() view returns (string)",
+    "function mint(address account, uint256 tokenId, bytes32[] calldata proof) external",
+    "function ownerOf(uint256) view returns (address)",
+    "function balanceOf(address) view returns (uint256)",
+];
+// 合约字节码，在remix中，你可以在两个地方找到Bytecode
+// i. 部署面板的Bytecode按钮
+// ii. 文件面板artifact文件夹下与合约同名的json文件中
+// 里面"object"字段对应的数据就是Bytecode，挺长的，608060起始
+// "object": "608060405260646000553480156100...
+const bytecodeNFT = contractJson.default.object;
+const factoryNFT = new ethers.ContractFactory(abiNFT, bytecodeNFT, wallet);
+
+console.log("\n2. 利用contractFactory部署NFT合约")
+// 部署合约，填入constructor的参数
+const contractNFT = await factoryNFT.deploy("WTF Merkle Tree", "WTF", root)
+console.log(`合约地址: ${contractNFT.target}`);
+console.log("等待合约部署上链")
+await contractNFT.waitForDeployment()
+console.log("合约已上链")
+
+console.log("\n3. 调用mint()函数，利用merkle tree验证白名单，给第一个地址铸造NFT")
+console.log(`NFT名称: ${await contractNFT.name()}`)
+console.log(`NFT代号: ${await contractNFT.symbol()}`)
+let tx = await contractNFT.mint(tokens[0], "0", proof)
+console.log("铸造中，等待交易上链")
+await tx.wait()
+console.log(`mint成功，地址${tokens[0]} 的NFT余额: ${await contractNFT.balanceOf(tokens[0])}\n`)
+```
+在生产环境使用Merkle Tree验证白名单发行NFT主要有以下步骤：
+1. 确定白名单列表。
+2. 在后端生成白名单列表的Merkle Tree。
+3. 部署NFT合约，并将Merkle Tree的root保存在合约中。
+4. 用户铸造时，向后端请求地址对应的proof。
+5. 用户调用mint()函数进行铸造NFT。
+
+### 2024.10.12
+### 数字签名
+以太坊使用的数字签名算法叫双椭圆曲线数字签名算法（ECDSA），基于双椭圆曲线“私钥-公钥”对的数字签名算法。它主要起到了三个作用：
+1. 身份认证：证明签名方是私钥的持有人。
+2. 不可否认：发送方不能否认发送过这个消息。
+3. 完整性：消息在传输过程中无法被修改。
+### 数字签名合约
+```
+// 创建消息
+const account = "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"
+const tokenId = "0"
+// 等效于Solidity中的keccak256(abi.encodePacked(account, tokenId))
+const msgHash = ethers.solidityPackedKeccak256(
+    ['address', 'uint256'],
+    [account, tokenId])
+console.log(`msgHash：${msgHash}`)
+// msgHash：0x1bf2c0ce4546651a1a2feb457b39d891a6b83931cc2454434f39961345ac378c
+// 签名
+const messageHashBytes = ethers.getBytes(msgHash)
+const signature = await wallet.signMessage(messageHashBytes);
+console.log(`签名：${signature}`)
+// 签名：0x390d704d7ab732ce034203599ee93dd5d3cb0d4d1d7c600ac11726659489773d559b12d220f99f41d17651b0c1c6a669d346a397f8541760d6b32a5725378b241c
+
+// 准备 alchemy API 可以参考https://github.com/AmazingAng/WTF-Solidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md 
+const ALCHEMY_GOERLI_URL = 'https://eth-goerli.alchemyapi.io/v2/GlaeWuylnNM3uuOo-SAwJxuwTdqHaY5l';
+const provider = new ethers.JsonRpcProvider(ALCHEMY_GOERLI_URL);
+// 利用私钥和provider创建wallet对象
+const privateKey = '0x227dbb8586117d55284e26620bc76534dfbd2394be34cf4a09cb775d593b6f2b'
+const wallet = new ethers.Wallet(privateKey, provider)
+
+// 创建消息
+const account = "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"
+const tokenId = "0"
+// 等效于Solidity中的keccak256(abi.encodePacked(account, tokenId))
+const msgHash = ethers.solidityPackedKeccak256(
+    ['address', 'uint256'],
+    [account, tokenId])
+console.log(`msgHash：${msgHash}`)
+// 签名
+const messageHashBytes = ethers.getBytes(msgHash)
+const signature = await wallet.signMessage(messageHashBytes);
+console.log(`签名：${signature}`)
+
+// NFT的人类可读abi
+const abiNFT = [
+    "constructor(string memory _name, string memory _symbol, address _signer)",
+    "function name() view returns (string)",
+    "function symbol() view returns (string)",
+    "function mint(address _account, uint256 _tokenId, bytes memory _signature) external",
+    "function ownerOf(uint256) view returns (address)",
+    "function balanceOf(address) view returns (uint256)",
+];
+// 合约字节码，在remix中，你可以在两个地方找到Bytecode
+// i. 部署面板的Bytecode按钮
+// ii. 文件面板artifact文件夹下与合约同名的json文件中
+// 里面"object"字段对应的数据就是Bytecode，挺长的，608060起始
+// "object": "608060405260646000553480156100...
+const bytecodeNFT = contractJson.default.object;
+const factoryNFT = new ethers.ContractFactory(abiNFT, bytecodeNFT, wallet);
+
+// 部署合约，填入constructor的参数
+const contractNFT = await factoryNFT.deploy("WTF Signature", "WTF", wallet.address)
+console.log(`合约地址: ${contractNFT.target}`);
+console.log("等待合约部署上链")
+await contractNFT.waitForDeployment()
+// 也可以用 contractNFT.deployTransaction.wait()
+console.log("合约已上链")
+
+console.log(`NFT名称: ${await contractNFT.name()}`)
+console.log(`NFT代号: ${await contractNFT.symbol()}`)
+let tx = await contractNFT.mint(account, tokenId, signature)
+console.log("铸造中，等待交易上链")
+await tx.wait()
+console.log(`mint成功，地址${account} 的NFT余额: ${await contractNFT.balanceOf(account)}\n`)
+```
+在生产环境使用数字签名验证白名单发行NFT主要有以下步骤：
+1. 确定白名单列表。
+2. 在后端维护一个签名钱包，生成每个白名单对应的消息和签名。
+3. 部署NFT合约，并将签名钱包的公钥signer保存在合约中。
+4. 用户铸造时，向后端请求地址对应的签名。
+5. 用户调用mint()函数进行铸造NFT。
+
+### 监听Mempool
+### MEV
+Maximal Extractable Value，最大可提取价值
+在用户的交易被矿工打包进以太坊区块链之前，所有交易会汇集到Mempool（交易内存池）中。矿工也是在这里寻找费用高的交易优先打包，实现利益最大化。通常来说，gas price越高的交易，越容易被打包。
+
+同时，一些MEV机器人也会搜索mempool中有利可图的交易。比如，一笔滑点设置过高的swap交易可能会被三明治攻击：通过调整gas，机器人会在这笔交易之前插一个买单，之后发送一个卖单，等效于把把代币以高价卖给用户（抢跑）。
+![image](https://github.com/user-attachments/assets/82553464-aa6c-4f28-a652-7b41f3310e6b)
+
+### 监听Mempool
+你可以利用ethers.js的Provider类提供的方法，监听mempool中的pending（未决，待打包）交易：
+```
+provider.on("pending", listener)
+```
+```
+console.log("\n1. 连接 wss RPC")
+// 准备 alchemy API 可以参考https://github.com/AmazingAng/WTF-Solidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md 
+const ALCHEMY_MAINNET_WSSURL = 'wss://eth-mainnet.g.alchemy.com/v2/oKmOQKbneVkxgHZfibs-iFhIlIAl6HDN';
+const provider = new ethers.WebSocketProvider(ALCHEMY_MAINNET_WSSURL);
+function throttle(fn, delay) {
+    let timer;
+    return function(){
+        if(!timer) {
+            fn.apply(this, arguments)
+            timer = setTimeout(()=>{
+                clearTimeout(timer)
+                timer = null
+            },delay)
+        }
+    }
+}
+let i = 0
+provider.on("pending", async (txHash) => {
+    if (txHash && i < 100) {
+        // 打印txHash
+        console.log(`[${(new Date).toLocaleTimeString()}] 监听Pending交易 ${i}: ${txHash} \r`);
+        i++
+        }
+});
+let j = 0
+provider.on("pending", throttle(async (txHash) => {
+    if (txHash && j <= 100) {
+        // 获取tx详情
+        let tx = await provider.getTransaction(txHash);
+        console.log(`\n[${(new Date).toLocaleTimeString()}] 监听Pending交易 ${j}: ${txHash} \r`);
+        console.log(tx);
+        j++
+        }
+}, 1000));
+```
+
+### 未决交易
+ethers.js提供了Interface类方便解码交易数据。声明Interface类型和声明abi的方法差不多，例如：
+```
+const iface = ethers.Interface([
+    "function balanceOf(address) public view returns(uint)",
+    "function transfer(address, uint) public returns (bool)",
+    "function approve(address, uint256) public returns (bool)"
+]);
+```
+#### 解码交易数据
+```
+// 准备 alchemy API 可以参考https://github.com/AmazingAng/WTF-Solidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md 
+const ALCHEMY_MAINNET_WSSURL = 'wss://eth-mainnet.g.alchemy.com/v2/oKmOQKbneVkxgHZfibs-iFhIlIAl6HDN';
+const provider = new ethers.WebSocketProvider(ALCHEMY_MAINNET_WSSURL);
+let network = provider.getNetwork()
+network.then(res => console.log(`[${(new Date).toLocaleTimeString()}] 连接到 chain ID ${res.chainId}`));
+const iface = new ethers.Interface([
+"function transfer(address, uint) public returns (bool)",
+])
+const selector = iface.getFunction("transfer").selector
+console.log(`函数选择器是${selector}`)
+// 处理bigInt
+function handleBigInt(key, value) {
+    if (typeof value === "bigint") {
+        return value.toString() + "n"; // or simply return value.toString();
+    }
+return value;
+}
+
+provider.on('pending', async (txHash) => {
+if (txHash) {
+    const tx = await provider.getTransaction(txHash)
+    j++
+    if (tx !== null && tx.data.indexOf(selector) !== -1) {
+        console.log(`[${(new Date).toLocaleTimeString()}]监听到第${j + 1}个pending交易:${txHash}`)
+        console.log(`打印解码交易详情:${JSON.stringify(iface.parseTransaction(tx), handleBigInt, 2)}`)
+        console.log(`转账目标地址:${iface.parseTransaction(tx).args[0]}`)
+        console.log(`转账金额:${ethers.formatEther(iface.parseTransaction(tx).args[1])}`)
+        provider.removeListener('pending', this)
+    }
+}})
+```
+
+### 靓号生成器
+```
+const wallet = ethers.Wallet.createRandom() // 随机生成钱包，安全
+- 开头几位字符匹配，我们用`^`符号，例如`^0x000`就会匹配以`0x000`开头的地址。
+- 最后几位字符匹配，我们用`$`符号，例如`000$`就会匹配以`000`结尾的地址。
+- 中间几位我们不关心，可以利用`.*`通配符，例如`^0x000.*000$`就会匹配任何以`0x000`开头并以`000`结尾的地址。
+const regex = /^0x000.*$/ // 表达式，匹配以0x000开头的地址
+isValid = regex.test(wallet.address) // 检验正则表达式
+
+import { ethers } from "ethers";
+var wallet // 钱包
+const regex = /^0x000.*$/ // 表达式
+var isValid = false
+while(!isValid){
+    wallet = ethers.Wallet.createRandom() // 随机生成钱包，安全
+    isValid = regex.test(wallet.address) // 检验正则表达式
+}
+// 打印靓号地址与私钥
+console.log(`靓号地址：${wallet.address}`)
+console.log(`靓号私钥：${wallet.privateKey}`)
+```
+
+#### 顺序地址生成
+```
+import { ethers } from "ethers";
+
+var wallet // 钱包
+for (let i = 1; i <= 101; i += 1) {
+    // 填充3位数字，比如001，002，003，...，999
+    const paddedIndex = (i).toString().padStart(3, '0');
+    const regex = new RegExp(`^0x${paddedIndex}.*$`);  // 表达式
+    var isValid = false
+    while(!isValid){
+        wallet = ethers.Wallet.createRandom() // 随机生成钱包
+        isValid = regex.test(wallet.address) // 检验正则表达式
+    }
+    // 打印地址与私钥
+    console.log(`钱包地址：${wallet.address}`)
+    console.log(`钱包私钥：${wallet.privateKey}`)
+}
+
+// 生成正则匹配表达式，并返回数组
+function CreateRegex(total) {
+    const regexList = [];
+    for (let index = 0; index < total; index++) {
+        // 填充3位数字，比如001，002，003，...，999
+        const paddedIndex = (index + 1).toString().padStart(3, '0');
+        const regex = new RegExp(`^0x${paddedIndex}.*$`);
+        regexList.push(regex);
+    }
+    return regexList;
+}
+
+async function CreateWallet(regexList) {
+    let wallet;
+    var isValid = false;
+
+    //从21讲的代码扩充
+    //https://github.com/WTFAcademy/WTFEthers/blob/main/21_VanityAddress/readme.md
+    while (!isValid && regexList.length > 0) {
+        wallet = ethers.Wallet.createRandom();
+        const index = regexList.findIndex(regex => regex.test(wallet.address));
+        // 移除匹配的正则表达式
+        if (index !== -1) {
+            isValid = true;
+            regexList.splice(index, 1);
+        }
+    }
+    const data = `${wallet.address}:${wallet.privateKey}`
+    console.log(data);
+    return data
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

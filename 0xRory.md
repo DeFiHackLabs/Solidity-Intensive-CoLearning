@@ -102,6 +102,61 @@ timezone: Asia/Taipei
   day16:
 
   [WTF Academy Solidity 103 36 MerkleTree Note](/content/0xRory/115-MerkleTree/115-MerkleTree.md)
+
   [WTF Academy Solidity 103 37 數位簽章 Note](/content/0xRory/115-數位簽章/signature.md)
+
   [WTF Academy Solidity 103 38 NFTSwap Note](/content/0xRory/115-NFTSwap/NFTSwap.md)
+
+### 2024.10.09
+  day17:
+
+  [WTF Academy Solidity 103 39 鏈上隨機數 Note](/content/0xRory/115-鏈上隨機數/115-鏈上隨機數.md)
+
+  [WTF Academy Solidity 103 40 ERC1155 Note](/content/0xRory/116-ERC1155/116-ERC1155.md)
+
+  [WTF Academy Solidity 103 41 WETH Note](/content/0xRory/116-WETH/WETH.md)
+
+### 2024.10.10
+  day18:
+
+  [WTF Academy Solidity 103 42 分帳 Note](/content/0xRory/116-分帳/PaymentSplit.md)
+
+  [WTF Academy Solidity 103 43 線性釋放 Note](/content/0xRory/116-TokenVesting/TokenVesting.md)
+
+  [WTF Academy Solidity 103 44 代幣鎖 Note](/content/0xRory/117-TokenLocker/TokenLocker.md)
+
+  [WTF Academy Solidity 103 45 時間鎖 Note](/content/0xRory/117-TimeLock/TimeLock.md)
+
+### 2024.10.11
+  day19:
+
+  [WTF Academy Solidity 103 46 Proxy Note](/content/0xRory/117-ProxyContract/ProxyContract.md)
+
+  [WTF Academy Solidity 103 47 Upgradeable Note](/content/0xRory/117-Upgradeable/Upgradeable.md)
+
+### 2024.10.12
+  day20:
+
+  [WTF Academy Solidity 103 48 透明代理 Note](/content/0xRory/118-TransparentProxy/TransparentProxy.md)
+
+  [WTF Academy Solidity 103 49 UUPS Note](/content/0xRory/118-UUPS/UUPS.md)
+
+  [WTF Academy Solidity 103 50 多簽錢包 Note](/content/0xRory/118-MultisigWallet/MultisigWallet.md)
+
+### 2024.10.13
+  day21:
+
+  [WTF Academy Solidity 103 51 ERC4626 Note](/content/0xRory/119-ERC4626/119-ERC4626.md)
+
+  [WTF Academy Solidity 103 52 EIP712 Note](/content/0xRory/119-EIP712/119-ERC712.md)
+
+### 2024.10.14
+  day22:
+
+  [WTF Academy Solidity 103 53 ERC2612 Note](/content/0xRory/120-ERC2612/ERC-2612.md)
+
+  [WTF Academy Solidity 103 54 跨鏈橋 Note](/content/0xRory/120-跨鏈橋/跨鏈橋.md)
+
+  [WTF Academy Solidity 103 55 MultiCall Note](/content/0xRory/120-Multicall/Multicall.md)
+
 <!-- Content_END -->

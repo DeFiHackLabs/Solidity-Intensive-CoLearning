@@ -18,11 +18,14 @@ timezone: Asia/Taipei
 學習內容 Solidity 101  
 筆記:  
 #### Mapping
-###### 使用 mapping 的時機？
-- mapping 映射, 可以透過 key 查詢對應的 value, ex: 通過一個人的 id 查詢他的錢包地址
+功用
+- 可以透過 key 查詢對應的 value, ex: 通過一個人的 id 查詢他的錢包地址
 - mapping 的 _keyType 只能選擇 solidity 內建的直類型, _valueType 則可以自定義類型
-  
+
+寫法
+給映射新增鍵值
 ```solidity
+   // 此範例有兩組 mapping, 透過 writeMap() 對 idToAddress 新增鍵值 
    mapping(uint => address) public idToAddress;
    mapping(address => address) public swapPair;
 
@@ -730,6 +733,126 @@ try externalContract.f() returns(returnType){
 }
 
 ```
+### 2024.10.8        
+學習內容  
+筆記:  
+
+#### ERC20
+- 以太坊上的代幣標準, 用來實現代幣轉帳的基本邏輯
+- 帳戶餘額, balanceOf()
+- 轉帳, transfer()
+- 授權轉帳, transferFrom()
+- 授權, approve()
+- 代幣總供給量, totalSupply()
+- 授權轉帳額度, allowance()
+- 代幣信息, 可選, name(), symbol(), 小數位數 decimals()
+
+IERC20  
+- IERC20 是 ERC20 代幣標準的合約接口, 用來規定 ERC20 代幣需要實現的函數和事件, 內含 ERC20 要使用的函數名稱, 輸入輸出參數
+- IERC20 定義 2 個事件, 6 個函數
+
+### 2024.10.9        
+學習內容  
+筆記:  
+
+#### 代幣水龍頭
+實做一個簡易版的 ERC20 水龍頭合約
+結構
+- 狀態變數*3, 紀錄每次能提領的數量, token 合約地址, 紀錄領取過代幣的地址 
+- 事件*1, 紀錄每次提取代幣的地址和數量
+- 函數*2, 構造函數(初始化 tokenContract 狀態變數, 確定發放的 ERC20 代幣地址), requestTokens() (用戶調用, 可以領取代幣)
+  
+### 2024.10.10        
+學習內容  
+筆記:  
+
+#### 空投代幣合約
+- 邏輯: 利用循環, 讓一筆交易將 ERC20 代幣發送給多個地址
+
+結構
+- 由兩個函數組成
+- getSim() 返回 uint 數組的和
+- multiTransferToken() 發送 ERC20 代幣空
+  需要做
+  1. require 空投地址的數量組和每個地址的空投數量組長度相等
+  2. require 授權代幣數量 >= 空投代幣總量
+  3. for 循環, 利用 transferFrom() 發送空投
+
+### 2024.10.11        
+學習內容  
+筆記:  
+
+#### ERC721
+- 用於非同質化物品, ex: NFT
+- ERC165, 檢查一個智能合約是否支援 ERC721, ERC1155 的接口
+- IERC721, 規定 ERC721 要實現的基本函數, 利用 tokenId 來表示特定的非同質化代幣, 授權和轉帳都要明確 tokenId, 包含 3 個事件, 9 個函數
+- IERC721Metadata, 實現 3 個查詢 metadata 元數據的常用函數
+- IERC721Receiver, 目標合約必須實現 IERC721Receiver 接口才能接收 ERC721 代幣, 不然會 revert
+- ERC721 主合約實現 IERC165, IERC721, IERC721Metadata 定義的所有功能, 包含 17 個函數
+
+實作一個免費鑄造的 APE  
+結構  
+- 需要設定總供給量
+- 構造函數, 調用父合約 ERC721 的構造函數, 需要傳入 NFT 的名稱 _Nname 和符號 _symbol
+- function _baseURI, 讓每個 NFT 的 tokenURI 基於 IPFS 上的資源進行生成
+- functnio mint(), 要檢查 tokenId 的範圍沒有超過總供給量, 並 mint
+
+### 2024.10.12        
+學習內容  
+筆記:  
+
+#### 荷蘭拍賣 DutchAuction
+- 也稱減價拍賣, 拍賣是由高到低依次遞減直到第一個人應價或是超過底價
+- 優點: 1.拍賣價格由最高慢慢下降, 項目方能獲得最大收入 2.拍賣時間通常 6h 以上, 可避免 gas war
+
+DutchAuction 合約
+- DutchAuction 合約繼承 ERC721, Ownable 合約
+- 有 9 個狀態變數, 其中 6 個和拍賣有關, 有 9 個函數
+
+結構
+1. setAuctionStartTime(), 設定拍賣起始時間
+2. getAuctionPrice(), 設定拍賣時的價格
+   要處理  
+   - block.timestamp 小於起始時間, 價格設定為最高價 action_start_price
+   - block.timestamp 大於結束時間, 價格設定為最低價 action_end_price
+   - block.timestamp 在兩著之間, 計算當前衰減價格
+4. auctionMint(), 用戶參與拍賣並鑄造 NFT
+   要處理
+   require 檢查是否設置起始時間, 拍賣是否開始
+   require 檢查是否超過 NFT 上限
+   mint 成本計算
+   require 用戶是否支付足夠 ETH
+   mint NFT
+   多餘 ETH 退款
+6. withdrawMoney(),項目方提取拍賣籌集的 ETH
+
+### 2024.10.13        
+學習內容  
+筆記:  
+
+#### 默克爾樹 Merkle Tree
+生成 Merkle Tree
+- 利用 https://lab.miguelmota.com/merkletreejs/example/ 來生成 Merkle Tree
+  步驟
+  1. 輸入地址作為葉子節點
+  2. 選擇 Keccak-256, hashLeaves, sortPairs 選項, 點擊 compute 生成 Merkle Tree
+     
+驗證 Merkle Tree
+結構
+- 4 個函數
+- verify(), 利用 proof 來驗證 leaf 是否屬於根 root, 調用 processProod()
+- processProof(), 用 proof, leaf 依序計算出 root, 調用了 _hashPair()
+- _hashPair(), 用 keccak256() 計算非根結點對應的兩個子節點的哈希
+
+利用 Merkle Tree 發放 NFT 白名單
+結構
+- MerkleTree 合約繼承 ERC721, 利用 MerkleProof 庫
+- 構造函數 + 3 個函數
+- mint(), 利用 Merkle 樹驗證地址並 mint
+- _leaf(), 計算 Merkle 樹葉的哈希值
+- _verify(), Merkle 驗證, 調用 MerkleProof 庫的 verify()
+
+
 
 
 

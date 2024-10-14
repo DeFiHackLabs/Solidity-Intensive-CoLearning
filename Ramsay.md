@@ -1219,7 +1219,559 @@ try externalContract.f() returns(returnType){
 
 问题就来了，为什么只支持 `external` function呢? 个人猜测是因为:
 
-external 调用不确定性更高，可能出来 gas 不够，或者是其他异常，所以需要引入 try/catch 来作异常处理。而对于合约内的调用，因为 Solidity 的异常模型是 `state-revert` exception, 所以当内部调用出现问题了(`require` 或者 `assert`)，状态就自动回滚了，无须 `try/catch` 处理
+external 调用不确定性更高，可能出来 gas 不够，或者是其他异常，所以需要引入 try/catch 来作异常处理; 而对于合约内的调用，因为 Solidity 的异常模型是 `state-revert` exception, 所以当内部调用出现问题了(`require` 或者 `assert`)，状态就自动回滚了，无须 `try/catch` 处理
 
 WTF Solidity 102 is done, I should pat myself on the back for completing this project.
+
+### 2024.10.10
+#### ERC20
+
+为了方便交互，Ethereum 基金会定义了 ERC-20 标准，只要你的合约包含如下 methods，那么你的 token 就可以作为一种标准 ERC-20 FT 被其他的钱包和交易所所支持.
+
+```solidity
+totalSupply()
+balanceOf(account)
+transfer(to, amount)
+allowance(owner, spender)
+approve(spender, amount)
+transferFrom(from, to, amount)
+```
+
+代码非常简单易懂，没有并行和并发，不需要考虑任何数据冲突。 所谓的挖矿，就是调用一下合约的 `mint` 方法，然后编辑账本，给某个地址增加一点余额。 所谓的转账，就是调用一下合约的 `transfer` 方法，然后编辑账本，给一个地址减少一点余额，给另一个地址增加一点余额。
+
+只要你的 `contract` 符合 ERC-20 标准，就可以将合约地址作为一个 FT Token，登记到任何支持 ERC-20 的平台或钱包。
+
+通过以下代码就创建了一个符合ERC20标准的Token:
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.4;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+contract ERC20Token is IERC20 {
+    mapping(address => uint256) public override balanceOf;
+    mapping(address => mapping(address => uint256)) public override allowance;
+
+    uint256 public override totalSupply; 
+
+    string public name;
+    string public symbol;
+
+    uint8 public decimals = 18;
+
+    constructor(string memory name_, string memory symbol_) {
+        name = name_;
+        symbol = symbol_;
+    }
+
+    function transfer(address recipient, uint amount) public override returns (bool){
+        balanceOf[msg.sender] -= amount;
+        balanceOf[recipient] += amount;
+        emit Transfer(msg.sender, recipient, amount);
+        return true;
+    }
+
+    function approve(address spender, uint amount) public override returns (bool) {
+        allowance[msg.sender][spender] = amount;
+        emit Approval(msg.sender, spender, amount);
+        return true ;
+    }
+
+    function transferFrom(address sender, address recipient, uint amount) public override returns (bool) {
+        allowance[sender][msg.sender] -= amount;
+        balanceOf[sender] -= amount;
+        balanceOf[recipient] += amount;
+        emit Transfer(sender, recipient, amount);
+        return true;
+    }
+
+    function mint(uint amount) external {
+        balanceOf[msg.sender] += amount;
+        totalSupply += amount;
+        emit Transfer(address(0), msg.sender, amount);
+    }
+
+    function burn(uint amount) external {
+        balanceOf[msg.sender] -= amount;
+        totalSupply -= amount;
+        emit Transfer(msg.sender, address(0), amount);
+    }
+}
+```
+
+本来打算上线测试网的，但是一直报错 `gas required exceeds allowance (85717)`, 我的 Sepolia ETH又不多，只好作罢.
+
+虽然可以通过智能合约实现一个 ERC20 的Token, 但是 `openzeppelin` 甚至把 ERC20 Token的代码都写好了，只需要继承 [`ERC20.sol`](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/ERC20.sol) 即可, 网页点击下就可以一键发币.
+
+通过继承 ERC20 来发行一个貔貅币(PIXIU Token)
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.4;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+contract PIXIU is ERC20 {
+  constructor(uint256 initialSupply) public ERC20("PIXIU", "PX") {
+	_mint(msg.sender, initialSupply);
+  }
+}
+```
+
+### 2024.10.11
+#### Faucet
+
+通过智能合约来实现简易版本的 `ERC20` 水龙头：
+
+```solidity
+pragma solidity ^0.8.4;
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+contract Facuet {
+    uint256 public amountAllowed = 100;
+    address public tokenContract;
+    mapping(address => bool) public requestedAddress;
+    event SendToken(address indexed Receiver, uint256 indexed Amount);
+    constructor (address _tokenContract) {
+        tokenContract = _tokenContract;
+    }
+
+    function requestTokens() external {
+        require(!requestedAddress[msg.sender], "Can't request multiple times!");
+        IERC20 token = IERC20(tokenContract);
+        require(token.balanceOf(address(this))>= amountAllowed, "Faucet Empty!");
+
+        token.transfer(msg.sender, amountAllowed);
+        requestedAddress[msg.sender] = true;
+
+        emit SendToken(msg.sender, amountAllowed);
+    }
+}
+```
+
+但实际的水龙头肯定会比这个复杂，因为代币数量有限，会限制每个地址领取的时间间隔（假设能重复领取的话）; 为了避免被爬虫直接把水龙头给薅光，还会加上类似 Google 的 Recaptcha 或者是 Cloudflare 的 Turnstile 人机校验服务; 更严格的还会接入链上 passport 服务，超过一定分数才能领水。
+
+这让我意识到, 即使领水是 Web3 的概念，但是水龙头的实现不能是单纯的 Solidity 智能合约，更进一步地说，如果把区块链理解成分布式的数据库，那么 Solidity 是否就算是数据库的存储过程呢？
+
+我们当然可以把逻辑计算放到存储过程，但是鉴于其成本较高（数据库的存储过程成本就是维护成本，存储成本，而区块链就是 gas fee）, 部分逻辑适合放到逻辑层（Web2），部分逻辑可以放到存储层（智能合约）
+
+课程提到最早的代币水龙头是BTC水龙头，但是那个时候还没有智能合约，所以肯定是使用 Web2 的技术栈实现的.
+
+#### 空投合约
+
+通过智能合约来发送空投，其实就是一个 for 循环来给符合条件的地址列表打固定金额的钱，转账前做参数校验:
+
+```solidity
+// 数组求和函数
+function getSum(uint256[] calldata _arr) public pure returns(uint sum){
+    for(uint i = 0; i < _arr.length; i++)
+        sum = sum + _arr[i];
+}
+
+/// @notice 向多个地址转账ERC20代币，使用前需要先授权
+///
+/// @param _token 转账的ERC20代币地址
+/// @param _addresses 空投地址数组
+/// @param _amounts 代币数量数组（每个地址的空投数量）
+function multiTransferToken(
+    address _token,
+    address[] calldata _addresses,
+    uint256[] calldata _amounts
+    ) external {
+    // 检查：_addresses和_amounts数组的长度相等
+    require(_addresses.length == _amounts.length, "Lengths of Addresses and Amounts NOT EQUAL");
+    IERC20 token = IERC20(_token); // 声明IERC合约变量
+    uint _amountSum = getSum(_amounts); // 计算空投代币总量
+    // 检查：授权代币数量 >= 空投代币总量
+    require(token.allowance(msg.sender, address(this)) >= _amountSum, "Need Approve ERC20 token");
+
+    // for循环，利用transferFrom函数发送空投
+    for (uint8 i; i < _addresses.length; i++) {
+        token.transferFrom(msg.sender, _addresses[i], _amounts[i]);
+    }
+}
+```
+
+上面的空投代码的 gas fee 会随着地址列表的增多而线性增加, 关于 gas fee, 我现在觉得是一个相当巧妙的设计:
+
+矿工（节点）的算力是相当宝贵的，但是你的代码运行在节点上，并不能像云上的虚拟机一样提供一个沙箱环境，那么对于恶意的代码，可能一个死循环就把矿工的算力给耗尽了，但是在程序运行之前，并没有办法判断代码是否可以及时返回的，可穷尽的。
+
+而引入 gas fee 就相当于把金融手段解决工程问题，死循环的代码你可以写，只要你付对应的 gas fee 就可以了，相当于每个人都用钱包为其写的代码负责。
+
+不过上面的空投代码没有做余额的检查，例如地址列表有100个，转账到99个的时候余额不足，然后回滚，但是回滚前的 gas fee 还是要照付，毕竟前面的转账矿工也干活了，不能让人家白干。
+
+> 我撸空投收获最大的一次是ENS空投，你们呢？
+
+还没有撸到过 :( 
+
+### 2024.10.12
+
+#### ERC721
+
+ERC20 本质上就只是一个 mapping, 记录了每一个地址的余额，仅此而已。它的缺点是，每一个 Token 都是一样的，没有任何区别。
+
+为了能更好的和独特的资产建立联系，Ethereum基金会定义了ERC-721标准，用来定义一种独特的 token, 也就是 NFT(Non-Fungible Token) 
+
+NFT能证明某个数字资产是正版，但是无法阻止别人使用盗版，这是两个不同的问题.
+
+而课程中反复提及的 `ERC165` 其实就是一个类型检查，判断合约是否实现了指定的接口, 以Rust 的代码为例:
+
+```rs
+// Define a trait
+trait MyTrait {
+    fn my_method(&self);
+}
+
+// Implement the trait for a struct
+struct MyStruct;
+
+impl MyTrait for MyStruct {
+    fn my_method(&self) {
+        println!("MyStruct implements MyTrait");
+    }
+}
+
+// Function that requires the struct to implement MyTrait
+fn requires_trait<T: MyTrait>(item: T) {
+    item.my_method();
+}
+
+fn main() {
+    let my_struct = MyStruct;
+    requires_trait(my_struct); // Will compile, because MyStruct implements MyTrait
+}
+```
+
+用 Solidity 的话来理解上面的代码，`MyTrait` 就类似是 `ERC721` 这样的接口, `MyStruct` 就类似合约，只有合约实现了某个指定的接口，功能才能正常运行.
+
+强类型的编程语言编译器一般都实现了这样的能力，而因为 Solidity 编译器或者是 EVM 的限制，就需要额外提出一个 ERC 来实现这个功能, 相当于是把编译器搬到分布式环境上来了.
+
+按照 [`EIP165`](https://eips.ethereum.org/EIPS/eip-165), `interface id`是某个接口所有函数 `selector` 异或的结果, 代码示例如下:
+
+```solidity
+pragma solidity ^0.4.20;
+
+interface Solidity101 {
+    function hello() external pure;
+    function world(int) external pure;
+}
+
+contract Selector {
+    function calculateSelector() public pure returns (bytes4) {
+        Solidity101 i;
+        return i.hello.selector ^ i.world.selector;
+    }
+}
+
+```
+如果某个接口只有一个函数，那么这个接口的接口ID自然就是函数的 `selector`。
+
+我看课程中的 `ERC165` 和 `ERC721` 内容看得头疼，后面对照着 OpenZeppelin 的源码，我终于明白了我为什么头疼，同样的名词在不同语境下表达的是不过的意思.
+
+`ERC`: 全称 Ethereum Request For Comment (以太坊意见征求稿), 用以记录以太坊上应用级的各种开发标准和协议, 就是正常的RFC, 各种标准和修正方案.
+
+> 我们可以看下ERC721是如何实现supportsInterface()函数的：
+```
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool)
+    {
+        return
+            interfaceId == type(IERC721).interfaceId ||
+            interfaceId == type(IERC165).interfaceId;
+    }
+```
+
+看到这里，我非常费解，为什么 `ERC721` 提案要实现 `ERC165`, 看了源码才意识到 [`ERC721`](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC721/ERC721.sol#L45) 是实现了 `IERC721` 接口和 `IERC165` 接口的抽象合约:
+
+```solidity
+abstract contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, IERC721Errors {
+...
+}
+```
+
+`ERC721` 要实现 `supportsInterface` 的函数，恰好就是 `IERC165` 接口中的函数, 而一个合约所支持的接口，自然包含它所实现的接口，所以 `ERC721` 是支持 `IERC165` 和 `IERC721`.
+
+看到这个函数的时候，我又疑惑了，这个非常关键的条件：`retval != IERC721Receiver.onERC721Received.selector` 究竟是什么意思:
+```solidity
+function _checkOnERC721Received(
+    address operator,
+    address from,
+    address to,
+    uint256 tokenId,
+    bytes memory data
+) internal {
+    if (to.code.length > 0) {
+        try IERC721Receiver(to).onERC721Received(operator, from, tokenId, data) returns (bytes4 retval) {
+            if (retval != IERC721Receiver.onERC721Received.selector) {
+                // Token rejected
+                revert IERC721Errors.ERC721InvalidReceiver(to);
+            }
+        } catch (bytes memory reason) {
+            if (reason.length == 0) {
+                // non-IERC721Receiver implementer
+                revert IERC721Errors.ERC721InvalidReceiver(to);
+            } else {
+                /// @solidity memory-safe-assembly
+                assembly {
+                    revert(add(32, reason), mload(reason))
+                }
+            }
+        }
+    }
+}
+```
+
+阅读 [`IERC721Receiver`](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/72c152dc1c41f23d7c504e175f5b417fccc89426/contracts/token/ERC721/IERC721Receiver.sol) 接口的代码注释，我才终于理解是什么意思:
+
+```solidity
+interface IERC721Receiver {
+    /**
+     * @dev Whenever an {IERC721} `tokenId` token is transferred to this contract via {IERC721-safeTransferFrom}
+     * by `operator` from `from`, this function is called.
+     *
+     * It must return its Solidity selector to confirm the token transfer.
+     * If any other value is returned or the interface is not implemented by the recipient, the transfer will be
+     * reverted.
+     *
+     * The selector can be obtained in Solidity with `IERC721Receiver.onERC721Received.selector`.
+     */
+    function onERC721Received(
+        address operator,
+        address from,
+        uint256 tokenId,
+        bytes calldata data
+    ) external returns (bytes4);
+}
+```
+
+课程完全没有提及, 为了确认 token 转账，`IERC721Receiver.onERC721Received` 规定，必须返回 `onERC721Received` 这个函数的 selector, 返回其他值或者接口未实现都会导致转账被回滚.
+
+但是课程完全没有提及这个关键信息, 遇事不决看源码好了.
+
+另外, ERC721 的示例代码是有问题的:
+
+> ERC721主合约实现了IERC721，IERC165和IERC721Metadata定义的所有功能，包含4个状态变量和17个函数。
+
+但是实际的示例代码并没有实现 `IERC165` 接口:
+
+```
+contract ERC721 is IERC721, IERC721Metadata{ 
+    // 实现IERC165接口supportsInterface
+    function supportsInterface(bytes4 interfaceId)
+        external
+        pure
+        override
+        returns (bool)
+    {
+        return
+            interfaceId == type(IERC721).interfaceId ||
+            interfaceId == type(IERC165).interfaceId ||
+            interfaceId == type(IERC721Metadata).interfaceId;
+    }
+}
+```
+
+我创建了一个 [PR](https://github.com/WTFAcademy/frontend/pull/244) 来修复我所遇到的问题.
+
+### 2024.10.13
+
+#### 荷兰拍卖
+
+荷兰拍卖是指，拍卖人先将价格设定在足以阻止所有竞拍者的水平，然后由高价往低价喊，第一个应价的竞拍者获胜，并支付当时所喊到的价格。
+
+拍卖合约继承了 `Owner` 合约，我看了 `Owner` 合约的[文档](https://docs.openzeppelin.com/contracts/2.x/access-control), 权限控制在智能合约非常关键，最常见和最基本的权限抽近就是只有合约的所有者才有权限做管理操作，而每个合约只拥有一个所有者就是件理所当然的事了。
+
+默认的情况，继承`Owner`合约的所有者就是部署合约的地址，只有它才有权限进行操作, 比如课程中的设置拍卖开始时间和提款操作.
+
+虽然荷兰拍卖的原理是每过 `AUCTION_DROP_INTERVAL` 价格就衰减一次，但是并没有一个定时器或者 `crontab` 不停的更新时间并且广播，而是当有竞拍者调用 `getAuctionPrice` 时函数，根据已经过去的时间，再根据时间动态算出价格.
+```solidity
+    function getAuctionPrice()
+        public
+        view
+        returns (uint256)
+    {
+        if (block.timestamp < auctionStartTime) {
+        return AUCTION_START_PRICE;
+        }else if (block.timestamp - auctionStartTime >= AUCTION_TIME) {
+        return AUCTION_END_PRICE;
+        } else {
+        uint256 steps = (block.timestamp - auctionStartTime) /
+            AUCTION_DROP_INTERVAL;
+        return AUCTION_START_PRICE - (steps * AUCTION_DROP_PER_STEP);
+        }
+    }
+```
+
+```solidity
+    // 拍卖mint函数
+    function auctionMint(uint256 quantity) external payable{
+        uint256 _saleStartTime = uint256(auctionStartTime); // 建立local变量，减少gas花费
+        require(
+        _saleStartTime != 0 && block.timestamp >= _saleStartTime,
+        "sale has not started yet"
+        ); // 检查是否设置起拍时间，拍卖是否开始
+        require(
+        totalSupply() + quantity <= COLLECTOIN_SIZE,
+        "not enough remaining reserved for auction to support desired mint amount"
+        ); // 检查是否超过NFT上限
+
+        uint256 totalCost = getAuctionPrice() * quantity; // 计算mint成本
+        require(msg.value >= totalCost, "Need to send more ETH."); // 检查用户是否支付足够ETH
+        
+        // Mint NFT
+        for(uint256 i = 0; i < quantity; i++) {
+            uint256 mintIndex = totalSupply();
+            _mint(msg.sender, mintIndex);
+            _addTokenToAllTokensEnumeration(mintIndex);
+        }
+        // 多余ETH退款
+        if (msg.value > totalCost) {
+            payable(msg.sender).transfer(msg.value - totalCost); //注意一下这里是否有重入的风险
+        }
+    }
+```
+
+现实中的拍卖可能是把藏品给到竞拍者，而上面的拍卖函数是通过合约收你钱，然后「现场」铸造出来，即产即销了.
+
+这里"建立local变量，减少gas花费", 类似于 caching 的技巧，相当于把多次访问并且只读的状态变量缓存起来，以减少 gas fee, 减少一次 `SLOAD` 指令，大概能节省 2100 gas fee. 
+
+荷兰拍卖中，直接和价格关联的就是 `block.timestamp`, 我在想，是否有可能控制 `block.timestamp`，比如直接把区块链时间戳直接改到起始时间+拍卖时长之后，那么不就可以直接以最低价/地板价拍到手了嘛?
+
+不过看起来，validator 只有几秒的空间来调整，时间戳应该不存在被利用的漏洞.
+
+### 2024.10.14
+
+#### Merkle Tree
+
+我写了一篇博客来梳理这一课的内容，深入浅出地分析了Merkle Tree：[区块链的完整性校验方案: Merkle Tree](https://ramsayleung.github.io/zh/post/2024/%E5%8C%BA%E5%9D%97%E9%93%BE%E7%9A%84%E5%AE%8C%E6%95%B4%E6%80%A7%E6%A0%A1%E9%AA%8C%E6%96%B9%E6%A1%88_merkle_tree/)
+
+<details>
+  <summary>文章内容</summary>
+  
+## <span class="section-num">1</span> 前言 
+
+最近通过 [Solidity-103](https://www.wtf.academy/docs/solidity-103) 课程在学习 Solidity, 看到[第36课](https://www.wtf.academy/docs/solidity-103/MerkleTree/) Merkle Tree 的时候着实头疼, 即使我已经了解 Merkle Tree 这数据结构，但是课程还是看得不明所以。 <br/>
+
+所以写下这篇文章，梳理我所理解的 Merkle Tree 及其用途，既加深自己的理解，又践行了[费曼学习法](https://ramsayleung.github.io/zh/post/2022/feynman_technique/) <br/>
+
+
+## <span class="section-num">2</span> 区块链与交易 
+
+关于区块链的资料有非常多，我也不赘述了. <br/>
+
+简单理解，区块链是由一个一个区块构成的有序链表，每一个区块都记录了一系列交易，并且，每个区块都指向前一个区块，从而形成一个链条。区块链听起来很高级，其实就是个单链表。 <br/>
+
+![](https://gitea.com/enriquejose/store/raw/branch/master/static/ox-hugo/blockchain.jpg) <br/>
+
+每个区块都会保存对应的交易信息，也会包含元数据信息在头部，包括前一个区块的 hash, 包含的交易数，merkle tree 的根节点 hash,时间戳等信息. <br/>
+![](https://gitea.com/enriquejose/store/raw/branch/master/static/ox-hugo/block_detail.jpg) <br/>
+
+我们总说区块链是不可窜改，那么它究竟是怎么不可窜改的? <br/>
+
+如果用户想要验证某个区块的某笔交易是否被窜改，他要怎么做？ <br/>
+最简单的方式自然是把整个区块的交易都下载下来，平均每个区块有1M的数据，验证起来肯定很费时间. <br/>
+
+是否有一个验证方案，可以使用很小的数据集就完成验证? <br/>
+
+有的，那就是 Merkle Tree. <br/>
+
+
+## <span class="section-num">3</span> Merkle Tree 
+
+那什么是 Merkle Tree? <br/>
+
+假如我们有8笔交易被包含在区块中, 每笔交易都可以通过 hash 函数计算出一个 hash 值: <br/>
+
+![](https://gitea.com/enriquejose/store/raw/branch/master/static/ox-hugo/8transactions.jpg) <br/>
+
+哈希值也可以看做数据，所以可以把 `h1` 和 `h2` 拼起来， `h3` 和 `h4` 拼起来, 依此类推，再计算出哈希值 `b1` 和 `b2` <br/>
+
+![](https://gitea.com/enriquejose/store/raw/branch/master/static/ox-hugo/merkle_tree_layer_two.jpg) <br/>
+
+递归计算下去，直到计算结果只有一个 hash 值，这个就是所谓的 merkle root, 而 h1-h8 就是所谓的 `leaf node`, 两者之间的就是 `non-leaf node`. <br/>
+
+交易数量恰好是偶数能这么算，如果是奇数，那要怎么算呢？这个时侯，只需要把最后一个 hash 值复制一份，也能算出最终的 merkle root： <br/>
+
+![](https://gitea.com/enriquejose/store/raw/branch/master/static/ox-hugo/odd_leaf_merkle_tree.jpg) <br/>
+
+
+## <span class="section-num">4</span> Merkle tree validation 
+
+现在有了 Merkle Tree, 如果我们要验证区块中的交易是否被修改，要怎么算呢？ <br/>
+
+最简单粗暴的方式肯定是把区块所有的交易下载下来，从头重组整棵 Merkle Tree, 8笔交易计算起来还可以，如果是几千笔呢？几百万笔呢？甚至几亿笔交易呢？ <br/>
+
+重组 Merkle Tree 的时间复杂度是 O(N), 如果是1亿笔交易，这意味着你要计算1亿次，太慢了。 <br/>
+
+但是，如果我们利用 Merkle Tree 的特性，从数学的角度，我们只需要少量的Merkle Proof(你可以理解成需要提供的验证数据集), 就可以完成验证. <br/>
+
+回到上文的 Merkle Tree, 假如我们要验证 `tx2` 是否被窜改，我们需要有 Merkle Tree Root 和 Merkle Proof: <br/>
+
+![](https://gitea.com/enriquejose/store/raw/branch/master/static/ox-hugo/merkle_proof.jpg) <br/>
+
+假设现在我们有 `tx2` 的交易数据，我们只需要 Merkle Proof 提供3个hash 值(图中的绿色部分)，然后我们只计算4次（橙色部分），就会算出 Merkle Root Tree 的值，用来和区块头部的 Merkle root 值进行比对。 <br/>
+
+通过 Merkle Proof 提供的数据集，我们就可以把下载8笔交易，计算15次hash，优化成只需3个 hash 值，以及计算4次hash，时间复杂度从O(N)降低成O(logN). <br/>
+
+这个比对似乎不明显，但是以1亿交易为例的话，log(1_000_000_000) ~= 27, 也就是只需要 Merkle Proof 提供27个 hash 值即可, 巨大的性能提升. <br/>
+
+
+## <span class="section-num">5</span> 区块链的不可窜改性 
+
+通过Merkle tree root可以保证交易的不可窜改性，而区块 hash 又能保证区块头部的元数据不被窜改. <br/>
+
+因为每个区块都有区块 hash, 区块hash是通过计算头部元数据信息计算出来的: <br/>
+
+![](https://gitea.com/enriquejose/store/raw/branch/master/static/ox-hugo/block_hash.jpg) <br/>
+
+只要修改了其中一个元数据值，那么 block hash 就会发生变化，而区块链就是一个单链表，通过后一个区块通过 `prev_hash` 指向前一个区块，如果 block hash 发生变化，那么后一个区块就无法正确指向前一个区块了，这个链就断了. <br/>
+
+如果一个恶意的攻击者修改了一个区块中的某个交易，那么Merkle Hash验证就不会通过。 <br/>
+
+所以，他只能重新计算Merkle Hash，然后把区块头的Merkle Hash也修改了。 <br/>
+
+这时，我们就会发现，这个区块本身的Block Hash就变了，所以，下一个区块指向它的链接就断掉了, 他就要把后续所有区块全部重新计算并且伪造出来，才能够修改整个区块链； <br/>
+
+而要修改后续所有区块，这个攻击者必须掌握全网51%以上的算力才行。 <br/>
+
+理论上可行，但是实操难度非常非常非常大. <br/>
+
+
+## <span class="section-num">6</span> Merkle Tree 版本管理中的应用 
+
+除去区块链，Merkle Tree还被应用于类似 Git 和 Mercurial 这样的版本管理系统中，以Git为例, 假如我们Git项目内有4个文件: <br/>
+
+![](https://gitea.com/enriquejose/store/raw/branch/master/static/ox-hugo/git_merkle_tree.jpg) <br/>
+
+当你push 代码到远程分支或者从远程分支 pull 代码的时候，Git就计算你的Merkle Tree Root 的值, 比较远程分支的Merkle Tree Root和本地分支的Merkle Tree Root 是否相同: <br/>
+
+如果相同，那就不用更新了；如果不同的话它就会检查左节点或者右节点，并且递归下去， <br/>
+直到找到是哪些文件发生了修改，只通过网络传输修改部分的内容, 以提高传输效率. <br/>
+
+不过Git实际用的是Merkle Tree的变体，并不是直接使用Merkle Tree. <br/>
+
+除些之外, Merkle Tree 还在 Cassandra, DynamoDB 这样的NoSQL数据库中被用于检查不同节点数据的一致性, 细节可以看下这个 [Stackoverflow 问题](https://stackoverflow.com/questions/5486304/explain-merkle-trees-for-use-in-eventual-consistency)。 <br/>
+
+## <span class="section-num">7</span> 参考 
+
+-   [Blockchain for Test Engineers: Merkle Trees](https://alexromanov.github.io/2022/06/19/bchain-test-7-merkle-tree/) <br/>
+-   [Understanding Merkle Trees](https://medium.com/geekculture/understanding-merkle-trees-f48732772199) <br/>
+-   [Explain Merkle Trees for use in Eventual Consistency](https://stackoverflow.com/questions/5486304/explain-merkle-trees-for-use-in-eventual-consistency) <br/>
+</details>
+
+再回头来看第36课，我也终于明白Merkle Tree是用来干什么的？把整个白名单存储在智能合约上非常费 gas fee, 所以通过Merkle Tree通过验证某个地址是否在白名单上，而不需要把整个白名单列举存储在链上，只存储 Merkle Tree Root. 
+
+但是让我现在还没有理清楚的是某个地址的 proof 是怎么得出来的:
+
+> 通过网站，我们可以得到地址0的proof如下，即图2中蓝色结点的哈希值：
+```
+[
+  "0x999bf57501565dbd2fdcea36efa2b9aef8340a8901e3459f4a4c926275d36cdb",
+  "0x4726e4102af77216b09ccd94f40daa10531c87c4d60bba7f3b3faf5ff9f19b3c"
+]
+```
+
+地址0本身就是Merkle Tree的叶子节点，所以它自然会给出Merkle Proof，但是当你要计算某个地址是否在白名单内，说明这个地址是未知的，它可能在白名单内也可能不在，那么怎么知道它的Merkle Proof是什么？
+
+假如我想计算我ETH地址 `0x5B38Da6a701c568545dCfcB03FcB875f56beddC4` 是否在白名单内，这个地址的Proof要怎么生成？
+
 <!-- Content_END -->

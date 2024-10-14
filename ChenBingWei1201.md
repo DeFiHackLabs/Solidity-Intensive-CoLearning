@@ -1204,5 +1204,360 @@ B. No
 
 </details>
 
+### 2024.10.08
+<details>
+<summary>15. Errors</summary>
+
+#### Errors
+Solidity has many functions for error handling. Errors can occur at compile time or runtime.
+
+##### Error
+`error` statement is a new feature in solidity `0.8`. It saves gas and informs users why the operation failed. It is the recommended way to throw error in solidity. Custom errors are defined using the error statement, which can be used inside and outside of contracts. Below, we created a `TransferNotOwner` error, which will throw an error when the caller is not the token `owner` during transfer:
+```solidity
+error TransferNotOwner(); // custom error
+```
+In functions, `error` must be used together with `revert` statement.
+```solidity
+function transferOwner1(uint256 tokenId, address newOwner) public {
+    if(_owners[tokenId] != msg.sender){
+        revert TransferNotOwner();
+    }
+    _owners[tokenId] = newOwner;
+}
+```
+The `transferOwner1()` function will check if the caller is the owner of the token; if not, it will throw a `TransferNotOwner` error and revert the transaction.
+
+##### Require
+`require` statement was the most commonly used method for error handling prior to solidity `0.8`. It is still popular among developers. 
+
+Syntax of require:
+```solidity
+require(condition, "error message");
+```
+An exception will be thrown when the condition is not met.
+
+Despite its simplicity, the gas consumption is higher than `error` statement: the gas consumption grows linearly as the length of the error message increases. 
+
+Now, let's rewrite the above `transferOwner` function with the require statement:
+```solidity
+function transferOwner2(uint256 tokenId, address newOwner) public {
+    require(_owners[tokenId] == msg.sender, "Transfer Not Owner");
+    _owners[tokenId] = newOwner;
+}
+```
+
+##### Assert
+The `assert` statement is generally used for debugging purposes, because it does not include error message to inform the user. Syntax of `assert`: 
+```solidity
+assert(condition);
+```
+If the condition is not met, an error will be thrown.
+
+Let's rewrite the `transferOwner` function with the `assert` statement:
+```solidity
+    function transferOwner3(uint256 tokenId, address newOwner) public {
+        assert(_owners[tokenId] == msg.sender);
+        _owners[tokenId] = newOwner;
+    }
+```
+
+#### Gas comparison
+Let's compare the gas consumption of `error`, `require`, and `assert`. You can find the gas consumption for each function call with the Debug button of the remix console:
+1. gas for `error`: 24457 `wei`
+2. gas for `require`: 24755 `wei`
+3. gas for `assert`: 24473 `wei`
+
+We can see that the `error` consumes the least gas, followed by the `assert`, while the `require` consumes the most gas! Therefore, `error` not only informs the user on the error message, but also saves gas.
+
+#### Summary
+In this chapter, I learned 3 statements to handle errors in Solidity: `error`, `require`, and `assert`. After comparing their gas consumption, `error` statement is the cheapest, while `require` has the highest gas consumption.
+
+</details>
+
+### 2024.10.09
+<details>
+<summary>16. Overloading</summary>
+
+#### Overloading
+Solidity allows function overloading, that is, functions with the same name but different input parameter types can exist at the same time, and they are considered different functions. Note that Solidity does not allow `modifier` overloading.
+
+##### function overloading
+
+For example, we can define two functions, both called `saySomething()`, one that takes no parameters and outputs `"Nothing"`, and the other that takes a `string` parameter and outputs the `string`.
+```solidity
+function saySomething() public pure returns(string memory){
+    return("Nothing");
+}
+
+function saySomething(string memory something) public pure returns(string memory){
+    return(something);
+}
+```
+
+After compiling, all overloading functions become different function selectors due to different parameter types. For specific information on function selectors, please refer to [ WTF Solidity Tutorial: 29. Function Selector](https://github.com/AmazingAng/WTF-Solidity/tree/main/29_Selector).
+
+Take the `Overloading.sol` contract as an example. After compiling and deploying on Remix, the overloaded functions `saySomething()` and `saySomething(string memory something)` are called respectively. You can see that they return different results and are divided into different functions.
+
+##### Argument Matching
+When calling an overloaded function, the input parameters will be matched with the variable types of the function parameters. If there are multiple matching overloaded functions, an error will be reported. The following example has two functions called `f()`, the type of one parameter is `uint8` and that of the other is `uint256`:
+```solidity
+function f(uint8 _in) public pure returns (uint8 out) {
+    out = _in;
+}
+
+function f(uint256 _in) public pure returns (uint256 out) {
+    out = _in;
+}
+```
+
+We call `f(50)`. Because `50` can be converted to either `uint8` or `uint256`, so an error will be reported.
+
+#### Summary
+In this chapter, I learned the basic usage of function overloading in Solidity: functions with the same name but **different input parameter types** can exist at the same time, and they are regarded as **different functions**.
+
+</details>
+
+### 2024.10.10
+<details>
+<summary>17. Library: Standing on the shoulders of giants</summary>
+
+#### Library Functions
+A library function is a special contract that exists to improve the reusability of solidity and reduce gas consumption. Library contracts are generally a collection of useful functions (library functions), which are created by the masters or the project party. We only need to stand on the shoulders of giants and use those functions.
+
+It differs from ordinary contracts in the following points:
+1. State variables are not allowed
+2. Cannot inherit or be inherited
+3. Cannot receive ether
+4. Cannot be destroyed
+
+It should be noted that if the visibility of the function in the library contract is set to `public` or `external`, a `delegatecall` will be triggered when the function is called. If it is set to `internal`, it will not be triggered. For functions set to `private` visibility, they are only visible in the library contract and are not available in other contracts.
+
+#### Strings Library Contract
+`Strings Library Contract` is a code library that converts a `uint256` to the corresponding `string` type. The sample code is as follows:
+```solidity
+library Strings {
+    bytes16 private constant _HEX_SYMBOLS = "0123456789abcdef";
+
+    /**
+     * @dev Converts a `uint256` to its ASCII `string` decimal representation.
+     */
+    function toString(uint256 value) public pure returns (string memory) {
+        // Inspired by OraclizeAPI's implementation - MIT licence
+        // https://github.com/oraclize/ethereum-api/blob/b42146b063c7d6ee1358846c198246239e9360e8/oraclizeAPI_0.4.25.sol
+
+        if (value == 0) {
+            return "0";
+        }
+        uint256 temp = value;
+        uint256 digits;
+        while (temp != 0) {
+            digits++;
+            temp /= 10;
+        }
+        bytes memory buffer = new bytes(digits);
+        while (value != 0) {
+            digits -= 1;
+            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
+            value /= 10;
+        }
+        return string(buffer);
+    }
+
+    /**
+     * @dev Converts a `uint256` to its ASCII `string` hexadecimal representation.
+     */
+    function toHexString(uint256 value) public pure returns (string memory) {
+        if (value == 0) {
+            return "0x00";
+        }
+        uint256 temp = value;
+        uint256 length = 0;
+        while (temp != 0) {
+            length++;
+            temp >>= 8;
+        }
+        return toHexString(value, length);
+    }
+
+    /**
+     * @dev Converts a `uint256` to its ASCII `string` hexadecimal representation with fixed length.
+     */
+    function toHexString(uint256 value, uint256 length) public pure returns (string memory) {
+        bytes memory buffer = new bytes(2 * length + 2);
+        buffer[0] = "0";
+        buffer[1] = "x";
+        for (uint256 i = 2 * length + 1; i > 1; --i) {
+            buffer[i] = _HEX_SYMBOLS[value & 0xf];
+            value >>= 4;
+        }
+        require(value == 0, "Strings: hex length insufficient");
+        return string(buffer);
+    }
+}
+```
+It mainly contains two functions, `toString()` converts `uint256` to `string`, `toHexString()` converts `uint256` to hexadecimal, and then converts it to `string`.
+
+##### How to use library contracts
+We use the `toHexString()` function in the String library function to demonstrate two ways of using the functions in the library contract.
+
+1. `using for` command
+Command `using A for B` can be used to attach library functions (from library `A`) to any type (`B`). After the instruction, **the function in the library `A` will be automatically added as a member of the `B` type variable**, which can be called directly. Note: When calling, this variable will be passed to the function as the first parameter:
+```solidity
+    // Using the library with the "using for" 
+    using Strings for uint256;
+    function getString1(uint256 _number) public pure returns(string memory){
+        // Library functions are automatically added as members of uint256 variables
+        return _number.toHexString();
+    }
+```
+2. Called directly by the library contract name
+```solidity
+    // Called directly by the library contract name
+    function getString2(uint256 _number) public pure returns(string memory){
+        return Strings.toHexString(_number);
+    }
+```
+
+#### Summary
+
+In this lecture, we use the referenced library function `Strings` of `ERC721` as an example to learn the library function (`Library`) in solidity. 99% of developers do not need to write library contracts themselves, they can use the ones written by masters. The only thing we need to know is which library contract to use and where the library is most suitable.
+
+Some commonly used libraries are:
+1. [Strings](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Strings.sol): Convert `uint256` to `string`
+2. [Address](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Address.sol): Determine whether an address is a contract address
+3. [Create2](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Create2.sol): Safer use of Create2 EVM opcode
+4. [Arrays](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/4a9cc8b4918ef3736229a5cc5a310bdc17bf759f/contracts/utils/Arrays.sol): Library functions related to arrays
+
+
+</details>
+
+### 2024.10.11
+<details>
+<summary>18. Import</summary>
+
+#### Usage of `import`
+- Import by relative location of source file. For example：
+```
+Hierarchy
+├── Import.sol
+└── Yeye.sol
+```
+```solidity
+// Import by relative location of source file
+import './Yeye.sol';
+```
+- Import the global symbols of contracts on the Internet through the source file URL. For example：
+```solidity
+// Import by URL
+import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+```
+- Import via the npm directory. For example:
+```solidity
+import '@openzeppelin/contracts/access/Ownable.sol';
+```
+- Import contract-specific global symbols by specifying `global symbols`. For example:：
+```solidity
+import {Yeye} from './Yeye.sol';
+```
+- The location of the reference (`import`) in the code: after declaring the version, and before the rest of the code.
+
+#### Test import
+We can use the following code to test whether the external source code was successfully imported:
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+// Import by relative location of source file
+import './Yeye.sol';
+// Import contract-specific global symbols by specifying `global symbols`
+import {Yeye} from './Yeye.sol';
+// Import by URL
+import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+// Import via the npm directory
+import '@openzeppelin/contracts/access/Ownable.sol';
+
+contract Import {
+    // Successfully import the Address library
+    using Address for address;
+    // declare variable "yeye"
+    Yeye yeye = new Yeye();
+
+    // Test whether the function of "yeye" can be called
+    function test() external{
+        yeye.hip();
+    }
+}
+```
+
+#### Summary
+In this lecture, I learned the method of importing external source code using the `import` keyword. Through the import, you can refer to contracts or functions in other files written by us, or directly import code written by others, which is very convenient.
+
+</details>
+
+### 2024.10.12
+<details>
+<summary>19. Receive ETH, receive and fallback</summary>
+
+Solidity has two special functions, `receive()` and `fallback()`, they are primarily used in two circumstances.
+1. Receive Ether
+2. Handle calls to contract if none of the other functions match the given function signature (e.g. proxy contract)
+
+Note⚠️: Prior to solidity `0.6.x`, only `fallback()` was available, for receiving Ether and as a fallback function.
+After version `0.6`, `fallback()` was separated to `receive()` and `fallback()`.
+
+In this tutorial, we focus on receiving Ether.
+
+#### Receiving ETH Function: `receive()`
+The `receive()` function is solely used for receiving ETH. A contract can have at most one `receive()` function, declared not like others, no function keyword is needed: `receive() external payable { ... }`. This function cannot have arguments, cannot return anything and must have `external` visibility and `payable` state mutability.
+
+`receive()` is executed on plain Ether transfers to a contract. You should not perform too many operations in `receive()` when sending Ether with `send` or `transfer`, only 2300 gas is available, and complicated operations will trigger an `Out of Gas` error; instead, you should use `call` function which can specify gas limit. (We will cover all three ways of sending Ether later).
+
+We can send an `event` in the `receive()` function, for example:
+```solidity
+    // Declare event
+    event Received(address Sender, uint Value); 
+    // Emit Received event
+    receive() external payable {
+        emit Received(msg.sender, msg.value); 
+    }
+```
+Some malicious contracts intentionally add codes in `receive()` (`fallback()` prior to Solidity `0.6.x`), which consume massive gas or cause the transaction to get reverted. So that will make some refund or transfer functions fail, pay attention to such risks when writing such operations.
+
+#### Fallback Function: fallback()
+The `fallback()` function is executed on a call to the contract if none of the other functions match the given function signature, or if no data was supplied at all and there is no receive Ether function. It can be used to receive Ether or in proxy contract. `fallback()` is declared without the function keyword, and must have `external` visibility, it **often** has `payable` state mutability, which is used to receive Ether: `fallback() external payable { ... }`.
+
+Let's declare a `fallback()` function, which will send a `fallbackCalled` event, with `msg.sender`, `msg.value` and `msg.data` as parameters:
+```solidity
+    event fallbackCalled(address Sender, uint Value, bytes Data); 
+
+    // fallback
+    fallback() external payable{
+        emit fallbackCalled(msg.sender, msg.value, msg.data); 
+    }
+```
+#### Difference between receive and fallback
+```
+Execute fallback() or receive()?
+         Receive ETH
+              |
+      msg.data is empty?
+            /  \
+          Yes   No
+          /      \
+Has receive()?   fallback()
+        / \
+      Yes  No
+      /     \
+receive()   fallback()
+```
+To put it simply, when a contract receives ETH, `receive()` will be executed if `msg.data` is empty and the `receive()` function is present; on the other hand, `fallback()` will be executed if `msg.data` is not empty or there is no `receive()` declared, in such case `fallback()` must be payable.
+
+If neither `receive()` or `payable` `fallback()` is declared in the contract, receiving ETH will fail.
+
+#### Summary
+In this tutorial, I learned two special functions in Solidity, `receive()` and `fallback()`, they are mostly used in receiving ETH, and `proxy contract`.
+
+</details>
+
 ### 
 <!-- Content_END -->
