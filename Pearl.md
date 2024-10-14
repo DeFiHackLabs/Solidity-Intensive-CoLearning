@@ -1591,4 +1591,69 @@ contract structType{
                    keccak256(abi.encodePacked(type(Pair).creationCode, abi.encode(address(this))))
                )))));
    ```
+
+###  2024.10.13
+**selfdestruct**
+   * 用来删除智能合约，并将该合约剩余`ETH`转到指定地址。
+   * 当前`SELFDESTRUCT`仅会被用来将合约中的`ETH`转移到指定地址，而原先的删除功能只有在合约创建-自毁这两个操作处在同一笔交易时才能生效。
+   * 所以:
+      1. 已经部署的合约无法被`SELFDESTRUCT`了。
+      2. 如果要使用原先的`SELFDESTRUCT`功能，必须在同一笔交易中创建并`SELFDESTRUCT`。
+         
+**如何使用selfdestruct**
+   * `selfdestruct(_addr)；`
+   * `_addr`是接收合约中剩余`ETH`的地址。`_addr`地址不需要有`receive()`或`fallback()`也能接收`ETH`。
+     
+**转移ETH功能**
+   * 在坎昆升级前可以完成合约的自毁，在坎昆升级后仅能实现内部ETH余额的转移。
+   ```Solidity
+   contract DeleteContract {
+       uint public value = 10;   
+       constructor() payable {}  
+       receive() external payable {}
+   
+       function deleteContract() external {
+           // 调用selfdestruct销毁合约，并把剩余的ETH转给msg.sender
+           selfdestruct(payable(msg.sender));
+       }
+   
+       function getBalance() external view returns(uint balance){
+           balance = address(this).balance;
+       }
+   }
+   ```
+   * 部署好合约后，我们向`DeleteContract`合约转入1`ETH`。这时，`getBalance()`会返回1`ETH`，`value`变量是10。
+   * 调用`deleteContract()`函数，合约将触发`selfdestruct`操作。在坎昆升级前，合约会被自毁。但是在升级后，合约依然存在，只是将合约包含的`ETH`转移到指定地址，而合约依然能够调用。
+
+**同笔交易内实现合约创建-自毁**
+   * 原先的删除功能只有在合约创建-自毁这两个操作处在同一笔交易时才能生效。所以我们需要通过另一个合约进行控制。
+   ```Solidity
+   contract DeployContract {
+       struct DemoResult {
+           address addr;
+           uint balance;
+           uint value;
+       }
+       constructor() payable {}
+   
+       function getBalance() external view returns(uint balance){
+           balance = address(this).balance;
+       }
+   
+       function demo() public payable returns (DemoResult memory){
+           DeleteContract del = new DeleteContract{value:msg.value}();
+           DemoResult memory res = DemoResult({
+               addr: address(del),
+               balance: del.getBalance(),
+               value: del.value()
+           });
+           del.deleteContract();
+           return res;
+       }
+   }
+   ```
+
+**注意事项**
+   1. 对外提供合约销毁接口时，最好设置为只有合约所有者可以调用，可以使用函数修饰符onlyOwner进行函数声明。
+   2. 当合约中有selfdestruct功能时常常会带来安全问题和信任问题，合约中的`selfdestruct`功能会为攻击者打开攻击向量(例如使用`selfdestruct`向一个合约频繁转入token进行攻击，这将大大节省了GAS的费用，虽然很少人这么做)，此外，此功能还会降低用户对合约的信心。
 <!-- Content_END -->

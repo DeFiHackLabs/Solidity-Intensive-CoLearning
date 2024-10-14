@@ -190,4 +190,8 @@ Add source codes for 27.ABIEncode and its tests
 
 Add source codes for 30.TryCatch and its tests
 
+### 2024.10.14
+
+Add source codes for 22.Call and its tests
+
 <!-- Content_END -->

@@ -827,7 +827,58 @@ contract TokenLocker {
 
 ### 2024.10.14
 
-笔记内容
+合约也可以作为一种数据类型
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import { HelloWorld } from "./HelloWorld.sol";
+
+contract Contract {
+    HelloWorld public helloWorld;
+
+    constructor(address _helloWorld) {
+        helloWorld = HelloWorld(_helloWorld);
+    }
+
+    function setGreeting(string memory _greeting) external {
+        helloWorld.setGreeting(_greeting);
+    }
+
+    function getGreeting() external view returns (string memory) {
+        return helloWorld.getGreeting();
+    }
+}
+
+contract HelloWorldFactory {
+    HelloWorld hw;
+
+    HelloWorld[] hws;
+
+    function createHelloWorld() external {
+        hw = new HelloWorld();
+        hws.push(hw);
+    }
+
+    function getHelloWorlds() external view returns (HelloWorld[] memory) {
+        return hws;
+    }
+
+    function getHelloWorldByIndex(uint256 index) external view returns (HelloWorld storage) {
+        return hws[index];
+    }
+
+    function callSayHelloFromFactory(uint256 _index, uint256 _id) public view returns (string memory) {
+        return hws[_index].sayHello(_id);
+    }
+
+}
+```
+
+// 1. 直接引入同一个文件系统下的合约
+// 2. 引入 GitHub上的合约
+// 3. 通过包引入合约
 
 ### 2024.10.15
 
