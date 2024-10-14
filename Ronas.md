@@ -854,32 +854,7 @@ timezone: Asia/Shanghai
         - 撤單 (revoke)
         - 購買 (purchase)
         - 修改價格 (update)
-    - 實作
-        - 訂單
-            ```
-            struct Order {
-                address owner;
-                uint256 price;
-            }
-
-            // tokenId => Order
-            mapping(address => mapping(uint256 => Order)) public nftList;
-            ```
-        - 事件
-            - List
-            - Purchase
-            - Revoke
-            - Update
-        - 函數
-            - `fallback` function
-                ```
-                fallback() external payable{}
-                ```
-            - `onERC721Received`
-            - `list`
-            - `purchase`
-            - `revoke`
-            - `update`
+    - 實作 - [NFTSwap](./content/Ronas/NFTSwap.sol)
 - 鏈上隨機數
     - 鏈上直接使用 hash 函數生成 (不安全, 可預測)
         ```
@@ -893,50 +868,20 @@ timezone: Asia/Shanghai
 
 - WETH
     - 乙太坊原生代幣 ETH 不符合 ERC20 標準, 因此創造符合 ERC20 標準的 ETH - WETH, 以便與 DApp 互動
-    - 實作
-        ```
-        // SPDX-License-Identifier: MIT
-        pragma solidity ^0.8.0;
-
-        import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
-        contract WETH is ERC20{
-            // 事件：存款和取款
-            event  Deposit(address indexed dst, uint wad);
-            event  Withdrawal(address indexed src, uint wad);
-
-            // 构造函数，初始化ERC20的名字和代号
-            constructor() ERC20("WETH", "WETH"){
-            }
-
-            // 回调函数，当用户往WETH合约转ETH时，会触发deposit()函数
-            fallback() external payable {
-                deposit();
-            }
-            // 回调函数，当用户往WETH合约转ETH时，会触发deposit()函数
-            receive() external payable {
-                deposit();
-            }
-
-            // 存款函数，当用户存入ETH时，给他铸造等量的WETH
-            function deposit() public payable {
-                _mint(msg.sender, msg.value);
-                emit Deposit(msg.sender, msg.value);
-            }
-
-            // 提款函数，用户销毁WETH，取回等量的ETH
-            function withdraw(uint amount) public {
-                require(balanceOf(msg.sender) >= amount);
-                _burn(msg.sender, amount);
-                payable(msg.sender).transfer(amount);
-                emit Withdrawal(msg.sender, amount);
-            }
-        }
-        ```
-
-- 分帳合約 - [PaymentSplit.sol](./content/Ronas/PaymentSplit.sol)
+    - 實作 - [WETH](./content/Ronas/WETH.sol)
+- 分帳合約 - [PaymentSplit](./content/Ronas/PaymentSplit.sol)
 - 代幣線性解鎖 - [TokenVesting](./content/Ronas/TokenVesting.sol)
 - 代幣鎖倉 - [TokenLocker](./content/Ronas/TokenLocker.sol)
 
+### 2024.10.14
+
+> 進度: Solidity 103 45~46
+
+- 時間鎖 - [Timelock](./content/Ronas/Timelock.sol)
+- 代理合約 - [Proxy](./content/ROnas/Proxy.sol)
+    - 角色
+        - 代理合約  
+        - 邏輯合約
+        - 呼叫者
 
 <!-- Content_END -->
