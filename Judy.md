@@ -2607,4 +2607,84 @@ contract Example {
 
 - `using for` 語法
     - `using Math for uint256` 表示可以將 `Math` 中定義的函數應用於 `uint256` 類型的變量上。
+ 
+### 2024.10.14
+#### Import
+- Import：將內容(合約、庫、接口等)模塊化後，導入主合約
+    - 只需部署主合約
+- 語法
+    1. 導入整個文件
+        
+        ```solidity
+        import "./SomeContract.sol";
+        ```
+        
+    2. 導入具名的部分
+        
+        可以只導入文件中的特定合約、庫或接口：
+        
+        ```solidity
+        import {ContractA, ContractB} from "./SomeContract.sol";
+        ```
+        
+        ```solidity
+        contract Import {
+          A a = new A();
+          
+          // new 出 A 之後即可使用 A 合約中方法
+          function test() external{
+             a.call();
+          }
+        }
+        ```
+        
+    3. 透過網址引用
+        
+        ```solidity
+        import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol';
+        ```
+        
+    4. 從 `node_modules` (npm)中導入
+        
+        ```solidity
+        import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+        ```
+        
+    5. 重命名導入的項目
+        
+        ```solidity
+        import {ContractA as NewContractA} from "./SomeContract.sol";
+        ```
+        
+    6. 全局別名導入
+        
+        ```solidity
+        // MathLib.sol
+        // 一個簡單的數學庫
+        pragma solidity ^0.8.0;
+        
+        library MathLib {
+        	function add(uint a, uint b) external pure returns (uint) {
+        		return a + b;
+        	}
+        }
+        ```
+        
+        ```solidity
+        // MyContract.sol
+        // 主合約，使用全局別名導入 MathLib
+        pragma solidity ^0.8.0;
+        
+        // 全局別名導入 MathLib
+        import * as Math from "./MathLib.sol";
+        
+        contract MyContract {
+        	uint public result;
+        	
+        	// 使用 MathLib 庫的加法函數
+        	function calculate(uint a, uint b) public {
+        	    result = Math.MathLib.add(a, b);  // 使用全局別名 Math 訪問 add 函數
+        	}
+        }
+        ```
 <!-- Content_END -->
