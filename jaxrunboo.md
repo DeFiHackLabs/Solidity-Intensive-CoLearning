@@ -1214,6 +1214,7 @@ contract TokenLock {
 
 而bytes32是定长的变量，明确的知道是存储在哪个位置，所以无需额外指定。
 
+
 ```solidity
 // SPDX-License-Identifier: GPL-3.0
 
@@ -1306,6 +1307,9 @@ contract TimeLock {
 }
 
 ```
+
+> staticCall 和 call的区别：
+staticCall是调用合约中的只读方法，且不能发送eth，call可以调用合约的中的修改状态的方法，基本上是万能的。
 
 ###
 
