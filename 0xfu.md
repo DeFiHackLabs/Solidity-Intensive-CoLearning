@@ -855,4 +855,11 @@ contract Timelock{
 
 ### 
 
+
+### 2024.10.14
+
+#### [ERC20Permit](./content/0xfu/ERC20Permit.md)
+
+### 
+
 <!-- Content_END -->
