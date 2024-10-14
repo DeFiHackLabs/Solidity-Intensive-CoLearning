@@ -1160,9 +1160,10 @@ contract WETH is ERC20 {
 
 ### 10.13
 
-#### 时间锁
+#### 代币锁
 
 跟之前的线性释放区别不大，都是因为合约无法直接定时做动作，所以是在用户release的时候，计算现在合理的状况。
+
 
 ```solidity
 pragma solidity >=0.8.2 <0.9.0;
@@ -1198,5 +1199,118 @@ contract TokenLock {
         emit Release(beneficiary, token, block.timestamp, count1);
     }
 ```
+
+### 10.14 
+
+#### 时间锁
+
+是一种安全机制，即使用户有权限做操作，也需要经过一段时间的缓冲期。一旦出现问题，这个缓冲期可以做很多修正操作。
+
+代码相关：
+
+这其中有bytes和bytes32两种类型。但是bytes作为出入参、临时变量时需要使用memory来修饰，但是bytes32不需要。
+
+经查证，产生这个区别的原因是：bytes表示不定长的入参，evm无法确定他是存储在内存中还是链上，所以需要明确的指定。
+
+而bytes32是定长的变量，明确的知道是存储在哪个位置，所以无需额外指定。
+
+
+```solidity
+// SPDX-License-Identifier: GPL-3.0
+
+pragma solidity ^0.8.2;
+
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+contract TimeLock {
+    //TODD: 现在不知道txhash是什么内容 executeTime用uint就可以存储了
+    event QueueTransaction(bytes32 indexed txHash,address indexed target,uint256 value,string signature,bytes data,uint executeTime);
+    event ExecuteTransaction(bytes32 indexed txHash,address indexed target,uint256 value,string signature,bytes data,uint executeTime);
+    event CancelTransaction(bytes32 indexed txHash,address indexed target,uint256 value,string signature,bytes data,uint executeTime);
+    event NewAdmain(address indexed newAdmin);
+
+    //state
+    address public admin;
+    uint public delay;//锁定期 s 
+    uint public constant GRACE_PERIOD = 7 days;//交易有效期，过期作废
+    mapping (bytes32 => bool) public queuedTransactions;//记录所有在时间队列的交易
+    bytes public test;
+
+    //limit
+    modifier onlyeOwner() {
+        require(msg.sender == admin,"TimeLock: Caller not admin");
+        _;
+    }
+
+    modifier onlyTimeLock() {
+        require(msg.sender == address(this),"TimeLock: caller not timeLock");
+        _;
+    }
+
+    //fucntion
+    constructor(uint _delay,bytes memory _test){
+        delay = _delay;
+        admin = msg.sender;
+        test = _test;
+    }
+
+    //通过onlyTimelock，将修改admin的行为也写入时间锁
+    function changeAdmin(address newAdmin) public onlyTimeLock {
+        admin = newAdmin;
+        emit NewAdmain(newAdmin);
+    }
+
+    //将参数编码后写入任务队列
+    function queueTransaction(address target,uint256 value,string memory signature,bytes memory data,uint executeTime) public onlyeOwner returns (bytes32){
+        require(executeTime > block.timestamp + delay,"executeTime not statisfy");
+        bytes32 txHash = getTxHash(target,value,signature,data,executeTime);
+        queuedTransactions[txHash] = true;
+        emit QueueTransaction(txHash, target, value, signature, data, executeTime);
+        return txHash;
+    }
+
+    //从队列中取消，要求这个tx已经排入队列中
+    function cancelTransaction(address target,uint256 value,string memory signature,bytes memory data,uint executeTime) public onlyeOwner {
+        bytes32 txHash = getTxHash(target, value, signature, data, executeTime);
+        require(queuedTransactions[txHash],"not queued");
+        queuedTransactions[txHash] = false;
+        emit CancelTransaction(txHash, target, value, signature, data, executeTime);
+    }
+
+    //
+    function executeTransaction(address target,uint256 value,string memory signature,bytes memory data,uint executeTime) public payable  onlyeOwner  returns(bytes memory){
+        bytes32 txHash = getTxHash(target, value, signature, data, executeTime);
+        require(queuedTransactions[txHash],"");
+        require(block.timestamp >= executeTime,"can't execute");
+        require(block.timestamp <= executeTime + GRACE_PERIOD,"");
+        queuedTransactions[txHash] = false;
+
+        bytes memory callData;
+        //signature 函数签名
+        if(bytes(signature).length == 0){
+            callData = data;
+        }
+        else{
+            callData = abi.encodePacked(bytes4(keccak256(bytes(signature))),data);
+        }
+        (bool success ,bytes memory returnData) = target.call{value: value}(callData);
+        require(success,"error");
+
+        emit ExecuteTransaction(txHash, target, value, signature, data, executeTime);
+        return returnData;
+    }
+
+    //keccak256的结果是bytes32类型
+    function  getTxHash(address target,uint256 value,string memory signature,bytes memory data,uint executeTime) private pure returns(bytes32){
+        return keccak256(abi.encode(target,value,signature,data,executeTime));
+    }
+}
+
+```
+
+> staticCall 和 call的区别：
+staticCall是调用合约中的只读方法，且不能发送eth，call可以调用合约的中的修改状态的方法，基本上是万能的。
+
+###
 
 <!-- Content_END -->
