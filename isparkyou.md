@@ -6922,6 +6922,176 @@ async function CreateWallet(regexList) {
 }
 ```
 
+### 2024.10.14
+### 读取任意数据
+#### 智能合约存储布局
+以太坊智能合约的存储是一个 uint256 -> uint256 的映射。uint256 大小为 32 bytes，这个固定大小的存储空间被称为 slot （插槽）。智能合约的数据就被存在一个个的 slot 中，从 slot 0 开始依次存储。
+![image](https://github.com/user-attachments/assets/dc20d265-d5ad-4c91-aaed-97f3ee6bb785)
+即使是没有 getter 函数的 private 变量，你依然可以通过 slot 索引来读取它的值。
+```
+const value = await provider.getStorageAt(contractAddress, slot)
+```
+#### 读取任意数据脚本
+```
+import { ethers } from "ethers";
+
+//准备 alchemy API 可以参考https://github.com/AmazingAng/WTFSolidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md 
+const ALCHEMY_MAINNET_URL = 'https://eth-mainnet.g.alchemy.com/v2/oKmOQKbneVkxgHZfibs-iFhIlIAl6HDN';
+const provider = new ethers.JsonRpcProvider(ALCHEMY_MAINNET_URL);
+
+// 目标合约地址: Arbitrum ERC20 bridge（主网）
+const addressBridge = '0x8315177aB297bA92A06054cE80a67Ed4DBd7ed3a' // DAI Contract
+// 合约所有者 slot
+const slot = `0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103`
+
+const main = async () => {
+    console.log("开始读取特定slot的数据")
+    const privateData = await provider.getStorage(addressBridge, slot)
+    console.log("读出的数据（owner地址）: ", ethers.getAddress(ethers.dataSlice(privateData, 12)))    
+}
+
+main()
+```
+
+### 抢先交易脚本
+![image](https://github.com/user-attachments/assets/2573dc89-1a1e-4237-b7a1-f20a6dc4f394)
+#### Freemint NFT合约
+```
+// SPDX-License-Identifier: MIT
+// By 0xAA
+pragma solidity ^0.8.4;
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+
+// 我们尝试frontrun一笔Free mint交易
+contract FreeMint is ERC721 {
+    uint256 public totalSupply;
+
+    // 构造函数，初始化NFT合集的名称、代号
+    constructor() ERC721("Free Mint NFT", "FreeMint"){}
+
+    // 铸造函数
+    function mint() external {
+        totalSupply++;
+        _mint(msg.sender, totalSupply); // mint
+    }
+}
+```
+#### 抢跑脚本
+```
+//1.连接到foundry本地网络
+
+import { ethers } from "ethers";
+const provider = new ethers.providers.JsonRpcProvider('<http://127.0.0.1:8545>')
+let network = provider.getNetwork()
+network.then(res => console.log(`[${(new Date).toLocaleTimeString()}]链接到网络${res.chainId}`))
+//2.构建contract实例
+const contractABI = [
+    "function mint() public",
+    "function ownerOf(uint256) public view returns (address) ",
+    "function totalSupply() view returns (uint256)"
+]
+
+const contractAddress = '0xC76A71C4492c11bbaDC841342C4Cb470b5d12193'//合约地址
+const contractFM = new ethers.Contract(contractAddress, contractABI, provider)
+//3.创建Interface对象，用于检索mint函数。
+//V6版本 const iface = new ethers.Interface(contractABI)
+const iface = new ethers.utils.Interface(contractABI)
+function getSignature(fn) {
+// V6版本 return iface.getFunction("mint").selector
+    return iface.getSighash(fn)
+}
+//4. 创建测试钱包，用于发送抢跑交易，私钥是foundry测试网提供
+const privateKey = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
+const wallet = new ethers.Wallet(privateKey, provider)
+//5. 构建正常mint函数，检验mint结果，显示正常。
+const normaltx = async () => {
+provider.on('pending', async (txHash) => {
+    provider.getTransaction(txHash).then(
+        async (tx) => {
+            if (tx.data.indexOf(getSignature("mint")) !== -1) {
+                console.log(`[${(new Date).toLocaleTimeString()}]监听到交易:${txHash}`)
+                console.log(`铸造发起的地址是:${tx.from}`)//打印交易发起地址
+                await tx.wait()
+                const tokenId = await contractFM.totalSupply()
+                console.log(`mint的NFT编号:${tokenId}`)
+                console.log(`编号${tokenId}NFT的持有者是${await contractFM.ownerOf(tokenId)}`)//打印nft持有者地址
+                console.log(`铸造发起的地址是不是对应NFT的持有者:${tx.from === await contractFM.ownerOf(tokenId)}`)//比较二者是否一致
+            }
+        }
+    )
+})
+}
+const frontRun = async () => {
+provider.on('pending', async (txHash) => {
+    const tx = await provider.getTransaction(txHash)
+    if (tx.data.indexOf(getSignature("mint")) !== -1 && tx.from !== wallet.address) {
+        console.log(`[${(new Date).toLocaleTimeString()}]监听到交易:${txHash}\n准备抢先交易`)
+        const frontRunTx = {
+            to: tx.to,
+            value: tx.value,
+// V6版本 maxPriorityFeePerGas: tx.maxPriorityFeePerGas * 2n， 其他运算同理。参考https://docs.ethers.org/v6/migrating/#migrate-bigint
+            maxPriorityFeePerGas: tx.maxPriorityFeePerGas.mul(2),
+            maxFeePerGas: tx.maxFeePerGas.mul(2),
+            gasLimit: tx.gasLimit.mul(2),
+            data: tx.data
+        }
+        const aimTokenId = (await contractFM.totalSupply()).add(1)
+        console.log(`即将被mint的NFT编号是:${aimTokenId}`)//打印应该被mint的nft编号
+        const sentFR = await wallet.sendTransaction(frontRunTx)
+        console.log(`正在frontrun交易`)
+        const receipt = await sentFR.wait()
+        console.log(`frontrun 交易成功,交易hash是:${receipt.transactionHash}`)
+        console.log(`铸造发起的地址是:${tx.from}`)
+        console.log(`编号${aimTokenId}NFT的持有者是${await contractFM.ownerOf(aimTokenId)}`)//刚刚mint的nft持有者并不是tx.from
+        console.log(`编号${aimTokenId.add(1)}的NFT的持有者是:${await contractFM.ownerOf(aimTokenId.add(1))}`)//tx.from被wallet.address抢跑，mint了下一个nft
+        console.log(`铸造发起的地址是不是对应NFT的持有者:${tx.from === await contractFM.ownerOf(aimTokenId)}`)//比对地址，tx.from被抢跑
+        //检验区块内数据结果
+        const block = await provider.getBlock(tx.blockNumber)
+        console.log(`区块内交易数据明细:${block.transactions}`)//在区块内，后发交易排在先发交易前，抢跑成功。
+    }
+})
+}
+```
+
+### 识别ERC20合约
+我们了解基于 ERC165 识别 ERC721 合约。但是由于 ERC20 的发布早于 ERC165（20 < 165），因此我们没法用相同的办法识别 ERC20 合约，只能另找办法。
+区块链是公开的，我们能获取任意合约地址上的代码（bytecode）。因此，我们可以先获取合约代码，然后对比其是否包含 ERC20 标准中的函数就可以了。
+首先，我们用 provider 的 getCode() 函数来取得对应地址的 bytecode：
+```
+let code = await provider.getCode(contractAddress)
+```
+接下来我们要检查合约 bytecode 是否包含 ERC20 标准中的函数。合约 bytecode 中存储了相应的[函数选择器]：如果合约包含 transfer(address, uint256) 函数，那么 bytecode 就会包含 a9059cbb；如果合约包含 totalSupply()，那么 bytecode 就会包含 18160ddd。
+仅需检测 transfer(address, uint256) 和 totalSupply() 两个函数，而不用检查全部6个，这是因为：
+ERC20标准中只有 transfer(address, uint256) 不包含在 ERC721标准、ERC1155和ERC777标准中。因此如果一个合约包含 transfer(address, uint256) 的选择器，就能确定它是 ERC20 代币合约，而不是其他。
+额外检测 totalSupply() 是为了防止选择器碰撞：一串随机的字节码可能和 transfer(address, uint256) 的选择器（4字节）相同。
+```
+async function erc20Checker(addr){
+    // 获取合约bytecode
+    let code = await provider.getCode(addr)
+    // 非合约地址的bytecode是0x
+    if(code != "0x"){
+        // 检查bytecode中是否包含transfer函数和totalSupply函数的selector
+        if(code.includes("a9059cbb") && code.includes("18160ddd")){
+            // 如果有，则是ERC20
+            return true
+        }else{
+            // 如果没有，则不是ERC20
+            return false
+        }
+    }else{
+        return null;
+    }
+}
+```
+
+
+
+
+
+
+
+
+
 
 
 
