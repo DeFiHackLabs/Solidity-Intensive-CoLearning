@@ -2065,7 +2065,285 @@ function removeLiquidity(uint liquidity) external returns (uint amount0, uint am
 }
 ```
 
+### 2024.10.12
 
+(Day 17)
+
+学习笔记
+
+- 交易
+
+swap合约中，我们可以一种代币交易另一种代币。我们使用Δx单位的 token0，可以交换多少单位的 token1 ？
+
+根据恒定乘积公式：
+
+k = x * y
+
+交易后有：
+
+(x + Δx) * (y - Δy) = k
+
+交易的前后k的值都不变。联立方程后，得到：
+
+Δy = y - k / (x + Δx)
+带入k = x * y 得到：
+Δy = k/x - k/(x + Δx)
+
+
+因此可以交换到的代币的数量为Δy是是由Δx, x, y决定的。
+
+Δx和Δy的值符号是相反的，也就是说，Δx增加，Δy减少，反之亦然。
+
+```solidity
+// 给定一个资产的数量和代币对的储备，计算交换另一个代币的数量
+function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) public pure returns (uint amountOut) {
+    require(amountIn > 0, 'INSUFFICIENT_AMOUNT');
+    require(reserveIn > 0 && reserveOut > 0, 'INSUFFICIENT_LIQUIDITY');
+    amountOut = amountIn * reserveOut / (reserveIn + amountIn);
+}
+```
+
+有了这个核心的公式之后，我们就可以来使用swap函数来实现交易代币的功能了。
+
+主要步骤：
+
+1. 用户在调用函数时，制定用户交换的代币数量，交换的代币的地址，以及换出另一种代币的最低数量。
+2. 判断token0和token1的交换是用谁换谁。
+3. 利用公式计算交换出的代币的数量
+4. 判断交换出的代币是否达到了用户指定的最低数量，这里类似于交易的滑点
+5. 讲用户代币转入合约
+6. 将交换的代币从合约转给用户
+7. 更新合约的代币储备粮
+8. 释放swap
+
+```solidity
+// swap代币
+// @param amountIn 用于交换的代币数量
+// @param tokenIn 用于交换的代币合约地址
+// @param amountOutMin 交换出另一种代币的最低数量
+function swap(uint amountIn, IERC20 tokenIn, uint amountOutMin) external returns (uint amountOut, IERC20 tokenOut){
+    require(amountIn > 0, 'INSUFFICIENT_OUTPUT_AMOUNT');
+    require(tokenIn == token0 || tokenIn == token1, 'INVALID_TOKEN');
+    
+    uint balance0 = token0.balanceOf(address(this));
+    uint balance1 = token1.balanceOf(address(this));
+
+    if(tokenIn == token0){
+        // 如果是token0交换token1
+        tokenOut = token1;
+        // 计算能交换出的token1数量
+        amountOut = getAmountOut(amountIn, balance0, balance1);
+        require(amountOut > amountOutMin, 'INSUFFICIENT_OUTPUT_AMOUNT');
+        // 进行交换
+        tokenIn.transferFrom(msg.sender, address(this), amountIn);
+        tokenOut.transfer(msg.sender, amountOut);
+    }else{
+        // 如果是token1交换token0
+        tokenOut = token0;
+        // 计算能交换出的token1数量
+        amountOut = getAmountOut(amountIn, balance1, balance0);
+        require(amountOut > amountOutMin, 'INSUFFICIENT_OUTPUT_AMOUNT');
+        // 进行交换
+        tokenIn.transferFrom(msg.sender, address(this), amountIn);
+        tokenOut.transfer(msg.sender, amountOut);
+    }
+
+    // 更新储备量
+    reserve0 = token0.balanceOf(address(this));
+    reserve1 = token1.balanceOf(address(this));
+
+    emit Swap(msg.sender, amountIn, address(tokenIn), amountOut, address(tokenOut));
+}
+```
+
+
+#### Multicall
+
+Multicall可以让你在一个tx之中进行多次的函数调用。
+
+他的优点如下：
+1. 方便性
+2. 节省gas
+3. 原子性:multicall如果让用户在一个tx中执行所有的操作，保证了要么全部成功，要么全部失败。
+
+
+MultiCall的合约是这样的：
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+contract Multicall {
+    // Call结构体，包含目标合约target，是否允许调用失败allowFailure，和call data
+    struct Call {
+        address target;
+        bool allowFailure;
+        bytes callData;
+    }
+
+    // Result结构体，包含调用是否成功和return data
+    struct Result {
+        bool success;
+        bytes returnData;
+    }
+
+    /// @notice 将多个调用（支持不同合约/不同方法/不同参数）合并到一次调用
+    /// @param calls Call结构体组成的数组
+    /// @return returnData Result结构体组成的数组
+    function multicall(Call[] calldata calls) public returns (Result[] memory returnData) {
+        uint256 length = calls.length;
+        returnData = new Result[](length);
+        Call calldata calli;
+        
+        // 在循环中依次调用
+        for (uint256 i = 0; i < length; i++) {
+            Result memory result = returnData[i];
+            calli = calls[i];
+            (result.success, result.returnData) = calli.target.call(calli.callData);
+            // 如果 calli.allowFailure 和 result.success 均为 false，则 revert
+            if (!(calli.allowFailure || result.success)){
+                revert("Multicall: call failed");
+            }
+        }
+    }
+}
+```
+
+这里使用了一个struct的Call的结构体，这个结构体可以保证你的数据都有一个target和callData。
+
+还有一个allowFailure的参数，它是允许这个东西调用失败的，如果不允许的话，就会回滚了。
+
+
+#### 2024.10.13
+
+(Day 18)
+
+学习笔记
+
+- 跨链桥
+
+跨链桥是一个种区块链的协议，它允许两个或者多个区块链之间进行资产的转移和信息的转移。
+但是风险及其巨大，这几年，跨链桥的攻击事件层出不穷。已经造成了超过20亿美金的损失了。
+
+- 跨链桥的种类
+  - Burn/Mint 桥
+    - 这个方法好处是代币的总量保持不变。
+  - Stake/Mint 桥
+    - 这个是在源头链上锁定代币，然后再目标链上mint同等数量的代币。源头链上代币被锁定，当代币从目标链上回到源头链上的时候，在解锁源头链上的。
+  - Stake/Unstake 桥
+    - 在源头链上锁定代币，然后再目标链上释放代币。
+
+
+- 简单搭建一个跨链桥
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract CrossChainToken is ERC20, Ownable {
+    
+    // Bridge event
+    event Bridge(address indexed user, uint256 amount);
+    // Mint event
+    event Mint(address indexed to, uint256 amount);
+
+    /**
+     * @param name Token Name
+     * @param symbol Token Symbol
+     * @param totalSupply Token Supply
+     */
+    constructor(
+        string memory name,
+        string memory symbol,
+        uint256 totalSupply
+    ) payable ERC20(name, symbol) Ownable(msg.sender) {
+        _mint(msg.sender, totalSupply);
+    }
+
+    /**
+     * Bridge function
+     * @param amount: burn amount of token on the current chain and mint on the other chain
+     */
+    function bridge(uint256 amount) public {
+        _burn(msg.sender, amount);
+        emit Bridge(msg.sender, amount);
+    }
+
+    /**
+     * Mint function
+     */
+    function mint(address to, uint amount) external onlyOwner {
+        _mint(to, amount);
+        emit  Mint(to, amount);
+    }
+}
+```
+
+
+以下就是一个监听跨链桥的script版本。他能够监听两条链上的跨链事件，然后在另一条链上进行mint操作。
+
+```javascript
+import { ethers } from "ethers";
+
+// 初始化两条链的provider
+const providerGoerli = new ethers.JsonRpcProvider("Goerli_Provider_URL");
+const providerSepolia = new ethers.JsonRpcProvider("Sepolia_Provider_URL://eth-sepolia.g.alchemy.com/v2/RgxsjQdKTawszh80TpJ-14Y8tY7cx5W2");
+
+// 初始化两条链的signer
+// privateKey填管理者钱包的私钥
+const privateKey = "Your_Key";
+const walletGoerli = new ethers.Wallet(privateKey, providerGoerli);
+const walletSepolia = new ethers.Wallet(privateKey, providerSepolia);
+
+// 合约地址和ABI
+const contractAddressGoerli = "0xa2950F56e2Ca63bCdbA422c8d8EF9fC19bcF20DD";
+const contractAddressSepolia = "0xad20993E1709ed13790b321bbeb0752E50b8Ce69";
+
+const abi = [
+    "event Bridge(address indexed user, uint256 amount)",
+    "function bridge(uint256 amount) public",
+    "function mint(address to, uint amount) external",
+];
+
+// 初始化合约实例
+const contractGoerli = new ethers.Contract(contractAddressGoerli, abi, walletGoerli);
+const contractSepolia = new ethers.Contract(contractAddressSepolia, abi, walletSepolia);
+
+const main = async () => {
+    try{
+        console.log(`开始监听跨链事件`)
+
+        // 监听chain Sepolia的Bridge事件，然后在Goerli上执行mint操作，完成跨链
+        contractSepolia.on("Bridge", async (user, amount) => {
+            console.log(`Bridge event on Chain Sepolia: User ${user} burned ${amount} tokens`);
+
+            // 在执行burn操作
+            let tx = await contractGoerli.mint(user, amount);
+            await tx.wait();
+
+            console.log(`Minted ${amount} tokens to ${user} on Chain Goerli`);
+        });
+
+        // 监听chain Goerli的Bridge事件，然后在Sepolia上执行mint操作，完成跨链
+        contractGoerli.on("Bridge", async (user, amount) => {
+            console.log(`Bridge event on Chain Goerli: User ${user} burned ${amount} tokens`);
+
+            // 在执行burn操作
+            let tx = await contractSepolia.mint(user, amount);
+            await tx.wait();
+
+            console.log(`Minted ${amount} tokens to ${user} on Chain Sepolia`);
+        });
+    } catch(e) {
+        console.log(e);
+    } 
+}
+
+main();
+```
 
 
 

@@ -949,4 +949,186 @@ contract ContractB{
      - 授权转账` function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);`
      - 授权`function approve(address spender, uint256 amount) external returns (bool);`
 
+
+### 2024.10.12
+
+學習內容:
+
+- [x] 代币水龙头
+- [x] 空投合约
+- [x] ERC721 标准 （根据EIP721改进建议形成的ERC721标准）
+   - ERC165用于检查合约是否是支持ERC721或者ERC1155的接口
+     ```solidity
+          function supportsInterface(bytes4 interfaceId) public view virtual returns (bool) {
+             return
+                interfaceId == 0x01ffc9a7 || // ERC165 Interface ID for ERC165
+                interfaceId == 0x80ac58cd || // ERC165 Interface ID for ERC721
+                interfaceId == 0x5b5e139f || // ERC165 Interface ID for ERC721Metadata
+                interfaceId == 0x780e9d63;   // ERC165 Interface ID for ERC721Enumerable 
+          }
+     ```
+   - IERC721是ERC721的接口定义
+   - IERC721包含三个事件：Transfer(转账时释放)、Approval（授权时释放）、ApprovalForAll（批量授权时释放）
+   - IERC721包含了9个函数
+      - balanceOf：返回某地址NTF的持有量
+      - ownerOf：返回某NTF的持有者
+      - transferFrom：转移NTF
+      - safeTransferFrom：安全转移NTF(接收方合约必须实现IERC721Receiver接口的onERC721Received函数)
+      - approve：授权NTF
+      - setApprovalForAll：批量授权NTF
+      - isApprovedForAll：检查是否批量授权
+      - safeTransferFrom：安全转移NTF(函数重载，多了data参数)
+   - IERC721Metadata是IERC721的扩展接口
+      - name：返回NTF的名称
+      - symbol：返回NTF的符号
+      - tokenURI：返回NTF的元数据URI（ERC721特有函数）
+
+### 2024.10.13
+
+學習內容:
+
+- [x] 荷兰拍卖，一种拍卖形式，价格由高逐渐降低，知道有人愿意购买，避免gas war
+    - 与荷兰拍卖相关的参数：
+        - COLLECTOIN_SIZE：NFT总量。
+        - AUCTION_START_PRICE：荷兰拍卖起拍价，也是最高价。
+        - AUCTION_END_PRICE：荷兰拍卖结束价，也是最低价/地板价。
+        - AUCTION_TIME：拍卖持续时长。
+        - AUCTION_DROP_INTERVAL：每过多久时间，价格衰减一次。
+        - auctionStartTime：拍卖起始时间（区块链时间戳，block.timestamp）
+
+### 2024.10.14
+
+學習內容:
+
+- [x] 发送、接收代币、合约调用 实践
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+contract Supermarket{
+    address private owner;
+    // 货物
+    mapping(string name => Thing[]) public goods;
+    //  条码：价格
+    mapping(uint256 => uint256) public priceMapping;
+    // 总金额
+    uint256 private totalMoney;
+    // 订单
+    mapping(address buyer => Order[10000]) private orders;
+    mapping(address buyer => uint256) private orderLen;
+
+    // 收据
+    mapping(uint256 => address owner) public evidence;
+
+    struct Order{
+        uint256 time;
+        uint256[] tokens;
+        uint256 sumMoney; 
+    }
+
+    struct Thing{
+        uint256 token;
+        string name;
+    }
+
+
+
+
+    modifier OwnerOnly(){
+        require(msg.sender == owner, "owner only");
+        _;
+    }
+
+    modifier GoodsEnough(string memory _name, uint256 _count){
+        require(goods[_name].length >= _count, "goods not enough!");
+        _;
+    }
+    // 商品锁，避免超卖
+    modifier GoodsLock(string memory name){
+        // TODO
+        _;
+    }
+
+    constructor(){
+        owner = msg.sender;
+    }
+
+    // 商品上架
+    function grounding(string memory _name, uint256 _token, uint256 _price) public OwnerOnly{
+        Thing[] storage things = goods[_name];
+        things.push(Thing({token:_token, name:_name}));
+        priceMapping[_token] =  _price;
+        
+    }
+
+    // 出售
+    function sell(string memory _name, uint256 _count)external  GoodsLock(_name) GoodsEnough(_name, _count)  returns(uint256 orderNumber, uint256 _sumMoney){
+ 
+        uint256[] memory _tokens = new uint256[](_count);
+      
+        Thing[] storage things = goods[_name];
+
+        
+        for(uint256 i; i<_count; i++){
+            Thing memory thing = things[things.length -1];
+            things.pop();
+            _tokens[i] = thing.token;
+            _sumMoney += priceMapping[_tokens[i]];
+        }
+
+  
+        orderLen[msg.sender] += 1;
+       
+        Order[10000] storage ownerOrders = orders[msg.sender];
+        
+        ownerOrders[orderLen[msg.sender]] = Order({  time:block.timestamp,tokens:_tokens,sumMoney:_sumMoney });
+
+        orderNumber = orderLen[msg.sender];
+
+    }
+
+    // 支付
+    function pay(uint256 orderNumber) external  payable returns(uint256[] memory tokens){
+        Order storage order =  orders[msg.sender][orderNumber];
+         require(order.sumMoney != 0, "Order does not exist or already paid"); // 检查订单是否存在且未支付
+
+        uint256 sumMoney = order.sumMoney; 
+
+        if(msg.value < sumMoney){
+            revert();
+        }
+        if(msg.value > sumMoney){
+           uint256 balance =  msg.value - sumMoney;
+           (bool success,) = payable(msg.sender).call{value:balance}("");
+           if(!success){
+            revert();
+           }
+        }
+        tokens = order.tokens;
+        for(uint256 i ; i < tokens.length; i++){
+            evidence[tokens[i]] = msg.sender;
+        }
+         delete orders[msg.sender][orderNumber]; // 防止重复支付
+    } 
+}
+
+// 消费者
+contract Customer{
+    event PurchaseEvent(uint256 indexed orderNumber, uint256 indexed sumMoney);
+    event PayEvent(bool indexed success, bytes  data);
+    function buy(string memory _name, uint256 _count,address targetContract) public returns(uint256[] memory _tokens){
+        Supermarket sm = Supermarket(targetContract);
+       (uint256 orderNumber, uint256 _sumMoney) = sm.sell(_name, _count);
+       emit PurchaseEvent(orderNumber, _sumMoney);
+       (bool success, bytes memory data) = targetContract.call{value:_sumMoney}(abi.encodeWithSignature("pay(uint256)", orderNumber));
+        emit PayEvent(success, data);
+        if(success){
+            _tokens =  abi.decode(data, (uint256[]));
+        }
+    }
+
+    // 给合约账户打点钱，不然没钱支付呀
+    receive() external payable { }
+}
+```
 <!-- Content_END -->

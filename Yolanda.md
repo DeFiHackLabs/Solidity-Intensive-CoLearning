@@ -156,4 +156,20 @@ timezone: Asia/Shanghai
 4. send()如果轉帳失敗，不會revert，gas限制是2300
 5. call()如果轉帳失敗，不會revert，没有gas限制
 
+
+### 2024.10.12
+1. 可以在函數裡傳入目標合約地址，生成目標合約的引用，然後調用目標函數
+2. 在函數裡傳入合約的引用，只需要把上面参數的address類型改為目標合約名
+3. 創建合約變量，接著通過它來調用目標函數
+4. 如果目標合約的函數是payable的，我們可以通過調用它來給合約轉帳：_Name(_Address).f{value: _Value}()
+5. _Name：合約名，_Address：合約地址，f：目標函數名，_Value：要轉的ETH數額（以wei為單位）
+
+
+### 2024.10.13
+1. call是Solidity官方推荐的通過觸發fallback或receive函數發送ETH的方式
+2. 利用call調用目標合約：Response事件、調用setX函數、調用getX函數、調用不存在的函數、
+3. 目前delegatecall主要的應用場景：代理合約（Proxy Contract）、EIP-2535 Diamonds（鑽石）
+4. 代理合約（Proxy Contract）儲存所有相關變量後保存邏輯合約的地址。升級時，只需要將代理合約指向新的邏輯合約即可。
+
+
 <!-- Content_END -->

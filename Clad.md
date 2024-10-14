@@ -796,5 +796,64 @@ IERC20
 - 構造函數, 調用父合約 ERC721 的構造函數, 需要傳入 NFT 的名稱 _Nname 和符號 _symbol
 - function _baseURI, 讓每個 NFT 的 tokenURI 基於 IPFS 上的資源進行生成
 - functnio mint(), 要檢查 tokenId 的範圍沒有超過總供給量, 並 mint
-  
+
+### 2024.10.12        
+學習內容  
+筆記:  
+
+#### 荷蘭拍賣 DutchAuction
+- 也稱減價拍賣, 拍賣是由高到低依次遞減直到第一個人應價或是超過底價
+- 優點: 1.拍賣價格由最高慢慢下降, 項目方能獲得最大收入 2.拍賣時間通常 6h 以上, 可避免 gas war
+
+DutchAuction 合約
+- DutchAuction 合約繼承 ERC721, Ownable 合約
+- 有 9 個狀態變數, 其中 6 個和拍賣有關, 有 9 個函數
+
+結構
+1. setAuctionStartTime(), 設定拍賣起始時間
+2. getAuctionPrice(), 設定拍賣時的價格
+   要處理  
+   - block.timestamp 小於起始時間, 價格設定為最高價 action_start_price
+   - block.timestamp 大於結束時間, 價格設定為最低價 action_end_price
+   - block.timestamp 在兩著之間, 計算當前衰減價格
+4. auctionMint(), 用戶參與拍賣並鑄造 NFT
+   要處理
+   require 檢查是否設置起始時間, 拍賣是否開始
+   require 檢查是否超過 NFT 上限
+   mint 成本計算
+   require 用戶是否支付足夠 ETH
+   mint NFT
+   多餘 ETH 退款
+6. withdrawMoney(),項目方提取拍賣籌集的 ETH
+
+### 2024.10.13        
+學習內容  
+筆記:  
+
+#### 默克爾樹 Merkle Tree
+生成 Merkle Tree
+- 利用 https://lab.miguelmota.com/merkletreejs/example/ 來生成 Merkle Tree
+  步驟
+  1. 輸入地址作為葉子節點
+  2. 選擇 Keccak-256, hashLeaves, sortPairs 選項, 點擊 compute 生成 Merkle Tree
+     
+驗證 Merkle Tree
+結構
+- 4 個函數
+- verify(), 利用 proof 來驗證 leaf 是否屬於根 root, 調用 processProod()
+- processProof(), 用 proof, leaf 依序計算出 root, 調用了 _hashPair()
+- _hashPair(), 用 keccak256() 計算非根結點對應的兩個子節點的哈希
+
+利用 Merkle Tree 發放 NFT 白名單
+結構
+- MerkleTree 合約繼承 ERC721, 利用 MerkleProof 庫
+- 構造函數 + 3 個函數
+- mint(), 利用 Merkle 樹驗證地址並 mint
+- _leaf(), 計算 Merkle 樹葉的哈希值
+- _verify(), Merkle 驗證, 調用 MerkleProof 庫的 verify()
+
+
+
+
+
 <!-- Content_END -->

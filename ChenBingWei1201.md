@@ -1494,5 +1494,179 @@ In this lecture, I learned the method of importing external source code using th
 
 </details>
 
+### 2024.10.12
+<details>
+<summary>19. Receive ETH, receive and fallback</summary>
+
+Solidity has two special functions, `receive()` and `fallback()`, they are primarily used in two circumstances.
+1. Receive Ether
+2. Handle calls to contract if none of the other functions match the given function signature (e.g. proxy contract)
+
+Note⚠️: Prior to solidity `0.6.x`, only `fallback()` was available, for receiving Ether and as a fallback function.
+After version `0.6`, `fallback()` was separated to `receive()` and `fallback()`.
+
+In this tutorial, we focus on receiving Ether.
+
+#### Receiving ETH Function: `receive()`
+The `receive()` function is solely used for receiving ETH. A contract can have at most one `receive()` function, declared not like others, no function keyword is needed: `receive() external payable { ... }`. This function cannot have arguments, cannot return anything and must have `external` visibility and `payable` state mutability.
+
+`receive()` is executed on plain Ether transfers to a contract. You should not perform too many operations in `receive()` when sending Ether with `send` or `transfer`, only 2300 gas is available, and complicated operations will trigger an `Out of Gas` error; instead, you should use `call` function which can specify gas limit. (We will cover all three ways of sending Ether later).
+
+We can send an `event` in the `receive()` function, for example:
+```solidity
+    // Declare event
+    event Received(address Sender, uint Value); 
+    // Emit Received event
+    receive() external payable {
+        emit Received(msg.sender, msg.value); 
+    }
+```
+Some malicious contracts intentionally add codes in `receive()` (`fallback()` prior to Solidity `0.6.x`), which consume massive gas or cause the transaction to get reverted. So that will make some refund or transfer functions fail, pay attention to such risks when writing such operations.
+
+#### Fallback Function: fallback()
+The `fallback()` function is executed on a call to the contract if none of the other functions match the given function signature, or if no data was supplied at all and there is no receive Ether function. It can be used to receive Ether or in proxy contract. `fallback()` is declared without the function keyword, and must have `external` visibility, it **often** has `payable` state mutability, which is used to receive Ether: `fallback() external payable { ... }`.
+
+Let's declare a `fallback()` function, which will send a `fallbackCalled` event, with `msg.sender`, `msg.value` and `msg.data` as parameters:
+```solidity
+    event fallbackCalled(address Sender, uint Value, bytes Data); 
+
+    // fallback
+    fallback() external payable{
+        emit fallbackCalled(msg.sender, msg.value, msg.data); 
+    }
+```
+#### Difference between receive and fallback
+```
+Execute fallback() or receive()?
+         Receive ETH
+              |
+      msg.data is empty?
+            /  \
+          Yes   No
+          /      \
+Has receive()?   fallback()
+        / \
+      Yes  No
+      /     \
+receive()   fallback()
+```
+To put it simply, when a contract receives ETH, `receive()` will be executed if `msg.data` is empty and the `receive()` function is present; on the other hand, `fallback()` will be executed if `msg.data` is not empty or there is no `receive()` declared, in such case `fallback()` must be payable.
+
+If neither `receive()` or `payable` `fallback()` is declared in the contract, receiving ETH will fail.
+
+#### Summary
+In this tutorial, I learned two special functions in Solidity, `receive()` and `fallback()`, they are mostly used in receiving ETH, and `proxy contract`.
+
+</details>
+
+### 2024.10.14
+<details>
+<summary>20. Sending ETH</summary>
+
+There are three ways of sending ETH in Solidity: `transfer()`, `send()` and `call()`, in which `call()` is recommended.
+
+#### Contract of Receiving ETH
+Let's deploy a contract `ReceiveETH` to receive ETH. `ReceiveETH` has an event Log, which logs the received ETH amount and the remaining gas. Along with two other functions, one is the `receive()` function, which is executed when receiving ETH, and emits the Log event; the other is the `getBalance()` function that is used to get the balance of the contract.
+```solidity
+contract ReceiveETH {
+    // Receiving ETH event, log the amount and gas
+    event Log(uint amount,  uint gas);
+    
+    // receive() is executed when receiving ETH
+    receive() external payable{
+        emit Log(msg.value,  gasleft());
+    }
+    
+    // return the balance of the contract
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+}
+```
+After deploying `ReceiveETH`, call the `getBalance()` function, we can see the balance is `0` Ether.
+
+#### Contract of Sending ETH
+We will implement three ways to send ETH to the `ReceiveETH` contract. First, let's make the `constructor` of the `SendETH` contract `payable`, and add the `receive()` function, so we can transfer ETH to our contract at deployment and after.
+```solidity
+contract SendETH {
+    // constructor, make it payable so we can transfer ETH at deployment
+    constructor() payable{}
+    // receive() function, called when receiving ETH
+    receive() external payable{}
+}
+```
+
+##### `transfer`
+- Usage: `receiverAddress.transfer(value in Wei)`.
+- The gas limit of `transfer()` is `2300`, which is enough to make the transfer, but not if the receiving contract has a gas-consuming `fallback()` or `receive()`.
+- If `transfer()` fails, the transaction will revert.
+
+Sample code: note that `_to` is the address of the `ReceiveETH` contract, and `amount` is the value you want to send.
+```solidity
+// sending ETH with transfer()
+function transferETH(address payable _to,  uint256 amount) external payable{
+	_to.transfer(amount);
+}
+```
+After deploying the `SendETH` contract, we can send ETH to the `ReceiveETH` contract. If `amount` is `10`, and `value` is `0`, `amount` > `value`, the transaction fails and gets reverted.
+
+If `amount` is `10`, and `value` is `10`, `amount` <= `value`, then the transaction will go through.
+
+In the `ReceiveETH` contract, when we call `getBalance()`, we can see the balance of the contract is `10 Wei`.
+
+##### `send`
+- Usage: `receiverAddress.send(value in Wei)`.
+- The gas limit of `send()` is `2300`, which is enough to make the transfer, but not if the receiving contract has a gas-consuming `fallback()` or `receive()`.
+- If `send()` fails, the transaction will **not** be reverted.
+- The return value of `send()` is `bool`, which is the status of the transaction, you can choose to act on that.
+
+Sample Code:
+```solidity
+// sending ETH with send()
+function sendETH(address payable _to,  uint256 amount) external payable{
+    // check result of send()，revert with error when failed
+    bool success = _to.send(amount);
+    if(!success){
+    	revert SendFailed();
+    }
+}
+```
+Now we send ETH to the `ReceiveETH` contract, if `amount` is `10`, and `value` is `0`, `amount` > `value`, the transaction fails, since we handled the return value, the transaction will be reverted.
+
+If `amount` is `10`, and `value` is `11`, `amount` <= `value`, then the transaction will go through.
+
+##### `call`
+- Usage: `receiverAddress.call{value: value in Wei}("")`.
+- There is **no gas limit** for `call()`, so it supports more operations in `fallback()` or `receive()` of the receiving contract.
+- If `call()` fails, the transaction will **not** be reverted.
+- The return value of `call()` is `(bool,  data)`, in which `bool` is the status of the transaction, you can choose to act on that.
+
+Sample Code:
+```solidity
+// sending ETH with call()
+function callETH(address payable _to,  uint256 amount) external payable{
+    // check result of call()，revert with error when failed
+    (bool success, ) = _to.call{value: amount}("");
+    if(!success){
+    	revert CallFailed();
+    }
+}
+```
+Now we send ETH to the `ReceiveETH` contract, if `amount` is `10`, and `value` is `0`, `amount` > `value`, the transaction fails, since we handled the return value, the transaction will be reverted.
+
+If `amount` is `10`, and `value` is `11`, `amount` <= `value`, the transaction is successful.
+
+With any of these three methods, we send ETH to the `ReceiveETH` contract successfully.
+
+#### Summary
+
+In this tutorial, we talked about three ways of sending ETH in solidity: `transfer`, `send` and `call`.
+
+- There is **no gas limit** for `call`, which is the most flexible and recommended way.
+- The gas limit of `transfer` is `2300` gas, transaction will be reverted if it fails, which makes it the second choice.
+- The gas limit of `send` is `2300` gas, the transaction will **not** be reverted if it fails, which makes it the worst choice.
+
+</details>
+
 ### 
 <!-- Content_END -->

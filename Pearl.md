@@ -1439,7 +1439,9 @@ contract structType{
           );
       }
       ```
+      
 ###  2024.10.11
+
 **去中心化交易所uniswap**
    * `create`: `Contract x = new Contract{value: _value}(params)`
    * 如果构造函数是`payable`，可以创建时转入`_value`数量的`ETH`，`params`是新合约构造函数的参数。
@@ -1491,4 +1493,167 @@ contract structType{
    ```
    * `getPair`是两个代币地址到币对地址的`map`，方便根据代币找到币对地址；`allPairs`是币对地址的数组，存储了所有代币地址。
    * `PairFactory`合约只有一个`createPair`函数，根据输入的两个代币地址`tokenA`和`tokenB`来创建新的`Pair`合约。
+
+###  2024.10.12
+**CREATE2**
+   * 智能合约部署在以太坊网络之前就能预测合约的地址。
+   * `Uniswap`创建`Pair`合约用的就是`CREATE2`
+   * CREATE如何计算地址
+      * 智能合约可以由其他合约和普通账户利用CREATE操作码创建。
+      * 新合约的地址计算：创建者的地址(通常为部署的钱包地址或者合约地址)和`nonce`(该地址发送交易的总数,对于合约账户是创建的合约总数,每创建一个合约`nonce`+1)的哈希。
+      ```Solidity
+      新地址 = hash(创建者地址, nonce)
+      ```
+      * 创建者地址不会变，但nonce可能会随时间而改变，因此用CREATE创建的合约地址不好预测。
+   * CREATE2如何计算地址
+      * 为了让合约地址独立于未来的事件。不管未来区块链上发生了什么，你都可以把合约部署在事先计算好的地址上。
+      * 用CREATE2创建的合约地址由4个部分决定：
+        1. `0xFF`：一个常数，避免和`CREATE`冲突
+        2. `CreatorAddress`: 调用`CREATE2`的当前合约（创建合约）地址。
+        3. `salt`（盐）：一个创建者指定的`bytes32`类型的值，它的主要目的是用来影响新创建的合约的地址。
+        4. `initcode`: 新合约的初始字节码（合约的Creation Code和构造函数的参数）
+        ```Solidity
+        新地址 = hash("0xFF",创建者地址, salt, initcode)
+        ```
+     * 如果创建者使用`CREATE2`和提供的`salt`部署给定的合约`initcode`，它将存储在`新地址`中。
+       
+**如何使用CREATE2**
+   * `Contract x = new Contract{salt: _salt, value: _value}(params)`
+   * `Contract`是要创建的合约名，`x`是合约对象（地址），`_salt`是指定的盐；如果构造函数是`payable`，可以创建时转入`_value`数量的`ETH`，`params`是新合约构造函数的参数。
+
+**用CREATE2来实现极简Uniswap**
+   ```Solidity
+   contract Pair{
+       address public factory; // 工厂合约地址
+       address public token0; // 代币1
+       address public token1; // 代币2
+   
+       constructor() payable {
+           factory = msg.sender;
+       }
+   
+       // called once by the factory at time of deployment
+       function initialize(address _token0, address _token1) external {
+           require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
+           token0 = _token0;
+           token1 = _token1;
+       }
+   }
+
+   contract PairFactory2{
+       mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+       address[] public allPairs; // 保存所有Pair地址
+   
+       function createPair2(address tokenA, address tokenB) external returns (address pairAddr) {
+           require(tokenA != tokenB, 'IDENTICAL_ADDRESSES'); //避免tokenA和tokenB相同产生的冲突
+           // 用tokenA和tokenB地址计算salt
+           (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); //将tokenA和tokenB按大小排序
+           bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+           // 用create2部署新合约
+           Pair pair = new Pair{salt: salt}(); 
+           // 调用新合约的initialize方法
+           pair.initialize(tokenA, tokenB);
+           // 更新地址map
+           pairAddr = address(pair);
+           allPairs.push(pairAddr);
+           getPair[tokenA][tokenB] = pairAddr;
+           getPair[tokenB][tokenA] = pairAddr;
+       }
+   }
+   ```
+
+   * 事先计算`Pair`地址
+   ```Solidity
+   // 提前计算pair合约地址
+   function calculateAddr(address tokenA, address tokenB) public view returns(address predictedAddress){
+       require(tokenA != tokenB, 'IDENTICAL_ADDRESSES'); //避免tokenA和tokenB相同产生的冲突
+       // 计算用tokenA和tokenB地址计算salt
+       (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); //将tokenA和tokenB按大小排序
+       bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+       // 计算合约地址方法 hash()
+       predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+           bytes1(0xff),
+           address(this),
+           salt,
+           keccak256(type(Pair).creationCode)
+           )))));
+   }
+   ```
+
+   * 如果部署合约构造函数中存在参数 e.g. `Pair pair = new Pair{salt: salt}(address(this));`
+   * 计算时，需要将参数和initcode一起进行打包 e.g. `keccak256(abi.encodePacked(type(Pair).creationCode, abi.encode(address(this))))`
+     
+   ```Solidity
+   predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+                   bytes1(0xff),
+                   address(this),
+                   salt,
+                   keccak256(abi.encodePacked(type(Pair).creationCode, abi.encode(address(this))))
+               )))));
+   ```
+
+###  2024.10.13
+**selfdestruct**
+   * 用来删除智能合约，并将该合约剩余`ETH`转到指定地址。
+   * 当前`SELFDESTRUCT`仅会被用来将合约中的`ETH`转移到指定地址，而原先的删除功能只有在合约创建-自毁这两个操作处在同一笔交易时才能生效。
+   * 所以:
+      1. 已经部署的合约无法被`SELFDESTRUCT`了。
+      2. 如果要使用原先的`SELFDESTRUCT`功能，必须在同一笔交易中创建并`SELFDESTRUCT`。
+         
+**如何使用selfdestruct**
+   * `selfdestruct(_addr)；`
+   * `_addr`是接收合约中剩余`ETH`的地址。`_addr`地址不需要有`receive()`或`fallback()`也能接收`ETH`。
+     
+**转移ETH功能**
+   * 在坎昆升级前可以完成合约的自毁，在坎昆升级后仅能实现内部ETH余额的转移。
+   ```Solidity
+   contract DeleteContract {
+       uint public value = 10;   
+       constructor() payable {}  
+       receive() external payable {}
+   
+       function deleteContract() external {
+           // 调用selfdestruct销毁合约，并把剩余的ETH转给msg.sender
+           selfdestruct(payable(msg.sender));
+       }
+   
+       function getBalance() external view returns(uint balance){
+           balance = address(this).balance;
+       }
+   }
+   ```
+   * 部署好合约后，我们向`DeleteContract`合约转入1`ETH`。这时，`getBalance()`会返回1`ETH`，`value`变量是10。
+   * 调用`deleteContract()`函数，合约将触发`selfdestruct`操作。在坎昆升级前，合约会被自毁。但是在升级后，合约依然存在，只是将合约包含的`ETH`转移到指定地址，而合约依然能够调用。
+
+**同笔交易内实现合约创建-自毁**
+   * 原先的删除功能只有在合约创建-自毁这两个操作处在同一笔交易时才能生效。所以我们需要通过另一个合约进行控制。
+   ```Solidity
+   contract DeployContract {
+       struct DemoResult {
+           address addr;
+           uint balance;
+           uint value;
+       }
+       constructor() payable {}
+   
+       function getBalance() external view returns(uint balance){
+           balance = address(this).balance;
+       }
+   
+       function demo() public payable returns (DemoResult memory){
+           DeleteContract del = new DeleteContract{value:msg.value}();
+           DemoResult memory res = DemoResult({
+               addr: address(del),
+               balance: del.getBalance(),
+               value: del.value()
+           });
+           del.deleteContract();
+           return res;
+       }
+   }
+   ```
+
+**注意事项**
+   1. 对外提供合约销毁接口时，最好设置为只有合约所有者可以调用，可以使用函数修饰符onlyOwner进行函数声明。
+   2. 当合约中有selfdestruct功能时常常会带来安全问题和信任问题，合约中的`selfdestruct`功能会为攻击者打开攻击向量(例如使用`selfdestruct`向一个合约频繁转入token进行攻击，这将大大节省了GAS的费用，虽然很少人这么做)，此外，此功能还会降低用户对合约的信心。
 <!-- Content_END -->

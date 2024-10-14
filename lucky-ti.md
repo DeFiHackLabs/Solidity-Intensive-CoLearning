@@ -967,7 +967,33 @@ msg.data是Solidity中的一个全局变量，值为完整的calldata（调用�
 
 method id定义为函数签名的Keccak哈希后的前4个字节，当selector与method id相匹配时，即表示调用该函数。注意，在函数签名中，uint和int要写为uint256和int256。
 
+在Solidity中，try-catch只能被用于external函数或创建合约时constructor（被视为external函数）的调用。基本语法如下：
+```
+try externalContract.f() {
+    // call成功的情况下 运行一些代码
+} catch {
+    // call失败的情况下 运行一些代码
+}
+```
+可以使用this.f()来替代externalContract.f()，this.f()也被视作为外部调用，但不可在构造函数中使用，因为此时合约还未创建。
 
+
+
+答案：
+
+PART 29
+1.	函数选择器有几个字节？4
+2.	如果一笔调用智能合约的交易的calldata如下，被调用函数的选择器是？0x6a627842
+3.	transfer函数的函数签名是？"transfer(address,uint256)"
+4.	上一题中transfer函数的选择器为？0xa9059cbb
+5.	.我想调用transfer函数将合约中的100枚 $PEOPLE 代币转给 0 地址，下面哪一个选项可以做到这一点。
+pp.call(abi.encodewithSelector(0xa9059cbb,address(0),uint256(100)));
+
+PART 30
+1.	try-catch可以捕获什么异常？revert()、require()、assert()
+2.	以下异常返回值类型为bytes的是：assert()
+3.	try-catch捕获到异常后是否会使try-catch所在的方法调用失败？不会
+4.	try代码块内的revert是否会被catch本身捕获？不会
 
 ### 2024.10.05
 
@@ -993,10 +1019,13 @@ method id定义为函数签名的Keccak哈希后的前4个字节，当selector�
 
 完成章节43-44
 
-### 2024.10.10
+### 2024.10.11
 
 完成章节45-46
 
+### 2024.10.12
+
+完成章节47-48
 
 
 

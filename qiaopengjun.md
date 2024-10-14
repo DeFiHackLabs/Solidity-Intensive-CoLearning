@@ -790,15 +790,95 @@ contract TokenLocker {
 
 ### 2024.10.12
 
-笔记内容
+代理合约（Proxy）通过delegatecall，将函数调用全权委托给逻辑合约（Implementation）执行，再把最终的结果返回给调用者（Caller）。
+代理模式主要有两个好处：
+
+可升级：当我们需要升级合约的逻辑时，只需要将代理合约指向新的逻辑合约。
+省gas：如果多个合约复用一套逻辑，我们只需部署一个逻辑合约，然后再部署多个只保存数据的代理合约，指向逻辑合约。
+
+代理合约利用delegatecall将函数调用委托给了另一个逻辑合约，使得数据和逻辑分别由不同合约负责。
+并且，它利用内联汇编黑魔法，让没有返回值的回调函数也可以返回数据。
+
+跨链桥是一种区块链协议，它允许在两个或多个区块链之间移动数字资产和信息。
+例如，一个在以太坊主网上运行的ERC20代币，可以通过跨链桥转移到其他兼容以太坊的侧链或独立链。
+
+同时，跨链桥不是区块链原生支持的，跨链操作需要可信第三方来执行，这也带来了风险。
 
 ### 2024.10.13
 
-笔记内容
+跨链桥的种类
+
+- Burn/Mint：在源链上销毁（burn）代币，然后在目标链上创建（mint）同等数量的代币。
+此方法好处是代币的总供应量保持不变，但是需要跨链桥拥有代币的铸造权限，适合项目方搭建自己的跨链桥。
+- Stake/Mint：在源链上锁定（stake）代币，然后在目标链上创建（mint）同等数量的代币（凭证）。源链上的代币被锁定，当代币从目标链移回源链时再解锁。
+  这是一般跨链桥使用的方案，不需要任何权限，但是风险也较大，当源链的资产被黑客攻击时，目标链上的凭证将变为空气。
+- Stake/Unstake：在源链上锁定（stake）代币，然后在目标链上释放（unstake）同等数量的代币，在目标链上的代币可以随时兑换回源链的代币。
+  这个方法需要跨链桥在两条链都有锁定的代币，门槛较高，一般需要激励用户在跨链桥锁仓。
+
+在Solidity中，MultiCall（多重调用）合约的设计能让我们在一次交易中执行多个函数调用。它的优点如下：
+
+方便性：MultiCall能让你在一次交易中对不同合约的不同函数进行调用，同时这些调用还可以使用不同的参数。
+比如你可以一次性查询多个地址的ERC20代币余额。
+
+节省gas：MultiCall能将多个交易合并成一次交易中的多个调用，从而节省gas。
+
+原子性：MultiCall能让用户在一笔交易中执行所有操作，保证所有操作要么全部成功，要么全部失败，这样就保持了原子性。
+比如，你可以按照特定的顺序进行一系列的代币交易。
 
 ### 2024.10.14
 
-笔记内容
+合约也可以作为一种数据类型
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import { HelloWorld } from "./HelloWorld.sol";
+
+contract Contract {
+    HelloWorld public helloWorld;
+
+    constructor(address _helloWorld) {
+        helloWorld = HelloWorld(_helloWorld);
+    }
+
+    function setGreeting(string memory _greeting) external {
+        helloWorld.setGreeting(_greeting);
+    }
+
+    function getGreeting() external view returns (string memory) {
+        return helloWorld.getGreeting();
+    }
+}
+
+contract HelloWorldFactory {
+    HelloWorld hw;
+
+    HelloWorld[] hws;
+
+    function createHelloWorld() external {
+        hw = new HelloWorld();
+        hws.push(hw);
+    }
+
+    function getHelloWorlds() external view returns (HelloWorld[] memory) {
+        return hws;
+    }
+
+    function getHelloWorldByIndex(uint256 index) external view returns (HelloWorld storage) {
+        return hws[index];
+    }
+
+    function callSayHelloFromFactory(uint256 _index, uint256 _id) public view returns (string memory) {
+        return hws[_index].sayHello(_id);
+    }
+
+}
+```
+
+// 1. 直接引入同一个文件系统下的合约
+// 2. 引入 GitHub上的合约
+// 3. 通过包引入合约
 
 ### 2024.10.15
 
