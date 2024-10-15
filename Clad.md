@@ -897,8 +897,16 @@ ECDSA 中包含兩個部分
 - 4 個 event, List, Revoke,Update, Purchase
 
 訂單
-- 包含 掛單價格 price, 持有人 owner 資訊
-- nftList 映射記錄訂單是對應 NFT 系列(合約地址)和 tokenId
+- 把 NFT 訂單抽象為 Order 結構體, 包含 掛單價格 price, 持有人 owner 資訊
+- nftList 映射記錄了訂單是對應的 NFT(合約地址) 和 tokenId 資訊
+```Solidity
+struct Order{
+   address owner;
+   uint256 price;
+}
+
+mapping(address => mapping(uint256 => Order)) public nftList;
+```
 
 退回函數
 - 用戶使用 ETH 購買 NFT, 因此合約需要實現 fallback() 接收 ETH
@@ -906,7 +914,14 @@ ECDSA 中包含兩個部分
 fallback() external payable{}
 ```
 
+onERC721Received
+
 交易
+- 實現 4 個交易相關的函數
+- 掛單 list(), 賣家創建訂單, 並釋放 List 事件; 成功後, NFT 會從賣家轉到 NFTSWap 合約中
+- 撤單 revoke(), 賣家撤回掛單, 並釋放 Revoke 事件; 成功後, NFT 會從 NFTSWap 合約轉回賣家
+- 修改價格 update(), 賣家修改 NFT 訂單價格, 並釋放 Update 事件
+- 購買 purchase(), 買家支付 ETH 購買掛單的 NFT, 並釋放 Purchase 事件; 成功後, ETH 轉給賣家, NFT 從 NFTSwap 合約轉給買家
 
 
 
