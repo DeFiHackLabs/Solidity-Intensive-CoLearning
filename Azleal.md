@@ -376,8 +376,15 @@ receive()   fallback()
 
 2. ERC4626 代币化金库标准
 
-3.  EIP712 类型化数据签名
+3. EIP712 类型化数据签名
 
-4.  
+### 2024.10.15
+
+1. ERC-2612 ERC20Permit
+
+2. 跨链桥
+
+3. Multicall(多重调用)
+
 
 <!-- Content_END -->
