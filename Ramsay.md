@@ -1803,7 +1803,7 @@ contract ERC721 is IERC721, IERC721Metadata{
     }
 ```
 
-我顺便提了个[PR](https://github.com/WTFAcademy/frontend/pull/246)来修复这个问题.
+我顺便提了个[PR](https://github.com/WTFAcademy/frontend/pull/246)来修复这个问题, 关于 Solidity `external` 和 `public` 的差别， Ethereum StackExchange 的[这个回答](https://ethereum.stackexchange.com/questions/19380/external-vs-public-best-practices)讲得非常好.
 
 而签名中的包含的 `r`,`s`,`v` 信息，是 ECDSA（椭圆曲线数字签名算法）签名的三个组成部分。
 
@@ -1828,5 +1828,85 @@ contract ERC721 is IERC721, IERC721Metadata{
 可以通过gas fee经济模型来处理计算成本的问题，会有多种方案来解决同一个问题的，比如也可以通过法律来解决信任问题。
 
 技术终究是手段，能解决问题才是目的.
+
+### 2024.10.16
+#### Random
+
+生成随机数的方式有两种：
+
+方式一：链上通过 `block.timestamp`, `msg.sender`, `blockhash(block.number - 1)` 变量生成随机数:
+```solidity
+    /** 
+    * 链上伪随机数生成
+    * 利用keccak256()打包一些链上的全局变量/自定义变量
+    * 返回时转换成uint256类型
+    */
+    function getRandomOnchain() public view returns(uint256){
+        // remix运行blockhash会报错
+        bytes32 randomBytes = keccak256(abi.encodePacked(block.timestamp, msg.sender, blockhash(block.number-1)));
+        
+        return uint256(randomBytes);
+    }
+```
+
+但是这些变量连伪随机数都不算，就更用说能生成安全随机数了(SecureRandom)了.
+
+方式二：线下生成随机数，再通过通过预言机上传到链上，我对这个机制就比较感兴趣, 就去了解了一下预言机(Oracle).
+
+预言机，名字很玄乎，实际上就是同步链外数据到链上，从而让智能合约拥有了获取链外数据的能力。
+
+简而言之就是智能合约不能请求外部数据，所以需要找到一种方式让链外数据能够被保存到链上，这个解决方案就是 Oracle。
+
+Oracle 的代码逻辑就是一个存储 + 异步任务引擎，接口定义如下:
+
+```solidity
+// 这是一个很标准的异步任务流程，发起任务，拿到 taskID，然后轮询 taskID 直到任务完成。
+//
+// 当某个 consumer（其他的智能合约）需要 offchain 数据时，就请求 Oracle 的 request 接口，
+// 创建一个异步任务，拿到 requestID。Oracle 本身也就是一个智能合约，也不能请求外部，
+// 所以不可能实时处理请求，只能等链外的组件喂数据，所以只能以异步任务的模式来实现。
+//
+// 一般一个 Oracle 只负责某一类的任务，比如获取当前币价，或者获取一个随机数。
+// 任务创建后会 emit 一个 Event，链外的基础设施监听到这个事件后就可以开始喂数据。
+function request() external onlyOwner returns (uint256 requestId)
+
+// fulfill 函数就是给 offchain 的基础设施喂数据用的，
+// offchain 通过 Event 事件了解到有新的任务被创建了，然后准备好所需的数据，
+// 用 fulfill 函数把数据喂给 Oracle，Oracle 再把数据和 requestID 一起保存到内部的一个 mapping 变量里，
+// 这就实现了将链外数据保存到链上。
+function fulfill(uint256 _requestId, uint256[] memory _randomWords) internal override
+
+// consumer 在创建完任务后，轮询该接口获取任务的执行结果，也就是所请求的 offchain data
+function getRequestStatus(uint256 _requestId) external view returns (uint256 paid, bool fulfilled, uint256[] memory result)
+```
+
+这个就是标准的异步操作流程了，画个流程图就很清晰了:
+
+```mermaid
+sequenceDiagram
+ConsumerContract ->> Oracle: 调用[request]接口，创建获取随机数任务
+Oracle -->> ConsumerContract: requestId
+loop SubscribeEvent
+    OffChainService ->> Oracle: 监听Event 事件
+end
+Oracle->>OffChainService: emit 事件, 触发OffChainService
+OffChainService ->> OffChainService: 执行对应的链下逻辑
+OffChainService ->> Oracle: 调用fullfill 接口填充数据
+loop TaskStatusCheck
+    ConsumerContract->>Oracle: 通过[requestId]查询任务执行结果
+end
+Note right of ConsumerContract: [optional]Consumer可以通过查询接口轮询任务状态
+Oracle ->> ConsumerContract: 拿到链下数据后，执行consumer中的回调函数[fulfillRandomWords]
+```
+
+1. Consumer 调用 Oracle `request` 函数创建任务
+2. Oracle 创建任务后，返回requestId 作为任务标识符, 并 emit 事件
+3. 订阅了Oracle 事件的链下服务被新事件触发，执行任务（比如生成随机数）
+4. 链下服务调用 `fullfill` 函数填充指定任务的数据
+5. 当任务完成之后，Consumer 智能合约有两种方式可以获取到指定的数据，通过 `getRequestStatus` 接口轮询，或者等 Oracle 回调(如果Oracle 支持的话). 课程生成随机数的 Chainlink 预言机支持回调接口，所以课程用的就是回调（这个也的确更费心）
+
+整套流程下来，就实现了链下数据向链上数据的转移, 而课程中提到的生成随机数，就是其中一个预言机的应用场景了。
+
+但这么大费周章，目的只是为了生成个随机数，成本着实有点高。
 
 <!-- Content_END -->
