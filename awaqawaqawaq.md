@@ -375,4 +375,13 @@ interface IERC721Receiver {
 - := 在 Solidity 中，:= 是一种特殊的符号，用于 Yul 代码（Solidity 的低级中间语言）。它用于赋值操作
 ### 2024.10.14
 学习了ERC4626,EIP712,ERC-2612的相关知识，并在remix上进行了验证
+
+### 2024.10.15
+学习了AMM相关知识，了解了相关概念计算
+- 用sqrt(xy)代表流动性，相比于xy更加线性的描述
+- p=dy/dx 即为切线斜率
+- 提供lp的唯一风险就是Impermanent loss ，无论币价上涨或者下跌
+- uniswap v3做出了很多改变
+- 阅读了uniswap部分源码
+
 <!-- Content_END -->
