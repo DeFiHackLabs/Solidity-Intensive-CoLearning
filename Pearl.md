@@ -1757,5 +1757,41 @@ contract structType{
         return keccak256(abi.encodePacked(string1)) == keccak256(abi.encodePacked(string2));
      }
      ```
+
+###  2024.10.15
+**函数选择器**
+   * 当我们调用智能合约时，本质上是向目标合约发送了一段`calldata`，发送的`calldata`中前4个字节是`selector`（函数选择器）
+   * `msg.data`: 是Solidity中的一个全局变量，值为完整的`calldata`（调用函数时传入的数据）。
+      ```Solidity
+      // event 返回msg.data
+      event Log(bytes data);
+      
+      function mint(address to) external{
+          emit Log(msg.data);
+      }
+      ```
+      * 当参数为`0x2c44b726ADF1963cA47Af88B284C06f30380fC78`时，输出的`calldata`为`0x6a6278420000000000000000000000002c44b726adf1963ca47af88b284c06f30380fc78`
+      * 前4个字节为函数选择器`selector`；后面32个字节为输入的参数。
+      * calldata就是告诉智能合约，我要调用哪个函数，以及参数是什么。
      
+**method id、selector和函数签名**
+   * `method id`定义为函数签名的`Keccak`哈希后的前4个字节，当`selector`与`method id`相匹配时，即表示调用该函数>。
+   * 计算method id时，需要通过函数名和函数的参数类型来计算，Solidity中，函数的参数类型主要分为：基础类型参数，固定长度类型参数，可变长度类型参数和映射类型参数。
+      1. 基础类型参数: e.g. `bytes4(keccak256("函数名(参数类型1,参数类型2,...)"))`
+      2. 固定长度类型参数: e.g. `bytes4(keccak256("fixedSizeParamSelector(uint256[3])"))`
+      3. 可变长度类型参数: e.g. `bytes4(keccak256("nonFixedSizeParamSelector(uint256[],string)"))`
+      4. 映射类型参数: e.g. `bytes4(keccak256("mappingParamSelector(address,(uint256,bytes),uint256[],uint8)"))`
+     
+**使用selector**
+   * 我们可以利用selector来调用目标函数。
+   * 例如我想调用elementaryParamSelector函数，我只需要利用abi.encodeWithSelector将elementaryParamSelector函数的method id作为selector和参数打包编码，传给call函数
+     ```Solidity
+     // 使用selector来调用函数
+     function callWithSignature() external{
+     ...
+         // 调用elementaryParamSelector函数
+         (bool success1, bytes memory data1) = address(this).call(abi.encodeWithSelector(0x3ec37834, 1, 0));
+     ...
+     }
+     ```
 <!-- Content_END -->
