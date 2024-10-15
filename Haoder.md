@@ -154,4 +154,10 @@ LFG～～～～～ 會完成的
 
 [**WTF Solidity 極簡入門：48. 透明代理**](<content/Haoder/md/348.md>)
 
+### 2024.10.15
+
+[**WTF Solidity 極簡入門：49. 通用可升級代理**](<content/Haoder/md/349.md>)
+
+[**WTF Solidity 極簡入門：50. 多簽錢包**](<content/Haoder/md/350.md>)
+
 <!-- Content_END -->
