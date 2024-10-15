@@ -1668,5 +1668,146 @@ In this tutorial, we talked about three ways of sending ETH in solidity: `transf
 
 </details>
 
-### 
+### 2024.10.15
+<details>
+<summary>21. Interact with other Contract</summary>
+
+#### Interact with deployed contract
+Interactions between contracts not only make the programs reusable on the blockchain, but also enrich the Ethereum ecosystem. Many web3 Dapps rely on other contracts to work, for example `yield farming`. In this tutorial, we will talk about how to interact with contracts whose source code (or ABI) and address are available.
+
+#### Target Contract
+Let's write a simple contract OtherContract to work with.
+```solidity
+contract OtherContract {
+    uint256 private _x = 0; // state variable x
+    // Receiving ETH event, log the amount and gas
+    event Log(uint amount, uint gas);
+    
+    // get the balance of the contract
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+
+    // set the value of x, as well as receiving ETH (payable)
+    function setX(uint256 x) external payable{
+        _x = x;
+        // emit Log event when receiving ETH
+        if(msg.value > 0){
+            emit Log(msg.value, gasleft());
+        }
+    }
+
+    // read the value of x
+    function getX() external view returns(uint x){
+        x = _x;
+    }
+}
+```
+
+This contract includes a state variable `_x`, a `Log` event which will emit when receiving ETH, and three functions:
+- `getBalance()`: return the balance of the contract.
+- `setX()`: `external payable` function, set the value of `_x`, as well as receiving ETH.
+- `getX()`: read the value of `_x`
+
+#### Interact with `OtherContract`
+We can create a reference to the contract with the contract address and source code (or ABI): `_Name(_Address)`, `_Name` is the contract name which should be consistent with the contract source code (or ABI), `_Address` is the contract address. Then we can call the functions in the contract like this: `_Name(_Address).f()`, `f()` is the function you want to call.
+
+##### 1. Pass the contract address
+We can pass the contract address as a parameter and create a reference of `OtherContract`, then call the function of `OtherContract`. For example, here we create a `callSetX` function which will call `setX` from `OtherContract`, pass the deployed contract address `_Address` and the `x` value as parameter:
+```solidity
+    function callSetX(address _Address, uint256 x) external{
+        OtherContract(_Address).setX(x);
+    }
+```
+Copy the address of `OtherContract`, and pass it as the first parameter of `callSetX`, after the transaction succeeds, we can call `getX` from `OtherContract` and the value of `x` is `123`.
+
+##### 2. Pass the contract variable
+We can also pass the reference of the contract as a parameter, we just change the type from `address` to the contract name, i.e. `OtherContract`. The following example shows how to call `getX()` from `OtherContract`.
+
+Note: The parameter `OtherContract _Address` is still `address` type behind the scene. You will find its `address` type in the generated ABI and when passing the parameter to `callGetX`.
+```solidity
+    function callGetX(OtherContract _Address) external view returns(uint x){
+        x = _Address.getX();
+    }
+```
+Copy the address of `OtherContract`, and pass it as the parameter of `callGetX`, after the transaction succeeds, we can get the value of `x`.
+
+##### 3. Create contract variable
+We can create a contract variable and call its functions. The following example shows how to create a reference of `OtherContract` and save it to `oc`:
+```solidity
+    function callGetX2(address _Address) external view returns(uint x){
+        OtherContract oc = OtherContract(_Address);
+        x = oc.getX();
+    }
+```
+Copy the address of `OtherContract`, and pass it as the parameter of `callGetX2`, after the transaction succeeds, we can get the value of `x`.
+
+##### 4. Interact with the contract and send ETH
+
+If the target function is `payable`, then we can also send ETH to that contract: `_Name(_Address).f{value: _Value}()`, `_Name` is the contract name, `_Address` is the contract address, `f` is the function to call, and `_Value` is the value of ETH to send (in wei).
+
+`OtherContract` has a `payable` function `setX`, in the following example we will send ETH to the contract by calling `setX`.
+```solidity
+    function setXTransferETH(address otherContract, uint256 x) payable external{
+        OtherContract(otherContract).setX{value: msg.value}(x);
+    }
+```
+opy the address of `OtherContract`, and pass it as the parameter of `setXTransferETH`, in addition, we send 10ETH.
+
+After the transaction is confirmed, we can check the balance of the contract by reading the `Log` event or by calling `getBalance()`.
+
+#### Summary
+In this tutorial, I learned how to create a contract reference with its source code (or ABI) and address, then call its functions.
+
+#### problem
+2. Assume that we have deployed the contract OtherContract (contract content is shown below)
+Its contract address is `0xd9145CCE52D386f254917e481eB44e9943F39138`. We want to call this contract in another contract, considering the following two methods:
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.6;
+
+interface IOtherContract {
+    function getBalance() external returns(uint);
+    function setX(uint256 x) external payable;
+    function getX() external view returns(uint x);
+}
+
+contract OtherContract is IOtherContract{
+    uint256 private _x = 0;
+    event Log(uint amount, uint gas);
+    
+    function getBalance() external view override returns(uint) {
+        return address(this).balance;
+    }
+
+    function setX(uint256 x) external override payable{
+        _x = x;
+        if(msg.value > 0){
+            emit Log(msg.value, gasleft());
+        }
+    }
+
+    function getX() external view override returns(uint x){
+        x = _x;
+    }
+}
+```
+```
+(1) OtherContract other = OtherContract(0xd9145CCE52D386f254917e481eB44e9943F39138)
+(2) IOtherContract other = IOtherContract(0xd9145CCE52D386f254917e481eB44e9943F39138)
+```
+Which is the correct answer?
+A. (1)(2) will both get error
+B. (1) is correct but (2) will get error
+C. (2) is correct but (1) will get error
+D. (1)(2) are both correct
+
+<details>
+<summary>answer</summary>
+D
+</details>
+
+</details>
+
+###
 <!-- Content_END -->
