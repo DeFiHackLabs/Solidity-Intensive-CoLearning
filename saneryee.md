@@ -50,6 +50,59 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 ## Notes
 
 <!-- Content_START -->
+### 2024.10.15
+
+Day 19
+
+WTF Academy Solidity 101 50_MultisigWallet
+
+**ecrecover**
+from signature to address
+```
+function ecrecover(bytes32 hash, uint8 v, bytes32 r, bytes32 s) returns (address)
+
+```
+Input:
+- `hash`
+- `v`, `r`, `s` 
+  
+Return:
+- `Addess`
+
+
+```
+   require(
+         currentOwner > lastOwner && isOwner[currentOwner],
+         "WTF5007"
+   );
+```
+
+- It ensures that each signature comes from a different address. If there were duplicate signatures, the second identical address would not be greater than the previous one.
+- It allows the contract to use less gas when verifying signatures. Signatures can be submitted sorted by address, and the contract only needs to scan linearly once to verify all signatures.
+- It prevents potential replay attacks, as the same set of signatures must be submitted in the same order
+
+
+```
+    assembly {
+        let signaturePos := mul(0x41, pos)
+        r := mload(add(signatures, add(signaturePos, 0x20)))
+        s := mload(add(signatures, add(signaturePos, 0x40)))
+        v := and(mload(add(signatures, add(signaturePos, 0x41))), 0xff)
+    }
+```
+- `let signaturePos := mul(0x41, pos)`
+  - Calculate the starting position of the target signature. Each signature occupies 65 bytes ( `0x41` in hexadecimal).
+  - `pos` is the index of the signature, so `0x41 * pos` gives the offset of the signature.
+- `r := mload(add(signatures, add(signaturePos, 0x20)))`
+  - Load the `r` value. `0x20(32 in decimal)` is to skip the length prefix of the bytes type.
+  - `mload` loads 32 bytes (256 bits) from a given address
+- `s := mload(add(signatures, add(signaturePos, 0x40)))`
+  - Load the `s` value. `0x40` is because `s` is located after `r` (32 bytes + 32 bytes = 64 bytes = 0x40)
+- `v := and(mload(add(signatures, add(signaturePos, 0x41))), 0xff)`
+  - Load the `v` value. `0x41` is because `v` is located after `r` and `s` (65 bytes).
+  - and (..., 0xff) ensures that only the last byte is taken because `v` is `uint8`.
+
+---
 ### 2024.10.14
 
 Day 18
