@@ -2262,11 +2262,93 @@ contract OtherContract is IOtherContract{
 
 ### 2024.10.14
 #### WTF Academy Solidity 102.22 Call
+`call` 是 `Solidity` 提供的低级成员函数，用来与其他合约交互，特别是当我们不知道目标合约的 `ABI` 时，它可以通过发送字节码直接调用目标合约的函数。
 
-##### 笔记
+##### `call` 的语法结构
+```solidity
+(bool success, bytes memory data) = address.call{value: 发送的ETH, gas: gas数额}(字节码);
+```
+
+
+1. **目标地址**: 
+   `address.call` 用于指定目标合约的地址，调用这个地址上的合约或发送 ETH。
+
+2. **可选参数**:
+   - `{value: 发送的ETH}`: 发送的 ETH 数额（单位为 wei）。如果不需要发送 ETH，可以省略。
+   - `{gas: gas数额}`: 指定调用时允许使用的最大 gas 数量。如果不指定，默认会使用全部可用的 gas。
+
+3. **字节码**: 
+   - `abi.encodeWithSignature("函数签名", 参数)` 用于生成调用函数的字节码。函数签名为 `"函数名(参数类型列表)"`，后面接具体的参数值。
+
+4. **返回值**:
+   - `bool success`: 表示调用是否成功，`true` 表示成功，`false` 表示失败。
+   - `bytes memory data`: 返回的字节数据，可以通过 `abi.decode` 来解码获取具体的返回值。
+
+##### 用法
+###### 目标合约
+```solidity
+contract OtherContract {
+    uint256 private _x = 0; // 状态变量x
+    // 收到eth的事件，记录amount和gas
+    event Log(uint amount, uint gas);
+    
+    fallback() external payable{}
+
+    // 返回合约ETH余额
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+
+    // 可以调整状态变量_x的函数，并且可以往合约转ETH (payable)
+    function setX(uint256 x) external payable{
+        _x = x;
+        // 如果转入ETH，则释放Log事件
+        if(msg.value > 0){
+            emit Log(msg.value, gasleft());
+        }
+    }
+
+    // 读取x
+    function getX() external view returns(uint x){
+        x = _x;
+    }
+}
+```
+
+1. **调用目标合约的 `payable` 函数并发送 ETH**:
+
+```solidity
+(bool success, bytes memory data) = targetAddress.call{value: 1 ether}(
+    abi.encodeWithSignature("setX(uint256)", 42)
+);
+```
+
+2. **调用目标合约的 `view` 函数**（无需发送 ETH）:
+
+```solidity
+(bool success, bytes memory data) = targetAddress.call(
+    abi.encodeWithSignature("getX()")
+);
+uint256 x = abi.decode(data, (uint256)); // 解码返回值
+```
+
+3. **调用不存在的函数**（会触发目标合约的 `fallback` 或 `receive` 函数）:
+
+```solidity
+(bool success, bytes memory data) = targetAddress.call(
+    abi.encodeWithSignature("nonExistentFunction()")
+);
+```
+
+4. **仅发送 ETH 而不调用任何函数**:
+
+```solidity
+(bool success, ) = targetAddress.call{value: 1 ether}("");
+require(success, "ETH transfer failed");
+```
 
 ##### 测验结果
-
+- 100/100
 ##### 测验错题
 
 <!-- Content_END -->
