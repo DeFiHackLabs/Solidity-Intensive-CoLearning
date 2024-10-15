@@ -152,4 +152,11 @@ _addresses：接收空投的用户地址数组（address[]类型）
 _amounts：空投数量数组，对应_addresses里每个地址的数量（uint[]类型）
 该函数有两个检查：第一个require检查了_addresses和_amounts两个数组长度是否相等；第二个require检查了空投合约的授权额度大于要空投的代币数量总和。
 
+### 2024.10.15
+默克爾樹，调用MerkleProof库的verify()函数，进行Merkle Tree验证，參數需要輸入地址陣列，這個錢包地址陣列一定是兩個嗎，又要如何找到。
+
+
+
+
+
 <!-- Content_END -->
