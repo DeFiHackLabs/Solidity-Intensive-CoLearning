@@ -2060,6 +2060,64 @@ _addr：接收剩餘ETH的地址（不需要有receive()或fallback()函數）
 ```
 ### 2024.10.13
 #### 27_ABIEncode
+ABI (Application Binary Interface) 是與以太坊智能合約互動的標準。數據根據類型進行編碼,解碼時需要指定類型。
+
+## ABI編碼函數
+
+Solidity提供了4種ABI編碼函數:
+
+1. **abi.encode**
+   - 將參數按ABI規則編碼
+   - 每個參數填充為32字節
+   - 用於與智能合約互動
+
+2. **abi.encodePacked**
+   - 根據最低所需空間編碼參數
+   - 省略填充的零,結果更緊湊
+   - 適用於節省空間,不與合約互動時(如計算哈希)
+
+3. **abi.encodeWithSignature**
+   - 類似`abi.encode`,但首個參數為函數簽名
+   - 用於調用其他合約
+
+4. **abi.encodeWithSelector**
+   - 類似`abi.encodeWithSignature`,但使用函數選擇器
+   - 選擇器是函數簽名Keccak哈希的前4字節
+
+## ABI解碼函數
+
+Solidity提供了1個ABI解碼函數:
+
+- **abi.decode**
+  - 用於解碼`abi.encode`生成的二進制編碼
+  - 將編碼數據還原為原始參數
+
+## 使用場景
+
+1. 配合`call`實現對合約的底層調用
+2. 在ethers.js中用於合約導入和函數調用
+3. 調用不開源合約中無法查到函數簽名的函數
+
+## 程式碼示例
+
+```solidity
+// 編碼示例
+function encode() public view returns(bytes memory result) {
+    result = abi.encode(x, addr, name, array);
+}
+
+// 解碼示例
+function decode(bytes memory data) public pure returns(uint dx, address daddr, string memory dname, uint[2] memory darray) {
+    (dx, daddr, dname, darray) = abi.decode(data, (uint, address, string, uint[2]));
+}
+```
+
+## 注意事項
+
+- 編碼後的數據不包含類型信息,解碼時需要指定正確的類型
+- `abi.encodePacked`結果更緊湊,但不適用於與合約互動
+- 使用ABI函數選擇器可以調用未知函數簽名的合約函數
+
 #### 28_Hash
 #### 29_Selector
 #### 30_TryCatch

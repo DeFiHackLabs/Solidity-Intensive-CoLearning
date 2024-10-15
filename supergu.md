@@ -455,4 +455,73 @@ contract people is Adam, Eve { // multiple inheritance, search from right to lef
    ```
 - Can't send ETH to a contract if it doesn't have `receive()` or `payable fallback()`
 
+### 2024.10.14
+
+#### Chapter 20: Transfer, Send and Call
+
+- `transfer`
+   - `receiver.transfer(ETHamount);`
+   - Gas limit 2300, target contract `fallback()` or `receive()` can't be too complicated
+   - revert if failed
+- `send`
+   - `bool success = receiver.send(ETHamount);`
+   - Gas limit 2300, target contract `fallback()` or `receive()` can't be too complicated
+   - Won't revert if failed
+- `call` (recommended)
+   - `(bool success, bytes memory returndata) = receiver.call{value: ETHamount}("functionSelector")`
+   - No gas limit, support complicated `fallback()` or `receive()`
+   - Won't revert if failed
+
+
+```solidity
+contract ReceiveETH {
+   // 收到eth事件，记录amount和gas
+   event Log(uint amount, uint gas);
+   
+   // receive方法，接收eth时被触发
+   receive() external payable{
+      emit Log(msg.value, gasleft());
+   }
+   
+   // 返回合约ETH余额
+   function getBalance() view public returns(uint) {
+      return address(this).balance;
+   }
+}
+
+contract SendETH {
+   // 构造函数，payable使得部署的时候可以转eth进去
+   constructor() payable{}
+   // receive方法，接收eth时被触发
+   receive() external payable{}
+
+    // Method 1: transfer
+   function transferETH(address payable _to, uint256 amount) external payable{
+      _to.transfer(amount);
+   }
+
+   // Method 2: send
+   error SendFailed();
+   function sendETH(address payable _to, uint256 amount) external payable{
+      // 处理下send的返回值，如果失败，revert交易并发送error
+      bool success = _to.send(amount);
+      if(!success){
+         revert SendFailed();
+      }
+   }
+
+   // Method 3: call
+   error CallFailed();
+   function callETH(address payable _to, uint256 amount) external payable{
+      // 处理下call的返回值，如果失败，revert交易并发送error
+      (bool success,) = _to.call{value: amount}("");
+      if(!success){
+         revert CallFailed();
+      }
+   }
+
+}
+
+```
+
 <!-- Content_END -->

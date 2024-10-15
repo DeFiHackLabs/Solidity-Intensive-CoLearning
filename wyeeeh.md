@@ -2080,6 +2080,281 @@ function callETH(address payable _to, uint256 amount) external {
 ### 2024.10.13
 #### WTF Academy Solidity 102.21 调用其他合约
 
+##### 传入合约地址
+**语法：**
+
+```solidity
+OtherContract(_Address).f();
+
+```
+
+- **`OtherContract`**：这是目标合约的类型，即我们调用的目标合约的名称。
+- **`_Address`**：这是目标合约的部署地址，类型为`address`。
+- **`f()`**：这是目标合约中我们要调用的函数。
+
+**示例：**
+
+```solidity
+function callSetX(address _Address, uint256 x) external {
+    OtherContract(_Address).setX(x);
+}
+
+```
+
+- **`_Address`**：传递目标合约的地址。
+- **`setX(x)`**：这是目标合约中的函数，用来设置状态变量`x`。
+
+##### 传入合约变量
+
+**语法：**
+
+```solidity
+function callGetX(OtherContract _Address) external view returns (uint x) {
+    x = _Address.getX();
+}
+
+```
+
+- **`OtherContract _Address`**：函数参数为目标合约的引用类型`OtherContract`，这个引用在外部生成并传递给函数。
+    ß- 参数`OtherContract _Address`底层类型仍然是`address`，生成的`ABI`中、调用`callGetX`时传入的参数都是`address`类型
+- **`_Address.getX()`**：直接通过传入的合约引用调用其函数。
+
+
+#####  创建合约变量
+在这种方式中，我们在函数内部创建目标合约的引用，然后通过该引用调用目标函数。相比第一种方式，这里我们将引用赋值给一个局部变量`oc`。这种方式适用于当我们在函数中要多次使用合约引用时，可以避免多次创建临时引用。通过将引用保存到一个局部变量中，可以提高代码的可读性。
+
+**语法：**
+
+```solidity
+function callGetX2(address _Address) external view returns (uint x) {
+    OtherContract oc = OtherContract(_Address);
+    x = oc.getX();
+}
+
+```
+
+- **`OtherContract oc = OtherContract(_Address);`**：在函数内部创建一个合约变量`oc`，它是目标合约的引用。
+- **`oc.getX()`**：通过这个局部变量调用目标函数。
+
+##### 调用合约并发送`ETH`
+如果目标合约的函数是`payable`的，允许发送`ETH`，我们可以在调用函数时通过**Solidity的特殊语法**`_Name(_Address).f{value: _Value}()`来发送`ETH`。此时我们需要通过`{value: _Value}`来指定发送的`ETH`数量。
+
+**语法：**
+
+```solidity
+function setXTransferETH(address otherContract, uint256 x) payable external {
+    OtherContract(otherContract).setX{value: msg.value}(x);
+}
+
+```
+
+- **`payable`**：函数必须使用`payable`关键字，表示该函数可以处理`ETH`转账。
+- **`msg.value`**：这是发送到目标合约的`ETH`金额，以`wei`为单位。
+- **`setX{value: msg.value}(x)`**：调用目标合约的`payable`函数，并通过`{value: msg.value}`的语法发送`ETH`。
+
+##### 总结表格
+| 方法 | 语法 | 使用规则 | 适用场景 |
+| --- | --- | --- | --- |
+| 通过合约地址创建引用 | `OtherContract(_Address).f()` | 需要目标合约地址，每次调用时传入地址 | 快速调用已知地址的合约 |
+| 通过合约变量传递引用 | `callGetX(OtherContract _Address)` | 需要目标合约引用（类型为合约），函数参数为引用 | 减少重复创建引用，适合频繁调用函数 |
+| 在函数内部创建合约引用 | `OtherContract oc = OtherContract(_Address)` | 在函数内部创建引用，多次使用同一个合约引用 | 在函数中多次使用同一个合约时 |
+| 调用`payable`函数并发送`ETH` | `_Name(_Address).f{value: _Value}()` | 需要目标函数为`payable`，发送`ETH`时需使用`value` | 调用`payable`函数并且发送`ETH` |
+##### 测验结果
+- 40/100
+- 80/100
+- 100/100
+
+##### 测验错题
+```solidity
+//OtherContract 合约如下：
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.6;
+
+interface IOtherContract {
+    function getBalance() external returns(uint);
+    function setX(uint256 x) external payable;
+    function getX() external view returns(uint x);
+}
+
+contract OtherContract is IOtherContract{
+    uint256 private _x = 0;
+    event Log(uint amount, uint gas);
+    
+    function getBalance() external view override returns(uint) {
+        return address(this).balance;
+    }
+
+    function setX(uint256 x) external override payable{
+        _x = x;
+        if(msg.value > 0){
+            emit Log(msg.value, gasleft());
+        }
+    }
+
+    function getX() external view override returns(uint x){
+        x = _x;
+    }
+}
+```
+1. 下列写法正确的是
+    ```solidity
+    (1) OtherContract other = OtherContract(0xd9145`CCE52D386f254917e481eB44e9943F39138)
+    (2) IOtherContract other = IOtherContract(0xd9145CCE52D386f254917e481eB44e9943F39138)`
+    ```
+    - (1) 正确。如果 `0xd9145CCE52D386f254917e481eB44e9943F39138` 是一个已部署的 `OtherContract` 合约的地址，那么你可以通过这个地址创建一个 `OtherContract` 类型的变量 `other`。这样你就可以调用 `OtherContract` 中的所有公开（public）和外部（external）函数。
+    
+    - (2) 正确。可以通过这个地址创建一个 `IOtherContract` 接口类型的变量 `other`。这样你只可以调用 `IOtherContract` 中声明的函数。这种方式可以增加代码的灵活性，因为你可以将不同合约实现的接口视为相同类型，从而使合约调用更具通用性。
+
+定义`MyContract`
+    ```solidity
+    contract MyContract {
+        OtherContract other = OtherContract(0xd9145CCE52D386f254917e481eB44e9943F39138);
+        function call_getX() external view returns(uint x){
+            x = other.getX();
+        }
+        function call_setX(uint256 x) external{
+            other.setX(x);
+        }
+    }
+    ```
+
+2. 下列说法正确的是：
+    A. `MyContract` 是 `OtherContract` 的子类
+    - **错误**。`MyContract` 不是 `OtherContract` 的子类。它只是通过合约地址引用了 `OtherContract` 的实例，而没有继承 `OtherContract` 的属性和方法。
+
+    B. `MyContract` 是 `IOtherContract` 的一个实现 
+    - **错误**。`MyContract` 并没有实现 `IOtherContract` 接口。它使用了 `OtherContract` 的实例，但自身并没有声明为实现该接口。
+
+    C. `MyContract` 需要 `0xd9145CCE52D386f254917e481eB44e9943F39138` 的某种许可，才可以调用其中的函数
+    - **错误**。在 Solidity 中，合约之间的调用不需要许可。只要合约地址正确且函数可见，`MyContract` 就可以直接调用 `OtherContract` 的公开函数。
+
+    D. `MyContract` 的函数 `call_setX` 可以实现，这意味着 `OtherContract` 中 `setX` 的权限没有门槛，存在安全隐患 
+    - **正确**。`call_setX` 函数直接调用了 `OtherContract` 的 `setX` 函数，并且没有任何权限检查，这可能会导致未授权的调用，存在安全隐患。特别是如果 `setX` 是一个 `payable` 函数，而没有适当的条件或限制，就可能被恶意合约滥用。
+
+3. 调用结果：
+    ```solidity
+    (1) 在 0xd9145CCE52D386f254917e481eB44e9943F39138 调用函数 setX(10);
+    (2) 在 0xd9145CCE52D386f254917e481eB44e9943F39138 调用函数 getX();
+    (3) 在 0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99 调用函数 call_setX(20);
+    (4) 在 0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99 调用函数 call_getX();
+    ```
+
+    - 初始状态下，`_x` 的值为 `0`。
+    - (1) 在 0xd9145CCE52D386f254917e481eB44e9943F39138 调用函数 setX(10);
+        - **执行结果**: 成功。
+        - **状态变化**: `OtherContract` 的 `_x` 变量被设置为 `10`。
+        - **返回值**: 该函数没有返回值，只有事件被触发（如果有 ETH 被发送的话）。
+    - (2) 在 0xd9145CCE52D386f254917e481eB44e9943F39138 调用函数 `getX();`
+        - **执行结果**: 成功。
+        - **返回值**: `10`（因为 `_x` 已被更新）。
+    - (3) 在 0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99 调用函数 `call_setX(20);`
+        - **执行结果**: 成功。
+        - **状态变化**: `OtherContract` 的 `_x` 变量被设置为 `20`。
+        - **返回值**: 该函数没有返回值。
+    - (4) 在 0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99 调用函数 `call_getX();`
+        - **执行结果**: 成功。
+        - **返回值**: `20`（因为 `_x` 已被更新到 `20`）。
+
+    - **(1)** 成功，返回值：无（状态变化：`_x = 10`）。
+    - **(2)** 成功，返回值：`10`。
+    - **(3)** 成功，返回值：无（状态变化：`_x = 20`）。
+    - **(4)** 成功，返回值：`20`。
+
+### 2024.10.14
+#### WTF Academy Solidity 102.22 Call
+`call` 是 `Solidity` 提供的低级成员函数，用来与其他合约交互，特别是当我们不知道目标合约的 `ABI` 时，它可以通过发送字节码直接调用目标合约的函数。
+
+##### `call` 的语法结构
+```solidity
+(bool success, bytes memory data) = address.call{value: 发送的ETH, gas: gas数额}(字节码);
+```
+
+
+1. **目标地址**: 
+   `address.call` 用于指定目标合约的地址，调用这个地址上的合约或发送 ETH。
+
+2. **可选参数**:
+   - `{value: 发送的ETH}`: 发送的 ETH 数额（单位为 wei）。如果不需要发送 ETH，可以省略。
+   - `{gas: gas数额}`: 指定调用时允许使用的最大 gas 数量。如果不指定，默认会使用全部可用的 gas。
+
+3. **字节码**: 
+   - `abi.encodeWithSignature("函数签名", 参数)` 用于生成调用函数的字节码。函数签名为 `"函数名(参数类型列表)"`，后面接具体的参数值。
+
+4. **返回值**:
+   - `bool success`: 表示调用是否成功，`true` 表示成功，`false` 表示失败。
+   - `bytes memory data`: 返回的字节数据，可以通过 `abi.decode` 来解码获取具体的返回值。
+
+##### 用法
+###### 目标合约
+```solidity
+contract OtherContract {
+    uint256 private _x = 0; // 状态变量x
+    // 收到eth的事件，记录amount和gas
+    event Log(uint amount, uint gas);
+    
+    fallback() external payable{}
+
+    // 返回合约ETH余额
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+
+    // 可以调整状态变量_x的函数，并且可以往合约转ETH (payable)
+    function setX(uint256 x) external payable{
+        _x = x;
+        // 如果转入ETH，则释放Log事件
+        if(msg.value > 0){
+            emit Log(msg.value, gasleft());
+        }
+    }
+
+    // 读取x
+    function getX() external view returns(uint x){
+        x = _x;
+    }
+}
+```
+
+1. **调用目标合约的 `payable` 函数并发送 ETH**:
+
+```solidity
+(bool success, bytes memory data) = targetAddress.call{value: 1 ether}(
+    abi.encodeWithSignature("setX(uint256)", 42)
+);
+```
+
+2. **调用目标合约的 `view` 函数**（无需发送 ETH）:
+
+```solidity
+(bool success, bytes memory data) = targetAddress.call(
+    abi.encodeWithSignature("getX()")
+);
+uint256 x = abi.decode(data, (uint256)); // 解码返回值
+```
+
+3. **调用不存在的函数**（会触发目标合约的 `fallback` 或 `receive` 函数）:
+
+```solidity
+(bool success, bytes memory data) = targetAddress.call(
+    abi.encodeWithSignature("nonExistentFunction()")
+);
+```
+
+4. **仅发送 ETH 而不调用任何函数**:
+
+```solidity
+(bool success, ) = targetAddress.call{value: 1 ether}("");
+require(success, "ETH transfer failed");
+```
+
+##### 测验结果
+- 100/100
+##### 测验错题
+
+
+### 2024.10.15
+#### WTF Academy Solidity 102.23 Delegatecall
+
 ##### 笔记
 
 ##### 测验结果
@@ -2087,8 +2362,18 @@ function callETH(address payable _to, uint256 amount) external {
 ##### 测验错题
 
 
-### 2024.10.14
-#### WTF Academy Solidity 102.22 Call
+### 2024.10.16
+#### WTF Academy Solidity 102.24
+
+##### 笔记
+
+##### 测验结果
+
+##### 测验错题
+
+
+### 2024.10.17
+#### WTF Academy Solidity 102.25
 
 ##### 笔记
 

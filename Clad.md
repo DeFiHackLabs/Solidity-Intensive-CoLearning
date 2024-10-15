@@ -733,6 +733,9 @@ try externalContract.f() returns(returnType){
 }
 
 ```
+
+<hr>  
+
 ### 2024.10.8        
 學習內容  
 筆記:  
@@ -825,6 +828,64 @@ DutchAuction 合約
    mint NFT
    多餘 ETH 退款
 6. withdrawMoney(),項目方提取拍賣籌集的 ETH
+
+### 2024.10.13        
+學習內容  
+筆記:  
+
+#### 默克爾樹 Merkle Tree
+生成 Merkle Tree
+- 利用 https://lab.miguelmota.com/merkletreejs/example/ 來生成 Merkle Tree
+  步驟
+  1. 輸入地址作為葉子節點
+  2. 選擇 Keccak-256, hashLeaves, sortPairs 選項, 點擊 compute 生成 Merkle Tree
+     
+驗證 Merkle Tree
+結構
+- 4 個函數
+- verify(), 利用 proof 來驗證 leaf 是否屬於根 root, 調用 processProod()
+- processProof(), 用 proof, leaf 依序計算出 root, 調用了 _hashPair()
+- _hashPair(), 用 keccak256() 計算非根結點對應的兩個子節點的哈希
+
+利用 Merkle Tree 發放 NFT 白名單
+結構
+- MerkleTree 合約繼承 ERC721, 利用 MerkleProof 庫
+- 構造函數 + 3 個函數
+- mint(), 利用 Merkle 樹驗證地址並 mint
+- _leaf(), 計算 Merkle 樹葉的哈希值
+- _verify(), Merkle 驗證, 調用 MerkleProof 庫的 verify()
+
+### 2024.10.14        
+學習內容  
+筆記:  
+
+#### 數字簽名 
+- 雙橢圓曲線數字簽名演算法(ECDSA), 主要作用
+1. 身分認證
+2. 不可否認性
+3. 完整性
+
+ECDSA 中包含兩個部分  
+1. 簽名者利用 私鑰(隱私) 對 消息(公開) 創建 簽名(公開)
+2. 其他人使用 消息(公開) 對 簽名(公開) 恢復簽名者的 公鑰(公開) 並驗證簽名
+
+創建簽名  
+1. 打包消息
+2. 計算以太坊簽名消息
+3-1. 利用錢包簽名
+3-2. 利用 web3.py 簽名
+
+驗證簽名  
+1. 通過簽名和消息恢復公鑰
+2. 比對公鑰並驗證簽名
+
+利用簽名發放白名單  
+- 項目方利用項目方帳戶把白名單發放地址簽名, 然後 mint 的時候利用 ECDSA 檢驗簽名是否有效, 如果有效則給 mint
+
+
+
+
+
 
 
 

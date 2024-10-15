@@ -854,37 +854,34 @@ timezone: Asia/Shanghai
         - 撤單 (revoke)
         - 購買 (purchase)
         - 修改價格 (update)
-    - 實作
-        - 訂單
-            ```
-            struct Order {
-                address owner;
-                uint256 price;
-            }
-
-            // tokenId => Order
-            mapping(address => mapping(uint256 => Order)) public nftList;
-            ```
-        - 事件
-            - List
-            - Purchase
-            - Revoke
-            - Update
-        - 函數
-            - `fallback` function
-                ```
-                fallback() external payable{}
-                ```
-            - `onERC721Received`
-            - `list`
-            - `purchase`
-            - `revoke`
-            - `update`
+    - 實作 - [NFTSwap](./content/Ronas/NFTSwap.sol)
 - 鏈上隨機數
     - 鏈上直接使用 hash 函數生成 (不安全, 可預測)
         ```
         bytes32 randomBytes = keccak256(abi.encodePacked(block.timestamp, msg.sender, blockhash(block.number-1)));
         ```
     - [Chainlink VRF](https://vrf.chain.link/)
+
+### 2024.10.13
+
+> 進度: Solidity 103 41~44
+
+- WETH
+    - 乙太坊原生代幣 ETH 不符合 ERC20 標準, 因此創造符合 ERC20 標準的 ETH - WETH, 以便與 DApp 互動
+    - 實作 - [WETH](./content/Ronas/WETH.sol)
+- 分帳合約 - [PaymentSplit](./content/Ronas/PaymentSplit.sol)
+- 代幣線性解鎖 - [TokenVesting](./content/Ronas/TokenVesting.sol)
+- 代幣鎖倉 - [TokenLocker](./content/Ronas/TokenLocker.sol)
+
+### 2024.10.14
+
+> 進度: Solidity 103 45~46
+
+- 時間鎖 - [Timelock](./content/Ronas/Timelock.sol)
+- 代理合約 - [Proxy](./content/ROnas/Proxy.sol)
+    - 角色
+        - 代理合約  
+        - 邏輯合約
+        - 呼叫者
 
 <!-- Content_END -->

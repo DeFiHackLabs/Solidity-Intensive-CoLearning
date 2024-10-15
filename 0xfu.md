@@ -849,4 +849,17 @@ contract Timelock{
 ### 
 
 
+### 2024.10.13
+
+#### [ERC712](./content/0xfu/EIP712.md)
+
+### 
+
+
+### 2024.10.14
+
+#### [ERC20Permit](./content/0xfu/ERC20Permit.md)
+
+### 
+
 <!-- Content_END -->

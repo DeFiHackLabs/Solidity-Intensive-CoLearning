@@ -982,5 +982,252 @@ contract ContractB{
       - name：返回NTF的名称
       - symbol：返回NTF的符号
       - tokenURI：返回NTF的元数据URI（ERC721特有函数）
-     
+
+### 2024.10.13
+
+學習內容:
+
+- [x] 荷兰拍卖，一种拍卖形式，价格由高逐渐降低，知道有人愿意购买，避免gas war
+    - 与荷兰拍卖相关的参数：
+        - COLLECTOIN_SIZE：NFT总量。
+        - AUCTION_START_PRICE：荷兰拍卖起拍价，也是最高价。
+        - AUCTION_END_PRICE：荷兰拍卖结束价，也是最低价/地板价。
+        - AUCTION_TIME：拍卖持续时长。
+        - AUCTION_DROP_INTERVAL：每过多久时间，价格衰减一次。
+        - auctionStartTime：拍卖起始时间（区块链时间戳，block.timestamp）
+
+### 2024.10.14
+
+學習內容:
+
+- [x] 发送、接收代币、合约调用 实践
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+contract Supermarket{
+    address private owner;
+    // 货物
+    mapping(string name => Thing[]) public goods;
+    //  条码：价格
+    mapping(uint256 => uint256) public priceMapping;
+    // 总金额
+    uint256 private totalMoney;
+    // 订单
+    mapping(address buyer => Order[10000]) private orders;
+    mapping(address buyer => uint256) private orderLen;
+
+    // 收据
+    mapping(uint256 => address owner) public evidence;
+
+    struct Order{
+        uint256 time;
+        uint256[] tokens;
+        uint256 sumMoney; 
+    }
+
+    struct Thing{
+        uint256 token;
+        string name;
+    }
+
+
+
+
+    modifier OwnerOnly(){
+        require(msg.sender == owner, "owner only");
+        _;
+    }
+
+    modifier GoodsEnough(string memory _name, uint256 _count){
+        require(goods[_name].length >= _count, "goods not enough!");
+        _;
+    }
+    // 商品锁，避免超卖
+    modifier GoodsLock(string memory name){
+        // TODO
+        _;
+    }
+
+    constructor(){
+        owner = msg.sender;
+    }
+
+    // 商品上架
+    function grounding(string memory _name, uint256 _token, uint256 _price) public OwnerOnly{
+        Thing[] storage things = goods[_name];
+        things.push(Thing({token:_token, name:_name}));
+        priceMapping[_token] =  _price;
+        
+    }
+
+    // 出售
+    function sell(string memory _name, uint256 _count)external  GoodsLock(_name) GoodsEnough(_name, _count)  returns(uint256 orderNumber, uint256 _sumMoney){
+ 
+        uint256[] memory _tokens = new uint256[](_count);
+      
+        Thing[] storage things = goods[_name];
+
+        
+        for(uint256 i; i<_count; i++){
+            Thing memory thing = things[things.length -1];
+            things.pop();
+            _tokens[i] = thing.token;
+            _sumMoney += priceMapping[_tokens[i]];
+        }
+
+  
+        orderLen[msg.sender] += 1;
+       
+        Order[10000] storage ownerOrders = orders[msg.sender];
+        
+        ownerOrders[orderLen[msg.sender]] = Order({  time:block.timestamp,tokens:_tokens,sumMoney:_sumMoney });
+
+        orderNumber = orderLen[msg.sender];
+
+    }
+
+    // 支付
+    function pay(uint256 orderNumber) external  payable returns(uint256[] memory tokens){
+        Order storage order =  orders[msg.sender][orderNumber];
+         require(order.sumMoney != 0, "Order does not exist or already paid"); // 检查订单是否存在且未支付
+
+        uint256 sumMoney = order.sumMoney; 
+
+        if(msg.value < sumMoney){
+            revert();
+        }
+        if(msg.value > sumMoney){
+           uint256 balance =  msg.value - sumMoney;
+           (bool success,) = payable(msg.sender).call{value:balance}("");
+           if(!success){
+            revert();
+           }
+        }
+        tokens = order.tokens;
+        for(uint256 i ; i < tokens.length; i++){
+            evidence[tokens[i]] = msg.sender;
+        }
+         delete orders[msg.sender][orderNumber]; // 防止重复支付
+    } 
+}
+
+// 消费者
+contract Customer{
+    event PurchaseEvent(uint256 indexed orderNumber, uint256 indexed sumMoney);
+    event PayEvent(bool indexed success, bytes  data);
+    function buy(string memory _name, uint256 _count,address targetContract) public returns(uint256[] memory _tokens){
+        Supermarket sm = Supermarket(targetContract);
+       (uint256 orderNumber, uint256 _sumMoney) = sm.sell(_name, _count);
+       emit PurchaseEvent(orderNumber, _sumMoney);
+       (bool success, bytes memory data) = targetContract.call{value:_sumMoney}(abi.encodeWithSignature("pay(uint256)", orderNumber));
+        emit PayEvent(success, data);
+        if(success){
+            _tokens =  abi.decode(data, (uint256[]));
+        }
+    }
+
+    // 给合约账户打点钱，不然没钱支付呀
+    receive() external payable { }
+}
+```
+
+
+
+### 2024.10.15
+
+學習內容: 
+
+- [x] 默克尔树
+  
+  - 默克尔树的构建
+     由叶子节点开始，两两配对，然后计算hash，再两两配对，直到根节点。
+  - 默克尔树发放白名单，合约中只需要记录root节点，验证时只需要提供proof和leaf即可。然后将白名单存储到后端服务器，极大的减少了区块链的存储压力。
+  - 默克尔树的验证方式
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract MerkleTreeContract{
+    // 默克尔树的验证方法: 根据proof和leaf计算root
+    function computeProof(bytes32[] memory proof, bytes32 leaf) external pure returns(bytes32 computedHash){
+        computedHash = leaf;
+        for(uint256 i ; i < proof.length; i++){
+            computedHash = _hashPair(computedHash, proof[i]);
+        }
+    }
+    function _hashPair(bytes32 a, bytes32 b)private pure returns(bytes32 computeHash){
+            computeHash =  a < b ? keccak256(abi.encodePacked(a,b)) : keccak256(abi.encodePacked(b,a));
+    }
+}
+```
+- [x] 数字签名
+  - 私钥加密消息，公钥验证消息
+  - 消息在以太坊标准中，需要将消息进行hash后，在前面加上`\x19Ethereum Signed Message:\n32`，然后再进行hash，最后进行签名。
+  - 利用签名也可以发放白名单，将私钥对白名单进行签名，合约中只需要存储公钥（一般来说就是签名地址）即可。
+  -  由于签名是链下的，不需要gas，因此这种白名单发放模式比Merkle Tree模式还要经济；
+     但由于用户要请求中心化接口去获取签名，不可避免的牺牲了一部分去中心化；
+     额外还有一个好处是白名单可以动态变化，而不是提前写死在合约里面了，因为项目方的中心化后端接口可以接受任何新地址的请求并给予白名单签名。
+  - 创建签名
+     - 打包消息hash = `keccak256(abi.encodePacked(_account, _tokenId))`
+     - 计算以太坊签名 `keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash))`
+     - 利用web3.py签名
+   ```python
+        from web3 import Web3, HTTPProvider
+        from eth_account.messages import encode_defunct
+        
+        private_key = "0x227dbb8586117d55284e26620bc76534dfbd2394be34cf4a09cb775d593b6f2b"
+        address = "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"
+        rpc = 'https://rpc.ankr.com/eth'
+        w3 = Web3(HTTPProvider(rpc))
+        
+        #打包信息
+        msg = Web3.solidity_keccak(['address','uint256'], [address,0])
+        print(f"消息：{msg.hex()}")
+        #构造可签名信息
+        message = encode_defunct(hexstr=msg.hex())
+        #签名
+        signed_message = w3.eth.account.sign_message(message, private_key=private_key)
+        print(f"签名：{signed_message['signature'].hex()}") 
+   ```
+  - 验证签名
+     - 通过签名和消息恢复公钥(最后对比公钥和签名者是否相同来验证签名)
+       签名是由数学算法生成的。这里我们使用的是rsv签名，签名中包含r, s, v三个值的信息。而后，我们可以通过r, s, v及以太坊签名消息来求得公钥。下面的recoverSigner()函数实现了上述步骤，它利用以太坊签名消息 _msgHash和签名 _signature恢复公钥（使用了简单的内联汇编）
+    ```solidity
+        // @dev 从_msgHash和签名_signature中恢复signer地址
+    function recoverSigner(bytes32 _msgHash, bytes memory _signature) internal pure returns (address){
+        // 检查签名长度，65是标准r,s,v签名的长度
+        require(_signature.length == 65, "invalid signature length");
+        bytes32 r;
+        bytes32 s;
+        uint8 v;
+        // 目前只能用assembly (内联汇编)来从签名中获得r,s,v的值
+        assembly {
+            /*
+            前32 bytes存储签名的长度 (动态数组存储规则)
+            add(sig, 32) = sig的指针 + 32
+            等效为略过signature的前32 bytes
+            mload(p) 载入从内存地址p起始的接下来32 bytes数据
+            */
+            // 读取长度数据后的32 bytes
+            r := mload(add(_signature, 0x20))
+            // 读取之后的32 bytes
+            s := mload(add(_signature, 0x40))
+            // 读取最后一个byte
+            v := byte(0, mload(add(_signature, 0x60)))
+        }
+        // 使用ecrecover(全局函数)：利用 msgHash 和 r,s,v 恢复 signer 地址
+        return ecrecover(_msgHash, v, r, s);
+    }
+    ```
+     - 对比公钥并验证签名（使用ECDSA库）
+    ```solidity
+          // ECDSA验证，调用ECDSA库的verify()函数
+          function verify(bytes32 _msgHash, bytes memory _signature)
+          public view returns (bool)
+          {
+          return ECDSA.verify(_msgHash, _signature, signer);
+          }
+    ```
+
 <!-- Content_END -->

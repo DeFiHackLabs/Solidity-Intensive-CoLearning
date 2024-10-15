@@ -66,14 +66,13 @@ timezone: Asia/Shanghai
 
 ### 2024.09.24
 
-#### 学习内容 第02 节: 值类型 第03节:函数类型
+#### 学习内容 第02 节: 值类型
 
-- 第02 节: 值类型
+1. 值类型
   - 值类型: Value Type 
   - 引用类型: Reference Type
   - 映射类型: Mapping Type
-  
-- 值类型:
+2. 值类型:
   - 布尔型
     - 与`&&`,或`||`,非`!` 等于`=`,不等于`!=`
     - `&&` 和` ||` 遵循短路规则
@@ -88,14 +87,17 @@ timezone: Asia/Shanghai
     - 定长字节数组时值类型,数组长度在声明以后不能改变,分为 bytes1,bytes8,bytes32等,最大bytes 32
   - 枚举 enum
     - 为uint 分配名称,从 0 开始.
-  
-- 合约部署截图
+3. 合约部署截图
+    - ![image-20240924200304434](./content/Aris/image-20240924200304434.png)
 
-- ![image-20240924200304434](./content/Aris/image-20240924200304434.png)
+4. 第 02 节测验得分 100,答案:C,D,C,B,D
 
-- 第节: 函数类型
+---
 
-- `function <function name>(<parameter types>) {internal|external|public|private} [pure|view|payable] [returns (<return types>)]`
+#### 学习内容 第03节:函数类型
+
+1. 函数类型
+  - `function <function name>(<parameter types>) {internal|external|public|private} [pure|view|payable] [returns (<return types>)]`
   - function: 函数声明的固定写法
   - name: 函数名
   - 函数可见性修饰符 (必须指定)
@@ -108,14 +110,9 @@ timezone: Asia/Shanghai
     - view: 外部变量,能读,不能写 | 无 gas 消耗 | 注意: 调用任何非标记 pure/view 函数需要支付 gas 费
     - payable: 调用函数可以转入 ETH (下面截图中,调用`minusPayable()` 传入了1 个 ETH,合约余额就受到了 1ETH)
   - retuns: 函数返回的变量类型和名称
-  
-- 合约部署截图
-
-- ![image-20240924204906756](./content/Aris/image-20240924204906756.png)
-
-- 第 02 节测验得分 100,答案:C,D,C,B,D
-
-- 第 03 节测验得分 100,答案:
+2. 合约部署截图
+    - ![image-20240924204906756](./content/Aris/image-20240924204906756.png)
+3. 第 03 节测验得分 100,答案:CBAAC
 
 ---
 
@@ -1208,7 +1205,7 @@ timezone: Asia/Shanghai
     - ![image-20241009171201571](content/Aris/image-20241009171201571.png)
     - ![image-20241009171653387](content/Aris/image-20241009171653387.png)
 
-7. 第 26 节测验得分: 100, 答案: 
+7. 第 26 节测验得分: 100, 答案: BBBAB
 
 ---
 
@@ -2009,9 +2006,774 @@ timezone: Asia/Shanghai
             }	
         ```
 
-4. 合约部署
+4. 注意点
+
+    - 签名是链下的，不需要`gas`，因此这种白名单发放模式比`Merkle Tree`模式还要经济
+    - 用户要请求中心化接口去获取签名，不可避免的牺牲了一部分去中心化
+    - 白名单可以动态变化
+
+5. 合约部署
 
     - ![image-20241013081650125](content/Aris/image-20241013081650125.png)
+
+
+---
+
+#### 学习内容 38. NFT交易所
+
+1. 设计逻辑
+
+    - 卖家：出售`NFT`的一方，可以挂单`list`、撤单`revoke`、修改价格`update`。
+    - 买家：购买`NFT`的一方，可以购买`purchase`。
+    - 订单：卖家发布的`NFT`链上订单，一个系列的同一`tokenId`最多存在一个订单，其中包含挂单价格`price`和持有人`owner`信息。当一个订单交易完成或被撤单后，其中信息清零。
+
+2. 代码
+
+    - ```solidity
+        // SPDX-License-Identifier: MIT
+        pragma solidity ^0.8.22;
+        
+        import "./lib/IERC721.sol";
+        import "./lib/IERC721Receiver.sol";
+        import "./34_ArisApe.sol";
+        
+        contract NFTSwap is IERC721Receiver {
+            event List(
+                address indexed saller,
+                address indexed nftAddr,
+                uint256 indexed tokenId,
+                uint256 price
+            );
+            event Purchase(
+                address indexed buyer,
+                address indexed nftAddr,
+                uint256 indexed tokenId,
+                uint256 price
+            );
+            event Revoke(
+                address indexed saller,
+                address indexed nftAddr,
+                uint256 indexed tokenId
+            );
+            event Update(
+                address indexed saller,
+                address indexed nftAddr,
+                uint256 indexed tokenId,
+                uint256 newPrice
+            );
+        
+            struct Order {
+                address owner;
+                uint256 price;
+            }
+            // NFT Order 映射
+            mapping(address => mapping(uint256 => Order)) public nftList;
+        
+            receive() external payable {}
+        
+            fallback() external payable {}
+        
+            // 挂单: 卖家上架 NFT, _nftAddress:NFT 地址, _tokenId: 对应 ID, _price: 价格 (wei)
+            function list(
+                address _nftAddress,
+                uint256 _tokenId,
+                uint256 _price
+            ) public {
+                require(_price > 0, "Invalid price");
+                IERC721 nft = IERC721(_nftAddress);
+                require(nft.getApproved(_tokenId) == address(this), "Need Approval");
+                Order storage order = nftList[_nftAddress][_tokenId];
+                order.owner = msg.sender;
+                order.price = _price;
+                nft.safeTransferFrom(msg.sender, address(this), _tokenId);
+                emit List(msg.sender, _nftAddress, _tokenId, _price);
+            }
+        
+            // 购买: 买家购买 NFT, _nftAddress:NFT 地址, _tokenId: 对应 ID
+            function purchase(address _nftAddress, uint256 _tokenId) public payable {
+                Order storage order = nftList[_nftAddress][_tokenId];
+                // 检查: 订单是否存在,可以换成 order.owner != address(0), 而不是判断价格(有点歪)
+                require(order.price > 0, "Invalid price");
+                // 检查: 发送的钱要足够购买
+                require(msg.value > order.price, "Increse price");
+                IERC721 nft = IERC721(_nftAddress);
+                // 检查: 当前合约必须是持有者
+                require(nft.ownerOf(_tokenId) == address(this), "Invalid Order");
+        
+                nft.safeTransferFrom(address(this), msg.sender, _tokenId);
+                payable(order.owner).transfer(order.price); // 向卖家转账
+                payable(msg.sender).transfer(msg.value - order.price); // 剩余的退回
+                delete nftList[_nftAddress][_tokenId]; // 删除 order
+                emit Purchase(msg.sender, _nftAddress, _tokenId, order.price);
+            }
+        
+            // 撤单: 卖家取消挂单
+            function revoke(address _nftAddress, uint256 _tokenId) public {
+                Order storage order = nftList[_nftAddress][_tokenId];
+                require(order.owner == msg.sender, "Not owner");
+        
+                IERC721 nft = IERC721(_nftAddress);
+                require(nft.ownerOf(_tokenId) == address(this), "Invalid order");
+        
+                nft.safeTransferFrom(address(this), msg.sender, _tokenId);
+                delete nftList[_nftAddress][_tokenId];
+                emit Revoke(msg.sender, _nftAddress, _tokenId);
+            }
+        
+            // 更新: 卖家更新挂单价格
+            function update(
+                address _nftAddress,
+                uint256 _tokenId,
+                uint256 _newPrice
+            ) public {
+                Order storage order = nftList[_nftAddress][_tokenId];
+                // 检查: 订单是否存在,可以换成 order.owner != address(0), 而不是判断价格(有点歪)
+                require(order.price > 0, "Invalid price");
+                // 检查: 支持有人发起
+                require(order.owner == msg.sender, "Not owner");
+        
+                IERC721 nft = IERC721(_nftAddress);
+                require(nft.ownerOf(_tokenId) == address(this), "Invalid Order");
+        
+                order.price = _newPrice;
+                emit Update(msg.sender, _nftAddress, _tokenId, _newPrice);
+            }
+        
+            function onERC721Received(
+                address operator,
+                address from,
+                uint tokenId,
+                bytes calldata data
+            ) external pure override returns (bytes4) {
+                return IERC721Receiver.onERC721Received.selector;
+            }
+        }
+        ```
+
+3. 合约部署
+
+    - 部署 ArisApe NFT 合约,并给自己 mint tokenId 为 666 和 888 的 NFT
+    - ![image-20241013094943516](content/Aris/image-20241013094943516.png)
+    - 部署 NFTSwap 合约,并让 NFT合约 授权 666 和 888 给NFTSwap 合约
+    - ![image-20241013095416973](content/Aris/image-20241013095416973.png)
+    - 上架 666 和 888 (价格分别为 6666 和 8888)
+    - ![image-20241013095633540](content/Aris/image-20241013095633540.png)
+    - 查询订单 666和 888
+    - ![image-20241013095904262](content/Aris/image-20241013095904262.png)
+    - 更新价格,666 价格更新成 7777
+    - ![image-20241013100217651](content/Aris/image-20241013100217651.png)
+    - 下架 666
+        - 查询 666 的 owner 是 NFTSwap 合约,下架后再查询其 owner 是当前钱包账户
+        - ![image-20241013100505349](content/Aris/image-20241013100505349.png)
+        - ![image-20241013100550171](content/Aris/image-20241013100550171.png)
+    - 购买 888
+        - 查询 888 的 owner 是 当前NFTSwap合约(尾号352d),使用钱包(5cb2)购买,在查询 888 的 owner,发现已经变成钱包(5cb2); 价格是 8888,支付 10000,需退回 1112;
+        - ![image-20241013101056239](content/Aris/image-20241013101056239.png)
+        - ![image-20241013101248154](content/Aris/image-20241013101248154.png)
+        - 再次查询订单,发现已经没有 666 和 888
+            - ![image-20241013101456218](content/Aris/image-20241013101456218.png)
+            - ![image-20241013101526211](content/Aris/image-20241013101526211.png)
+
+
+
+---
+
+#### 学习内容 39. 链上随机数
+
+1. 链上随机数 (不安全的随机数)
+
+    - 以太坊上所有数据都是公开透明（`public`）且确定性（`deterministic`）的，它没法像其他编程语言一样给开发者提供生成随机数的方法
+
+    - ```solidity
+        /** 
+        * 链上伪随机数生成
+        * 利用keccak256()打包一些链上的全局变量/自定义变量
+        * 返回时转换成uint256类型
+        */
+        function getRandomOnchain() public view returns(uint256){
+            // remix运行blockhash会报错
+            bytes32 randomBytes = keccak256(abi.encodePacked(block.timestamp, msg.sender, blockhash(block.number-1)));
+        
+            return uint256(randomBytes);
+        }
+        ```
+
+2. 链下随机数 (使用 `Chainlink`提供`VRF`（可验证随机函数）服务)
+
+    - 链下生成随机数，然后通过预言机把随机数上传到链上
+
+3. 代码
+
+    - 安装 chainlink
+
+    - ![image-20241013134058781](content/Aris/image-20241013134058781.png)
+
+    - chainlink VRF 升级到了 2.5版本,所以教程中的代码不可用,翻阅最新文档
+
+        - https://docs.chain.link/vrf/v2-5/getting-started
+
+    - ```solidity
+        // SPDX-License-Identifier: MIT
+        pragma solidity ^0.8.22;
+        
+        // 新版本路径发生了变化, 跟教程中不一样了
+        import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
+        import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
+        
+        // 使用 sepolia 网络部署 !!!!
+        contract RandomNumberConsumer is VRFConsumerBaseV2Plus {
+            // 申请的 ID
+            uint256 s_subId; // 这个 ID 变长了,需要使用 uint256;
+            // 存放得到的 requestId 和 随机数
+            uint256 public requestId;
+            uint256[] public randomWords;
+            // 数据从这里获取: https://docs.chain.link/vrf/v2-5/supported-networks#sepolia-testnet
+            // VRF Coordinator 合约地址 (sepolia)
+            address vrfCoordinator = 0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B;
+            // 500 gwei Key Hash
+            bytes32 s_keyHash =
+                0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae;
+            uint16 s_minimumRequestConfirmations = 3;
+            uint32 s_callbackGasLimit = 200_000;
+            uint32 s_numWords = 3;
+        
+            constructor(uint256 _subId) VRFConsumerBaseV2Plus(vrfCoordinator) {
+                s_subId = _subId;
+                // s_coordinator 不用声明,父合约中有该状态变量,直接使用即可 
+            }
+        
+            function requestRandomWords() external {
+                requestId = s_vrfCoordinator.requestRandomWords(
+                    VRFV2PlusClient.RandomWordsRequest({
+                        keyHash: s_keyHash,
+                        subId: s_subId,
+                        requestConfirmations: s_minimumRequestConfirmations,
+                        callbackGasLimit: s_callbackGasLimit,
+                        numWords: s_numWords,
+                        extraArgs: VRFV2PlusClient._argsToBytes(
+                            VRFV2PlusClient.ExtraArgsV1({nativePayment: false})
+                        )
+                    })
+                );
+            }
+        
+            function fulfillRandomWords(
+                uint256 _requestId,
+                uint256[] calldata _randomWords
+            ) internal virtual override {
+                randomWords = _randomWords;
+            }
+        }
+        ```
+
+    - 
+
+4. 合约部署
+
+    - [Chainlink VRF v2.5 sepolia testnet](https://docs.chain.link/vrf/v2-5/supported-networks#sepolia-testnet) 在这里获取数据
+    - ![image-20241013121555741](content/Aris/image-20241013121555741.png)
+    - ![image-20241013130148721](content/Aris/image-20241013130148721.png)
+    - ![image-20241013130352478](content/Aris/image-20241013130352478.png)
+    - ![image-20241013130620767](content/Aris/image-20241013130620767.png)
+    - ![image-20241013130649322](content/Aris/image-20241013130649322.png)
+    - ![image-20241013130705677](content/Aris/image-20241013130705677.png)
+    - ![image-20241013132050429](content/Aris/image-20241013132050429.png)
+    - ![image-20241013132157414](content/Aris/image-20241013132157414.png)
+    - 当前是 pending 状态等待结束(我这里一直显示 pending.....)
+    - ![image-20241013133243629](content/Aris/image-20241013133243629.png)
+
+---
+
+#### 学习内容 40. ERC1155
+
+1. EIP1155
+    - 允许一个合约包含多个同质化和非同质化代币
+    - 每一种代币都有一个`id`作为唯一标识,每个`id`对应一种代币
+    - 每种代币都有一个网址`uri`来存储它的元数据(tokenURI)
+    - 如果某个`id`对应的代币总量为`1`，那么它就是非同质化代币
+    - 如果某个`id`对应的代币总量大于`1`，那么他就是同质化代币
+2. IERC1155事件
+    - `TransferSingle`事件：单类代币转账事件，在单币种转账时释放。
+    - `TransferBatch`事件：批量代币转账事件，在多币种转账时释放。
+    - `ApprovalForAll`事件：批量授权事件，在批量授权时释放。
+    - `URI`事件：元数据地址变更事件，在`uri`变化时释放。
+3. IERC1155函数
+    - `balanceOf()`：单币种余额查询，返回`account`拥有的`id`种类的代币的持仓量。
+    - `balanceOfBatch()`：多币种余额查询，查询的地址`accounts`数组和代币种类`ids`数组的长度要相等。
+    - `setApprovalForAll()`：批量授权，将调用者的代币授权给`operator`地址。。
+    - `isApprovedForAll()`：查询批量授权信息，如果授权地址`operator`被`account`授权，则返回`true`。
+    - `safeTransferFrom()`：安全单币转账，将`amount`单位`id`种类的代币从`from`地址转账给`to`地址。如果`to`地址是合约，则会验证是否实现了`onERC1155Received()`接收函数。
+    - `safeBatchTransferFrom()`：安全多币转账，与单币转账类似，只不过转账数量`amounts`和代币种类`ids`变为数组，且长度相等。如果`to`地址是合约，则会验证是否实现了`onERC1155BatchReceived()`接收函数。
+4. ERC1155接收合约
+    - `ERC1155`要求代币接收合约继承`IERC1155Receiver`并实现两个接收函数
+        - onERC1155Received(), 实现并返回自己的选择器`0xf23a6e61`
+        - onERC1155BatchReceived, 实现并返回自己的选择器`0xbc197c81`
+5. 合约部署
+    - mint
+        - ![image-20241013141748068](content/Aris/image-20241013141748068.png)
+    - 查询余额
+        - ![image-20241013141854872](content/Aris/image-20241013141854872.png)
+    - 批量 mint
+        - ![image-20241013142552689](content/Aris/image-20241013142552689.png)
+    - 批量余额
+        - ![image-20241013142827049](content/Aris/image-20241013142827049.png)
+    - 批量转账
+        - ![image-20241013144808049](content/Aris/image-20241013144808049.png)
+    - 再次查询接受者余额(批量)
+        - ![image-20241013144959309](content/Aris/image-20241013144959309.png)
+
+---
+
+#### 学习内容: 41. WETH
+
+1. WETH
+    - `WETH` (Wrapped ETH)是`ETH`的带包装版本
+    - 以太币本身并不符合`ERC20`标准
+    - `WETH`的开发是为了提高区块链之间的互操作性 ，并使`ETH`可用于去中心化应用程序（dApps）
+2. WETH合约
+    - `WETH`符合`ERC20`代币标准，因此`WETH`合约继承了`ERC20`合约
+    - Deposit：存款事件，在存款的时候释放
+    - Withdraw：取款事件，在取款的时候释放
+    - 构造函数：初始化`WETH`的名字和代号。
+    - 回调函数：`fallback()`和`receive()`，当用户往`WETH`合约转`ETH`的时候，会自动触发`deposit()`存款函数，获得等量的`WETH`。
+    - `deposit()`：存款函数，当用户存入`ETH`时，给他铸造等量的`WETH`。
+    - `withdraw()`：取款函数，让用户销毁`WETH`，并归还等量的`ETH`。
+3. 合约部署
+    - deposit 1 ETH,,此时账户余额为 1ETH
+        - ![image-20241013150422577](content/Aris/image-20241013150422577.png)
+    - 给WETH 合约转账 2EHT,此时账户余额为 3ETH
+        - ![image-20241013150527505](content/Aris/image-20241013150527505.png)
+    - 提现 2ETH,此时账户余额为 1ETH
+        - ![image-20241013150804410](content/Aris/image-20241013150804410.png)
+
+---
+
+#### 学习内容: 42. 分账
+
+1. 分账
+    - 分账就是按照一定比例分钱财,区块链中,事先把每个人应分的比例写在智能合约中
+    - 获得收入后，再由智能合约来进行分账
+2. 分账合约
+    - 在创建合约时定好分账受益人payees和每人的份额shares。
+    - 份额可以是相等，也可以是其他任意比例。
+    - 在该合约收到的所有ETH中，每个受益人将能够提取与其分配的份额成比例的金额。
+    - 付款不会自动转入账户，而是保存在此合约中。
+    - 受益人通过调用release()函数触发实际转账。
+3. 合约部署
+    - ![image-20241013154520912](content/Aris/image-20241013154520912.png)
+    - ![image-20241013155449566](content/Aris/image-20241013155449566.png)
+
+---
+
+#### 学习内容: 43. 线性释放
+
+1. 线性释放
+
+    - 代币在归属期内匀速释放
+
+2. 事件
+
+    - 提币事件
+    - `event ERC20Released(address indexed token, uint256 amount);`
+
+3. 变量
+
+    - ```solidity
+        mapping(address => uint256) public erc20Released; // 代币地址->释放数量的映射
+        address public immutable beneficiary; // 受益人地址
+        uint256 public immutable start; // 归属期起始时间戳
+        uint256 public immutable duration; // 归属期 (秒)
+        ```
+
+4. 函数
+
+    - 构造函数：初始化受益人地址，归属期(秒), 起始时间戳。参数为受益人地址`beneficiaryAddress`和归属期`durationSeconds`。为了方便，起始时间戳用的部署时的区块链时间戳`block.timestamp`。
+    - `release()`：提取代币函数，将已释放的代币转账给受益人。调用了`vestedAmount()`函数计算可提取的代币数量，释放`ERC20Released`事件，然后将代币`transfer`给受益人。参数为代币地址`token`。
+    - `vestedAmount()`：根据线性释放公式，查询已经释放的代币数量。开发者可以通过修改这个函数，自定义释放方式。参数为代币地址`token`和查询的时间戳`timestamp`。
+
+5. 合约部署
+
+    - 先部署 ERC20,mint 10000 代币给自己
+    - 部署 线性释放合约(自己,100 秒),然后再 ERC20 合约中给线性释放合约转账 10000
+    - 点击 release,账户(自己)收到 7100 代币 (时间过去了 29 秒)
+    - ![image-20241013161032624](content/Aris/image-20241013161032624.png)
+
+---
+
+#### 学习内容: 44. 代币锁
+
+1. 代币锁(Token Locker)
+
+    - 时间锁合约，它可以把合约中的代币锁仓一段时间，受益人在锁仓期满后可以取走代币
+    - 代币锁一般是用来锁仓流动性提供者`LP`代币的
+
+2. LP代币
+
+    - 区块链中，用户在去中心化交易所`DEX`上交易代币
+    - `DEX`和中心化交易所(`CEX`)不同，去中心化交易所使用自动做市商(`AMM`)机制，需要用户或项目方提供资金池，以使得其他用户能够即时买卖
+    - 用户/项目方需要质押相应的币对（比如`ETH/DAI`）到资金池中
+    - 作为补偿，`DEX`会给他们铸造相应的流动性提供者`LP`代币凭证，证明他们质押了相应的份额，供他们收取手续费。
+    - 避免 rug-pull, 防止项目方过早跑路
+
+3. 代币锁合约
+
+    - 事件
+
+        - `okenLockStart`：锁仓开始事件
+
+        - `Release`：代币释放事件
+
+        - ```solidity
+            event TokenLockStart(address indexed beneficiary, address indexed token, uint256 startTime, uint256 lockTime);
+            event Release(address indexed beneficiary, address indexed token, uint256 releaseTime, uint256 amount);
+            ```
+
+    - 状态变量
+
+        - `token`：锁仓代币地址。
+        - `beneficiary`：受益人地址。
+        - `locktime`：锁仓时间(秒)。
+        - `startTime`：锁仓起始时间戳(秒)。
+
+    - 函数
+
+        - 构造函数：初始化代币合约，受益人地址，以及锁仓时间
+        - `release()`：在锁仓期满后，将代币释放给受益人 (手动调用)
+
+4. 合约部署
+
+    - 部署ERC20 合约,给自己 mint 10000 代币
+        - ![image-20241013163446054](content/Aris/image-20241013163446054.png)
+    - 部署 代币锁合约,token: ERC20 合约,受益人:自己,时间:180 秒
+    - ERC20 转账给代币锁合约 10000 代币
+        - ![image-20241013163758609](content/Aris/image-20241013163758609.png)
+    - 在 180 秒内调用,无法取出代币
+        - ![image-20241013163930131](content/Aris/image-20241013163930131.png)
+    - 锁仓期结束,可以取出代币
+        - ![image-20241013164030212](content/Aris/image-20241013164030212.png)
+
+---
+
+#### 学习内容: 45. 时间锁
+
+1. 时间锁（Timelock）
+
+    - 银行金库和其他高安全性容器中常见的锁定机制。
+    - 它是一种计时器，旨在防止保险箱或保险库在预设时间之前被打开，即便开锁的人知道正确密码。
+    - 将智能合约的某些功能锁定一段时间,大大改善智能合约的安全性
+
+2. 时间锁合约
+
+    - 在创建`Timelock`合约时，项目方可以设定锁定期，并把合约的管理员设为自己。
+    - 时间锁主要有三个功能：
+        - 创建交易，并加入到时间锁队列。
+        - 在交易的锁定期满后，执行交易。
+        - 取消时间锁队列中的某些交易。
+    - 项目方一般会把时间锁合约设为重要合约的管理员，例如金库合约，再通过时间锁操作他们。
+    - 时间锁合约的管理员一般为项目的多签钱包，保证去中心化。
+
+3. 合约部署
+
+    - 部署合约, delay: 120
+
+    - 交易入队: (这里的交易就是执行了“changeAdmin(address)”,传递了另一个新用户的地址,然后合约的admin参数值就变成了新用户地址)
+
+        - > target（合约地址）： 0x391209eC7C62713F2DC48E6582Cc264872A5aCcD
+            > value：0
+            > signature： changeAdmin(address)
+            > data: 0x000000000000000000000000ab8483f64d9c6d1ecf9b849ae677dd3315835cb2
+            >     步骤: 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2 在线abi编码(https://abi.hashex.org/) 
+            >     得到 000000000000000000000000ab8483f64d9c6d1ecf9b849ae677dd3315835cb2
+            >     注意在前面添加0x,即 0x000000000000000000000000ab8483f64d9c6d1ecf9b849ae677dd3315835cb2
+            > executeTime: 通过测试函数得到, 必须大于 当前时间 + delay时间之和 (大3分钟,即往上加180)
+
+    - 在线 abi encode,注意在前面添加0x
+
+        - ![image-20241013173253652](content/Aris/image-20241013173253652.png)
+
+    - 未到执行时间 (执行时间: 2024-10-13 17:30:27, 当前时间 2024-10-13 17:27:27)
+
+        - ![image-20241013172621060](content/Aris/image-20241013172621060.png)
+
+    - 到达执行时间, 手动执行后发现交易成功,当前 admin 被修改
+
+        - ![image-20241013173119684](content/Aris/image-20241013173119684.png)
+
+    - 异常操作:
+        - changeAdmin(address)函数只能合约自己调用!如果我们手动执行则会报错 (因为我们的地址和合约地址不一致)
+        - 没执行queueTransaction()就执行executeTransaction(),没有txHash记录,所以报错
+        - 执行了quueTransaction()
+             - 在executeTime之前执行,报错
+             - 在executeTime + GRACE_TIME之后,即有效期之后,报错 (这个有效期设置了7天,太长,可以改成60(默认秒))
+
+---
+
+#### 学习内容: 46. 代理合约
+
+1. 代理模式
+
+    - 合约部署在链上之后，代码是不可变的,合约部署后进行修改需使用代理模式
+    - 代理模式将合约数据和逻辑分开，分别保存在不同合约中
+    - 代理合约（Proxy）通过`delegatecall`，将函数调用全权委托给逻辑合约（Implementation）执行，再把最终的结果返回给调用者（Caller）
+    - 可升级：当我们需要升级合约的逻辑时，只需要将代理合约指向新的逻辑合约。
+    - 省gas：如果多个合约复用一套逻辑，我们只需部署一个逻辑合约，然后再部署多个只保存数据的代理合约，指向逻辑合约。
+
+2. 代理合约
+
+    - ![image-20241013181657976](content/Aris/image-20241013181657976.png)
+
+    - call
+
+        - ```solidity
+            ( , bytes memory data) = proxy.call(abi.encodeWithSignature("increment()"));
+            ```
+
+    - delegatecall (使用内联汇编 inline assembly)
+
+        - ```solidity
+            /**
+            * @dev 回调函数，将本合约的调用委托给 `implementation` 合约
+            * 通过assembly，让回调函数也能有返回值
+            */
+            fallback() external payable {
+                address _implementation = implementation;
+                assembly {
+                    // 将msg.data拷贝到内存里
+                    // calldatacopy操作码的参数: 内存起始位置，calldata起始位置，calldata长度
+                    calldatacopy(0, 0, calldatasize())
+            
+                    // 利用delegatecall调用implementation合约
+                    // delegatecall操作码的参数：gas, 目标合约地址，input mem起始位置，input mem长度，output area mem起始位置，output area mem长度
+                    // output area起始位置和长度位置，所以设为0
+                    // delegatecall成功返回1，失败返回0
+                    let result := delegatecall(gas(), _implementation, 0, calldatasize(), 0, 0)
+            
+                    // 将return data拷贝到内存
+                    // returndata操作码的参数：内存起始位置，returndata起始位置，returndata长度
+                    returndatacopy(0, 0, returndatasize())
+            
+                    switch result
+                    // 如果delegate call失败，revert
+                    case 0 {
+                        revert(0, returndatasize())
+                    }
+                    // 如果delegate call成功，返回mem起始位置为0，长度为returndatasize()的数据（格式为bytes）
+                    default {
+                        return(0, returndatasize())
+                    }
+                }
+            }
+            ```
+
+3. 注意点:
+
+    - 合约语境上下文,不存在的默认初始默认值
+    - ![image-20241013182025872](content/Aris/image-20241013182025872.png)
+    - 通过低级调用,即使用函数 selector 调用,会执行 fallback()函数
+
+4. 合约部署
+
+    - 部署 logic 合约,调用 increment 函数,返回 100
+        - ![image-20241013180540343](content/Aris/image-20241013180540343.png)
+    - 部署 proxy 合约,implemention 写 Logic 合约地址
+        - ![image-20241013180730742](content/Aris/image-20241013180730742.png)
+        - ![image-20241013181053097](content/Aris/image-20241013181053097.png)
+    - 部署 Caller 填写 proxy 合约地址
+        - ![image-20241013181237964](content/Aris/image-20241013181237964.png)
+    - 调用 increase(),返回 1
+        - ![image-20241013181408473](content/Aris/image-20241013181408473.png)
+
+---
+
+#### 学习内容: 47. 可升级合约
+
+1. 可升级合约
+
+    - 可以更改逻辑合约的代理合约
+
+    - ![image-20241013183832604](content/Aris/image-20241013183832604.png)
+
+    - ```solidity
+        implementation.delegatecall(msg.data)
+        ```
+
+    - 合约`有选择器冲突`的问题，存在安全隐患
+
+2. 合约部署
+
+    - 部署 Logic1 和 Logic2 合约,部署 升级合约,使用 Logic1 合约地址
+    - 低级调用,选择器 0xc2985578,查看 words 为 old
+        - ![image-20241013183546830](content/Aris/image-20241013183546830.png)
+    - 升级合约调用 upgrade, 参数传递 Logic2 的地址,低级调用,选择器 0xc2985578,查看 words 为 new
+        - ![image-20241013183738606](content/Aris/image-20241013183738606.png)
+
+---
+
+#### 学习内容: 48. 透明代理
+
+1. 透明代理
+
+    - 管理员可能会因为“函数选择器冲突”，在调用逻辑合约的函数时，误调用代理合约的可升级函数
+
+    - 那么限制管理员的权限，不让他调用任何逻辑合约的函数，就能解决冲突
+
+        - 管理员仅能调用代理合约的可升级函数对合约升级，不能通过回调函数调用逻辑合约
+        - 其它用户不能调用可升级函数，但是可以调用逻辑合约的函数
+
+    - ```solidity
+        function upgrade(address newImplementation) external {
+            if (msg.sender != admin) revert();
+            implementation = newImplementation;
+        }
+        fallback() external payable {
+            require(msg.sender != admin);
+            (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+        }
+        ```
+
+2. 注意点:
+
+    - 每次用户调用函数时，都会多一步是否为管理员的检查，消耗更多gas
+    - 透明代理仍是大多数项目方选择的方案
+
+3. 合约部署
+
+    - 部署 Foo 合约,selector1,select2 均为0x42966c68
+    - 部署 Logic1, Logic2, 透明代理合约(使用 Logic1 地址),通过低级调用(选择器：0xc2985578),提示失败 `Caller must not be admin!`
+        - ![image-20241013185437430](content/Aris/image-20241013185437430.png)
+    - 切换钱包,通过低级调用(选择器：0xc2985578),提示成功,显示 words 为 old
+        - ![image-20241013185613902](content/Aris/image-20241013185613902.png)
+    - 切换回去,调用 upgrade,地址为 Logic2 地址,在切换钱包,低级调用,显示为 new
+        - ![image-20241013185854135](content/Aris/image-20241013185854135.png)
+
+---
+
+#### 学习内容: 49. 通用可升级代理
+
+1. 通用可升级代理(UUPS: universal upgradeable proxy standard)
+
+    - 将升级函数放在逻辑合约中,如果有其它函数与升级函数存在“选择器冲突”，编译时就会报错
+
+    - ![image-20241013191806714](content/Aris/image-20241013191806714.png)
+
+    - ```solidity
+        // 升级函数，改变逻辑合约地址，只能由admin调用。选择器：0x0900f010
+        // UUPS中，逻辑合约中必须包含升级函数，不然就不能再升级了。
+        function upgrade(address newImplementation) external {
+            require(msg.sender == admin);
+            implementation = newImplementation;
+        }
+        ```
+
+    - 相比透明代理，UUPS更省gas，但也更复杂
+
+2. 合约部署
+
+    - 部署UUPS新旧逻辑合约UUPS1和UUPS2
+    - 部署UUPS代理合约UUPSProxy，将implementation地址指向旧逻辑合约UUPS1
+    - 利用选择器0xc2985578，在代理合约中调用旧逻辑合约UUPS1的foo()函数，将words的值改为"old"
+        - ![image-20241013191218022](content/Aris/image-20241013191218022.png)
+    - https://abi.hashex.org/ 在线编码,拷贝数据到低级调用地址栏,粘贴数据
+        - ![image-20241013191443418](content/Aris/image-20241013191443418.png)
+    - 再次调用,word 改成 new
+        - ![image-20241013191637394](content/Aris/image-20241013191637394.png)
+
+---
+
+#### 学习内容: 50. 多签钱包
+
+1. 多签钱包
+    - 交易被多个私钥持有者（多签人）授权后才能执行
+    - 多签钱包可以防止单点故障（私钥丢失，单人作恶），更加去中心化，更加安全，被很多DAO采用。
+2. 多签钱包合约
+    - 以太坊上的多签钱包其实是智能合约，属于合约钱包
+    - 设置多签人和门槛（链上）
+        - 部署多签合约时，我们需要初始化多签人列表和执行门槛（至少n个多签人签名授权后，交易才能执行）
+    - 创建交易（链下）
+        - `to`：目标合约。
+        - `value`：交易发送的以太坊数量。
+        - `data`：calldata，包含调用函数的选择器和参数。
+        - `nonce`：初始为`0`，随着多签合约每笔成功执行的交易递增的值，可以防止签名重放攻击。
+        - `chainid`：链id，防止不同链的签名重放攻击。
+    - 收集多签签名（链下）
+        - 交易ABI编码并计算哈希，得到交易哈希，然后让多签人签名，并拼接到一起的到打包签名
+    - 调用多签合约的执行函数，验证签名并执行交易（链上）
+        - 主要 用ecdsa先验证签名是否有效
+3. 合约部署
+    - 使用remix 的 2 个钱包,门槛设为 2
+        - 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4
+        - 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2
+        - ![image-20241013202225377](content/Aris/image-20241013202225377.png)
+    - 给合约转账 1ETH
+        - ![image-20241013202347917](content/Aris/image-20241013202347917.png)
+    - 构建交易,合约给 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4 转账 1ETH
+    - 获取交易 hash
+        - to: 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4
+        - value: 1000000000000000000
+        - data: 0x
+        - _nonce: 0
+        - chainid: 1
+        - 得到最终 hash: 0xb43ad6901230f2c59c3f7ef027c9a372f199661c61beeec49ef5a774231fc39b
+        - ![image-20241013202623174](content/Aris/image-20241013202623174.png)
+    - 账户 1 签名 (0x5B38Da6a701c568545dCfcB03FcB875f56beddC4)
+        - ![image-20241013202943659](content/Aris/image-20241013202943659.png)
+        - ![image-20241013202954979](content/Aris/image-20241013202954979.png)
+        - 签名: 0x014db45aa753fefeca3f99c2cb38435977ebb954f779c2b6af6f6365ba4188df542031ace9bdc53c655ad2d4794667ec2495196da94204c56b1293d0fbfacbb11c
+    - 账户 2 签名 (0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2)
+        - ![image-20241013203126923](content/Aris/image-20241013203126923.png)
+        - 签名: 0xbe2e0e6de5574b7f65cad1b7062be95e7d73fe37dd8e888cef5eb12e964ddc597395fa48df1219e7f74f48d86957f545d0fbce4eee1adfbaff6c267046ade0d81c
+    - 账户 1 签名小于账户 2 的签名,所以账户 1 签名在前
+        - 0x014db45aa753fefeca3f99c2cb38435977ebb954f779c2b6af6f6365ba4188df542031ace9bdc53c655ad2d4794667ec2495196da94204c56b1293d0fbfacbb11cbe2e0e6de5574b7f65cad1b7062be95e7d73fe37dd8e888cef5eb12e964ddc597395fa48df1219e7f74f48d86957f545d0fbce4eee1adfbaff6c267046ade0d81c
+    - 执行 execTransaction
+        - to: 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4
+        - _value: 1000000000000000000
+        - data: 0x
+        - signatures: 0x014db45aa753fefeca3f99c2cb38435977ebb954f779c2b6af6f6365ba4188df542031ace9bdc53c655ad2d4794667ec2495196da94204c56b1293d0fbfacbb11cbe2e0e6de5574b7f65cad1b7062be95e7d73fe37dd8e888cef5eb12e964ddc597395fa48df1219e7f74f48d86957f545d0fbce4eee1adfbaff6c267046ade0d81c
+        - ![image-20241013203606983](content/Aris/image-20241013203606983.png)
+    - 交易成功,1 ETH 被转出
+
+---
+
+### 2024.10.14
+
+#### 学习内容 51. ERC4626 代币化金库标准
+
+1. 金库
+    - 金库合约是 DeFi 乐高中的基础，它允许你把基础资产（代币）质押到合约中，换取一定收益
+
+2. ERC4626
+    - ERC4626 代币化金库标准（Tokenized Vault Standard），使得 DeFi 能够轻松扩展
+    - 代币化: ERC4626 继承了 ERC20，向金库存款时，将得到同样符合 ERC20 标准的金库份额，比如质押 ETH，自动获得 stETH。
+    - 更好的流通性: 由于代币化，你可以在不取回基础资产的情况下，利用金库份额做其他事情。拿 Lido 的 stETH 为例，你可以用它在 Uniswap 上提供流动性或交易，而不需要取出其中的 ETH。
+    - 更好的可组合性: 有了标准之后，用一套接口可以和所有 ERC4626 金库交互，让基于金库的应用、插件、工具开发更容易。
+
+3. ERC4626 要点
+    - ERC20: ERC4626 继承了 ERC20，金库份额就是用 ERC20 代币代表的：用户将特定的 ERC20 基础资产（比如 WETH）存进金库，合约会给他铸造特定数量的金库份额代币；当用户从金库中提取基础资产时，会销毁相应数量的金库份额代币。`asset()` 函数会返回金库的基础资产的代币地址。
+    - 存款逻辑：让用户存入基础资产，并铸造相应数量的金库份额。相关函数为 `deposit()` 和 `mint()`。`deposit(uint assets, address receiver)` 函数让用户存入 `assets` 单位的资产，并铸造相应数量的金库份额给 `receiver` 地址。`mint(uint shares, address receiver)` 与它类似，只不过是以将铸造的金库份额作为参数。
+    - 提款逻辑：让用户销毁金库份额，并提取金库中相应数量的基础资产。相关函数为 `withdraw()` 和 `redeem()`，前者以取出基础资产数量为参数，后者以销毁的金库份额为参数。
+    - 会计和限额逻辑：ERC4626 标准中其他的函数是为了统计金库中的资产，存款/提款限额，和存款/提款的基础资产和金库份额数量。
+
+4. 合约部署
+    - 部署 31 课的 ERC20 合约,名称代号为 Aris,给自己 mint 10000 代币
+        - ![image-20241014173035071](content/Aris/image-20241014173035071.png)
+
+    - 部署 ERC4626 合约, 名称代号为 vAris, 基础资产地址设置为 ERC20 合约地址
+        - ![image-20241014173235319](content/Aris/image-20241014173235319.png)
+
+    - 调用 ERC20 合约,授权 ERC4626 合约 10000 代币
+        - ![image-20241014173336528](content/Aris/image-20241014173336528.png)
+
+    - deposit 1000 枚代币,调用 `balanceOf()` 函数，查看自己的金库份额变为 `1000`
+        - ![image-20241014173720813](content/Aris/image-20241014173720813.png)
+
+    - mint 1000 枚代币,调用 `balanceOf()` 函数，查看自己的金库份额变为 `2000`
+        - ![image-20241014173844426](content/Aris/image-20241014173844426.png)
+
+    - withdraw 取款 `1000` 枚代币,`balanceOf()` 函数，查看自己的金库份额变为 `1000`
+        - ![image-20241014174041704](content/Aris/image-20241014174041704.png)
+
+    - redeem 取款 `1000` 枚代币,`balanceOf()` 函数，查看自己的金库份额变为 `0`
+        - ![image-20241014174148410](content/Aris/image-20241014174148410.png)
 
 
 ---

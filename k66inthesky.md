@@ -279,5 +279,8 @@ receive()   fallback()
         getPair[tokenB][tokenA] = pairAddr;
     }
    ```
+### 2024.10.13
+學習內容: `25. CREATE2`
++ `CREATE2`和前一篇的`CREATE`不同，`Uniswap v2`用來驅動factory合約。
 
 <!-- Content_END -->

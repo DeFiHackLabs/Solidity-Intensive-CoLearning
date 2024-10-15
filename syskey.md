@@ -3291,7 +3291,6 @@ timezone: Asia/Shanghai
     - 学习总结
 
         - 时间锁合约在一定程度上能避免被黑之后造成的资产损失。另外在使用时间锁时要确定好目标地址不是合约地址，因为在执行交易(`executeTransaction`)函数中使用了`call`调用，容易受到恶意合约的重入攻击。
-
 ###
 
 ### 2024.10.12
@@ -3427,5 +3426,221 @@ timezone: Asia/Shanghai
 	    - 存储冲突问题： 代理合约和逻辑合约共用存储空间，因此需要确保两者的存储布局是一致的。通常采用一种叫做“不可碰撞存储布局”的方法来避免存储冲突。
 
 	    - 升级的控制权限： 代理合约的升级权限应当严格控制，防止被恶意升级。通常使用多签钱包或去中心化治理来管理升级权限。
+###
+
+### 2024.10.13
+
+学习内容:
+1. 第四十七讲
+
+    - 可升级合约 - 是可以更改逻辑合约地址的代理合约。
+
+    - 合约逻辑
+
+        - 与代理合约基本一致，但比代理合约多了`upgrade()`函数用于更改逻辑合约的地址，并且此函数只能由管理员调用。
+
+            ```Solidity
+            
+            // SPDX-License-Identifier: MIT
+            // wtf.academy 
+            pragma solidity ^0.8.21;
+
+            // 简单的可升级合约，管理员可以通过升级函数更改逻辑合约地址，从而改变合约的逻辑。
+            // 教学演示用，不要用在生产环境
+            contract SimpleUpgrade {
+                address public implementation; // 逻辑合约地址
+                address public admin; // admin地址
+                string public words; // 字符串，可以通过逻辑合约的函数改变
+
+                // 构造函数，初始化admin和逻辑合约地址
+                constructor(address _implementation){
+                    admin = msg.sender;
+                    implementation = _implementation;
+                }
+
+                // fallback函数，将调用委托给逻辑合约
+                fallback() external payable {
+                    (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+                }
+
+                // 升级函数，改变逻辑合约地址，只能由admin调用
+                function upgrade(address newImplementation) external {
+                    require(msg.sender == admin);
+                    implementation = newImplementation;
+                }
+            }
+            ```
+
+    - 核心函数
+
+        - 旧逻辑合约
+
+            ```Solidity
+            // 旧逻辑合约
+            contract Logic1 {
+                // 状态变量和proxy合约一致，防止插槽冲突
+                address public implementation; 
+                address public admin; 
+                string public words; // 字符串，可以通过逻辑合约的函数改变
+
+                // 改变proxy中状态变量，选择器： 0xc2985578
+                function foo() public{
+                    words = "old";
+                }
+            }
+            ```
+
+        - 新逻辑合约
+
+            ```Solidity
+            // 新逻辑合约
+            contract Logic2 {
+                // 状态变量和proxy合约一致，防止插槽冲突
+                address public implementation; 
+                address public admin; 
+                string public words; // 字符串，可以通过逻辑合约的函数改变
+
+                // 改变proxy中状态变量，选择器：0xc2985578
+                function foo() public{
+                    words = "new";
+                }
+            }
+            ```
+
+    - 学习总结
+
+        - 简单学习了可升级合约，基本就是在代理合约的基础上加了可以更改逻辑合约地址的函数，不过这种方式的可升级合约有`选择器冲突`的问题，针对这个问题可以通过`透明代理`和`UUPS`解决。     
+###
+
+### 2024.10.14
+
+学习内容:
+1. 第四十八讲
+
+    - 什么是选择器冲突？
+
+        - 选择器冲突是指`不同的函数`对应的`函数选择器`相同。
+
+            ```Solidity
+
+            // 选择器冲突的例子
+            contract Foo {
+                function burn(uint256) external {}
+                function collate_propagate_storage(bytes16) external {}
+            }
+            ```
+        - 上面的代码中，函数`burn()`和`collate_propagate_storage()`的选择器都为`0x42966c68`，这种情况被称为“选择器冲突”。在这种情况下，EVM无法通过函数选择器分辨用户调用哪个函数，因此该合约无法通过编译。
+
+        - 由于`代理合约`和`逻辑合约`是两个合约，就算他们之间存在“选择器冲突”也可以正常编译，这可能会导致很严重的安全事故。举个例子，如果逻辑合约的`a函数`和代理合约的`升级函数的选择器`相同，那么管理人就会在`调用a函数`的时候，将代理合约升级成一个`黑洞合约`，后果不堪设想。
+
+        - 而透明代理就是通过限制管理员和普通用户的权限来解决选择器冲突的。
+
+    - 透明代理（`Transparent Proxy`）- 可以解决代理合约的选择器冲突（Selector Clash）问题。
+
+    - 透明代理解决冲突的思路
+
+        - 将管理员设置为仅能调用代理合约的升级函数，且不能通过回调函数调用逻辑合约。
+
+        - 其他用户只能通过回调函数调用逻辑合约，不能调用逻辑合约的升级函数。
+
+            ```Solidity
+            
+            // 透明可升级合约的教学代码，不要用于生产。
+            contract TransparentProxy {
+                address implementation; // logic合约地址
+                address admin; // 管理员
+                string public words; // 字符串，可以通过逻辑合约的函数改变
+
+                // 构造函数，初始化admin和逻辑合约地址
+                constructor(address _implementation){
+                    admin = msg.sender;
+                    implementation = _implementation;
+                }
+
+                // fallback函数，将调用委托给逻辑合约
+                // 不能被admin调用，避免选择器冲突引发意外
+                fallback() external payable {
+                    require(msg.sender != admin);
+                    (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+                }
+
+                // 升级函数，改变逻辑合约地址，只能由admin调用
+                function upgrade(address newImplementation) external {
+                    if (msg.sender != admin) revert();
+                    implementation = newImplementation;
+                }
+            }
+            ```
+
+    - 学习总结
+
+        - 用户透明性：用户与代理合约交互时，感知不到背后逻辑合约的升级，所有调用都被透明地委托给最新的逻辑合约。
+
+	    - 开发者透明性：只有非管理员角色（即普通用户）可以通过代理合约调用逻辑合约，而管理员角色只能进行合约升级。这种权限控制确保了合约升级过程对普通用户是“透明”的，避免了他们调用到升级相关的函数。
+###
+
+### 2024.10.15
+
+学习内容:
+1. 第四十九讲
+
+    - 通用可升级代理（`UUPS，universal upgradeable proxy standard`）- 此方式也能解决选择器冲突的问题，但和透明代理解决的方案不同。
+
+    - 通用可升级代理解决选择器冲突的思路
+
+        - 通过将升级合约函数添加到逻辑合约中，并且指定只有管理员能调用。因为升级函数在逻辑合约中，所以其他逻辑合约中的函数如果与升级函数存在选择器冲突，那么编译将出错。
+
+    - 代码示例
+
+        - 代理合约
+
+            ```Solidity
+
+            contract UUPSProxy {
+                address public implementation; // 逻辑合约地址
+                address public admin; // admin地址
+                string public words; // 字符串，可以通过逻辑合约的函数改变
+
+                // 构造函数，初始化admin和逻辑合约地址
+                constructor(address _implementation){
+                    admin = msg.sender;
+                    implementation = _implementation;
+                }
+
+                // fallback函数，将调用委托给逻辑合约
+                fallback() external payable {
+                    (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+                }
+            }
+            ```
+
+        - 逻辑合约
+
+            ```Soldity
+
+            // UUPS逻辑合约（升级函数写在逻辑合约内）
+            contract UUPS1{
+                // 状态变量和proxy合约一致，防止插槽冲突
+                address public implementation; 
+                address public admin; 
+                string public words; // 字符串，可以通过逻辑合约的函数改变
+
+                // 改变proxy中状态变量，选择器： 0xc2985578
+                function foo() public{
+                    words = "old";
+                }
+
+                // 升级函数，改变逻辑合约地址，只能由admin调用。选择器：0x0900f010
+                // UUPS中，逻辑合约中必须包含升级函数，不然就不能再升级了。
+                function upgrade(address newImplementation) external {
+                    require(msg.sender == admin);
+                    implementation = newImplementation;
+                }
+            }
+            ```
+
+    - 学习总结
+
+        - 如果需要更多的安全保证，且希望升级逻辑与合约调用逻辑分离，并且对GAS消耗不敏感，那么可以使用透明代理。如果对 gas 成本有较高要求，且有足够的经验来处理升级逻辑的安全性，那么 UUPS 是一个更灵活且高效的选择。它适合需要在复杂逻辑合约中节省资源的场景。在实际生产中是使用透明代理还是UUPS需要解决实际情况来考虑。
 ###
 <!-- Content_END -->

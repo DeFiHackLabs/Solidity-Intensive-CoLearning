@@ -1591,4 +1591,171 @@ contract structType{
                    keccak256(abi.encodePacked(type(Pair).creationCode, abi.encode(address(this))))
                )))));
    ```
+
+###  2024.10.13
+**selfdestruct**
+   * 用来删除智能合约，并将该合约剩余`ETH`转到指定地址。
+   * 当前`SELFDESTRUCT`仅会被用来将合约中的`ETH`转移到指定地址，而原先的删除功能只有在合约创建-自毁这两个操作处在同一笔交易时才能生效。
+   * 所以:
+      1. 已经部署的合约无法被`SELFDESTRUCT`了。
+      2. 如果要使用原先的`SELFDESTRUCT`功能，必须在同一笔交易中创建并`SELFDESTRUCT`。
+         
+**如何使用selfdestruct**
+   * `selfdestruct(_addr)；`
+   * `_addr`是接收合约中剩余`ETH`的地址。`_addr`地址不需要有`receive()`或`fallback()`也能接收`ETH`。
+     
+**转移ETH功能**
+   * 在坎昆升级前可以完成合约的自毁，在坎昆升级后仅能实现内部ETH余额的转移。
+   ```Solidity
+   contract DeleteContract {
+       uint public value = 10;   
+       constructor() payable {}  
+       receive() external payable {}
+   
+       function deleteContract() external {
+           // 调用selfdestruct销毁合约，并把剩余的ETH转给msg.sender
+           selfdestruct(payable(msg.sender));
+       }
+   
+       function getBalance() external view returns(uint balance){
+           balance = address(this).balance;
+       }
+   }
+   ```
+   * 部署好合约后，我们向`DeleteContract`合约转入1`ETH`。这时，`getBalance()`会返回1`ETH`，`value`变量是10。
+   * 调用`deleteContract()`函数，合约将触发`selfdestruct`操作。在坎昆升级前，合约会被自毁。但是在升级后，合约依然存在，只是将合约包含的`ETH`转移到指定地址，而合约依然能够调用。
+
+**同笔交易内实现合约创建-自毁**
+   * 原先的删除功能只有在合约创建-自毁这两个操作处在同一笔交易时才能生效。所以我们需要通过另一个合约进行控制。
+   ```Solidity
+   contract DeployContract {
+       struct DemoResult {
+           address addr;
+           uint balance;
+           uint value;
+       }
+       constructor() payable {}
+   
+       function getBalance() external view returns(uint balance){
+           balance = address(this).balance;
+       }
+   
+       function demo() public payable returns (DemoResult memory){
+           DeleteContract del = new DeleteContract{value:msg.value}();
+           DemoResult memory res = DemoResult({
+               addr: address(del),
+               balance: del.getBalance(),
+               value: del.value()
+           });
+           del.deleteContract();
+           return res;
+       }
+   }
+   ```
+
+**注意事项**
+   1. 对外提供合约销毁接口时，最好设置为只有合约所有者可以调用，可以使用函数修饰符onlyOwner进行函数声明。
+   2. 当合约中有selfdestruct功能时常常会带来安全问题和信任问题，合约中的`selfdestruct`功能会为攻击者打开攻击向量(例如使用`selfdestruct`向一个合约频繁转入token进行攻击，这将大大节省了GAS的费用，虽然很少人这么做)，此外，此功能还会降低用户对合约的信心。
+
+###  2024.10.14
+**ABI编码**
+   * 4个函数
+     1. `abi.encode`: 将给定参数利用ABI规则编码。`ABI`被设计出来跟智能合约交互，他将每个参数填充为32字节的数据，并拼接在一起。
+      ```Solidity
+      uint x = 10;
+      address addr = 0x7A58c0Be72BE218B41C608b7Fe7C5bB630736C71;
+      string name = "0xAA";
+      uint[2] array = [5, 6];
+      
+      function encode() public view returns(bytes memory result) {
+          result = abi.encode(x, addr, name, array);
+      }
+      ```
+      
+         * 编码的结果为`0x000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000043078414100000000000000000000000000000000000000000000000000000000`，由于abi.encode将每个数据都填充为32字节，中间有很多0。
+           
+     2. `abi.encodePacked`: 将给定参数根据其所需最低空间编码。当你想省空间，并且不与合约交互的时候，可以使用。
+      ```Solidity
+      function encodePacked() public view returns(bytes memory result) {
+      result = abi.encodePacked(x, addr, name, array);
+      }
+      ```
+
+         * 编码的结果为`0x000000000000000000000000000000000000000000000000000000000000000a7a58c0be72be218b41c608b7fe7c5bb630736c713078414100000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000006`，由于abi.encodePacked对编码进行了压缩，长度比abi.encode短很多。
+        
+     3. `abi.encodeWithSignature`: 与`abi.encode`功能类似，只不过第一个参数为函数签名，比如`foo(uint256,address,string,uint256[2])`。当调用其他合约的时候可以使用。
+      ```Solidity
+      function encodeWithSignature() public view returns(bytes memory result) {
+         result = abi.encodeWithSignature("foo(uint256,address,string,uint256[2])", x, addr, name, array);
+      }
+      ```
+      
+        * 编码的结果为`0xe87082f1000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000043078414100000000000000000000000000000000000000000000000000000000`，等同于在`abi.encode`编码结果前加上了4字节的函数选择器(通过函数名和参数进行签名处理(Keccak–Sha3)来标识函数，可以用于不同合约之间的函数调用)。
+       
+     4. `abi.encodeWithSelector`: 与`abi.encodeWithSignature`功能类似，只不过第一个参数为函数选择器，为函数签名Keccak哈希的前4个字节。
+      ```Solidity
+      function encodeWithSelector() public view returns(bytes memory result) {
+         result = abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array);
+      }
+      ```
+      
+      * 编码的结果为  `0xe87082f1000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000043078414100000000000000000000000000000000000000000000000000000000`，与`abi.encodeWithSignature`结果一样。
+       
+**ABI解码**
+   * `abi.decode`: `abi.decode`用于解码`abi.encode`生成的二进制编码，将它还原成原本的参数。
+     ```Solidity
+     function decode(bytes memory data) public pure returns(uint dx, address daddr, string memory dname, uint[2] memory darray) {
+        (dx, daddr, dname, darray) = abi.decode(data, (uint, address, string, uint[2]));
+     }
+     ```
+     ![image](https://github.com/user-attachments/assets/be259e82-59ee-401a-9076-e0a8e0ae817c)
+
+**Hash的性质**
+   * 可以将任意长度的消息转换为一个固定长度的值，这个值也称作哈希（hash）。
+   * 一个好的哈希函数应该具有以下几个特性：
+      * 单向性：从输入的消息到它的哈希的正向运算简单且唯一确定，而反过来非常难，只能靠暴力枚举。
+      * 灵敏性：输入的消息改变一点对它的哈希改变很大。
+      * 高效性：从输入的消息到哈希的运算高效。
+      * 均一性：每个哈希值被取到的概率应该基本相等。
+      * 抗碰撞性：
+         *  弱抗碰撞性：给定一个消息x，找到另一个消息x'，使得hash(x) = hash(x')是困难的。
+         *  强抗碰撞性：找到任意x和x'，使得hash(x) = hash(x')是困难的。
+  * 应用
+      * 生成数据唯一标识
+      * 加密签名
+      * 安全加密
+        
+**Keccak256**
+   * `Keccak256`函数是Solidity中最常用的哈希函数，用法非常简单: `哈希 = keccak256(数据);`
+   * Keccak256和sha3:
+     1. sha3由keccak标准化而来，在很多场合下Keccak和SHA3是同义词，但在2015年8月SHA3最终完成标准化时，NIST调整了填充算法。*所以SHA3就和keccak计算的结果不一样*，这点在实际开发中要注意。
+     2. 以太坊在开发的时候sha3还在标准化中，所以采用了keccak，所以Ethereum和Solidity智能合约代码中的SHA3是指Keccak256，而不是标准的NIST-SHA3，为了避免混淆，直接在合约代码中写成Keccak256是最清晰的。
+   * 生成数据唯一标识: 我们有几个不同类型的数据：`uint`，`string`，`address`，我们可以先用`abi.encodePacked`方法将他们打包编码，然后再用`keccak256`来生成唯一标识：
+     ```Solidity
+     function hash(
+         uint _num,
+         string memory _string,
+         address _addr
+         ) public pure returns (bytes32) {
+         return keccak256(abi.encodePacked(_num, _string, _addr));
+     }
+     ```
+   * 弱抗碰撞性: 给定一个消息`0xAA`，试图去找另一个消息，使得它们的哈希值相等：
+     ```Solidity
+     function weak(
+         string memory string1
+         )public view returns (bool){
+         return keccak256(abi.encodePacked(string1)) == _msg;
+     }
+     ```
+   * 强抗碰撞性: 构造一个函数`strong`，接收两个不同的`string`参数`string1`和`string2`，然后判断它们的哈希是否相同
+     ```Solidity
+     function strong(
+        string memory string1,
+        string memory string2
+        )public pure returns (bool){
+        return keccak256(abi.encodePacked(string1)) == keccak256(abi.encodePacked(string2));
+     }
+     ```
+     
 <!-- Content_END -->

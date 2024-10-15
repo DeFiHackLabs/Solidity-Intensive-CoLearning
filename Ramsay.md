@@ -1638,4 +1638,195 @@ contract ERC721 is IERC721, IERC721Metadata{
 
 不过看起来，validator 只有几秒的空间来调整，时间戳应该不存在被利用的漏洞.
 
+### 2024.10.14
+
+#### Merkle Tree
+
+我写了一篇博客来梳理这一课的内容，深入浅出地分析了Merkle Tree：[区块链的完整性校验方案: Merkle Tree](https://ramsayleung.github.io/zh/post/2024/%E5%8C%BA%E5%9D%97%E9%93%BE%E7%9A%84%E5%AE%8C%E6%95%B4%E6%80%A7%E6%A0%A1%E9%AA%8C%E6%96%B9%E6%A1%88_merkle_tree/)
+
+<details>
+  <summary>文章内容</summary>
+  
+## <span class="section-num">1</span> 前言 
+
+最近通过 [Solidity-103](https://www.wtf.academy/docs/solidity-103) 课程在学习 Solidity, 看到[第36课](https://www.wtf.academy/docs/solidity-103/MerkleTree/) Merkle Tree 的时候着实头疼, 即使我已经了解 Merkle Tree 这数据结构，但是课程还是看得不明所以。 <br/>
+
+所以写下这篇文章，梳理我所理解的 Merkle Tree 及其用途，既加深自己的理解，又践行了[费曼学习法](https://ramsayleung.github.io/zh/post/2022/feynman_technique/) <br/>
+
+
+## <span class="section-num">2</span> 区块链与交易 
+
+关于区块链的资料有非常多，我也不赘述了. <br/>
+
+简单理解，区块链是由一个一个区块构成的有序链表，每一个区块都记录了一系列交易，并且，每个区块都指向前一个区块，从而形成一个链条。区块链听起来很高级，其实就是个单链表。 <br/>
+
+![](https://gitea.com/enriquejose/store/raw/branch/master/static/ox-hugo/blockchain.jpg) <br/>
+
+每个区块都会保存对应的交易信息，也会包含元数据信息在头部，包括前一个区块的 hash, 包含的交易数，merkle tree 的根节点 hash,时间戳等信息. <br/>
+![](https://gitea.com/enriquejose/store/raw/branch/master/static/ox-hugo/block_detail.jpg) <br/>
+
+我们总说区块链是不可窜改，那么它究竟是怎么不可窜改的? <br/>
+
+如果用户想要验证某个区块的某笔交易是否被窜改，他要怎么做？ <br/>
+最简单的方式自然是把整个区块的交易都下载下来，平均每个区块有1M的数据，验证起来肯定很费时间. <br/>
+
+是否有一个验证方案，可以使用很小的数据集就完成验证? <br/>
+
+有的，那就是 Merkle Tree. <br/>
+
+
+## <span class="section-num">3</span> Merkle Tree 
+
+那什么是 Merkle Tree? <br/>
+
+假如我们有8笔交易被包含在区块中, 每笔交易都可以通过 hash 函数计算出一个 hash 值: <br/>
+
+![](https://gitea.com/enriquejose/store/raw/branch/master/static/ox-hugo/8transactions.jpg) <br/>
+
+哈希值也可以看做数据，所以可以把 `h1` 和 `h2` 拼起来， `h3` 和 `h4` 拼起来, 依此类推，再计算出哈希值 `b1` 和 `b2` <br/>
+
+![](https://gitea.com/enriquejose/store/raw/branch/master/static/ox-hugo/merkle_tree_layer_two.jpg) <br/>
+
+递归计算下去，直到计算结果只有一个 hash 值，这个就是所谓的 merkle root, 而 h1-h8 就是所谓的 `leaf node`, 两者之间的就是 `non-leaf node`. <br/>
+
+交易数量恰好是偶数能这么算，如果是奇数，那要怎么算呢？这个时侯，只需要把最后一个 hash 值复制一份，也能算出最终的 merkle root： <br/>
+
+![](https://gitea.com/enriquejose/store/raw/branch/master/static/ox-hugo/odd_leaf_merkle_tree.jpg) <br/>
+
+
+## <span class="section-num">4</span> Merkle tree validation 
+
+现在有了 Merkle Tree, 如果我们要验证区块中的交易是否被修改，要怎么算呢？ <br/>
+
+最简单粗暴的方式肯定是把区块所有的交易下载下来，从头重组整棵 Merkle Tree, 8笔交易计算起来还可以，如果是几千笔呢？几百万笔呢？甚至几亿笔交易呢？ <br/>
+
+重组 Merkle Tree 的时间复杂度是 O(N), 如果是1亿笔交易，这意味着你要计算1亿次，太慢了。 <br/>
+
+但是，如果我们利用 Merkle Tree 的特性，从数学的角度，我们只需要少量的Merkle Proof(你可以理解成需要提供的验证数据集), 就可以完成验证. <br/>
+
+回到上文的 Merkle Tree, 假如我们要验证 `tx2` 是否被窜改，我们需要有 Merkle Tree Root 和 Merkle Proof: <br/>
+
+![](https://gitea.com/enriquejose/store/raw/branch/master/static/ox-hugo/merkle_proof.jpg) <br/>
+
+假设现在我们有 `tx2` 的交易数据，我们只需要 Merkle Proof 提供3个hash 值(图中的绿色部分)，然后我们只计算4次（橙色部分），就会算出 Merkle Root Tree 的值，用来和区块头部的 Merkle root 值进行比对。 <br/>
+
+通过 Merkle Proof 提供的数据集，我们就可以把下载8笔交易，计算15次hash，优化成只需3个 hash 值，以及计算4次hash，时间复杂度从O(N)降低成O(logN). <br/>
+
+这个比对似乎不明显，但是以1亿交易为例的话，log(1_000_000_000) ~= 27, 也就是只需要 Merkle Proof 提供27个 hash 值即可, 巨大的性能提升. <br/>
+
+
+## <span class="section-num">5</span> 区块链的不可窜改性 
+
+通过Merkle tree root可以保证交易的不可窜改性，而区块 hash 又能保证区块头部的元数据不被窜改. <br/>
+
+因为每个区块都有区块 hash, 区块hash是通过计算头部元数据信息计算出来的: <br/>
+
+![](https://gitea.com/enriquejose/store/raw/branch/master/static/ox-hugo/block_hash.jpg) <br/>
+
+只要修改了其中一个元数据值，那么 block hash 就会发生变化，而区块链就是一个单链表，通过后一个区块通过 `prev_hash` 指向前一个区块，如果 block hash 发生变化，那么后一个区块就无法正确指向前一个区块了，这个链就断了. <br/>
+
+如果一个恶意的攻击者修改了一个区块中的某个交易，那么Merkle Hash验证就不会通过。 <br/>
+
+所以，他只能重新计算Merkle Hash，然后把区块头的Merkle Hash也修改了。 <br/>
+
+这时，我们就会发现，这个区块本身的Block Hash就变了，所以，下一个区块指向它的链接就断掉了, 他就要把后续所有区块全部重新计算并且伪造出来，才能够修改整个区块链； <br/>
+
+而要修改后续所有区块，这个攻击者必须掌握全网51%以上的算力才行。 <br/>
+
+理论上可行，但是实操难度非常非常非常大. <br/>
+
+
+## <span class="section-num">6</span> Merkle Tree 版本管理中的应用 
+
+除去区块链，Merkle Tree还被应用于类似 Git 和 Mercurial 这样的版本管理系统中，以Git为例, 假如我们Git项目内有4个文件: <br/>
+
+![](https://gitea.com/enriquejose/store/raw/branch/master/static/ox-hugo/git_merkle_tree.jpg) <br/>
+
+当你push 代码到远程分支或者从远程分支 pull 代码的时候，Git就计算你的Merkle Tree Root 的值, 比较远程分支的Merkle Tree Root和本地分支的Merkle Tree Root 是否相同: <br/>
+
+如果相同，那就不用更新了；如果不同的话它就会检查左节点或者右节点，并且递归下去， <br/>
+直到找到是哪些文件发生了修改，只通过网络传输修改部分的内容, 以提高传输效率. <br/>
+
+不过Git实际用的是Merkle Tree的变体，并不是直接使用Merkle Tree. <br/>
+
+除些之外, Merkle Tree 还在 Cassandra, DynamoDB 这样的NoSQL数据库中被用于检查不同节点数据的一致性, 细节可以看下这个 [Stackoverflow 问题](https://stackoverflow.com/questions/5486304/explain-merkle-trees-for-use-in-eventual-consistency)。 <br/>
+
+## <span class="section-num">7</span> 参考 
+
+-   [Blockchain for Test Engineers: Merkle Trees](https://alexromanov.github.io/2022/06/19/bchain-test-7-merkle-tree/) <br/>
+-   [Understanding Merkle Trees](https://medium.com/geekculture/understanding-merkle-trees-f48732772199) <br/>
+-   [Explain Merkle Trees for use in Eventual Consistency](https://stackoverflow.com/questions/5486304/explain-merkle-trees-for-use-in-eventual-consistency) <br/>
+</details>
+
+再回头来看第36课，我也终于明白Merkle Tree是用来干什么的？把整个白名单存储在智能合约上非常费 gas fee, 所以通过Merkle Tree通过验证某个地址是否在白名单上，而不需要把整个白名单列举存储在链上，只存储 Merkle Tree Root. 
+
+但是让我现在还没有理清楚的是某个地址的 proof 是怎么得出来的:
+
+> 通过网站，我们可以得到地址0的proof如下，即图2中蓝色结点的哈希值：
+```
+[
+  "0x999bf57501565dbd2fdcea36efa2b9aef8340a8901e3459f4a4c926275d36cdb",
+  "0x4726e4102af77216b09ccd94f40daa10531c87c4d60bba7f3b3faf5ff9f19b3c"
+]
+```
+
+地址0本身就是Merkle Tree的叶子节点，所以它自然会给出Merkle Proof，但是当你要计算某个地址是否在白名单内，说明这个地址是未知的，它可能在白名单内也可能不在，那么怎么知道它的Merkle Proof是什么？
+
+假如我想计算我ETH地址 `0x5B38Da6a701c568545dCfcB03FcB875f56beddC4` 是否在白名单内，这个地址的Proof要怎么生成？
+
+另外一个问题是，这种将白名单的Merkle Tree Root存在合约的方式有点不灵活，这意味着白名单不能动态变化，毕竟只要白名单变化了，Merkle Tree Root 和 Proof 都得变.
+
+### 2024.10.15
+#### Signature
+
+在阅读第37课的时候发现了个问题, 讲解到「步骤4通过签名和消息恢复公钥」和「步骤5 对比公钥并验证签名」, 通过截图展示了在Remix IDE 上 调用 `recoverSigner` 函数和 `verify` 函数的过程:
+
+![](https://www.wtf.academy/assets/images/37-8-50f993208c23bea33eacd5ed18de69ff.png)
+
+![](https://www.wtf.academy/assets/images/37-9-2e2029b1978cafb7cd211511f2769082.png)
+
+但是 `recoverSigner` 和 `verify` 函数都被声明成 `internal` 函数，`internal` 函数是无论从合约外被调用的，即使是使用 Remix IDE进行调试
+
+```solidity
+    // @dev 从_msgHash和签名_signature中恢复signer地址
+    function recoverSigner(bytes32 _msgHash, bytes memory _signature) internal pure returns (address){
+    }
+
+    /**
+     * @dev 通过ECDSA，验证签名地址是否正确，如果正确则返回true
+     * _msgHash为消息的hash
+     * _signature为签名
+     * _signer为签名地址
+     */
+    function verify(bytes32 _msgHash, bytes memory _signature, address _signer) internal pure returns (bool) {
+        return recoverSigner(_msgHash, _signature) == _signer;
+    }
+```
+
+我顺便提了个[PR](https://github.com/WTFAcademy/frontend/pull/246)来修复这个问题.
+
+而签名中的包含的 `r`,`s`,`v` 信息，是 ECDSA（椭圆曲线数字签名算法）签名的三个组成部分。
+
+- r：一个32字节的值，代表签名的第一部分，通常对应于签名过程中随机选取点的x坐标。
+- s：另一个32字节的值，与 r 共同用于验证签名的唯一性和有效性。
+- v：1字节的值，通常为27或28，表示 recovery id，帮助确定签名使用的两个可能的公钥中的哪一个，从而可以恢复出签名者的地址。
+
+因为对非对称加密算法研究不深, 只能理解是3个关键要素了.
+
+我很喜欢这种通过签名来下发NFT的方式，相当于它把白名单管理和领取的逻辑给分离出来，项目方只要给白名单内的地址进行签名，白名单内的地址就可以拿着签名来领取NFT了, 还能节省 gas fee, 既灵活也经济, 智能合约在这里的作用相当是白名单验证+Token下发.
+
+> 由于签名是链下的，不需要gas，因此这种白名单发放模式比Merkle Tree模式还要经济；
+> 但由于用户要请求中心化接口去获取签名，不可避免的牺牲了一部分去中心化；
+
+但是即使使用 Merkle Tree 模式，还是要向中心化接口请求，获取Merkle Proof。
+
+我觉得还是要看清楚技术的价值所在，去中心化是手段，而不是目的, 更何况现在虽然有Web3 的概念，但是现在绝大多数的项目还是跑在Web2上的，各个项目的官网不还是要跑在服务器上嘛.
+
+作为用户，既不会关心你的网站是用Java写的，还是用PHP写的，只会关心网站的体验好不好。
+
+同理，用户也不会关心你是用Web2或者是Web3方案做的，也只关心这个东西好不好用，区块链的确通过不可变性解决了信任问题，但是就好像EVM
+可以通过gas fee经济模型来处理计算成本的问题，会有多种方案来解决同一个问题的，比如也可以通过法律来解决信任问题。
+
+技术终究是手段，能解决问题才是目的.
+
 <!-- Content_END -->

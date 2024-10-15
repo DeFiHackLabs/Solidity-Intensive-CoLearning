@@ -806,15 +806,97 @@ contract TokenLocker {
 
 ### 2024.10.13
 
-笔记内容
+跨链桥的种类
+
+- Burn/Mint：在源链上销毁（burn）代币，然后在目标链上创建（mint）同等数量的代币。
+此方法好处是代币的总供应量保持不变，但是需要跨链桥拥有代币的铸造权限，适合项目方搭建自己的跨链桥。
+- Stake/Mint：在源链上锁定（stake）代币，然后在目标链上创建（mint）同等数量的代币（凭证）。源链上的代币被锁定，当代币从目标链移回源链时再解锁。
+  这是一般跨链桥使用的方案，不需要任何权限，但是风险也较大，当源链的资产被黑客攻击时，目标链上的凭证将变为空气。
+- Stake/Unstake：在源链上锁定（stake）代币，然后在目标链上释放（unstake）同等数量的代币，在目标链上的代币可以随时兑换回源链的代币。
+  这个方法需要跨链桥在两条链都有锁定的代币，门槛较高，一般需要激励用户在跨链桥锁仓。
+
+在Solidity中，MultiCall（多重调用）合约的设计能让我们在一次交易中执行多个函数调用。它的优点如下：
+
+方便性：MultiCall能让你在一次交易中对不同合约的不同函数进行调用，同时这些调用还可以使用不同的参数。
+比如你可以一次性查询多个地址的ERC20代币余额。
+
+节省gas：MultiCall能将多个交易合并成一次交易中的多个调用，从而节省gas。
+
+原子性：MultiCall能让用户在一笔交易中执行所有操作，保证所有操作要么全部成功，要么全部失败，这样就保持了原子性。
+比如，你可以按照特定的顺序进行一系列的代币交易。
 
 ### 2024.10.14
 
-笔记内容
+合约也可以作为一种数据类型
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import { HelloWorld } from "./HelloWorld.sol";
+
+contract Contract {
+    HelloWorld public helloWorld;
+
+    constructor(address _helloWorld) {
+        helloWorld = HelloWorld(_helloWorld);
+    }
+
+    function setGreeting(string memory _greeting) external {
+        helloWorld.setGreeting(_greeting);
+    }
+
+    function getGreeting() external view returns (string memory) {
+        return helloWorld.getGreeting();
+    }
+}
+
+contract HelloWorldFactory {
+    HelloWorld hw;
+
+    HelloWorld[] hws;
+
+    function createHelloWorld() external {
+        hw = new HelloWorld();
+        hws.push(hw);
+    }
+
+    function getHelloWorlds() external view returns (HelloWorld[] memory) {
+        return hws;
+    }
+
+    function getHelloWorldByIndex(uint256 index) external view returns (HelloWorld storage) {
+        return hws[index];
+    }
+
+    function callSayHelloFromFactory(uint256 _index, uint256 _id) public view returns (string memory) {
+        return hws[_index].sayHello(_id);
+    }
+
+}
+```
+
+// 1. 直接引入同一个文件系统下的合约
+// 2. 引入 GitHub上的合约
+// 3. 通过包引入合约
 
 ### 2024.10.15
 
-笔记内容
+1. 创建一个收款函数
+2. 记录投资人并且查看
+3. 在锁定期内，达到目标值，生产商可以提取资金
+4. 在锁定期内，未达到目标值，投资人可以提取资金
+
+Transfer: transfer ETH and revert if tx failed
+payable(msg.sender).transfer(address(this).balance);
+
+send: transfer ETH and return false if tx failed
+bool success = payable(msg.sender).send(address(this).balance);
+require(success, "Failed to send Ether");
+
+call: transfer ETH with data return value of the called function and bool
+(bool success, ) = payable(msg.sender).call{value: address(this).balance}("");
+require(success, "Failed to send Ether");
 
 ### 2024.10.16
 
