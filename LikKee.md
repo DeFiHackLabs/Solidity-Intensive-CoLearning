@@ -5111,7 +5111,183 @@ End of WTF Solidity 103
 
 ### 2024.10.15
 
-#### Ether.js 101: Interaction with Ethereum
+#### Ethers.js 101: Interaction with Ethereum
+
+[ethers](https://docs.ethers.org/) is a complete and compact open-source javascript library for interacting with the EVM. The usage has surpass the `web3.js` for a few reasons:
+
+- `ethers` take 116.5 kB while `web3.js` take 590.5 kB
+- `ethers` have `Provider` class to manage network connectivity, `Wallet` classs to manage private keys, more flexible
+- Native support for Ethereum Name Service (ENS)
+
+Installation
+`npm install ethers --save`
+
+Check address balance
+
+```
+import { ethers } from "ethers";
+const provider = ethers.getDefaultProvider(); // To use specific RPC: ethers.JsonRpcProvider(RPC_URL);
+const main = async () => {
+    const balance = await provider.getBalance(`vitalik.eth`); // Address or ENS
+    console.log(`ETH Balance of vitalik: ${ethers.formatEther(balance)} ETH`);
+}
+main();
+```
+
+Provider class
+
+`jsonRpcProvider` allow users to connect to a specific node service provider
+
+- [ChainList](https://chainlist.org/) have the most comprehensive collections of Chains and RPCs
+- Alchemy
+
+```
+const ALCHEMY_MAINNET_URL = 'https://eth-mainnet.g.alchemy.com/v2/API_KEY';
+const providerETH = new ethers.JsonRpcProvider(ALCHEMY_MAINNET_URL);
+const balance = await providerETH.getBalance(`vitalik.eth`);;
+const network = await providerETH.getNetwork(); // Retrieve network info
+const feeData = await providerETH.getFeeData(); // Retrieve current gas data
+const code = await providerETH.getCode("0xc778417e063141139fce010982780140aa0cd5ab"); // Retrieve bytecode of contract
+```
+
+Contract class
+
+Read only
+
+```
+const contract = new ethers.Contract(contractAddress, contractAbi, provider);
+```
+
+Read and write contract
+
+```
+const contract = new ethers.Contract(contractAddress, contractAbi, signer);
+```
+
+Example of Read/Write WETH Contract
+
+```
+const mnemonic = "announce room limb pattern dry unit scale effort smooth jazz weasel alcohol";
+const wallet = Wallet.fromMnemonic(mnemonic);
+
+const wethMainnet = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
+const wethAbi = [
+    "function deposit() payable",
+    "function totalSupply() view returns (uint)"
+];
+const weth = new ethers.Contract(wethMainnet, wethAbi, wallet);
+
+await weth.deposit({value: parseEther("1")}); // Wrap 1 ETH to 1 WETH
+const totalSupply = await weth.totalSupply(); // Retrieve current supply of WETH
+```
+
+Signer class and Wallet class
+
+- `Signer` class is an abstraction of an Ethereum account for signing messages and transactions, but `Signer` class is an abstract class and cannot be instantiated directly, so `Wallet` class which inherits from the `Signer` class is using as above example.
+
+```
+const walletRnd = ethers.Wallet.createRandom(); // Create wallet with random private key
+const walletPk = new ethers.Wallet(pkString); // Create wallet with known private key
+const walletMmn = ethers.Wallet.fromMnemonic(mnemonicString); // Create wallet with mnemonic phrase BIP39
+```
+
+Sending transaction
+
+```
+const wallet = new ethers.Wallet(pkString, provider);
+const receipt = await wallet.sendTransaction({
+        to: recipientAddress,
+        value: ethers.parseEther("1")
+    }); // Transfer 1 ETH to recipient
+await receipt.wait() // Wait for the transaction to be confirmed on the chain
+console.log(receipt) // Print the transaction details
+```
+
+Deploy Contract Demo
+
+```
+const abiERC20 = [
+    "constructor(string memory name_, string memory symbol_)",
+    "function name() view returns (string)",
+    "function symbol() view returns (string)",
+    "function totalSupply() view returns (uint256)",
+    "function balanceOf(address) view returns (uint)",
+    "function transfer(address to, uint256 amount) external returns (bool)",
+    "event Transfer(address indexed from, address indexed to, uint256 amount)"
+];
+const bytecodeERC20 = "608060405260646000553480156100...";
+const factoryERC20 = new ethers.ContractFactory(abiERC20, bytecodeERC20, wallet);
+const contractERC20 = await factoryERC20.deploy("WTF Token", "WTF");
+await contractERC20.waitForDeployment(); // Wait for the transaction to be confirmed on the chain
+
+await contractERC20.name(); // Retrieve ERC20 info after contract deployed
+await contractERC20.symbol();
+```
+
+Event
+
+- Events emitted by smart contracts are stored in the logs of the Ethereum virtual machine.
+
+Retrieving events
+
+```
+const endingBlock = await provider.getBlockNumber();
+const startingBlock = endingBlock - 10;
+const transferEvents = await contractERC20.queryFilter("Transfer", startingBlock, endingBlock); // Retrieve Transfer event within the 10 blocks
+```
+
+Listening events
+
+```
+contractERC20.on("Transfer", (from, to, value) => {
+    console.log(from, to, value)
+}); // Continuosly listening every Transfer event of contractERC20
+
+contractERC20.on("Transfer", (from, to, value) => {
+    console.log(from, to, value)
+}); // Listen just once
+```
+
+Event filtering
+
+- When a contract emits a log (fires an event), it can contain up to 4 indexed items. These indexed data items are hashed and included in a Bloom filter, which is a data structure that allows for efficient filtering
+
+```
+// event Transfer(address indexed from, address indexed to, uint256 amount)
+
+contractERC20.filters.Transfer(myAddress); // Retrieve only transfer from myAddress
+
+contractERC20.filters.Transfer(null, myAddress); // Retrieve only transfer to myAddress
+
+contractERC20.filters.Transfer(myAddress, otherAddress); // Retrieve only transfer from myAddress to otherAddress
+
+contractERC20.filters.Transfer(null, [myAddress, otherAddress]); // Retrieve only transfer to myAddress or otherAddress
+```
+
+Unit conversion
+
+- In Ethereum, the most used integer variables (`uint256`) are exceed the safe range of JavaScript integers. Thus, `Ethers` use BigInt class to securely perform the mathematical operations.
+
+```
+const bigint_one = 1n;
+const oneWei = ethers.getBigInt("1");
+console.log(bigint_one == oneWei); // True
+
+const oneGwei = ethers.getBigInt("1000000000");
+console.log(ethers.formatUnits(oneGwei, 0)); // '1000000000' wei
+console.log(ethers.formatUnits(oneGwei, "gwei")); // '1.0' gwei
+console.log(ethers.formatUnits(oneGwei, 9)); // '1.0' gwei
+console.log(ethers.formatUnits(oneGwei, "ether")); // '0.000000001' eth
+console.log(ethers.formatUnits(1000000000, "gwei")); // '1.0' eth
+console.log(ethers.formatEther(oneGwei)); // '0.000000001' eth, equivalent to formatUnits(value, "ether")
+
+console.log(ethers.parseUnits("1.0").toString()); // { BigNumber: "1000000000000000000" } wei
+console.log(ethers.parseUnits("1.0", "ether").toString()); // { BigNumber: "1000000000000000000" } wei
+console.log(ethers.parseUnits("1.0", 18).toString()); // { BigNumber: "1000000000000000000" } wei
+console.log(ethers.parseUnits("1.0", "gwei").toString()); // { BigNumber: "1000000000" } wei
+console.log(ethers.parseUnits("1.0", 9).toString()); // { BigNumber: "1000000000" } wei
+console.log(ethers.parseEther("1.0").toString()); // { BigNumber: "1000000000000000000" } wei, equivalent to parseUnits(value, "ether")
+```
 
 ### 2024.10.16
 
