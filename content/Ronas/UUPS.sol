@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.21;
+
 contract UUPSProxy {
     address public implementation; // 逻辑合约地址
     address public admin; // admin地址
