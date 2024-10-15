@@ -152,4 +152,16 @@ _addresses：接收空投的用户地址数组（address[]类型）
 _amounts：空投数量数组，对应_addresses里每个地址的数量（uint[]类型）
 该函数有两个检查：第一个require检查了_addresses和_amounts两个数组长度是否相等；第二个require检查了空投合约的授权额度大于要空投的代币数量总和。
 
+### 2024.10.15
+利用Merkle Tree发放NFT白名单
+一份拥有800个地址的白名单，更新一次所需的gas fee很容易超过1个ETH。而由于Merkle Tree验证时，leaf和proof可以存在后端，链上仅需存储一个root的值，非常节省gas，项目方经常用它来发放白名单。很多ERC721标准的NFT和ERC20标准代币的白名单/空投都是利用Merkle Tree发出的，比如optimism的空投。
+
+但有個疑問，參數需要輸入地址陣列，這個錢包地址陣列一定是兩個嗎，又要如何找到。
+
+利用签名发放白名单
+NFT项目方可以利用ECDSA的这个特性发放白名单。由于签名是链下的，不需要gas，因此这种白名单发放模式比Merkle Tree模式还要经济。方法非常简单，项目方利用项目方账户把白名单发放地址签名（可以加上地址可以铸造的tokenId）。然后mint的时候利用ECDSA检验签名是否有效，如果有效，则给他mint。
+
+
+
+
 <!-- Content_END -->

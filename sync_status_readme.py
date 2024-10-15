@@ -151,7 +151,7 @@ def get_user_study_status(nickname):
                 hour=0, minute=0, second=0, microsecond=0)
 
             # 手動設置 2024.09.29、2024.10.06、 週日為✅
-            if local_date.strftime("%Y-%m-%d") in ["2024-09-29","2024-10-06"]:
+            if local_date.strftime("%Y-%m-%d") in ["2024-09-29","2024-10-06","2024-10-13"]:
                 user_status[date] = "✅"
             elif date.day == current_date.day:
                 user_status[date] = "✅" if check_md_content(

@@ -445,9 +445,9 @@ solidity的特殊回调函数： receive() fallback()
 
 限制： 一个合约最多有一个receive()函数
 
-声明方式: reveice() external payable {}
+声明方式: reveive() external payable {}
 
-逻辑：内部逻辑不能太复杂，这收到发送方的方法影响，如果发送方使用send和transfer方法发送eht，就会有2300的gas限制。
+逻辑：内部逻辑不能太复杂，这收到发送方的方法影响，如果发送方使用send和transfer方法发送eth，就会有2300的gas限制。
 
 code:
 
@@ -1310,6 +1310,108 @@ contract TimeLock {
 
 > staticCall 和 call的区别：
 staticCall是调用合约中的只读方法，且不能发送eth，call可以调用合约的中的修改状态的方法，基本上是万能的。
+
+###
+
+### 10.15
+
+#### 代理合约
+
+代理合约的核心逻辑，将合约的状态数据和逻辑行为拆分开来，让逻辑行为能够被替换。
+
+下面写的是按照内联汇编的方式，将行为区分成calller、proxy、logic三个动作。
+
+logic存储逻辑，可被替换
+
+proxy存储状态，可用的数据更新存储在这里
+
+caller只是一个用call做调用的例子，没那么重要
+
+> wtf的这一节错误非常多，很不利于学习，需要自己好好去执行和分析结果。
+
+这里不直接使用 addr.delegatecall(abi.encodeSignature("",data)) 来进行委托调用，而是选择使用内联汇编的方式，是因为fallback无返回值，
+而通过内联汇编的方式，能够得到返回值。
+
+那这里为什么一定要使用fallback来实现呢？我直接使用delegatecall的方式有什么问题呢？
+
+想不通，只觉得是炫技，感觉都能做到。
+
+
+```solidity
+// SPDX-License-Identifier: GPL-3.0
+
+pragma solidity ^0.8.2;
+
+//代理合约，状态存储
+contract Proxy {
+    address public implementation;
+    uint public x = 1;
+
+    constructor(address _implementation) {
+        implementation = _implementation;
+    }
+
+    function callTest(bytes memory data) public returns(bytes memory){
+         address _implementation = implementation;
+         ( ,bytes memory res) = _implementation.delegatecall(data);
+         return res;
+    }
+
+    //用这个方式，可以有返回值
+    //fallback 可以接收eth,当被调用本合约中不存在的函数时，也会触发
+    fallback() external payable { 
+        address _implementation = implementation;
+        assembly{
+            //数据保存在内存
+            //calldatacopy(t,f,s): 将calldata入参从位置f开始，复制s个字节长度的数据，保存在mem(内存)的位置t
+            calldatacopy(0,0,calldatasize())
+
+            //利用delegatecall来调用implementation合约
+            //delegatecall(g,a,in,insize,out,outsize): 调用地址implementation的合约，输入为mem[in..(in+insize)],输出为mem[out...(out+outsize)] 
+            //提供g wei的以太坊gas, 这个操作码在错误时返回0，成功时返回1
+            let result := delegatecall(gas(),_implementation,0,calldatasize(),0,0)
+
+            //returndatacopy(t,f,s) 将returndata(输出数据)从位置f开始，复制s个字节的到mem(内存)的位置t
+            returndatacopy(0,0,returndatasize())
+
+            switch result
+            case 0 {
+                revert(0,returndatasize())
+            }
+            default {
+                //返回数据
+                return(0,returndatasize())
+            }
+        }
+    }
+}
+
+//逻辑合约
+contract Logic {
+    address public implementation;
+    uint public x = 99;
+    event CallSuccess();
+
+    function increment() external returns(uint){
+        emit CallSuccess();
+        x = x + 1;
+        return x;
+    }
+}
+
+contract Caller {
+    address public proxy;
+
+    constructor(address _proxy){
+        proxy = _proxy;
+    }
+
+    function increment() external returns(uint) {
+        (,bytes memory data) = proxy.call(abi.encodeWithSignature("increment()"));
+        return abi.decode(data, (uint));
+    }
+}
+```
 
 ###
 

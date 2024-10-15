@@ -15,6 +15,49 @@ timezone: Asia/Shanghai
 ## Notes
 <!-- Content_START -->
 
+### 2024.10.14
+
+Ethers102章节：识别ERC721合约、编码calldata、批量生成钱包/批量转账/批量归集
+
+- interfaceId补充
+    
+    ```solidity
+    interfaceId = type(IERC721).interfaceId
+    //该Id通过计算所有函数选择器的异或得到
+    //常见interfaceId:
+    //IERC165: 0x01ffc9a7;IERC721: 0x80ac58cd
+    ```
+    
+- 接口类Interface
+    
+    ```ts
+    const interface = ethers.Interface(abi)
+    const interface2 = contract.interface
+    
+    interface.getSighash("balanceOf")
+    //获取函数选择器
+    interface.encodeDeploy("Wrapped ETH", "WETH")
+    //编码构造器的参数，可以附在合约字节码的后面
+    interface.encodeFunctionData("balanceOf", ["0xc778417e063141139fce010982780140aa0cd5ab"])
+    //编码函数的calldata
+    interface.decodeFunctionResult("balanceOf", resultData)
+    //解码函数的返回值
+    ```
+    
+- 通过calldata来调用函数
+    
+    ```ts
+    const param1 = contractWETH.interface.encodeFunctionData(
+        "balanceOf",
+        [address]
+      );
+    const tx1 = {
+        to: addressWETH,
+        data: param1
+    }
+    const balanceWETH = await provider.call(tx1)
+    ```
+
 ### 2024.10.13
 
 Ethers101章节：检索事件，监听合约事件、事件过滤、BigInt和单位转换
