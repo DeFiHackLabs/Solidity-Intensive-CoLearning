@@ -2058,7 +2058,7 @@ contract Factory {
 selfdestruct(_addr);
 _addr：接收剩餘ETH的地址（不需要有receive()或fallback()函數）
 ```
-### 2024.10.13
+### 2024.10.14
 #### 27_ABIEncode
 ABI (Application Binary Interface) 是與以太坊智能合約互動的標準。數據根據類型進行編碼,解碼時需要指定類型。
 
@@ -2118,8 +2118,62 @@ function decode(bytes memory data) public pure returns(uint dx, address daddr, s
 - `abi.encodePacked`結果更緊湊,但不適用於與合約互動
 - 使用ABI函數選擇器可以調用未知函數簽名的合約函數
 
+### 2024.10.15
 #### 28_Hash
+# 哈希函數筆記
+
+## 1. 基本概念
+哈希函數是一個密碼學概念,可以將任意長度的消息轉換為固定長度的值(稱為哈希)。
+
+## 2. 哈希的性質
+一個好的哈希函數應具備:
+- 單向性: 正向運算簡單,反向非常難
+- 靈敏性: 輸入小改變導致輸出大改變
+- 高效性: 計算過程高效
+- 均一性: 每個哈希值被取到的概率基本相等
+- 抗碰撞性:
+  - 弱抗碰撞性: 難以找到具有相同哈希值的不同消息
+  - 強抗碰撞性: 難以找到任意兩個具有相同哈希值的不同消息
+
+## 3. 哈希的應用
+- 生成數據唯一標識
+- 加密簽名
+- 安全加密
+
+## 4. Solidity中的Keccak256
+- 最常用的哈希函數
+- 用法: `哈希 = keccak256(數據);`
+
+### Keccak256 vs SHA3
+- Keccak是SHA3的前身
+- 以太坊使用Keccak256,而非標準的NIST-SHA3
+
+## 5. Solidity中的應用示例
+
+### 生成唯一標識
+```solidity
+function hash(uint _num, string memory _string, address _addr) public pure returns (bytes32) {
+    return keccak256(abi.encodePacked(_num, _string, _addr));
+}
+```
+
+### 演示弱抗碰撞性
+```solidity
+function weak(string memory string1) public view returns (bool) {
+    return keccak256(abi.encodePacked(string1)) == _msg;
+}
+```
+
+### 演示強抗碰撞性
+```solidity
+function strong(string memory string1, string memory string2) public pure returns (bool) {
+    return keccak256(abi.encodePacked(string1)) == keccak256(abi.encodePacked(string2));
+}
+```
+### 2024.10.16
 #### 29_Selector
+
+
 #### 30_TryCatch
 <!-- Content_END -->
 
