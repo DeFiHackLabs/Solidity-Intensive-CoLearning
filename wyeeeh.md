@@ -2351,4 +2351,34 @@ require(success, "ETH transfer failed");
 - 100/100
 ##### 测验错题
 
+
+### 2024.10.15
+#### WTF Academy Solidity 102.23 Delegatecall
+
+##### 笔记
+
+##### 测验结果
+
+##### 测验错题
+
+
+### 2024.10.16
+#### WTF Academy Solidity 102.24
+
+##### 笔记
+
+##### 测验结果
+
+##### 测验错题
+
+
+### 2024.10.17
+#### WTF Academy Solidity 102.25
+
+##### 笔记
+
+##### 测验结果
+
+##### 测验错题
+
 <!-- Content_END -->
