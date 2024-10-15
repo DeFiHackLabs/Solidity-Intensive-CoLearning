@@ -3579,4 +3579,68 @@ timezone: Asia/Shanghai
 	    - 开发者透明性：只有非管理员角色（即普通用户）可以通过代理合约调用逻辑合约，而管理员角色只能进行合约升级。这种权限控制确保了合约升级过程对普通用户是“透明”的，避免了他们调用到升级相关的函数。
 ###
 
+### 2024.10.15
+
+学习内容:
+1. 第四十九讲
+
+    - 通用可升级代理（`UUPS，universal upgradeable proxy standard`）- 此方式也能解决选择器冲突的问题，但和透明代理解决的方案不同。
+
+    - 通用可升级代理解决选择器冲突的思路
+
+        - 通过将升级合约函数添加到逻辑合约中，并且指定只有管理员能调用。因为升级函数在逻辑合约中，所以其他逻辑合约中的函数如果与升级函数存在选择器冲突，那么编译将出错。
+
+    - 代码示例
+
+        - 代理合约
+
+            ```Solidity
+
+            contract UUPSProxy {
+                address public implementation; // 逻辑合约地址
+                address public admin; // admin地址
+                string public words; // 字符串，可以通过逻辑合约的函数改变
+
+                // 构造函数，初始化admin和逻辑合约地址
+                constructor(address _implementation){
+                    admin = msg.sender;
+                    implementation = _implementation;
+                }
+
+                // fallback函数，将调用委托给逻辑合约
+                fallback() external payable {
+                    (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+                }
+            }
+            ```
+
+        - 逻辑合约
+
+            ```Soldity
+
+            // UUPS逻辑合约（升级函数写在逻辑合约内）
+            contract UUPS1{
+                // 状态变量和proxy合约一致，防止插槽冲突
+                address public implementation; 
+                address public admin; 
+                string public words; // 字符串，可以通过逻辑合约的函数改变
+
+                // 改变proxy中状态变量，选择器： 0xc2985578
+                function foo() public{
+                    words = "old";
+                }
+
+                // 升级函数，改变逻辑合约地址，只能由admin调用。选择器：0x0900f010
+                // UUPS中，逻辑合约中必须包含升级函数，不然就不能再升级了。
+                function upgrade(address newImplementation) external {
+                    require(msg.sender == admin);
+                    implementation = newImplementation;
+                }
+            }
+            ```
+
+    - 学习总结
+
+        - 如果需要更多的安全保证，且希望升级逻辑与合约调用逻辑分离，并且对GAS消耗不敏感，那么可以使用透明代理。如果对 gas 成本有较高要求，且有足够的经验来处理升级逻辑的安全性，那么 UUPS 是一个更灵活且高效的选择。它适合需要在复杂逻辑合约中节省资源的场景。在实际生产中是使用透明代理还是UUPS需要解决实际情况来考虑。
+###
 <!-- Content_END -->

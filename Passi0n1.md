@@ -1175,5 +1175,154 @@ function callETH(address payable _to, uint256 amount) external payable{
 ```
 
 
+### 2024.10.14
+#### 学习笔记
+
+## uniswap v 2 pair 
+
+```solidity
+
+function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external lock {
+    // 其他逻辑...
+
+    // 乐观的发送代币到to地址
+    if (amount0Out > 0) _safeTransfer(_token0, to, amount0Out);
+    if (amount1Out > 0) _safeTransfer(_token1, to, amount1Out);
+
+    // 调用to地址的回调函数uniswapV2Call
+    if (data.length > 0) IUniswapV2Callee(to).uniswapV2Call(msg.sender, amount0Out, amount1Out, data);
+
+    // 其他逻辑...
+
+    // 通过k=x*y公式，检查闪电贷是否归还成功
+    require(balance0Adjusted.mul(balance1Adjusted) >= uint(_reserve0).mul(_reserve1).mul(1000**2), 'UniswapV2: K');
+}
+```
+
+首先看下这个 uniswap v2 pair 合约，这里称之为 pair 合约是因为 swap 当中是有着交易对的存在，而交易对的对则是 pair 相同的意思。而进行闪电贷的钱也是交易对池子中的钱。
+在 swap 项目中一般会存在多个 pair 合约，对应着不用的交易对，各个 pair 合约各不影响。
+
+接着我们来看这个合约相对于其他合约第一眼看起来让人觉得陌生的地方：
+- **Amount 0 Out**    对于这种有进有出的交易，按照常理一般会定义为 in\out，但是这里都是 out  是为了方便确定用户具体需要那种 token 出去
+- **To**    一般我们会直接使用 address 或者 sender 来指代 swap 的调用地址或者调用合约。但是这里使用 to 来指代调用合约是为了
+- **调用 flash 合约位于 swap 转账之下**： 这是为了在进行贷款之前先把贷款合约需要的钱锁定住，不然如果有别人同时接待那不是可能会出现一份钱两个人争的情况吗。不过也不用担心现实世界默认的先签字再资金的惯例，这个 flash 设计的逻辑就是原子性的，后面的 flash 如果没有成功，那么之前的 transfer 也会撤销回滚。
+- **IUniswapV 2 Callee** ： 这是一个接口类型。这一个整体是一个接口类型的转换工具，会把调用合约按照这个 swap 的规定转换为接口形式，方便调用后续的函数
+- **balance 0 Adjusted**  这是一个调整后的余额查询函数，即接待合约有没有进行还款，具体的计算还需要恒定乘积模型，即是 balance 0 Adjusted 后面的那些计算命令。
+
+随后继续来看下 flash 合约的实现
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "./Lib.sol";
+
+// UniswapV2闪电贷回调接口
+interface IUniswapV2Callee {
+    function uniswapV2Call(address sender, uint amount0, uint amount1, bytes calldata data) external;
+}
+
+// UniswapV2闪电贷合约
+contract UniswapV2Flashloan is IUniswapV2Callee {
+    address private constant UNISWAP_V2_FACTORY =
+        0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
+
+    address private constant DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+    address private constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+    IUniswapV2Factory private constant factory = IUniswapV2Factory(UNISWAP_V2_FACTORY);
+
+    IERC20 private constant weth = IERC20(WETH);
+
+    IUniswapV2Pair private immutable pair;
+
+    constructor() {
+        pair = IUniswapV2Pair(factory.getPair(DAI, WETH));
+    }
+
+    // 闪电贷函数
+    function flashloan(uint wethAmount) external {
+        // calldata长度大于1才能触发闪电贷回调函数
+        bytes memory data = abi.encode(WETH, wethAmount);
+
+        // amount0Out是要借的DAI, amount1Out是要借的WETH
+        pair.swap(0, wethAmount, address(this), data);
+    }
+
+    // 闪电贷回调函数，只能被 DAI/WETH pair 合约调用
+    function uniswapV2Call(
+        address sender,
+        uint amount0,
+        uint amount1,
+        bytes calldata data
+    ) external {
+        // 确认调用的是 DAI/WETH pair 合约
+        address token0 = IUniswapV2Pair(msg.sender).token0(); // 获取token0地址
+        address token1 = IUniswapV2Pair(msg.sender).token1(); // 获取token1地址
+        assert(msg.sender == factory.getPair(token0, token1)); // ensure that msg.sender is a V2 pair
+
+        // 解码calldata
+        (address tokenBorrow, uint256 wethAmount) = abi.decode(data, (address, uint256));
+
+        // flashloan 逻辑，这里省略
+        require(tokenBorrow == WETH, "token borrow != WETH");
+
+        // 计算flashloan费用
+        // fee / (amount + fee) = 3/1000
+        // 向上取整
+        uint fee = (amount1 * 3) / 997 + 1;
+        uint amountToRepay = amount1 + fee;
+
+        // 归还闪电贷
+        weth.transfer(address(pair), amountToRepay);
+    }
+}
+```
+
+随后我们来看下这个合约中的令人觉得比较陌生的部分
+- **Lib. Sol**  这里不是具体的合约名称无法具体的得知，但是可以推断出来时类似于数学运算等合约的。
+- **IUniswapV 2 Callee**  这里的这个就是上文 pair 合约中实现 to 的接口话的一个函数，把传进来参数给他按照本合约的要求变化一下。
+- **UNISWAP_V 2_FACTORY**   第一眼看到这个工厂合约可能会令然非常好奇，直接部署不就完了么但是工厂合约名字是工厂，但是不止承担了交易对的创建等生产性功能，也承担了一些比如登记自己整个项目有多少个交易对，承接用户发起的交易等接口职能和管理职能。
+- **Constructor**   第一眼看到这个构造函数就很不明白，先前不是已经有了一个 pair 合约了么，为什么这里还要再去写一个构造函数呢？  原因是这样了，确实这个合约的上面写了两个代币的地址，但是这不是交易对啊所以需要从 IUniswapV 2 Pair 接口搞一个交易对的对象出来，方便后续的操作。
+- **abi** 一般我们所熟知的 ABI 是一种接口的规范，而这个 abi 则是 solidity 内部的内置全局变量，就是一个自带的功能箱对象。
+
+
+
+## uniswap v3
+pool 池合约
+```solidity
+function flash(
+    address recipient,
+    uint256 amount0,
+    uint256 amount1,
+    bytes calldata data
+) external override lock noDelegateCall {
+    // 其他逻辑...
+
+    // 乐观的发送代币到to地址
+    if (amount0 > 0) TransferHelper.safeTransfer(token0, recipient, amount0);
+    if (amount1 > 0) TransferHelper.safeTransfer(token1, recipient, amount1);
+
+    // 调用to地址的回调函数uniswapV3FlashCallback
+    IUniswapV3FlashCallback(msg.sender).uniswapV3FlashCallback(fee0, fee1, data);
+
+    // 检查闪电贷是否归还成功
+    uint256 balance0After = balance0();
+    uint256 balance1After = balance1();
+    require(balance0Before.add(fee0) <= balance0After, 'F0');
+    require(balance1Before.add(fee1) <= balance1After, 'F1');
+
+    // sub is safe because we know balanceAfter is gt balanceBefore by at least fee
+    uint256 paid0 = balance0After - balance0Before;
+    uint256 paid1 = balance1After - balance1Before;
+
+    // 其他逻辑...
+}
+```
+
+随后我们再来看下这个 uniswap V3
+- 首先是 <=  ，这个在 solidity 当中是左侧小于等于右侧的意思，第一眼看去很像追加符号
+- **balance 0 After**   这个默认情况下会给人造成一个误解会让认为是对于每个客户的一个金额变化的记录工具，实际不是这样的。因为本身这种 flash 是原子性的，一个交易内借出，一个交易内换回去，所以这个的金额是整体的全局金额进行了。
+
+
    
 <!-- Content_END -->
