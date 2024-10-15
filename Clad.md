@@ -882,6 +882,32 @@ ECDSA 中包含兩個部分
 利用簽名發放白名單  
 - 項目方利用項目方帳戶把白名單發放地址簽名, 然後 mint 的時候利用 ECDSA 檢驗簽名是否有效, 如果有效則給 mint
 
+### 2024.10.15        
+學習內容  
+筆記:  
+
+#### NFT 交易所
+設計邏輯
+- 賣家, 功能:掛單 list, 徹單 revoke, 修改價格 update
+- 買家, 功能:購買 purchase
+- 訂單, 賣家發布 NFT 訂單, 一個系列的同一 tokenId 最多存在一個訂單, 其中包含掛單價格 price 和持有人 owner
+- 訊息, 當訂單交易完成或徹單, 清除訊息
+
+合約結構
+- 4 個 event, List, Revoke,Update, Purchase
+
+訂單
+- 包含 掛單價格 price, 持有人 owner 資訊
+- nftList 映射記錄訂單是對應 NFT 系列(合約地址)和 tokenId
+
+退回函數
+- 用戶使用 ETH 購買 NFT, 因此合約需要實現 fallback() 接收 ETH
+```Solidity
+fallback() external payable{}
+```
+
+交易
+
 
 
 
