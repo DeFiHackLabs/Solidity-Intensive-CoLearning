@@ -7084,9 +7084,177 @@ async function erc20Checker(addr){
 }
 ```
 
+### 2024.10.15
+### Flashbots
+Flashbots 是致力于减轻 MEV（最大可提取价值）对区块链造成危害的研究组织。目前有以下几款产品:
+1. Flashbots RPC: 保护以太坊用户受到有害 MEV（三明治攻击）的侵害。
+2. Flashbots Bundle: 帮助 MEV 搜索者（Searcher）在以太坊上提取 MEV。
+3. mev-boost: 帮助以太坊 POS 节点通过 MEV 获取更多的 ETH 奖励。
+#### Flashbots RPC
+Flashbots RPC 是一款面向以太坊普通用户的免费产品，你只需要在加密的钱包中将 RPC（网络节点）设置为Flashbots RPC，就可以将交易发送到Flashbots的私有交易缓存池（mempool）而非公开的，从而免受抢先交易/三明治攻击的损害。
+#### Flashbots Bundle
+在区块链上搜索 MEV 机会的开发者被称为搜索者。Flashbots Bundle（交易包）是一款帮助搜索者提取以太坊交易中 MEV 的工具。搜索者可以利用它将多笔交易组合在一起，按照指定的顺序执行。
+```
+// 1. 普通rpc （非flashbots rpc）
+const ALCHEMY_GOERLI_URL = 'https://eth-sepolia.g.alchemy.com/v2/424OtGw_2L1A2wH6wrbPVPvyukI-sCoK';
+const provider = new ethers.JsonRpcProvider(ALCHEMY_GOERLI_URL);
+const authKey = '0x227dbb8586117d55284e26620bc76534dfbd2394be34cf4a09cb775d593b6f2c'
+const authSigner = new ethers.Wallet(authKey, provider)
+const flashbotsProvider = await FlashbotsBundleProvider.create(
+    provider,
+    authSigner,
+    // 使用主网 Flashbots，需要把下面两行删去
+    'https://relay-sepolia.flashbots.net'', 
+    'sepolia'
+    );
+const privateKey = '0x227dbb8586117d55284e26620bc76534dfbd2394be34cf4a09cb775d593b6f2c'
+const wallet = new ethers.Wallet(privateKey, provider)
+// EIP 1559 transaction
+const transaction0 = {
+chainId: CHAIN_ID,
+type: 2,
+to: "0x25df6DA2f4e5C178DdFF45038378C0b08E0Bce54",
+value: ethers.parseEther("0.001"),
+maxFeePerGas: GWEI * 100n,
+maxPriorityFeePerGas: GWEI * 50n
+}
+const transactionBundle = [
+    {
+        signer: wallet, // ethers signer
+        transaction: transaction0 // ethers populated transaction object
+    }
+    // 也可以加入mempool中签名好的交易（可以是任何人发送的）
+    // ,{
+    //     signedTransaction: SIGNED_ORACLE_UPDATE_FROM_PENDING_POOL // serialized signed transaction hex
+    // }
+]
+// 签名交易
+const signedTransactions = await flashbotsProvider.signBundle(transactionBundle)
+// 设置交易的目标执行区块（在哪个区块执行）
+const targetBlockNumber = (await provider.getBlockNumber()) + 1
+// 模拟
+const simulation = await flashbotsProvider.simulate(signedTransactions, targetBlockNumber)
+// 检查模拟是否成功
+if ("error" in simulation) {
+    console.log(`模拟交易出错: ${simulation.error.message}`);
+} else {
+    console.log(`模拟交易成功`);
+    console.log(JSON.stringify(simulation, (key, value) => 
+        typeof value === 'bigint' 
+            ? value.toString() 
+            : value, // return everything else unchanged
+        2
+    ));
+}
+for (let i = 1; i <= 100; i++) {
+    let targetBlockNumberNew = targetBlockNumber + i - 1;
+    // 发送交易
+    const res = await flashbotsProvider.sendRawBundle(signedTransactions, targetBlockNumberNew);
+    if ("error" in res) {
+    throw new Error(res.error.message);
+    }
+    // 检查交易是否上链
+    const bundleResolution = await res.wait();
+    // 交易有三个状态: 成功上链/没有上链/Nonce过高。
+    if (bundleResolution === FlashbotsBundleResolution.BundleIncluded) {
+    console.log(`恭喜, 交易成功上链，区块: ${targetBlockNumberNew}`);
+    console.log(JSON.stringify(res, null, 2));
+    process.exit(0);
+    } else if (
+    bundleResolution === FlashbotsBundleResolution.BlockPassedWithoutInclusion
+    ) {
+    console.log(`请重试, 交易没有被纳入区块: ${targetBlockNumberNew}`);
+    } else if (
+    bundleResolution === FlashbotsBundleResolution.AccountNonceTooHigh
+    ) {
+    console.log("Nonce 太高，请重新设置");
+    process.exit(1);
+    }
+}
+```
 
+### EIP712签名脚本
+```
+// 使用 Alchemy 的 RPC 节点连接以太坊网络
+// 准备 Alchemy API 可以参考 https://github.com/AmazingAng/WTFSolidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md 
+const ALCHEMY_GOERLI_URL = 'https://eth-goerli.alchemyapi.io/v2/GlaeWuylnNM3uuOo-SAwJxuwTdqHaY5l';
+const provider = new ethers.JsonRpcProvider(ALCHEMY_GOERLI_URL);
 
+// 使用私钥和 provider 创建 wallet 对象
+const privateKey = '0x503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb'
+const wallet = new ethers.Wallet(privateKey, provider)
+// 创建 EIP712 Domain
+let contractName = "EIP712Storage"
+let version = "1"
+let chainId = "1"
+let contractAddress = "0xf8e81D47203A594245E36C48e151709F0C19fBe8"
 
+const domain = {
+    name: contractName,
+    version: version,
+    chainId: chainId,
+    verifyingContract: contractAddress,
+};
+// 创建类型化数据，Storage
+let spender = "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"
+let number = "100"
+
+const types = {
+    Storage: [
+        { name: "spender", type: "address" },
+        { name: "number", type: "uint256" },
+    ],
+};
+
+const message = {
+    spender: spender,
+    number: number,
+};
+// EIP712 签名
+const signature = await wallet.signTypedData(domain, types, message);
+console.log("Signature:", signature);
+// Signature: 0xdca07f0c1dc70a4f9746a7b4be145c3bb8c8503368e94e3523ea2e8da6eba7b61f260887524f015c82dd77ebd3c8938831c60836f905098bf71b3e6a4a09b7311b
+// 验证 EIP712 签名，从签名和消息复原出 signer 地址
+let eip712Signer = ethers.verifyTypedData(domain, types, message, signature)
+console.log("EIP712 Signer: ", eip712Signer)
+//EIP712 Signer: 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4
+```
+
+### Hello Opcodes
+Opcodes（操作码）是以太坊智能合约的基本单元。大家写的Solidity智能合约会被编译为字节码（bytecode），然后才能在EVM（以太坊虚拟机）上运行。而字节码就是由一系列Opcodes组成的。当用户在EVM中调用这个智能合约的函数时，EVM会解析并执行这些Opcodes，以实现合约逻辑。
+![image](https://github.com/user-attachments/assets/7f78befc-a765-4e50-8104-979ecb5eb98d)
+#### 堆栈Stack
+EVM是基于堆栈的，这意味着它处理数据的方式是使用堆栈数据结构进行大多数计算。堆栈是一种“后进先出”（LIFO）的数据结构，高效而简洁。你可以把它想像成一叠盘子，当你需要添加一个盘子时，你只能把它放在堆栈的最上面，我们把这个动作叫压入PUSH；而当你需要取一个盘子时，你只能取最上面的那一个，我们称之为弹出POP。许多操作码涉及将数据压入堆栈或从堆栈弹出数据。
+
+在堆栈中，每个元素长度为256位（32字节），最大深度为1024元素，但是每个操作只能操作堆栈顶的16个元素。这也是为什么有时Solidity会报Stack too deep错误。
+![image](https://github.com/user-attachments/assets/6c18f2ae-bc02-4b73-81ac-c5ad6f1a1966)
+#### 内存Memory
+堆栈虽然计算高效，但是存储能力有限，因此EVM使用内存来支持交易执行期间的数据存储和读取。EVM的内存是一个线性寻址存储器，你可以把它理解为一个动态字节数组，可以根据需要动态扩展。它支持以8或256 bit写入（MSTORE8/MSTORE），但只支持以256 bit读取（MLOAD）。
+
+需要注意的是，EVM的内存是“易失性”的：交易开始时，所有内存位置的值均为0；交易执行期间，值被更新；交易结束时，内存中的所有数据都会被清除，不会被持久化。如果需要永久保存数据，就需要使用EVM的存储
+![image](https://github.com/user-attachments/assets/87716d69-87d0-4bb3-a3cb-49805314b407)
+#### 存储Storage
+EVM的账户存储（Account Storage）是一种映射（mapping，键值对存储），每个键和值都是256 bit的数据，它支持256 bit的读和写。这种存储在每个合约账户上都存在，并且是持久的，它的数据会保持在区块链上，直到被明确地修改。
+
+对存储的读取（SLOAD）和写入（SSTORE）都需要gas，并且比内存操作更昂贵。这样设计可以防止滥用存储资源，因为所有的存储数据都需要在每个以太坊节点上保存。
+![image](https://github.com/user-attachments/assets/525202c2-c616-44a6-85fd-c54751caf1f2)
+#### EVM字节码
+Solidity智能合约会被编译为EVM字节码，然后才能在EVM上运行。这个字节码是由一系列的Opcodes组成的，通常表现为一串十六进制的数字。EVM字节码在执行的时候，会按照顺序一个一个地读取并执行每个Opcode。
+#### Gas
+Gas是以太坊中执行交易和运行合约的"燃料"。每个交易或合约调用都需要消耗一定数量的Gas，这个数量取决于它们进行的计算的复杂性和数据存储的大小。
+
+EVM上每笔交易的gas是如何计算的呢？其实是通过opcodes。以太坊规定了每个opcode的gas消耗，复杂度越高的opcodes消耗越多的gas，比如：
+ADD操作消耗3 gas
+SSTORE操作消耗20000 gas
+SLOAD操作消耗200 Gas
+一笔交易的gas消耗等于其中所有opcodes的gas成本总和。当你调用一个合约函数时，你需要预估这个函数执行所需要的Gas，并在交易中提供足够的Gas。如果提供的Gas不够，那么函数执行会在中途停止，已经消耗的Gas不会退回。
+![image](https://github.com/user-attachments/assets/61fd0247-8c8b-429e-aa04-d5562944d0ce)
+#### 执行模型
+1. 当一个交易被接收并准备执行时，以太坊会初始化一个新的执行环境并加载合约的字节码。
+2. 字节码被翻译成Opcode，被逐一执行。每个Opcodes代表一种操作，比如算术运算、逻辑运算、存储操作或者跳转到其他操作码。
+3. 每执行一个Opcodes，都要消耗一定数量的Gas。如果Gas耗尽或者执行出错，执行就会立即停止，所有的状态改变（除了已经消耗的Gas）都会被回滚。
+4. 执行完成后，交易的结果会被记录在区块链上，包括Gas的消耗、交易日志等信息。
+![image](https://github.com/user-attachments/assets/ca1bea1a-a38f-4311-8ee7-fccac58f3076)
 
 
 
