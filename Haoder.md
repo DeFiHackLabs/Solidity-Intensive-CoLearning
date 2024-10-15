@@ -146,4 +146,12 @@ LFG～～～～～ 會完成的
 
 [**WTF Solidity 極簡入門：45. 時間鎖**](<content/Haoder/md/345.md>)
 
+### 2024.10.14
+
+[**WTF Solidity 極簡入門：46. 代理合約**](<content/Haoder/md/346.md>)
+
+[**WTF Solidity 極簡入門：47. 可升級合約**](<content/Haoder/md/347.md>)
+
+[**WTF Solidity 極簡入門：48. 透明代理**](<content/Haoder/md/348.md>)
+
 <!-- Content_END -->

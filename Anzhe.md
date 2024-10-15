@@ -188,7 +188,7 @@ function <function name>(<parameter types>) {internal|external|public|private} [
 5. 透過調用發送以太幣。
 5. 呼叫任何未標記 view 或 pure 的函數。
 6. 使用低階呼叫（low-level calls）。
-7. 使用包含某些操作碼（Opcodes）的內聯彙編（Inline Assemply）。
+7. 使用包含某些操作碼（Opcodes）的行內組語（Inline Assemply）。
 
 ---
 # 程式碼
@@ -2690,7 +2690,7 @@ ECDSA標準中包含兩個部分：
 ### 驗證簽名
 為了驗證簽名，驗證者需要擁有訊息、簽名和簽名使用的公鑰。我們能驗證簽名的原因是只有私鑰的持有者才能夠針對交易產生這樣的簽名，而別人不能。
 
-4. 透過簽名和訊息恢復公鑰：簽名是由數學演算法產生的。這裡我們使用的是 rsv 簽名，簽名包含 r, s, v 三個值的資訊。而後，我們可以透過 r, s, v 及以太坊簽章訊息來求公鑰。下面的 recoverSigner() 函數實現了上述步驟，它利用以太坊簽署訊息 _msgHash 和簽署 _signature 恢復公鑰（使用了簡單的內聯彙編）：
+4. 透過簽名和訊息恢復公鑰：簽名是由數學演算法產生的。這裡我們使用的是 rsv 簽名，簽名包含 r, s, v 三個值的資訊。而後，我們可以透過 r, s, v 及以太坊簽章訊息來求公鑰。下面的 recoverSigner() 函數實現了上述步驟，它利用以太坊簽署訊息 _msgHash 和簽署 _signature 恢復公鑰（使用了簡單的行內組語）：
     ```
         // @dev 從_msgHash和簽名_signature中恢復signer地址
     function recoverSigner(bytes32 _msgHash, bytes memory _signature) internal pure returns (address){
@@ -2699,7 +2699,7 @@ ECDSA標準中包含兩個部分：
         bytes32 r;
         bytes32 s;
         uint8 v;
-        // 目前只能用assembly (內聯彙編)來從簽名中獲得r,s,v的值
+        // 目前只能用assembly (行內組語)來從簽名中獲得r,s,v的值
         assembly {
             /*
             前32 bytes儲存簽章的長度 (動態陣列儲存規則)
@@ -3682,6 +3682,312 @@ contract BAYC1155 is ERC1155{
             require(ids[i] < MAX_ID, "id overflow");
         }
         _mintBatch(to, ids, amounts, "");
+    }
+}
+```
+### 2024.10.14
+# WETH
+WETH（Wrapped ETH）是 ETH 的包裝版本。我們常見的 WETH、WBTC、WBNB，都是帶包裝的原生代幣。那我們為什麼要包裝它們？
+2015 年，ERC20 標準出現，此代幣標準旨在為以太坊上的代幣制定一套標準化的規則，從而簡化了新代幣的發布，並使區塊鏈上的所有代幣相互可比。不幸的是，以太幣本身並不符合 ERC20 標準。 WETH 的開發是為了提高區塊鏈之間的互通性，並使 ETH 可用於去中心化應用程式（dApps）。它就像是給原生代幣穿了一件智能合約做的衣服：穿上衣服的時候，就變成了 WETH，符合 ERC20 同質化代幣標準，可以跨鏈，可以用於 dApp；脫下衣服，它可 1:1 兌換ETH。
+## WETH 合約
+目前在用的主網 WETH 合約寫於 2015 年，非常老，那時 solidity 是 0.4 版本。我們用 0.8 版本重寫一個 WETH。
+WETH 符合 ERC20 標準，它比普通的 ERC20 多了兩個功能：
+1. 存款：包裝，使用者將 ETH 存入 WETH 合約，並獲得等量的 WETH。
+2. 提款：拆包裝，使用者銷毀 WETH，並獲得等量的 ETH。
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+contract WETH is ERC20{
+    // 事件：存款和提款
+    event  Deposit(address indexed dst, uint wad);
+    event  Withdrawal(address indexed src, uint wad);
+
+    // 建構子，初始化ERC20的名字和代號
+    constructor() ERC20("WETH", "WETH"){
+    }
+
+    // 回傳函數，當使用者往WETH合約轉ETH時，會觸發deposit()函數
+    fallback() external payable {
+        deposit();
+    }
+    // 回傳函數，當使用者往WETH合約轉ETH時，會觸發deposit()函數
+    receive() external payable {
+        deposit();
+    }
+
+    // 存款函數，當使用者存入ETH時，給他鑄造等量的WETH
+    function deposit() public payable {
+        _mint(msg.sender, msg.value);
+        emit Deposit(msg.sender, msg.value);
+    }
+
+    // 提款函數，用戶銷毀WETH，取回等量的ETH
+    function withdraw(uint amount) public {
+        require(balanceOf(msg.sender) >= amount);
+        _burn(msg.sender, amount);
+        payable(msg.sender).transfer(amount);
+        emit Withdrawal(msg.sender, amount);
+    }
+}
+```
+## 繼承
+WETH 符合 ERC20 代幣標準，因此 WETH 合約繼承了 ERC20 合約。
+## 事件
+WETH 合約共有 2 個事件：
+* Deposit：存款事件，在存款的時候釋放。
+* Withdraw：取款事件，在取款的時候釋放。
+## 函數
+除了 ERC20 標準的函數外，WETH 合約有 5 個函數：
+* 建構子：初始化 WETH 的名字和代號。
+* 回傳函數：fallback() 和 receive()，當使用者往 WETH 合約轉 ETH 的時候，會自動觸發 deposit() 存款函數，獲得等量的 WETH。
+* `deposit()`：存款函數，當使用者存入 ETH 時，給他鑄造等量的 WETH。
+* `withdraw()`：提款函數，讓使用者銷毀 WETH，並歸還等量的 ETH。
+# 分帳
+分帳合約允許將 ETH 按權重轉給一組帳戶後，進行分帳。程式碼部分由 OpenZeppelin 函式庫的 PaymentSplitter 合約簡化而來。
+分帳就是依照一定比例分錢財。在現實中，經常會有「分贓不均」的事情發生；而在區塊鏈的世界裡 Code is Law，我們可以事先把每個人應分的比例寫在智能合約中，獲得收入後，再由智能合約來進行分帳。
+## 分帳合約
+分帳合約（PaymentSplit）具有以下幾個特點：
+1. 在創建合約時定好分帳受益人 payees 和每人的份額 shares。
+2. 份額可以是相等，也可以是其他任意比例。
+3. 在該合約收到的所有 ETH 中，每個受益人將能夠提取與其分配的份額成比例的金額。
+4. 分帳合約遵循 Pull Payment 模式，付款不會自動轉入帳戶，而是保存在此合約中。受益人透過呼叫 release() 函數觸發實際轉帳。
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+/**
+ * 分帳合約
+ * @dev 這個合約會把收到的ETH按事先定好的份額分給幾個帳戶。收到ETH會存在分帳合約中，需要每個受益人呼叫release()函數來領取。
+ */
+contract PaymentSplit{
+    // 事件
+    event PayeeAdded(address account, uint256 shares); // 增加受益人事件
+    event PaymentReleased(address to, uint256 amount); // 受益人提款事件
+    event PaymentReceived(address from, uint256 amount); // 合約收款事件
+    
+    // 狀態變數
+    uint256 public totalShares; // 總份額，為shares的和
+    uint256 public totalReleased; // 總支付，從分帳合約向受益人支付出去的ETH，為 released 的和
+
+    mapping(address => uint256) public shares; // address到uint256的映射，記錄每個受益人的份額
+    mapping(address => uint256) public released; // address到uint256的映射，記錄分帳合約支付給每個受益人的金額
+    address[] public payees; // address陣列，記錄受益人地址
+    
+    // 函數
+    /**
+     * @dev 建構子：始化受益人陣列_payees和分帳份額陣列_shares
+     * 陣列長度不能為0，兩個陣列長度要相等。 _shares中元素要大於0，_payees中位址不能為0位址且不能有重複位址。
+     */
+    constructor(address[] memory _payees, uint256[] memory _shares) payable {
+        // 檢查_payees和_shares儲存容量相同，且不為0
+        require(_payees.length == _shares.length, "PaymentSplitter: payees and shares length mismatch");
+        require(_payees.length > 0, "PaymentSplitter: no payees");
+        // 呼叫_addPayee，更新受益人地址payees、受益人份額shares和總份額totalShares
+        for (uint256 i = 0; i < _payees.length; i++) {
+            _addPayee(_payees[i], _shares[i]);
+        }
+    }
+
+    /**
+     * @dev 回傳函數，在分帳合約收到ETH時釋放PaymentReceived事件
+     */
+    receive() external payable virtual {
+        emit PaymentReceived(msg.sender, msg.value);
+    }
+
+    /**
+     * @dev 分帳函數，為有效受益人地址_account分配對應的ETH。任何人都可以觸發這個函數，但ETH會轉給受益人地址account。
+     * 呼叫了releasable()函數。
+     */
+    function release(address payable _account) public virtual {
+        // account必須是有效受益人
+        require(shares[_account] > 0, "PaymentSplitter: account has no shares");
+        // 計算account應得的eth
+        uint256 payment = releasable(_account);
+        // 應得的eth不能為0
+        require(payment != 0, "PaymentSplitter: account is not due payment");
+        // 更新總支付totalReleased和支付給每個受益人的金額released
+        totalReleased += payment;
+        released[_account] += payment;
+        // 轉帳
+        _account.transfer(payment);
+        emit PaymentReleased(_account, payment);
+    }
+
+    /**
+     * @dev 計算一個受益人地址應領取的ETH。
+     * 呼叫了pendingPayment()函數。
+     */
+    function releasable(address _account) public view returns (uint256) {
+        // 計算分帳合約總收入totalReceived
+        uint256 totalReceived = address(this).balance + totalReleased;
+        // 呼叫_pendingPayment計算帳戶應得的ETH
+        return pendingPayment(_account, totalReceived, released[_account]);
+    }
+
+    /**
+     * @dev 根據受益人地址_account, 分帳合約總收入_totalReceived和該地址已領取的錢_alreadyReleased，計算該受益人現在應分的ETH。
+     */
+    function pendingPayment(
+        address _account,
+        uint256 _totalReceived,
+        uint256 _alreadyReleased
+    ) public view returns (uint256) {
+        // account應得的ETH = 總應得ETH - 已領到的ETH
+        return (_totalReceived * shares[_account]) / totalShares - _alreadyReleased;
+    }
+
+    /**
+     * @dev 新增受益人函數及其份額函數。在合約初始化的時候被呼叫，之後不能修改。
+     */
+    function _addPayee(address _account, uint256 _accountShares) private {
+        // 檢查_account不為0地址
+        require(_account != address(0), "PaymentSplitter: account is the zero address");
+        // 檢查_accountShares不為0
+        require(_accountShares > 0, "PaymentSplitter: shares are 0");
+        // 檢查帳戶不重複
+        require(shares[_account] == 0, "PaymentSplitter: account already has shares");
+        // 更新payees，shares和totalShares
+        payees.push(_account);
+        shares[_account] = _accountShares;
+        totalShares += _accountShares;
+        // 釋放增加受益人事件
+        emit PayeeAdded(_account, _accountShares);
+    }
+```
+# 代幣歸屬條款
+在傳統金融領域，有些公司會向員工和管理階層提供股權。但大量股權同時釋出會在短期產生拋售壓力，拖累股價。因此，公司通常會引入一個歸屬期來延遲承諾資產的所有權。同樣的，在區塊鏈領域，Web3 新創公司會分配給團隊代幣，同時也會將代幣低價賣給風險投資和私募。如果他們把這些低成本的代幣同時提到交易所變現，幣價將被砸穿，散戶直接成為接盤俠。
+所以，專案方一般會約定代幣歸屬條款（token vesting），在歸屬期內逐步釋放代幣，減緩拋壓，並防止團隊和資本方過早躺平。
+## 線性釋放
+線性釋放指的是代幣在歸屬期內勻速釋放。舉個例子，某私募持有 365000 枚 ICU 代幣，歸屬期為 1 年（365天），那麼每天會釋放 1,000 枚代幣。
+下面是一個鎖倉並線性釋放 ERC20 代幣的合約 TokenVesting：
+1. 專案方規定線性釋放的起始時間、歸屬期和受益人。
+2. 專案方將鎖倉的 ERC20 代幣轉帳給 TokenVesting 合約。
+3. 受益人可以呼叫 release 函數，從合約中取出釋放的代幣。
+```
+contract TokenVesting {
+    // 事件
+    event ERC20Released(address indexed token, uint256 amount); // 提幣事件，當受益人提取釋放代幣時釋放
+    
+    // 狀態變數
+    mapping(address => uint256) public erc20Released; // 代幣地址->釋放數量的映射，記錄受益人已領取的代幣數量
+    address public immutable beneficiary; // 受益人地址
+    uint256 public immutable start; // 歸屬期起始時間戳記
+    uint256 public immutable duration; // 歸屬期，單位為秒
+    
+     
+    // 函數
+     /**
+     * @dev 建構子：初始化受益人地址，釋放週期(秒), 起始時間戳記(當前區塊鏈時間戳)
+     * 參數為受益人地址beneficiaryAddress和歸屬期durationSeconds。
+     * 為了方便，起始時間戳使用部署時的區塊鏈時間戳block.timestamp。
+     */
+    constructor(
+        address beneficiaryAddress,
+        uint256 durationSeconds
+    ) {
+        require(beneficiaryAddress != address(0), "VestingWallet: beneficiary is zero address");
+        beneficiary = beneficiaryAddress;
+        start = block.timestamp;
+        duration = durationSeconds;
+    }
+
+    /**
+     * @dev 提取代幣函數，將已釋放的代幣轉帳給受益人
+     * 呼叫了vestedAmount()函數計算可提取的代幣數量，然後將代幣transfer給受益人
+     * 參數為代幣地址token
+     * 釋放ERC20Released事件
+     */
+    function release(address token) public {
+        // 呼叫vestedAmount()函數計算可提取的代幣數量
+        uint256 releasable = vestedAmount(token, uint256(block.timestamp)) - erc20Released[token];
+        // 更新已釋放代幣數量   
+        erc20Released[token] += releasable; 
+        // 轉代幣給受益人
+        emit ERC20Released(token, releasable);
+        IERC20(token).transfer(beneficiary, releasable);
+    }
+
+    /**
+     * @dev 根據線性釋放公式，查詢已釋放的代幣數量。開發者可以透過修改這個函數，自訂釋放方式。
+     * @param token: 代幣地址
+     * @param timestamp: 查詢的時間戳
+     */
+    function vestedAmount(address token, uint256 timestamp) public view returns (uint256) {
+        // 合約裡總共收到了多少代幣（當前餘額 + 已經提取）
+        uint256 totalAllocation = IERC20(token).balanceOf(address(this)) + erc20Released[token];
+        // 根據線性釋放公式，計算已經釋放的數量
+        if (timestamp < start) {
+            return 0;
+        } else if (timestamp > start + duration) {
+            return totalAllocation;
+        } else {
+            return (totalAllocation * (timestamp - start)) / duration;
+        }
+    }
+```
+
+# 代幣鎖
+代幣鎖(Token Locker)是一種簡單的時間鎖合約，它可以把合約中的代幣鎖倉一段時間，受益人在鎖倉期滿後可以取走代幣。代幣鎖一般是用來鎖倉流動性提供者 LP 代幣的。
+## LP 代幣
+區塊鏈中，使用者在去中心化交易所(DEX)上交易代幣，例如 Uniswap 交易所。DEX 和中心化交易所(CEX)不同，去中心化交易所使用自動做市商(AMM，Automated Market Maker)機制，需要使用者或專案方提供資金池，以使得其他用戶能夠即時買賣。簡單來說，使用者/專案方需要質押相應的幣對（例如ETH/DAI）到資金池中，作為補償，DEX 會給他們鑄造相應的流動性提供者 LP 代幣憑證，證明他們質押了相應的份額，供他們收取手續費。
+## 為什麼要鎖定流動性？
+如果專案方毫無徵兆的撤出流動性池中的 LP 代幣，那麼投資者手中的代幣就無法變現，直接歸零了。這種行為也叫 rug-pull，光是 2021 年，各種 rug-pull 騙局就從投資者那裡騙取了價值超過28億美元的加密貨幣。
+但如果 LP 代幣是鎖倉在代幣鎖合約中，在鎖倉期結束前，專案方無法撤出流動性池，也沒辦法 rug pull。因此代幣鎖可以防止專案方過早跑路（要小心鎖倉期滿跑路的情況）。
+## 代幣鎖合約
+下面是一個鎖倉 ERC20 代幣的合約 TokenLocker：
+1. 開發者在部署合約時規定鎖倉的時間，受益人地址，以及代幣合約。
+2. 開發者將代幣轉入TokenLocker合約。
+3. 在鎖倉期滿時，受益人可以取走合約裡的代幣。
+```
+contract TokenLocker {
+    // 事件
+    event TokenLockStart(address indexed beneficiary, address indexed token, uint256 startTime, uint256 lockTime); // 鎖倉開始事件，在合約部署時釋放，記錄受益人地址，代幣地址，鎖倉起始時間，和結束時間。
+    event Release(address indexed beneficiary, address indexed token, uint256 releaseTime, uint256 amount); // 代幣釋放事件，在受益人取出代幣時釋放，記錄記錄受益人地址，代幣地址，釋放代幣時間，和代幣數量。
+    
+    // 狀態變數
+    IERC20 public immutable token; // 被鎖倉的ERC20代幣合約
+    address public immutable beneficiary; // 受益人地址
+    uint256 public immutable lockTime; // 鎖倉時間(秒)
+    uint256 public immutable startTime; // 鎖倉起始時間戳(秒)
+    
+    // 函數
+    /**
+     * @dev 初始化代幣合約，受益人地址，以及鎖倉時間
+     * @param token_: 被鎖倉的 ERC20 代幣合約
+     * @param beneficiary_: 受益人地址
+     * @param lockTime_: 鎖倉時間(秒)
+     */
+    constructor(
+        IERC20 token_,
+        address beneficiary_,
+        uint256 lockTime_
+    ) {
+        require(lockTime_ > 0, "TokenLock: lock time should greater than 0");
+        token = token_;
+        beneficiary = beneficiary_;
+        lockTime = lockTime_;
+        startTime = block.timestamp;
+
+        emit TokenLockStart(beneficiary_, address(token_), block.timestamp, lockTime_);
+    }
+
+    /**
+     * @dev 在鎖倉時間過後，將代幣釋放給受益人。
+     * 需要受益人主動調用release()函數提取代幣
+     */
+    function release() public {
+        require(block.timestamp >= startTime+lockTime, "TokenLock: current time is before release time");
+
+        uint256 amount = token.balanceOf(address(this));
+        require(amount > 0, "TokenLock: no tokens to release");
+
+        token.transfer(beneficiary, amount);
+
+        emit Release(msg.sender, address(token), block.timestamp, amount);
     }
 }
 ```
