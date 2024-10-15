@@ -2013,4 +2013,99 @@ Copy
         require(success, "Transfer failed.");
     }
 
+### 2024.10.15
+
+試圖了解create function 時整個代碼的結構，這樣寫起來更知道，下一個單詞是為什麼存在的: 總共有九個部分:
+
+function keyword
+function name
+parameters
+visibility specifier
+state mutability keyword
+return type
+function body
+local variable declaration
+return statement
+然後了解了struct，知道怎麼寫，什麼時候用:
+
+When to Use a Struct
+
+When You Have Multiple Related Data Fields
+When You Want to Improve Code Readability -When You Need to Reuse a Logical Grouping of Data -When You Need a Data Model in a Mapping or Array
+When Not to Use a Struct:
+
+For Simple Data: If your data is very simple (e.g., just a uint or a string), using a struct may be overkill. Structs are useful when there are multiple related fields.
+When Performance Is a Concern: Structs in Solidity are stored in memory or storage, which might consume more gas compared to simpler types, especially if the struct is large and complex. Use them wisely, considering the gas cost.
+了解MAPPING的結構: This line of code declares a public mapping in Solidity:
+
+mapping(address => string[]) public tweets;
+Here's what it does:
+
+It creates a mapping called "tweets"
+The key to this mapping is an Ethereum address
+The value associated with each address is an array of strings
+Each address can have multiple tweets (stored as strings in the array)
+The 'public' keyword automatically creates a getter function for this mapping
+In the context of a Twitter-like contract, this mapping allows each Ethereum address (user) to have an array of tweets associated with it. Users can add tweets to their array, and anyone can retrieve tweets for a specific address.
+
+20-3
+
+在ReceiveETH合约中，运行getBalance()函数，可以看到当前合约的ETH余额为10。
+
+20-4
+
+send
+用法是接收方地址.send(发送ETH数额)。
+send()的gas限制是2300，足够用于转账，但对方合约的fallback()或receive()函数不能实现太复杂的逻辑。
+send()如果转账失败，不会revert。
+send()的返回值是bool，代表着转账成功或失败，需要额外代码处理一下。
+代码样例：
+
+error SendFailed(); // 用send发送ETH失败error
+
+// send()发送ETH
+function sendETH(address payable _to, uint256 amount) external payable{
+    // 处理下send的返回值，如果失败，revert交易并发送error
+    bool success = _to.send(amount);
+    if(!success){
+        revert SendFailed();
+    }
+}
+
+Copy
+对ReceiveETH合约发送ETH，此时amount为10，value为0，amount>value，转账失败，因为经过处理，所以发生revert。
+
+20-5
+
+此时amount为10，value为11，amount<=value，转账成功。
+
+20-6
+
+call
+用法是接收方地址.call{value: 发送ETH数额}("")。
+call()没有gas限制，可以支持对方合约fallback()或receive()函数实现复杂逻辑。
+call()如果转账失败，不会revert。
+call()的返回值是(bool, bytes)，其中bool代表着转账成功或失败，需要额外代码处理一下。
+代码样例：
+
+error CallFailed(); // 用call发送ETH失败error
+
+// call()发送ETH
+function callETH(address payable _to, uint256 amount) external payable{
+    // 处理下call的返回值，如果失败，revert交易并发送error
+    (bool success,) = _to.call{value: amount}("");
+    if(!success){
+        revert CallFailed();
+    }
+}
+
+Copy
+对ReceiveETH合约发送ETH，此时amount为10，value为0，amount>value，转账失败，因为经过处理，所以发生revert。
+
+20-7
+
+此时amount为10，value为11，amount<=value，转账成功。
+
+以上。
+
 <!-- Content_END -->
