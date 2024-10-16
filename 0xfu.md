@@ -849,4 +849,30 @@ contract Timelock{
 ### 
 
 
+### 2024.10.13
+
+#### [ERC712](./content/0xfu/EIP712.md)
+
+### 
+
+
+### 2024.10.14
+
+#### [ERC20Permit](./content/0xfu/ERC20Permit.md)
+
+### 
+
+
+### 2024.10.15
+
+#### [跨链桥](./content/0xfu/CrossChainBridge.md)
+
+### 
+
+
+### 2024.10.16
+
+#### [Multicall](./content/0xfu/MultiCall.md)
+
+### 
 <!-- Content_END -->

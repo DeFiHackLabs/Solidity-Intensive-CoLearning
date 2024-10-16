@@ -2974,4 +2974,742 @@ contract Logic2 {
 }
 ```
 
+### 2024.10.13
+
+智能合约中，函数选择器（selector）是函数签名的哈希的前4个字节，由于函数选择器仅有4个字节，范围很小，因此两个不同的函数可能会有相同的选择器
+
+像下面的两个函数的选择器都为 `0x42966c68`，这种情况被称为“选择器冲突”。
+
+```solidity
+// 选择器冲突的例子
+// 去掉注释后，合约不会通过编译，因为两个函数有着相同的选择器
+contract Foo {
+    bytes4 public selector1 = bytes4(keccak256("burn(uint256)"));
+    bytes4 public selector2 = bytes4(keccak256("collate_propagate_storage(bytes16)"));
+    // function burn(uint256) external {}
+    // function collate_propagate_storage(bytes16) external {}
+}
+```
+由于代理合约和逻辑合约是两个合约，就算他们之间存在“选择器冲突”也可以正常编译，这可能会导致很严重的安全事故。
+
+通过透明代理（Transparent Proxy）可以解决，由OpenZeppelin的 [TransparentUpgradeableProxy](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/proxy/transparent/TransparentUpgradeableProxy.sol) 简化而成，思路为
+
+- 管理员变为工具人，仅能调用代理合约的可升级函数对合约升级，不能通过回调函数调用逻辑合约。
+- 其它用户不能调用可升级函数，但是可以调用逻辑合约的函数。
+
+```solidity
+
+// 透明可升级合约的教学代码，不要用于生产。
+contract TransparentProxy {
+    address implementation; // logic合约地址
+    address admin; // 管理员
+    string public words; // 字符串，可以通过逻辑合约的函数改变
+
+    // 构造函数，初始化admin和逻辑合约地址
+    constructor(address _implementation){
+        admin = msg.sender;
+        implementation = _implementation;
+    }
+
+    // fallback函数，将调用委托给逻辑合约
+    // 不能被admin调用，避免选择器冲突引发意外
+    fallback() external payable {
+        require(msg.sender != admin);
+        (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+    }
+
+    receive() external payable { }
+
+    // 升级函数，改变逻辑合约地址，只能由admin调用
+    function upgrade(address newImplementation) external {
+        if (msg.sender != admin) revert();
+        implementation = newImplementation;
+    }
+}
+
+// 旧逻辑合约
+contract Logic1 {
+    // 状态变量和proxy合约一致，防止插槽冲突
+    address public implementation; 
+    address public admin; 
+    string public words; // 字符串，可以通过逻辑合约的函数改变
+
+    // 改变proxy中状态变量，选择器： 0xc2985578
+    function foo() public{
+        words = "old";
+    }
+}
+
+// 新逻辑合约
+contract Logic2 {
+    // 状态变量和proxy合约一致，防止插槽冲突
+    address public implementation; 
+    address public admin; 
+    string public words; // 字符串，可以通过逻辑合约的函数改变
+
+    // 改变proxy中状态变量，选择器：0xc2985578
+    function foo() public{
+        words = "new";
+    }
+}
+```
+
+### 2024.10.14
+1、代理合约中选择器冲突（Selector Clash）的另一个解决办法：通用可升级代理（UUPS，universal upgradeable proxy standard），由 OpenZeppelin 的 [UUPSUpgradeable](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/proxy/utils/UUPSUpgradeable.sol) 简化而成
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+// UUPS的Proxy，跟普通的proxy像。
+// 升级函数在逻辑函数中，管理员可以通过升级函数更改逻辑合约地址，从而改变合约的逻辑。
+// 教学演示用，不要用在生产环境
+contract UUPSProxy {
+    address public implementation; // 逻辑合约地址
+    address public admin; // admin地址
+    string public words; // 字符串，可以通过逻辑合约的函数改变
+
+    // 构造函数，初始化admin和逻辑合约地址
+    constructor(address _implementation){
+        admin = msg.sender;
+        implementation = _implementation;
+    }
+
+    // fallback函数，将调用委托给逻辑合约
+    fallback() external payable {
+        (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+    }
+
+    receive() external payable { }
+}
+
+// UUPS逻辑合约（升级函数写在逻辑合约内）
+contract UUPS1{
+    // 状态变量和proxy合约一致，防止插槽冲突
+    address public implementation; 
+    address public admin; 
+    string public words; // 字符串，可以通过逻辑合约的函数改变
+
+    // 改变proxy中状态变量，选择器： 0xc2985578
+    function foo() public{
+        words = "old";
+    }
+
+    // 升级函数，改变逻辑合约地址，只能由admin调用。选择器：0x0900f010
+    // UUPS中，逻辑函数中必须包含升级函数，不然就不能再升级了。
+    function upgrade(address newImplementation) external {
+        require(msg.sender == admin);
+        implementation = newImplementation;
+    }
+}
+
+// 新的UUPS逻辑合约
+contract UUPS2{
+    // 状态变量和proxy合约一致，防止插槽冲突
+    address public implementation; 
+    address public admin; 
+    string public words; // 字符串，可以通过逻辑合约的函数改变
+
+    // 改变proxy中状态变量，选择器： 0xc2985578
+    function foo() public{
+        words = "new";
+    }
+
+    // 升级函数，改变逻辑合约地址，只能由admin调用。选择器：0x0900f010
+    // UUPS中，逻辑函数中必须包含升级函数，不然就不能再升级了。
+    function upgrade(address newImplementation) external {
+        require(msg.sender == admin);
+        implementation = newImplementation;
+    }
+}
+```
+2、多签钱包
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+/// 基于签名的多签钱包，由gnosis safe合约简化而来，教学使用。
+contract MultisigWallet {
+    event ExecutionSuccess(bytes32 txHash);    // 交易成功事件
+    event ExecutionFailure(bytes32 txHash);    // 交易失败事件
+    address[] public owners;                   // 多签持有人数组 
+    mapping(address => bool) public isOwner;   // 记录一个地址是否为多签
+    uint256 public ownerCount;                 // 多签持有人数量
+    uint256 public threshold;                  // 多签执行门槛，交易至少有n个多签人签名才能被执行。
+    uint256 public nonce;                      // nonce，防止签名重放攻击
+
+    receive() external payable {}
+
+    // 构造函数，初始化owners, isOwner, ownerCount, threshold 
+    constructor(        
+        address[] memory _owners,
+        uint256 _threshold
+    ) {
+        _setupOwners(_owners, _threshold);
+    }
+
+    /// @dev 初始化owners, isOwner, ownerCount,threshold 
+    /// @param _owners: 多签持有人数组
+    /// @param _threshold: 多签执行门槛，至少有几个多签人签署了交易
+    function _setupOwners(address[] memory _owners, uint256 _threshold) internal {
+        // threshold没被初始化过
+        require(threshold == 0, "WTF5000");
+        // 多签执行门槛 小于 多签人数
+        require(_threshold <= _owners.length, "WTF5001");
+        // 多签执行门槛至少为1
+        require(_threshold >= 1, "WTF5002");
+
+        for (uint256 i = 0; i < _owners.length; i++) {
+            address owner = _owners[i];
+            // 多签人不能为0地址，本合约地址，不能重复
+            require(owner != address(0) && owner != address(this) && !isOwner[owner], "WTF5003");
+            owners.push(owner);
+            isOwner[owner] = true;
+        }
+        ownerCount = _owners.length;
+        threshold = _threshold;
+    }
+
+    /// @dev 在收集足够的多签签名后，执行交易
+    /// @param to 目标合约地址
+    /// @param value msg.value，支付的以太坊
+    /// @param data calldata
+    /// @param signatures 打包的签名，对应的多签地址由小到达，方便检查。 ({bytes32 r}{bytes32 s}{uint8 v}) (第一个多签的签名, 第二个多签的签名 ... )
+    function execTransaction(
+        address to,
+        uint256 value,
+        bytes memory data,
+        bytes memory signatures
+    ) public payable virtual returns (bool success) {
+        // 编码交易数据，计算哈希
+        bytes32 txHash = encodeTransactionData(to, value, data, nonce, block.chainid);
+        nonce++;  // 增加nonce
+        checkSignatures(txHash, signatures); // 检查签名
+        // 利用call执行交易，并获取交易结果
+        (success, ) = to.call{value: value}(data);
+        require(success , "WTF5004");
+        if (success) emit ExecutionSuccess(txHash);
+        else emit ExecutionFailure(txHash);
+    }
+
+    /**
+     * @dev 检查签名和交易数据是否对应。如果是无效签名，交易会revert
+     * @param dataHash 交易数据哈希
+     * @param signatures 几个多签签名打包在一起
+     */
+    function checkSignatures(
+        bytes32 dataHash,
+        bytes memory signatures
+    ) public view {
+        // 读取多签执行门槛
+        uint256 _threshold = threshold;
+        require(_threshold > 0, "WTF5005");
+
+        // 检查签名长度足够长
+        require(signatures.length >= _threshold * 65, "WTF5006");
+
+        // 通过一个循环，检查收集的签名是否有效
+        // 大概思路：
+        // 1. 用ecdsa先验证签名是否有效
+        // 2. 利用 currentOwner > lastOwner 确定签名来自不同多签（多签地址递增）
+        // 3. 利用 isOwner[currentOwner] 确定签名者为多签持有人
+        address lastOwner = address(0); 
+        address currentOwner;
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+        uint256 i;
+        for (i = 0; i < _threshold; i++) {
+            (v, r, s) = signatureSplit(signatures, i);
+            // 利用ecrecover检查签名是否有效
+            currentOwner = ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", dataHash)), v, r, s);
+            require(currentOwner > lastOwner && isOwner[currentOwner], "WTF5007");
+            lastOwner = currentOwner;
+        }
+    }
+    
+    /// 将单个签名从打包的签名分离出来
+    /// @param signatures 打包的多签
+    /// @param pos 要读取的多签index.
+    function signatureSplit(bytes memory signatures, uint256 pos)
+        internal
+        pure
+        returns (
+            uint8 v,
+            bytes32 r,
+            bytes32 s
+        )
+    {
+        // 签名的格式：{bytes32 r}{bytes32 s}{uint8 v}
+        assembly {
+            let signaturePos := mul(0x41, pos)
+            r := mload(add(signatures, add(signaturePos, 0x20)))
+            s := mload(add(signatures, add(signaturePos, 0x40)))
+            v := and(mload(add(signatures, add(signaturePos, 0x41))), 0xff)
+        }
+    }
+
+    /// @dev 编码交易数据
+    /// @param to 目标合约地址
+    /// @param value msg.value，支付的以太坊
+    /// @param data calldata
+    /// @param _nonce 交易的nonce.
+    /// @param chainid 链id
+    /// @return 交易哈希bytes.
+    function encodeTransactionData(
+        address to,
+        uint256 value,
+        bytes memory data,
+        uint256 _nonce,
+        uint256 chainid
+    ) public pure returns (bytes32) {
+        bytes32 safeTxHash =
+            keccak256(
+                abi.encode(
+                    to,
+                    value,
+                    keccak256(data),
+                    _nonce,
+                    chainid
+                )
+            );
+        return safeTxHash;
+    }
+}
+```
+### 2024.10.15
+ERC4626 代币化金库标准，参照 penzeppelin 中的 [ERC4626](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/extensions/ERC4626.sol) 合约
+
+```solidity
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.21;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+
+/**
+ * @dev ERC4626 "代币化金库标准"的接口合约
+ * https://eips.ethereum.org/EIPS/eip-4626[ERC-4626].
+ */
+interface IERC4626 is IERC20, IERC20Metadata {
+    /*//////////////////////////////////////////////////////////////
+                                 事件
+    //////////////////////////////////////////////////////////////*/
+    // 存款时触发
+    event Deposit(address indexed sender, address indexed owner, uint256 assets, uint256 shares);
+
+    // 取款时触发
+    event Withdraw(
+        address indexed sender,
+        address indexed receiver,
+        address indexed owner,
+        uint256 assets,
+        uint256 shares
+    );
+
+    /*//////////////////////////////////////////////////////////////
+                            元数据
+    //////////////////////////////////////////////////////////////*/
+    /**
+     * @dev 返回金库的基础资产代币地址 （用于存款，取款）
+     * - 必须是 ERC20 代币合约地址.
+     * - 不能revert
+     */
+    function asset() external view returns (address assetTokenAddress);
+
+    /*//////////////////////////////////////////////////////////////
+                        存款/提款逻辑
+    //////////////////////////////////////////////////////////////*/
+    /**
+     * @dev 存款函数: 用户向金库存入 assets 单位的基础资产，然后合约铸造 shares 单位的金库额度给 receiver 地址
+     *
+     * - 必须释放 Deposit 事件.
+     * - 如果资产不能存入，必须revert，比如存款数额大大于上限等。
+     */
+    function deposit(uint256 assets, address receiver) external returns (uint256 shares);
+
+    /**
+     * @dev 铸造函数: 用户需要存入 assets 单位的基础资产，然后合约给 receiver 地址铸造 share 数量的金库额度
+     * - 必须释放 Deposit 事件.
+     * - 如果全部金库额度不能铸造，必须revert，比如铸造数额大大于上限等。
+     */
+    function mint(uint256 shares, address receiver) external returns (uint256 assets);
+
+    /**
+     * @dev 提款函数: owner 地址销毁 share 单位的金库额度，然后合约将 assets 单位的基础资产发送给 receiver 地址
+     * - 释放 Withdraw 事件
+     * - 如果全部基础资产不能提取，将revert
+     */
+    function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares);
+
+    /**
+     * @dev 赎回函数: owner 地址销毁 shares 数量的金库额度，然后合约将 assets 单位的基础资产发给 receiver 地址
+     * - 释放 Withdraw 事件
+     * - 如果金库额度不能全部销毁，则revert
+     */
+    function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets);
+
+    /*//////////////////////////////////////////////////////////////
+                            会计逻辑
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @dev 返回金库中管理的基础资产代币总额
+     * - 要包含利息
+     * - 要包含费用
+     * - 不能revert
+     */
+    function totalAssets() external view returns (uint256 totalManagedAssets);
+
+    /**
+     * @dev 返回利用一定数额基础资产可以换取的金库额度
+     * - 不要包含费用
+     * - 不包含滑点
+     * - 不能revert
+     */
+    function convertToShares(uint256 assets) external view returns (uint256 shares);
+
+    /**
+     * @dev 返回利用一定数额金库额度可以换取的基础资产
+     * - 不要包含费用
+     * - 不包含滑点
+     * - 不能revert
+     */
+    function convertToAssets(uint256 shares) external view returns (uint256 assets);
+
+    /**
+     * @dev 用于链上和链下用户在当前链上环境模拟存款一定数额的基础资产能够获得的金库额度
+     * - 返回值要接近且不大于在同一交易进行存款得到的金库额度
+     * - 不要考虑 maxDeposit 等限制，假设用户的存款交易会成功
+     * - 要考虑费用
+     * - 不能revert
+     * NOTE: 可以利用 convertToAssets 和 previewDeposit 返回值的差值来计算滑点
+     */
+    function previewDeposit(uint256 assets) external view returns (uint256 shares);
+
+    /**
+     * @dev 用于链上和链下用户在当前链上环境模拟铸造 shares 数额的金库额度需要存款的基础资产数量
+     * - 返回值要接近且不小于在同一交易进行铸造一定数额金库额度所需的存款数量
+     * - 不要考虑 maxMint 等限制，假设用户的存款交易会成功
+     * - 要考虑费用
+     * - 不能revert
+     */
+    function previewMint(uint256 shares) external view returns (uint256 assets);
+
+    /**
+     * @dev 用于链上和链下用户在当前链上环境模拟提款 assets 数额的基础资产需要赎回的金库份额
+     * - 返回值要接近且不大于在同一交易进行提款一定数额基础资产所需赎回的金库份额
+     * - 不要考虑 maxWithdraw 等限制，假设用户的提款交易会成功
+     * - 要考虑费用
+     * - 不能revert
+     */
+    function previewWithdraw(uint256 assets) external view returns (uint256 shares);
+
+    /**
+     * @dev 用于链上和链下用户在当前链上环境模拟销毁 shares 数额的金库额度能够赎回的基础资产数量
+     * - 返回值要接近且不小于在同一交易进行销毁一定数额的金库额度所能赎回的基础资产数量
+     * - 不要考虑 maxRedeem 等限制，假设用户的赎回交易会成功
+     * - 要考虑费用
+     * - 不能revert.
+     */
+    function previewRedeem(uint256 shares) external view returns (uint256 assets);
+
+    /*//////////////////////////////////////////////////////////////
+                     存款/提款限额逻辑
+    //////////////////////////////////////////////////////////////*/
+    /**
+     * @dev 返回某个用户地址单次存款可存的最大基础资产数额。
+     * - 如果有存款上限，那么返回值应该是个有限值
+     * - 返回值不能超过 2 ** 256 - 1 
+     * - 不能revert
+     */
+    function maxDeposit(address receiver) external view returns (uint256 maxAssets);
+
+    /**
+     * @dev 返回某个用户地址单次铸造可以铸造的最大金库额度
+     * - 如果有铸造上限，那么返回值应该是个有限值
+     * - 返回值不能超过 2 ** 256 - 1 
+     * - 不能revert
+     */
+    function maxMint(address receiver) external view returns (uint256 maxShares);
+
+    /**
+     * @dev 返回某个用户地址单次取款可以提取的最大基础资产额度
+     * - 返回值应该是个有限值
+     * - 不能revert
+     */
+    function maxWithdraw(address owner) external view returns (uint256 maxAssets);
+
+    /**
+     * @dev 返回某个用户地址单次赎回可以销毁的最大金库额度
+     * - 返回值应该是个有限值
+     * - 如果没有其他限制，返回值应该是 balanceOf(owner)
+     * - 不能revert
+     */
+    function maxRedeem(address owner) external view returns (uint256 maxShares);
+}
+```
+```solidity
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+import {IERC4626} from "./IERC4626.sol";
+import {ERC20, IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+/**
+ * @dev ERC4626 "代币化金库标准"合约，仅供教学使用，不要用于生产
+ */
+contract ERC4626 is ERC20, IERC4626 {
+    /*//////////////////////////////////////////////////////////////
+                    状态变量
+    //////////////////////////////////////////////////////////////*/
+    ERC20 private immutable _asset; // 
+    uint8 private immutable _decimals;
+
+    constructor(
+        ERC20 asset_,
+        string memory name_,
+        string memory symbol_
+    ) ERC20(name_, symbol_) {
+        _asset = asset_;
+        _decimals = asset_.decimals();
+
+    }
+
+    /** @dev See {IERC4626-asset}. */
+    function asset() public view virtual override returns (address) {
+        return address(_asset);
+    }
+
+    /**
+     * See {IERC20Metadata-decimals}.
+     */
+    function decimals() public view virtual override(IERC20Metadata, ERC20) returns (uint8) {
+        return _decimals;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        存款/提款逻辑
+    //////////////////////////////////////////////////////////////*/
+    /** @dev See {IERC4626-deposit}. */
+    function deposit(uint256 assets, address receiver) public virtual returns (uint256 shares) {
+        // 利用 previewDeposit() 计算将获得的金库份额
+        shares = previewDeposit(assets);
+
+        // 先 transfer 后 mint，防止重入
+        _asset.transferFrom(msg.sender, address(this), assets);
+        _mint(receiver, shares);
+
+        // 释放 Deposit 事件
+        emit Deposit(msg.sender, receiver, assets, shares);
+    }
+
+    /** @dev See {IERC4626-mint}. */
+    function mint(uint256 shares, address receiver) public virtual returns (uint256 assets) {
+        // 利用 previewMint() 计算需要存款的基础资产数额
+        assets = previewMint(shares);
+
+        // 先 transfer 后 mint，防止重入
+        _asset.transferFrom(msg.sender, address(this), assets);
+        _mint(receiver, shares);
+
+        // 释放 Deposit 事件
+        emit Deposit(msg.sender, receiver, assets, shares);
+
+    }
+
+    /** @dev See {IERC4626-withdraw}. */
+    function withdraw(
+        uint256 assets,
+        address receiver,
+        address owner
+    ) public virtual returns (uint256 shares) {
+        // 利用 previewWithdraw() 计算将销毁的金库份额
+        shares = previewWithdraw(assets);
+
+        // 如果调用者不是 owner，则检查并更新授权
+        if (msg.sender != owner) {
+            _spendAllowance(owner, msg.sender, shares);
+        }
+
+        // 先销毁后 transfer，防止重入
+        _burn(owner, shares);
+        _asset.transfer(receiver, assets);
+
+        // 释放 Withdraw 函数
+        emit Withdraw(msg.sender, receiver, owner, assets, shares);
+    }
+
+    /** @dev See {IERC4626-redeem}. */
+    function redeem(
+        uint256 shares,
+        address receiver,
+        address owner
+    ) public virtual returns (uint256 assets) {
+        // 利用 previewRedeem() 计算能赎回的基础资产数额
+        assets = previewRedeem(shares);
+
+        // 如果调用者不是 owner，则检查并更新授权
+        if (msg.sender != owner) {
+            _spendAllowance(owner, msg.sender, shares);
+        }
+
+        // 先销毁后 transfer，防止重入
+        _burn(owner, shares);
+        _asset.transfer(receiver, assets);
+
+        // 释放 Withdraw 函数        
+        emit Withdraw(msg.sender, receiver, owner, assets, shares);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            会计逻辑
+    //////////////////////////////////////////////////////////////*/
+    /** @dev See {IERC4626-totalAssets}. */
+    function totalAssets() public view virtual returns (uint256){
+        // 返回合约中基础资产持仓
+        return _asset.balanceOf(address(this));
+    }
+
+    /** @dev See {IERC4626-convertToShares}. */
+    function convertToShares(uint256 assets) public view virtual returns (uint256) {
+        uint256 supply = totalSupply();
+        // 如果 supply 为 0，那么 1:1 铸造金库份额
+        // 如果 supply 不为0，那么按比例铸造
+        return supply == 0 ? assets : assets * supply / totalAssets();
+    }
+
+    /** @dev See {IERC4626-convertToAssets}. */
+    function convertToAssets(uint256 shares) public view virtual returns (uint256) {
+        uint256 supply = totalSupply();
+        // 如果 supply 为 0，那么 1:1 赎回基础资产
+        // 如果 supply 不为0，那么按比例赎回
+        return supply == 0 ? shares : shares * totalAssets() / supply;
+    }
+
+    /** @dev See {IERC4626-previewDeposit}. */
+    function previewDeposit(uint256 assets) public view virtual returns (uint256) {
+        return convertToShares(assets);
+    }
+
+    /** @dev See {IERC4626-previewMint}. */
+    function previewMint(uint256 shares) public view virtual returns (uint256) {
+        return convertToAssets(shares);
+    }
+
+    /** @dev See {IERC4626-previewWithdraw}. */
+    function previewWithdraw(uint256 assets) public view virtual returns (uint256) {
+        return convertToShares(assets);
+    }
+
+    /** @dev See {IERC4626-previewRedeem}. */
+    function previewRedeem(uint256 shares) public view virtual returns (uint256) {
+        return convertToAssets(shares);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                     DEPOSIT/WITHDRAWAL LIMIT LOGIC
+    //////////////////////////////////////////////////////////////*/
+    /** @dev See {IERC4626-maxDeposit}. */
+    function maxDeposit(address) public view virtual returns (uint256) {
+        return type(uint256).max;
+    }
+
+    /** @dev See {IERC4626-maxMint}. */
+    function maxMint(address) public view virtual returns (uint256) {
+        return type(uint256).max;
+    }
+    
+    /** @dev See {IERC4626-maxWithdraw}. */
+    function maxWithdraw(address owner) public view virtual returns (uint256) {
+        return convertToAssets(balanceOf(owner));
+    }
+    
+    /** @dev See {IERC4626-maxRedeem}. */
+    function maxRedeem(address owner) public view virtual returns (uint256) {
+        return balanceOf(owner);
+    }
+}
+```
+### 2024.10.16
+[EIP712 类型化数据签名](https://eips.ethereum.org/EIPS/eip-712) 比 [EIP191 签名标准(personal sign)](https://eips.ethereum.org/EIPS/eip-191) 要高级安全一些，会展示签名消息的原始数据，用户可以在验证数据符合预期之后签名。
+
+签名验证
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+
+contract EIP712Storage {
+    using ECDSA for bytes32;
+
+    bytes32 private constant EIP712DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+    bytes32 private constant STORAGE_TYPEHASH = keccak256("Storage(address spender,uint256 number)");
+    bytes32 private DOMAIN_SEPARATOR;
+    uint256 number;
+    address owner;
+
+    constructor(){
+        DOMAIN_SEPARATOR = keccak256(abi.encode(
+            EIP712DOMAIN_TYPEHASH, // type hash
+            keccak256(bytes("EIP712Storage")), // name
+            keccak256(bytes("1")), // version
+            block.chainid, // chain id
+            address(this) // contract address
+        ));
+        owner = msg.sender;
+    }
+
+    /**
+     * @dev Store value in variable
+     */
+    function permitStore(uint256 _num, bytes memory _signature) public {
+        // 检查签名长度，65是标准r,s,v签名的长度
+        require(_signature.length == 65, "invalid signature length");
+        bytes32 r;
+        bytes32 s;
+        uint8 v;
+        // 目前只能用assembly (内联汇编)来从签名中获得r,s,v的值
+        assembly {
+            /*
+            前32 bytes存储签名的长度 (动态数组存储规则)
+            add(sig, 32) = sig的指针 + 32
+            等效为略过signature的前32 bytes
+            mload(p) 载入从内存地址p起始的接下来32 bytes数据
+            */
+            // 读取长度数据后的32 bytes
+            r := mload(add(_signature, 0x20))
+            // 读取之后的32 bytes
+            s := mload(add(_signature, 0x40))
+            // 读取最后一个byte
+            v := byte(0, mload(add(_signature, 0x60)))
+        }
+
+        // 获取签名消息hash
+        bytes32 digest = keccak256(abi.encodePacked(
+            "\x19\x01",
+            DOMAIN_SEPARATOR,
+            keccak256(abi.encode(STORAGE_TYPEHASH, msg.sender, _num))
+        )); 
+        
+        address signer = digest.recover(v, r, s); // 恢复签名者
+        require(signer == owner, "EIP712Storage: Invalid signature"); // 检查签名
+
+        // 修改状态变量
+        number = _num;
+    }
+
+    /**
+     * @dev Return value 
+     * @return value of 'number'
+     */
+    function retrieve() public view returns (uint256){
+        return number;
+    }    
+}
+```
 <!-- Content_END -->

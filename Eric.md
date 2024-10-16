@@ -153,6 +153,32 @@ day20:
 [WTF Academy Solidity 103 39-40 Note](/content/Eric/120.md)
 
 
+### 2024.10.13
+
+day21:
+
+[WTF Academy Solidity 103 41-42 Note](/content/Eric/121.md)
+
+### 2024.10.14
+
+day22:
+
+[WTF Academy Solidity 103 43-44 Note](/content/Eric/122.md)
+
+### 2024.10.15
+
+day23:
+
+[WTF Academy Solidity 103 45-46 Note](/content/Eric/123.md)
+
+### 2024.10.16
+
+day23:
+
+[WTF Academy Solidity 103 47-48 Note](/content/Eric/124.md)
+
+
+
 
 
 <!-- Content_END -->

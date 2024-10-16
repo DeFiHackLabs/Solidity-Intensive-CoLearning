@@ -3291,7 +3291,6 @@ timezone: Asia/Shanghai
     - 学习总结
 
         - 时间锁合约在一定程度上能避免被黑之后造成的资产损失。另外在使用时间锁时要确定好目标地址不是合约地址，因为在执行交易(`executeTransaction`)函数中使用了`call`调用，容易受到恶意合约的重入攻击。
-
 ###
 
 ### 2024.10.12
@@ -3427,5 +3426,408 @@ timezone: Asia/Shanghai
 	    - 存储冲突问题： 代理合约和逻辑合约共用存储空间，因此需要确保两者的存储布局是一致的。通常采用一种叫做“不可碰撞存储布局”的方法来避免存储冲突。
 
 	    - 升级的控制权限： 代理合约的升级权限应当严格控制，防止被恶意升级。通常使用多签钱包或去中心化治理来管理升级权限。
+###
+
+### 2024.10.13
+
+学习内容:
+1. 第四十七讲
+
+    - 可升级合约 - 是可以更改逻辑合约地址的代理合约。
+
+    - 合约逻辑
+
+        - 与代理合约基本一致，但比代理合约多了`upgrade()`函数用于更改逻辑合约的地址，并且此函数只能由管理员调用。
+
+            ```Solidity
+            
+            // SPDX-License-Identifier: MIT
+            // wtf.academy 
+            pragma solidity ^0.8.21;
+
+            // 简单的可升级合约，管理员可以通过升级函数更改逻辑合约地址，从而改变合约的逻辑。
+            // 教学演示用，不要用在生产环境
+            contract SimpleUpgrade {
+                address public implementation; // 逻辑合约地址
+                address public admin; // admin地址
+                string public words; // 字符串，可以通过逻辑合约的函数改变
+
+                // 构造函数，初始化admin和逻辑合约地址
+                constructor(address _implementation){
+                    admin = msg.sender;
+                    implementation = _implementation;
+                }
+
+                // fallback函数，将调用委托给逻辑合约
+                fallback() external payable {
+                    (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+                }
+
+                // 升级函数，改变逻辑合约地址，只能由admin调用
+                function upgrade(address newImplementation) external {
+                    require(msg.sender == admin);
+                    implementation = newImplementation;
+                }
+            }
+            ```
+
+    - 核心函数
+
+        - 旧逻辑合约
+
+            ```Solidity
+            // 旧逻辑合约
+            contract Logic1 {
+                // 状态变量和proxy合约一致，防止插槽冲突
+                address public implementation; 
+                address public admin; 
+                string public words; // 字符串，可以通过逻辑合约的函数改变
+
+                // 改变proxy中状态变量，选择器： 0xc2985578
+                function foo() public{
+                    words = "old";
+                }
+            }
+            ```
+
+        - 新逻辑合约
+
+            ```Solidity
+            // 新逻辑合约
+            contract Logic2 {
+                // 状态变量和proxy合约一致，防止插槽冲突
+                address public implementation; 
+                address public admin; 
+                string public words; // 字符串，可以通过逻辑合约的函数改变
+
+                // 改变proxy中状态变量，选择器：0xc2985578
+                function foo() public{
+                    words = "new";
+                }
+            }
+            ```
+
+    - 学习总结
+
+        - 简单学习了可升级合约，基本就是在代理合约的基础上加了可以更改逻辑合约地址的函数，不过这种方式的可升级合约有`选择器冲突`的问题，针对这个问题可以通过`透明代理`和`UUPS`解决。     
+###
+
+### 2024.10.14
+
+学习内容:
+1. 第四十八讲
+
+    - 什么是选择器冲突？
+
+        - 选择器冲突是指`不同的函数`对应的`函数选择器`相同。
+
+            ```Solidity
+
+            // 选择器冲突的例子
+            contract Foo {
+                function burn(uint256) external {}
+                function collate_propagate_storage(bytes16) external {}
+            }
+            ```
+        - 上面的代码中，函数`burn()`和`collate_propagate_storage()`的选择器都为`0x42966c68`，这种情况被称为“选择器冲突”。在这种情况下，EVM无法通过函数选择器分辨用户调用哪个函数，因此该合约无法通过编译。
+
+        - 由于`代理合约`和`逻辑合约`是两个合约，就算他们之间存在“选择器冲突”也可以正常编译，这可能会导致很严重的安全事故。举个例子，如果逻辑合约的`a函数`和代理合约的`升级函数的选择器`相同，那么管理人就会在`调用a函数`的时候，将代理合约升级成一个`黑洞合约`，后果不堪设想。
+
+        - 而透明代理就是通过限制管理员和普通用户的权限来解决选择器冲突的。
+
+    - 透明代理（`Transparent Proxy`）- 可以解决代理合约的选择器冲突（Selector Clash）问题。
+
+    - 透明代理解决冲突的思路
+
+        - 将管理员设置为仅能调用代理合约的升级函数，且不能通过回调函数调用逻辑合约。
+
+        - 其他用户只能通过回调函数调用逻辑合约，不能调用逻辑合约的升级函数。
+
+            ```Solidity
+            
+            // 透明可升级合约的教学代码，不要用于生产。
+            contract TransparentProxy {
+                address implementation; // logic合约地址
+                address admin; // 管理员
+                string public words; // 字符串，可以通过逻辑合约的函数改变
+
+                // 构造函数，初始化admin和逻辑合约地址
+                constructor(address _implementation){
+                    admin = msg.sender;
+                    implementation = _implementation;
+                }
+
+                // fallback函数，将调用委托给逻辑合约
+                // 不能被admin调用，避免选择器冲突引发意外
+                fallback() external payable {
+                    require(msg.sender != admin);
+                    (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+                }
+
+                // 升级函数，改变逻辑合约地址，只能由admin调用
+                function upgrade(address newImplementation) external {
+                    if (msg.sender != admin) revert();
+                    implementation = newImplementation;
+                }
+            }
+            ```
+
+    - 学习总结
+
+        - 用户透明性：用户与代理合约交互时，感知不到背后逻辑合约的升级，所有调用都被透明地委托给最新的逻辑合约。
+
+	    - 开发者透明性：只有非管理员角色（即普通用户）可以通过代理合约调用逻辑合约，而管理员角色只能进行合约升级。这种权限控制确保了合约升级过程对普通用户是“透明”的，避免了他们调用到升级相关的函数。
+###
+
+### 2024.10.15
+
+学习内容:
+1. 第四十九讲
+
+    - 通用可升级代理（`UUPS，universal upgradeable proxy standard`）- 此方式也能解决选择器冲突的问题，但和透明代理解决的方案不同。
+
+    - 通用可升级代理解决选择器冲突的思路
+
+        - 通过将升级合约函数添加到逻辑合约中，并且指定只有管理员能调用。因为升级函数在逻辑合约中，所以其他逻辑合约中的函数如果与升级函数存在选择器冲突，那么编译将出错。
+
+    - 代码示例
+
+        - 代理合约
+
+            ```Solidity
+
+            contract UUPSProxy {
+                address public implementation; // 逻辑合约地址
+                address public admin; // admin地址
+                string public words; // 字符串，可以通过逻辑合约的函数改变
+
+                // 构造函数，初始化admin和逻辑合约地址
+                constructor(address _implementation){
+                    admin = msg.sender;
+                    implementation = _implementation;
+                }
+
+                // fallback函数，将调用委托给逻辑合约
+                fallback() external payable {
+                    (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+                }
+            }
+            ```
+
+        - 逻辑合约
+
+            ```Soldity
+
+            // UUPS逻辑合约（升级函数写在逻辑合约内）
+            contract UUPS1{
+                // 状态变量和proxy合约一致，防止插槽冲突
+                address public implementation; 
+                address public admin; 
+                string public words; // 字符串，可以通过逻辑合约的函数改变
+
+                // 改变proxy中状态变量，选择器： 0xc2985578
+                function foo() public{
+                    words = "old";
+                }
+
+                // 升级函数，改变逻辑合约地址，只能由admin调用。选择器：0x0900f010
+                // UUPS中，逻辑合约中必须包含升级函数，不然就不能再升级了。
+                function upgrade(address newImplementation) external {
+                    require(msg.sender == admin);
+                    implementation = newImplementation;
+                }
+            }
+            ```
+
+    - 学习总结
+
+        - 如果需要更多的安全保证，且希望升级逻辑与合约调用逻辑分离，并且对GAS消耗不敏感，那么可以使用透明代理。如果对 gas 成本有较高要求，且有足够的经验来处理升级逻辑的安全性，那么 UUPS 是一个更灵活且高效的选择。它适合需要在复杂逻辑合约中节省资源的场景。在实际生产中是使用透明代理还是UUPS需要解决实际情况来考虑。
+###
+
+### 2024.10.16
+
+学习内容:
+1. 第五十讲
+
+    - 多签钱包（Multisig Wallet，简称多签）是一种需要多个用户共同授权才能执行交易或操作的加密货币钱包。它广泛应用于区块链领域，尤其是在需要高安全性、透明性或集体决策的场景中，比如去中心化组织（DAO）、企业财务管理、以及资金托管等场合。
+
+    - 多签钱包的工作原理
+
+        - 多签钱包的核心是“多重签名”，即设置一个钱包地址(合约钱包)，但这个钱包与普通单签钱包不同，它的资产不能由一个人单独操作，必须由多个指定的参与者共同签名才能执行操作。这种机制通过智能合约来实现。
+
+    - 多签钱包的优缺点
+
+        - 优点
+
+            - 更高的安全性: 需要多方签名才能执行交易，有效防止了私钥泄露或恶意行为带来的风险。
+
+            - 权力分散: 适合集体决策和管理资金，避免了单一用户独掌控制权。
+
+            - 透明性: 签名过程透明，尤其是在区块链的智能合约环境下，所有签名和决策都是可公开追溯的。
+        
+        - 缺点
+
+            - 操作复杂性: 需要多个参与者签名才能完成交易，过程相对单签钱包更为复杂，可能延误操作。
+
+            - 协调难度: 多方协调签名可能导致交易延迟或未能及时完成，尤其是在一些紧急操作中。
+
+            - 信任问题: 尽管多签钱包分散了权力，但每个签署方仍然需要互相信任，并及时进行操作。
+
+    - 多签钱包的实现(简易版)
+
+        ```Solidity
+        // SPDX-License-Identifier: MIT
+        // author: @0xAA_Science from wtf.academy
+        pragma solidity ^0.8.21;
+
+        /// 基于签名的多签钱包，由gnosis safe合约简化而来，教学使用。
+        contract MultisigWallet {
+            event ExecutionSuccess(bytes32 txHash);    // 交易成功事件
+            event ExecutionFailure(bytes32 txHash);    // 交易失败事件
+            address[] public owners;                   // 多签持有人数组 
+            mapping(address => bool) public isOwner;   // 记录一个地址是否为多签
+            uint256 public ownerCount;                 // 多签持有人数量
+            uint256 public threshold;                  // 多签执行门槛，交易至少有n个多签人签名才能被执行。
+            uint256 public nonce;                      // nonce，防止签名重放攻击
+
+            receive() external payable {}
+
+            // 构造函数，初始化owners, isOwner, ownerCount, threshold 
+            constructor(        
+                address[] memory _owners,
+                uint256 _threshold
+            ) {
+                _setupOwners(_owners, _threshold);
+            }
+
+            /// @dev 初始化owners, isOwner, ownerCount,threshold 
+            /// @param _owners: 多签持有人数组
+            /// @param _threshold: 多签执行门槛，至少有几个多签人签署了交易
+            function _setupOwners(address[] memory _owners, uint256 _threshold) internal {
+                // threshold没被初始化过
+                require(threshold == 0, "WTF5000");
+                // 多签执行门槛 小于 多签人数
+                require(_threshold <= _owners.length, "WTF5001");
+                // 多签执行门槛至少为1
+                require(_threshold >= 1, "WTF5002");
+
+                for (uint256 i = 0; i < _owners.length; i++) {
+                    address owner = _owners[i];
+                    // 多签人不能为0地址，本合约地址，不能重复
+                    require(owner != address(0) && owner != address(this) && !isOwner[owner], "WTF5003");
+                    owners.push(owner);
+                    isOwner[owner] = true;
+                }
+                ownerCount = _owners.length;
+                threshold = _threshold;
+            }
+
+            /// @dev 在收集足够的多签签名后，执行交易
+            /// @param to 目标合约地址
+            /// @param value msg.value，支付的以太坊
+            /// @param data calldata
+            /// @param signatures 打包的签名，对应的多签地址由小到达，方便检查。 ({bytes32 r}{bytes32 s}{uint8 v}) (第一个多签的签名, 第二个多签的签名 ... )
+            function execTransaction(
+                address to,
+                uint256 value,
+                bytes memory data,
+                bytes memory signatures
+            ) public payable virtual returns (bool success) {
+                // 编码交易数据，计算哈希
+                bytes32 txHash = encodeTransactionData(to, value, data, nonce, block.chainid);
+                nonce++;  // 增加nonce
+                checkSignatures(txHash, signatures); // 检查签名
+                // 利用call执行交易，并获取交易结果
+                (success, ) = to.call{value: value}(data);
+                require(success , "WTF5004");
+                if (success) emit ExecutionSuccess(txHash);
+                else emit ExecutionFailure(txHash);
+            }
+
+            /**
+            * @dev 检查签名和交易数据是否对应。如果是无效签名，交易会revert
+            * @param dataHash 交易数据哈希
+            * @param signatures 几个多签签名打包在一起
+            */
+            function checkSignatures(
+                bytes32 dataHash,
+                bytes memory signatures
+            ) public view {
+                // 读取多签执行门槛
+                uint256 _threshold = threshold;
+                require(_threshold > 0, "WTF5005");
+
+                // 检查签名长度足够长
+                require(signatures.length >= _threshold * 65, "WTF5006");
+
+                // 通过一个循环，检查收集的签名是否有效
+                // 大概思路：
+                // 1. 用ecdsa先验证签名是否有效
+                // 2. 利用 currentOwner > lastOwner 确定签名来自不同多签（多签地址递增）
+                // 3. 利用 isOwner[currentOwner] 确定签名者为多签持有人
+                address lastOwner = address(0); 
+                address currentOwner;
+                uint8 v;
+                bytes32 r;
+                bytes32 s;
+                uint256 i;
+                for (i = 0; i < _threshold; i++) {
+                    (v, r, s) = signatureSplit(signatures, i);
+                    // 利用ecrecover检查签名是否有效
+                    currentOwner = ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", dataHash)), v, r, s);
+                    require(currentOwner > lastOwner && isOwner[currentOwner], "WTF5007");
+                    lastOwner = currentOwner;
+                }
+            }
+            
+            /// 将单个签名从打包的签名分离出来
+            /// @param signatures 打包的多签
+            /// @param pos 要读取的多签index.
+            function signatureSplit(bytes memory signatures, uint256 pos)
+                internal
+                pure
+                returns (
+                    uint8 v,
+                    bytes32 r,
+                    bytes32 s
+                )
+            {
+                // 签名的格式：{bytes32 r}{bytes32 s}{uint8 v}
+                assembly {
+                    let signaturePos := mul(0x41, pos)
+                    r := mload(add(signatures, add(signaturePos, 0x20)))
+                    s := mload(add(signatures, add(signaturePos, 0x40)))
+                    v := and(mload(add(signatures, add(signaturePos, 0x41))), 0xff)
+                }
+            }
+
+            /// @dev 编码交易数据
+            /// @param to 目标合约地址
+            /// @param value msg.value，支付的以太坊
+            /// @param data calldata
+            /// @param _nonce 交易的nonce.
+            /// @param chainid 链id
+            /// @return 交易哈希bytes.
+            function encodeTransactionData(
+                address to,
+                uint256 value,
+                bytes memory data,
+                uint256 _nonce,
+                uint256 chainid
+            ) public pure returns (bytes32) {
+                bytes32 safeTxHash =
+                    keccak256(
+                        abi.encode(
+                            to,
+                            value,
+                            keccak256(data),
+                            _nonce,
+                            chainid
+                        )
+                    );
+                return safeTxHash;
+            }
+        }
+        ```
 ###
 <!-- Content_END -->

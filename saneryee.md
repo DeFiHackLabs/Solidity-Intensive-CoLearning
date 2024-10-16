@@ -50,10 +50,98 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 ## Notes
 
 <!-- Content_START -->
+### 2024.10.16
 
+Day 21
+
+WTF Academy Solidity 101 51_ERC4626
+
+**Round up and Round down in accounting logic**
+
+Recommendation
+
+Follow this.
+
+- previewMint(uint256 shares) - Round Up ⬆
+- previewWithdraw(uint256 assets) - Round Up ⬆
+- previewRedeem(uint256 shares) - Round Down ⬇
+- previewDeposit(uint256 assets) - Round Down ⬇
+- convertToAssets(uint256 shares) - Round Down ⬇
+- convertToShares(uint256 assets) - Round Down ⬇
+
+
+---
+
+### 2024.10.15
+
+Day 20
+
+WTF Academy Solidity 101 50_MultisigWallet
+
+**ecrecover**
+from signature to address
+```
+function ecrecover(bytes32 hash, uint8 v, bytes32 r, bytes32 s) returns (address)
+
+```
+Input:
+- `hash`
+- `v`, `r`, `s` 
+  
+Return:
+- `Addess`
+
+
+```
+   require(
+         currentOwner > lastOwner && isOwner[currentOwner],
+         "WTF5007"
+   );
+```
+
+- It ensures that each signature comes from a different address. If there were duplicate signatures, the second identical address would not be greater than the previous one.
+- It allows the contract to use less gas when verifying signatures. Signatures can be submitted sorted by address, and the contract only needs to scan linearly once to verify all signatures.
+- It prevents potential replay attacks, as the same set of signatures must be submitted in the same order
+
+
+```
+    assembly {
+        let signaturePos := mul(0x41, pos)
+        r := mload(add(signatures, add(signaturePos, 0x20)))
+        s := mload(add(signatures, add(signaturePos, 0x40)))
+        v := and(mload(add(signatures, add(signaturePos, 0x41))), 0xff)
+    }
+```
+- `let signaturePos := mul(0x41, pos)`
+  - Calculate the starting position of the target signature. Each signature occupies 65 bytes ( `0x41` in hexadecimal).
+  - `pos` is the index of the signature, so `0x41 * pos` gives the offset of the signature.
+- `r := mload(add(signatures, add(signaturePos, 0x20)))`
+  - Load the `r` value. `0x20(32 in decimal)` is to skip the length prefix of the bytes type.
+  - `mload` loads 32 bytes (256 bits) from a given address
+- `s := mload(add(signatures, add(signaturePos, 0x40)))`
+  - Load the `s` value. `0x40` is because `s` is located after `r` (32 bytes + 32 bytes = 64 bytes = 0x40)
+- `v := and(mload(add(signatures, add(signaturePos, 0x41))), 0xff)`
+  - Load the `v` value. `0x41` is because `v` is located after `r` and `s` (65 bytes).
+  - and (..., 0xff) ensures that only the last byte is taken because `v` is `uint8`.
+
+---
+### 2024.10.14
+
+Day 19
+
+WTF Academy Solidity 101 49_UUPS
+
+**UUPS (Universal Upgradeable Proxy Standard)**
+| Standard | Upgrade function lies in | Selector-clashable|Drawbacks|
+|:--:|:--:|:--:|:--:|
+| Upgradeable Proxy | in Proxy contract | yes | selector clash |
+| TransparentProxy | in Proxy contract | no | cost more gas |
+| UUPS| in Logic contract| no | more complex |
+
+---
 ### 2024.10.12
 
-Day 16
+Day 18
 
 WTF Academy Solidity 101 48_TransparentProxy
 
@@ -66,7 +154,7 @@ TransparentProxy
 ---
 ### 2024.10.11
 
-Day 15
+Day 17
 
 WTF Academy Solidity 101 46_ProxyContract, 47_Upgrade
 
@@ -300,7 +388,7 @@ graph TB
 ---
 ### 2024.10.10
 
-Day 14
+Day 16
 
 WTF Academy Solidity 101 44_TokenLocker, 45_Timelock
 
@@ -340,7 +428,7 @@ Key Differences:
 
 ### 2024.10.09
 
-Day 13
+Day 15
 
 WTF Academy Solidity 101 42_PaymentSplit, 43_TokenVesting
 
@@ -420,7 +508,7 @@ Types of Vesting:
 ---
 ### 2024.10.08
 
-Day 13
+Day 14
 
 WTF Academy Solidity 101 40_ERC1155, 41_WETH
 
@@ -444,7 +532,7 @@ WTF Academy Solidity 101 40_ERC1155, 41_WETH
 ----
 ### 2024.10.07
 
-Day 12
+Day 13
 
 WTF Academy Solidity 101 38_NFTSwap, 39_Random
 
@@ -669,7 +757,7 @@ contract Random is ERC721, VRFConsumerBaseV2Plus{
 ```
 ### 2024.10.05
 
-Day 11
+Day 12
 
 WTF Academy Solidity 101 36_MerkleTree, 37_Signature
 
@@ -820,7 +908,7 @@ WTF Merkle Tree lib (Modified from OpenZepplin)
 ---
 ### 2024.10.04
 
-Day 10
+Day 11
 
 WTF Academy Solidity 101 34_ERC721, 35_DutchAuction
 
@@ -903,7 +991,7 @@ Dutch Auction mechanism design:
 ---
 ### 2024.10.03
 
-Day 9
+Day 10
 
 WTF Academy Solidity 101 32_Faucet, 33_Airdrop
 
@@ -1010,7 +1098,7 @@ contract Airdrop {
 ---
 ### 2024.10.02
 
-Day 8
+Day 9
 
 WTF Academy Solidity 101 30_TryCatch, 31_ERC20
 
@@ -1028,7 +1116,7 @@ ERC20
 ---
 ### 2024.10.01
 
-Day 7
+Day 8
 
 WTF Academy Solidity 101 27_ABIEncode, 28_Hash, 29_Selector
 
@@ -1199,7 +1287,7 @@ Selector
 
 ### 2024.09.30
 
-Day 6
+Day 7
 
 WTF Academy Solidity 101 24-26
 
@@ -1216,7 +1304,7 @@ Opinion of `SELFDESTRUCT` change after Cancun Update
 
 ---
 ### 2024.09.28
-Day 5
+Day 6
 WTF Academy Solidity 101 20-23
 
 20. Sending ETH

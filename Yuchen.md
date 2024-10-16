@@ -2073,8 +2073,478 @@ function strong(
 
 <img src="https://github.com/user-attachments/assets/0be0c95b-a333-467d-8dd1-387e6ce1c5eb" height="400px" width="640px" />
 
+### 2024.10.13
+
+#### 函數選擇器(Selector)
+當調用智能合約時，本質上是向目標合約發送了一段`calldata`。
+
+
+**msg.data**  
+`msg.data`是Solidity中的一个全局變量，值為完整的`calldata`（調用函數時傳入的數據）。  
+在下面的代碼中，可以通過`Log`事件來輸出調用`mint`函數的`calldata`：
+```Solidity
+// event 返回msg.data
+event Log(bytes data);
+
+function mint(address to) external{
+    emit Log(msg.data);
+}
+```  
+当参数为0x2c44b726ADF1963cA47Af88B284C06f30380fC78时，输出的calldata为  
+```
+0x6a6278420000000000000000000000002c44b726adf1963ca47af88b284c06f30380fc78
+```  
+这段很乱的字节码可以分成两部分：  
+```
+前4个字节为函数选择器selector：
+0x6a627842
+
+后面32个字节为输入的参数：
+0x0000000000000000000000002c44b726adf1963ca47af88b284c06f30380fc78
+```  
+其实calldata就是告诉智能合约，我要调用哪个函数，以及参数是什么。  
+
+#### method id、selector和函数签名
+* `method id`定義為函數簽名的`Keccak`哈希后的前4个字節。
+* 當`selector`與`method id`相匹配時，即表示調用該函數。
+* 函數簽名，為`"函數名（逗號分隔的参數類型)"`。
+
+
+**基础类型参数**  
+`solidity`中，基础类型的参数有：`uint256`(`uint8`, ... , `uint256`)、`bool`, `address`等。在计算`method id`时，只需要计算`bytes4(keccak256("函数名(参数类型1,参数类型2,...)"))`。例如，如下函数，函数名为`elementaryParamSelector`，参数类型分别为`uint256`和`bool`。所以，只需要计算`bytes4(keccak256("elementaryParamSelector(uint256,bool)"))`便可得到此函数的`method id`。
+
+```Solidity
+    // elementary（基础）类型参数selector
+    // 输入：param1: 1，param2: 0
+    // elementaryParamSelector(uint256,bool) : 0x3ec37834
+    function elementaryParamSelector(uint256 param1, bool param2) external returns(bytes4 selectorWithElementaryParam){
+        emit SelectorEvent(this.elementaryParamSelector.selector);
+        return bytes4(keccak256("elementaryParamSelector(uint256,bool)"));
+    }
+```
+
+**固定长度类型参数**  
+固定长度的参数类型通常为固定长度的数组，例如：`uint256[5]`等。例如，如下函数`fixedSizeParamSelector`的参数为`uint256[3]`。因此，在计算该函数的`method id`时，只需要通过`bytes4(keccak256("fixedSizeParamSelector(uint256[3])"))`即可。  
+
+```Solidity
+    // fixed size（固定长度）类型参数selector
+    // 输入： param1: [1,2,3]
+    // fixedSizeParamSelector(uint256[3]) : 0xead6b8bd
+    function fixedSizeParamSelector(uint256[3] memory param1) external returns(bytes4 selectorWithFixedSizeParam){
+        emit SelectorEvent(this.fixedSizeParamSelector.selector);
+        return bytes4(keccak256("fixedSizeParamSelector(uint256[3])"));
+    }
+```
+
+**可变长度类型参数**  
+可变长度参数类型通常为可变长的数组，例如：`address[]`、`uint8[]`、`string`等。例如，如下函数`nonFixedSizeParamSelector`的参数为`uint256[]`和`string`。因此，在计算该函数的method id时，只需要通过`bytes4(keccak256("nonFixedSizeParamSelector(uint256[],string)"))`即可。
+```Solidity
+    // non-fixed size（可变长度）类型参数selector
+    // 输入： param1: [1,2,3]， param2: "abc"
+    // nonFixedSizeParamSelector(uint256[],string) : 0xf0ca01de
+    function nonFixedSizeParamSelector(uint256[] memory param1,string memory param2) external returns(bytes4 selectorWithNonFixedSizeParam){
+        emit SelectorEvent(this.nonFixedSizeParamSelector.selector);
+        return bytes4(keccak256("nonFixedSizeParamSelector(uint256[],string)"));
+    }
+```
+
+**映射类型参数**  
+映射类型参数通常有：`contract`、`enum`、`struct`等。在计算`method id`时，需要将该类型转化成为`ABI`类型。
+
+例如，如下函数`mappingParamSelector中DemoContract`需要转化为`address`，结构体`User`需要转化为`tuple`类型`(uint256,bytes)`，枚举类型`School`需要转化为`uint8`。因此，计算该函数的`method id`的代码为`bytes4(keccak256("mappingParamSelector(address,(uint256,bytes),uint256[],uint8)"))`。
+
+```Solidity
+contract DemoContract {
+    // empty contract
+}
+
+contract Selector{
+    // Struct User
+    struct User {
+        uint256 uid;
+        bytes name;
+    }
+    // Enum School
+    enum School { SCHOOL1, SCHOOL2, SCHOOL3 }
+    ...
+    // mapping（映射）类型参数selector
+    // 输入：demo: 0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99， user: [1, "0xa0b1"], count: [1,2,3], mySchool: 1
+    // mappingParamSelector(address,(uint256,bytes),uint256[],uint8) : 0xe355b0ce
+    function mappingParamSelector(DemoContract demo, User memory user, uint256[] memory count, School mySchool) external returns(bytes4 selectorWithMappingParam){
+        emit SelectorEvent(this.mappingParamSelector.selector);
+        return bytes4(keccak256("mappingParamSelector(address,(uint256,bytes),uint256[],uint8)"));
+    }
+    ...
+}
+```
+
+#### 使用selector
+我们可以利用`selector`来调用目标函数。例如我想调用`elementaryParamSelector`函数，我只需要利用`abi.encodeWithSelector`将`elementaryParamSelector`函数的`method id`作为`selector`和参数打包编码，传给`call`函数：
+
+```Solidity
+    // 使用selector来调用函数
+    function callWithSignature() external{
+    ...
+        // 调用elementaryParamSelector函数
+        (bool success1, bytes memory data1) = address(this).call(abi.encodeWithSelector(0x3ec37834, 1, 0));
+    ...
+    }
+```
 
 
 
+
+### 2024.10.14
+
+#### Try Catch
+
+`try-catch`只能被用於`external`函數或創建合約時`constructor`（被視為`external`函數）的調用。  
+`externalContract.f()`是某個外部合約的函數調用，`try`在調用成功的情况下運行，而`catch`則在調用失敗時執行。  
+可以使用`this.f()`來替代`externalContract.f()`，`this.f()`也被視作為外部調用，但不可在構造函數中使用，因為此時合約還未創建。  
+```Solidity
+try externalContract.f() {
+    // call成功的情况下 运行一些代码
+} catch {
+    // call失败的情况下 运行一些代码
+}
+```  
+
+如果調用的函數有返回值，那麼必須在`try`之後聲明`returns(returnType val)`，並且在`try`中可以使用返回的變量；如果是創建合約，那麼返回值是新創建的合約變量。  
+`catch`支持特殊的異常原因：  
+```Solidity
+try externalContract.f() returns(returnType){
+    // call成功的情况下 运行一些代码
+} catch Error(string memory /*reason*/) {
+    // 捕获revert("reasonString") 和 require(false, "reasonString")
+} catch Panic(uint /*errorCode*/) {
+    // 捕获Panic导致的错误 例如assert失败 溢出 除零 数组访问越界
+} catch (bytes memory /*lowLevelData*/) {
+    // 如果发生了revert且上面2个异常类型匹配都失败了 会进入该分支
+    // 例如revert() require(false) revert自定义类型的error
+}
+```
+
+#### `try-catch`實例
+`OnlyEven`
+```Solidity
+# 创建一个外部合约OnlyEven，并使用try-catch来处理异常
+contract OnlyEven{
+    # 当a=0时，require会抛出异常；当a=1时，assert会抛出异常；其他情况均正常。
+    constructor(uint a){
+        require(a != 0, "invalid number");
+        assert(a != 1);
+    }
+
+    # 当b为奇数时，require会抛出异常。
+    function onlyEven(uint256 b) external pure returns(bool success){
+        // 输入奇数时revert
+        require(b % 2 == 0, "Ups! Reverting");
+        success = true;
+    }
+}
+```
+
+**处理外部函数调用异常**  
+```Solidity
+// 调用成功会释放的事件
+event SuccessEvent();
+
+// CatchEvent和CatchByte是抛出异常时会释放的事件，分别对应require/revert和assert异常的情况。
+event CatchEvent(string message);
+event CatchByte(bytes data);
+
+// 声明even是个OnlyEven合约变量
+OnlyEven even;
+
+constructor() {
+    even = new OnlyEven(2);
+}
+
+
+// 在execute函数中使用try-catch处理调用外部函数onlyEven中的异常
+function execute(uint amount) external returns (bool success) {
+    try even.onlyEven(amount) returns(bool _success){
+        // call成功的情况下
+        emit SuccessEvent();
+        return _success;
+    } catch Error(string memory reason){
+        // call不成功的情况下
+        emit CatchEvent(reason);
+    }
+}
+```
+
+<img src="https://github.com/user-attachments/assets/9c1dc954-3162-4426-95ea-0c60a5c756cb" height="330px" width="640px" />
+
+<img src="https://github.com/user-attachments/assets/58366fda-8148-40fe-a38b-711d9167eda9" height="330px" width="640px" />
+
+
+**处理合约创建异常**  
+利用`try-catch`来处理合约创建时的异常。只需要把`try`改写为`OnlyEven`合约的创建就行：  
+```Solidity
+// 在创建新合约中使用try-catch （合约创建被视为external call）
+// executeNew(0)会失败并释放`CatchEvent`
+// executeNew(1)会失败并释放`CatchByte`
+// executeNew(2)会成功并释放`SuccessEvent`
+function executeNew(uint a) external returns (bool success) {
+    try new OnlyEven(a) returns(OnlyEven _even){
+        // call成功的情况下
+        emit SuccessEvent();
+        success = _even.onlyEven(a);
+    } catch Error(string memory reason) {
+        // catch失败的 revert() 和 require()
+        emit CatchEvent(reason);
+    } catch (bytes memory reason) {
+        // catch失败的 assert()
+        emit CatchByte(reason);
+    }
+}
+```
+
+<img src="https://github.com/user-attachments/assets/6c95b81b-d35f-4fac-a3ea-8fefc9a0898e" height="330px" width="640px" />
+
+<img src="https://github.com/user-attachments/assets/2f1707a4-edae-44e9-9daf-a651bba32ca1" height="330px" width="640px" />
+
+<img src="https://github.com/user-attachments/assets/bd9c3a2e-a299-4cff-8cb7-9de48ace1307" height="330px" width="640px" />
+
+#### 總結  
+使用try-catch来处理智能合约运行中的异常：  
+* 只能用于外部合约调用和合约创建。
+* 如果try执行成功，返回变量必须声明，并且与返回的变量类型相同。
+
+
+> 1.try-catch可以捕获什么异常？  
+> A. revert()  
+> B. require()  
+> C. assert()  
+> D. 以上都可以
+>
+> Ans:D
+
+
+> 2.以下异常返回值类型为bytes的是：  
+> A. revert()  
+> B. require()  
+> C. assert()  
+> D. 以上都是  
+>
+> Ans:C
+
+> 3.try-catch捕获到异常后是否会使try-catch所在的方法调用失败？  
+> A. 会  
+> B. 不会
+>
+> Ans:B
+
+> 4.try代码块内的revert是否会被catch本身捕获？  
+> A. 会  
+> B. 不会
+>
+> Ans:B
+
+### 2024.10.15
+
+#### ERC20
+`ERC20`是太坊上的代幣標準，它實現了代幣轉帳的基本邏輯：  
+* 帳戶餘額(balanceOf())
+* 轉帳(transfer())
+* 授權轉帳(transferFrom())
+* 授權(approve())
+* 代幣總供給(totalSupply())
+* 授權轉帳額度(allowance())
+* 代幣信息（可选）：名称(name())，代号(symbol())，小数位数(decimals())
+
+#### IERC20
+IERC20是ERC20代币标准的接口合约，规定了ERC20代币需要实现的函数和事件。  
+
+* 事件：
+    `IERC20`定义了`2`个事件：`Transfer`事件和`Approval`事件，分别在转账和授权时被释放  
+    ```Solidity
+    // @dev 释放条件：当 `value` 单位的货币从账户 (`from`) 转账到另一账户 (`to`)时.
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    // @dev 释放条件：当 `value` 单位的货币从账户 (`owner`) 授权给另一账户 (`spender`)时.
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+    ```
+
+* 函數：
+    `IERC20`定义了`6`个函数，提供了转移代币的基本功能，并允许代币获得批准，以便其他链上第三方使用。
+
+    * `totalSupply()`返回代币总供给
+    ```Solidity
+    // @dev 返回代币总供给.
+    function totalSupply() external view returns (uint256);
+    ```
+
+    * `balanceOf()`返回账户余额
+    ```Solidity
+    // @dev 返回账户`account`所持有的代币数.
+    function balanceOf(address account) external view returns (uint256);
+    ```
+
+    * `transfer()`转账
+    ```Solidity
+    /**
+    * @dev 转账 `amount` 单位代币，从调用者账户到另一账户 `to`.
+    * 如果成功，返回 `true`.
+    * 释放 {Transfer} 事件.
+    */
+    function transfer(address to, uint256 amount) external returns (bool);
+    ```
+
+    * `allowance()`返回授权额度
+    ```Solidity
+    /**
+    * @dev 返回`owner`账户授权给`spender`账户的额度，默认为0。
+    * 当{approve} 或 {transferFrom} 被调用时，`allowance`会改变.
+    */
+    function allowance(address owner, address spender) external view returns (uint256);
+    ```
+
+    * `approve()`授权
+    ```Solidity
+    /**
+    * @dev 调用者账户给`spender`账户授权 `amount`数量代币。
+    * 如果成功，返回 `true`.
+    * 释放 {Approval} 事件.
+    */
+    function approve(address spender, uint256 amount) external returns (bool);
+    ```
+
+    * `transferFrom()`授权转账
+    ```Solidity
+    /**
+    * @dev 通过授权机制，从`from`账户向`to`账户转账`amount`数量代币。转账的部分会从调用者的`allowance`中扣除。
+    * 如果成功，返回 `true`.
+    * 释放 {Transfer} 事件.
+    */
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) external returns (bool);
+    ```
+
+#### 實現ERC20
+寫一個`ERC20`，將`IERC20`規定的函數簡單實現。  
+**状态变量**  
+
+```Solidity
+mapping(address => uint256) public override balanceOf;
+
+mapping(address => mapping(address => uint256)) public override allowance;
+
+uint256 public override totalSupply;   // 代币总供给
+
+string public name;   // 名称
+string public symbol;  // 代号
+
+uint8 public decimals = 18; // 小数位数
+```
+
+* 函數  
+    * 构造函数：初始化代币名称、代号。
+    ```Solidity
+    constructor(string memory name_, string memory symbol_){
+        name = name_;
+        symbol = symbol_;
+    }
+    ```
+
+    * `transfer()`函数：实现IERC20中的transfer函数，代币转账逻辑。调用方扣除amount数量代币，接收方增加相应代币。土狗币会魔改这个函数，加入税收、分红、抽奖等逻辑。
+    ```Solidity
+    function transfer(address recipient, uint amount) public override returns (bool) {
+        balanceOf[msg.sender] -= amount;
+        balanceOf[recipient] += amount;
+        emit Transfer(msg.sender, recipient, amount);
+        return true;
+    }
+    ```
+
+    * `approve()`函数：实现IERC20中的approve函数，代币授权逻辑。被授权方spender可以支配授权方的amount数量的代币。spender可以是EOA账户，也可以是合约账户：当你用uniswap交易代币时，你需要将代币授权给uniswap合约。
+    ```Solidity
+    function approve(address spender, uint amount) public override returns (bool) {
+        allowance[msg.sender][spender] = amount;
+        emit Approval(msg.sender, spender, amount);
+        return true;
+    }
+    ```
+
+    * `transferFrom()`函数：实现IERC20中的transferFrom函数，授权转账逻辑。被授权方将授权方sender的amount数量的代币转账给接收方recipient。
+    ```Solidity
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint amount
+    ) public override returns (bool) {
+        allowance[sender][msg.sender] -= amount;
+        balanceOf[sender] -= amount;
+        balanceOf[recipient] += amount;
+        emit Transfer(sender, recipient, amount);
+        return true;
+    }
+    ```
+
+    * `mint()`函数：铸造代币函数，不在IERC20标准中。这里为了教程方便，任何人可以铸造任意数量的代币，实际应用中会加权限管理，只有owner可以铸造代币：
+    ```Solidity
+    function mint(uint amount) external {
+        balanceOf[msg.sender] += amount;
+        totalSupply += amount;
+        emit Transfer(address(0), msg.sender, amount);
+    }
+    ```
+
+    * `burn()`函数：销毁代币函数，不在IERC20标准中。
+    ```Solidity
+    function burn(uint amount) external {
+        balanceOf[msg.sender] -= amount;
+        totalSupply -= amount;
+        emit Transfer(msg.sender, address(0), amount);
+    }
+    ```
+
+### 2024.10.16
+
+#### 代幣水龍頭
+代幣水龍頭是讓用戶免費領帶幣的網站/應用。  
+最早的代幣水龍頭是彼特幣(BTC)水龍頭。  
+
+#### ERC20水龍頭合約
+簡易的`ERC20`合約：將一些`ERC20`代幣轉入合約中，用戶可以通過合約`requestToken()`函數去領取`100`單位的代幣，每個地址只能領一次。  
+
+**狀態變量**  
+```Solidity
+uint256 public amountAllowed = 100; // 设定每次能领取代币数量（默认为100，不是一百枚，因为代币有小数位数）。
+address public tokenContract;   // 记录发放的ERC20代币合约地址。
+mapping(address => bool) public requestedAddress;   // 记录领取过代币的地址。
+```
+
+**事件**  
+```Solidity
+// 定義SendToken事件，紀錄每次領取代幣的地址和數量，在requestTokens()被調用時釋放。
+event SendToken(address indexed Receiver, uint256 indexed Amount); 
+```
+
+**函數**  
+合約中只有兩個函數：  
+```Solidity
+// 构造函数：初始化tokenContract状态变量，确定发放的ERC20代币地址。
+constructor(address _tokenContract) {
+  tokenContract = _tokenContract; // set token contract
+}
+
+
+// 用户领取代币函数
+function requestTokens() external {
+    require(!requestedAddress[msg.sender], "Can't Request Multiple Times!"); // 每个地址只能领一次
+    IERC20 token = IERC20(tokenContract); // 创建IERC20合约对象
+    require(token.balanceOf(address(this)) >= amountAllowed, "Faucet Empty!"); // 水龙头空了
+
+    token.transfer(msg.sender, amountAllowed); // 发送token
+    requestedAddress[msg.sender] = true; // 记录领取地址 
+    
+    emit SendToken(msg.sender, amountAllowed); // 释放SendToken事件
+}
+```
 
 <!-- Content_END -->

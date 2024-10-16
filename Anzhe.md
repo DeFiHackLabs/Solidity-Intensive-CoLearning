@@ -188,7 +188,7 @@ function <function name>(<parameter types>) {internal|external|public|private} [
 5. 透過調用發送以太幣。
 5. 呼叫任何未標記 view 或 pure 的函數。
 6. 使用低階呼叫（low-level calls）。
-7. 使用包含某些操作碼（Opcodes）的內聯彙編（Inline Assemply）。
+7. 使用包含某些操作碼（Opcodes）的行內組語（Inline Assemply）。
 
 ---
 # 程式碼
@@ -2690,7 +2690,7 @@ ECDSA標準中包含兩個部分：
 ### 驗證簽名
 為了驗證簽名，驗證者需要擁有訊息、簽名和簽名使用的公鑰。我們能驗證簽名的原因是只有私鑰的持有者才能夠針對交易產生這樣的簽名，而別人不能。
 
-4. 透過簽名和訊息恢復公鑰：簽名是由數學演算法產生的。這裡我們使用的是 rsv 簽名，簽名包含 r, s, v 三個值的資訊。而後，我們可以透過 r, s, v 及以太坊簽章訊息來求公鑰。下面的 recoverSigner() 函數實現了上述步驟，它利用以太坊簽署訊息 _msgHash 和簽署 _signature 恢復公鑰（使用了簡單的內聯彙編）：
+4. 透過簽名和訊息恢復公鑰：簽名是由數學演算法產生的。這裡我們使用的是 rsv 簽名，簽名包含 r, s, v 三個值的資訊。而後，我們可以透過 r, s, v 及以太坊簽章訊息來求公鑰。下面的 recoverSigner() 函數實現了上述步驟，它利用以太坊簽署訊息 _msgHash 和簽署 _signature 恢復公鑰（使用了簡單的行內組語）：
     ```
         // @dev 從_msgHash和簽名_signature中恢復signer地址
     function recoverSigner(bytes32 _msgHash, bytes memory _signature) internal pure returns (address){
@@ -2699,7 +2699,7 @@ ECDSA標準中包含兩個部分：
         bytes32 r;
         bytes32 s;
         uint8 v;
-        // 目前只能用assembly (內聯彙編)來從簽名中獲得r,s,v的值
+        // 目前只能用assembly (行內組語)來從簽名中獲得r,s,v的值
         assembly {
             /*
             前32 bytes儲存簽章的長度 (動態陣列儲存規則)
@@ -2909,4 +2909,1422 @@ contract NFTSwap is IERC721Receiver{
         emit Purchase(msg.sender, _nftAddr, _tokenId, _order.price);
     }
     ```
+### 2024.10.13
+# 鏈上隨機數
+許多以太坊上的應用都需要用到隨機數，例如 NFT 隨機抽取 tokenId、抽盲盒、gamefi 戰鬥中隨機分勝負等等。但由於以太坊上所有資料都是公開透明（public）且確定性（deterministic）的，它沒法像其他程式語言一樣提供開發者產生隨機數的方法。今天將介紹鏈上（雜湊函數）和鏈下（chainlink 預言機）隨機數產生的兩種方法，並利用它們做一款 tokenId 隨機鑄造的NFT。
+## 鏈上隨機數生成
+我們可以將一些鏈上的全域變數當作種子，利用 keccak256() **雜湊函數**來取得偽隨機數。這是因為雜湊函數具有靈敏度和均一性，可以得到「看似」隨機的結果。下面的 getRandomOnchain() 函數利用全域變數 block.timestamp、msg.sender 和 blockhash(block.number-1) 作為種子來取得隨機數：
+```
+    /** 
+    * 鏈上偽隨機數生成 
+    * 利用keccak256()打包一些鏈上的全域變數/自訂變數
+    * 返回時轉換成uint256類型
+    */
+    function getRandomOnchain() public view returns(uint256){
+        // remix運行blockhash會報錯
+        bytes32 randomBytes = keccak256(abi.encodePacked(block.timestamp, msg.sender, blockhash(block.number-1)));
+        
+        return uint256(randomBytes);
+    }
+```
+注意：這個方法不安全，因為 block.timestamp、msg.sender 和 blockhash(block.number-1) 這些變數都是公開的，使用者可以預測出用這些種子產生的隨機數，並挑出他們想要的隨機數執行合約，礦工可以操縱 blockhash 和 block.timestamp，使得產生的隨機數符合他的利益。
+## 鏈下隨機數生成
+我們可以在鏈下產生隨機數，然後透過**預言機（Chainlink）**把隨機數上傳到鏈上。Chainlink 提供 VRF（可驗證隨機函數）服務，鏈上開發者可以支付 LINK 代幣來取得隨機數。Chainlink VRF有兩個版本，第二個版本需要官網註冊並預付費，比第一個版本多許多操作，需要花費更多的 gas，但取消訂閱後可以拿回剩餘的 Link，這裡介紹第二個版本 Chainlink VRF V2。
+### Chainlink VRF 使用步驟
+1. 智能合約應用發送隨機數請求
+2. Chainlink 產生隨機數並將證明發送到 VRF 合約
+3. VRF 合約驗證隨機數
+4. 智能合約應用接收隨機數
+
+我們將用一個簡單的合約介紹使用 Chainlink VRF的步驟。 RandomNumberConsumer 合約可以向 VRF 請求隨機數，並儲存在狀態變數 randomWords 中。
+1. 申請 Subscription 並轉入 Link 代幣
+    在 [Chainlink VRF 網站](https://vrf.chain.link/)上創建一個 Subscription，其中信箱和專案名稱都是選填。創建完成後往 Subscription 中轉入一些 Link 代幣。Sepolia 測試網的 LINK 代幣可以從 [LINK 水龍頭](https://faucets.chain.link/)領取。
+2. 使用者合約繼承 VRFConsumerBaseV2
+    為了使用 VRF 取得隨機數，合約需要繼承 VRFConsumerBaseV2 合約，並在建構子中初始化 VRFCoordinatorV2Interface 和 Subscription Id。（不同鏈對應不同的[參數](https://docs.chain.link/vrf/v2/subscription/supported-networks)）
+    ```
+    // SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
+import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
+
+contract RandomNumberConsumer is VRFConsumerBaseV2{
+
+    //請求隨機數需要呼叫VRFCoordinatorV2Interface介面
+    VRFCoordinatorV2Interface COORDINATOR;
+    
+    // 申請後的subId
+    uint64 subId;
+
+    //存放得到的 requestId 和 隨機數
+    uint256 public requestId;
+    uint256[] public randomWords;
+    
+    /**
+     * 使用chainlink VRF，建構子需要繼承 VRFConsumerBaseV2
+     * 不同鏈的參數填的不一樣，可參 https://docs.chain.link/vrf/v2/subscription/supported-networks
+     * 網路: Sepolia測試網
+     * Chainlink VRF Coordinator 地址: 0x8103B0A8A00be2DDC778e6e7eaa21791Cd364625
+     * LINK 代幣地址: 0x01BE23585060835E02B77ef475b0Cc51aA1e0709
+     * 30 gwei Key Hash: 0x474e34a077df58807dbe9c96d3c009b23b3c6d0cce433e59bbf5b34f823bc56c
+     * Minimum Confirmations 最小確認塊數 : 3 （數字大安全性高，一般填12）
+     * callbackGasLimit gas限制 : 最大 2,500,000
+     * Maximum Random Values 一次可以得到的隨機數個數 : 最大 500         
+     */
+    address vrfCoordinator = 0x8103B0A8A00be2DDC778e6e7eaa21791Cd364625;
+    bytes32 keyHash = 0x474e34a077df58807dbe9c96d3c009b23b3c6d0cce433e59bbf5b34f823bc56c;
+    uint16 requestConfirmations = 3;
+    uint32 callbackGasLimit = 200_000;
+    uint32 numWords = 3;
+    
+    constructor(uint64 s_subId) VRFConsumerBaseV2(vrfCoordinator){
+        COORDINATOR = VRFCoordinatorV2Interface(vrfCoordinator);
+        subId = s_subId;
+    }
+    ```
+3. 使用者合約申請隨機數
+    使用者可以呼叫從 VRFCoordinatorV2Interface 介面合約中的 requestRandomWords 函數申請隨機數，並傳回申請識別碼 requestId。這個申請會傳遞給 VRF 合約。合約部署後，需要把合約加入 Subscription 的 Consumers 中，才能發送申請。
+    ```
+     /** 
+     * 向VRF合約申請隨機數
+     */
+    function requestRandomWords() external {
+        requestId = COORDINATOR.requestRandomWords(
+            keyHash,
+            subId,
+            requestConfirmations,
+            callbackGasLimit,
+            numWords
+        );
+    }
+    ```
+4. Chainlink 節點鏈下產生隨機數和數字簽名，並發送給 VRF 合約。
+5. VRF 合約驗證簽名有效性
+6. 使用者合約接收並使用隨機數
+    在 VRF 合約驗證簽章有效之後，會自動呼叫使用者合約的回退函數 fulfillRandomness()，將鏈下產生的隨機數傳送過來。使用者要把消耗隨機數的邏輯寫在這裡。使用者申請隨機數時呼叫的 requestRandomness() 和 VRF 合約傳回隨機數時呼叫的回退函數 fulfillRandomness() 是兩筆交易，呼叫者分別是使用者合約和 VRF 合約，後者比前者晚幾分鐘（不同鏈延遲不一樣）。
+    ```
+     /**
+     * VRF合約的回傳函數，驗證隨機數有效之後會自動被調用
+     * 消耗隨機數的邏輯寫在這裡
+     */
+    function fulfillRandomWords(uint256 requestId, uint256[] memory s_randomWords) internal override {
+        randomWords = s_randomWords;
+    }
+    ```
+## tokenId 隨機鑄造的 NFT
+我們將利用鏈上和鏈下隨機數字來做一款tokenId隨機鑄造的NFT。 Random合約繼承ERC721和VRFConsumerBaseV2合約。
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+import "https://github.com/AmazingAng/WTF-Solidity/blob/main/34_ERC721/ERC721.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
+import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
+
+contract Random is ERC721, VRFConsumerBaseV2{
+    // NFT相關
+    uint256 public totalSupply = 100; // NFT總供給
+    uint256[100] public ids; // 數組，用於計算可供mint的tokenId，請參閱pickRandomUniqueId()函數。
+    uint256 public mintCount; // 已經mint的數量
+
+    // Chainlink VRF相關參數
+    
+    // VRFCoordinatorV2Interface
+    VRFCoordinatorV2Interface COORDINATOR; // 呼叫VRFCoordinatorV2Interface介面
+    
+    /**
+     * 使用chainlink VRF，建構子需要繼承 VRFConsumerBaseV2
+     * 不同鏈的參數填的不一樣，可參 https://docs.chain.link/vrf/v2/subscription/supported-networks
+     * 網路: Sepolia測試網
+     * Chainlink VRF Coordinator 地址: 0x8103B0A8A00be2DDC778e6e7eaa21791Cd364625
+     * LINK 代幣地址: 0x01BE23585060835E02B77ef475b0Cc51aA1e0709
+     * 30 gwei Key Hash: 0x474e34a077df58807dbe9c96d3c009b23b3c6d0cce433e59bbf5b34f823bc56c
+     * Minimum Confirmations 最小確認塊數 : 3 （數字大安全性高，一般填12）
+     * callbackGasLimit gas限制 : 最大 2,500,000
+     * Maximum Random Values 一次可以得到的隨機數個數 : 最大 500         
+     */
+    address vrfCoordinator = 0x8103B0A8A00be2DDC778e6e7eaa21791Cd364625; // VRF 合約地址
+    bytes32 keyHash = 0x474e34a077df58807dbe9c96d3c009b23b3c6d0cce433e59bbf5b34f823bc56c; // VRF唯一識別符
+    uint16 requestConfirmations = 3; // 確認區塊數
+    uint32 callbackGasLimit = 1_000_000; // VRF手續費
+    uint32 numWords = 1; // 請求的隨機數個數
+    uint64 subId; // 申請的Subscription Id
+    uint256 public requestId; // 申請標識符
+    
+    // 記錄申請VRF用於mint的使用者地址
+    mapping(uint256 => address) public requestToSender;
+```
+### 建構子
+初始化繼承的 VRFConsumerBaseV2 和 ERC721 合約的相關變數。
+```
+    constructor(uint64 s_subId) 
+        VRFConsumerBaseV2(vrfCoordinator)
+        ERC721("WTF Random", "WTF"){
+            COORDINATOR = VRFCoordinatorV2Interface(vrfCoordinator);
+            subId = s_subId;
+    }
+```
+### 函數
+```
+    // 輸入uint256數字，回傳一個可以mint的tokenId
+    function pickRandomUniqueId(uint256 random) private returns (uint256 tokenId) {
+        //先計算減法，再計算++，注意(a++，++a)區別
+        uint256 len = totalSupply - mintCount++; // 可mint數量
+        require(len > 0, "mint close"); // 所有tokenId被mint完了
+        uint256 randomIndex = random % len; // 取得鏈上隨機數
+
+        //隨機數取模，得到tokenId，作為數組下標，同時記錄value為len-1，如果取模得到的值已存在，則tokenId取該數組下標的value
+        tokenId = ids[randomIndex] != 0 ? ids[randomIndex] : randomIndex; // 取得tokenId
+        ids[randomIndex] = ids[len - 1] == 0 ? len - 1 : ids[len - 1]; // 更新ids 列表
+        ids[len - 1] = 0; // 刪除最後一個元素，能返還gas
+    }
+
+    /** 
+    * 鏈上偽隨機數生成
+    * keccak256(abi.encodePacked()中填上一些鏈上的全域變數/自訂變數
+    * 返回時轉換成uint256型
+    */
+    function getRandomOnchain() public view returns(uint256){
+        /*
+         * 本例鏈上隨機只依賴區塊哈希，呼叫者位址，和區塊時間，
+         * 想提高隨機性可以再增加一些屬性例如nonce等，但不能根本解決安全問題
+         */
+        bytes32 randomBytes = keccak256(abi.encodePacked(blockhash(block.number-1), msg.sender, block.timestamp));
+        return uint256(randomBytes);
+    }
+
+    // 利用鏈上偽隨機數鑄造NFT
+    function mintRandomOnchain() public {
+        uint256 _tokenId = pickRandomUniqueId(getRandomOnchain()); 
+        _mint(msg.sender, _tokenId);
+    }
+
+    /** 
+     * 呼叫VRF取得隨機數，並mintNFT
+     * 要呼叫requestRandomness()函數獲取，消耗隨機數的邏輯寫在VRF的回呼函數fulfillRandomness()中
+     * 在呼叫之前，需要在Subscriptions中轉入足夠的Link
+     */
+    function mintRandomVRF() public {
+        // 呼叫requestRandomness取得隨機數
+        requestId = COORDINATOR.requestRandomWords(
+            keyHash,
+            subId,
+            requestConfirmations,
+            callbackGasLimit,
+            numWords
+        );
+        requestToSender[requestId] = msg.sender;
+    }
+
+    /**
+     * VRF的回傳函數，由VRF Coordinator呼叫
+     * 消耗隨機數的邏輯寫在本函數
+     */
+    function fulfillRandomWords(uint256 requestId, uint256[] memory s_randomWords) internal override{
+        address sender = requestToSender[requestId]; // 从requestToSender中获取minter用户地址
+        uint256 tokenId = pickRandomUniqueId(s_randomWords[0]); // 利用VRF返回的随机数生成tokenId
+        _mint(sender, tokenId);
+    }
+```
+* pickRandomUniaueId()：輸入隨機數，取得可供mint的tokenId
+   演算法過程可理解為：totalSupply個空杯子（0初始化的ids）排成一排，每個杯子旁邊放一個球，編號為[0, totalSupply - 1]。 每次從場上隨機拿走一個球（球可能在杯子旁邊，這是初始狀態；也可能是在杯子裡，說明杯子旁邊的球已經被拿走過，則此時新的球從末尾被放到了杯子裡） 再把最後的一個球（還是可能在杯子裡也可能在杯子旁邊）放進被拿走的球的杯子裡，循環totalSupply次。相較於傳統的隨機排列，省去了初始化ids[]的gas。
+* getRandomOnchain()：取得鏈上隨機數（不安全）。
+* mintRandomOnchain()：利用鏈上隨機數鑄造NFT，呼叫了getRandomOnchain()和pickRandomUniqueId()。
+* mintRandomVRF()：申請Chainlink VRF用於鑄造隨機數。由於使用隨機數鑄造的邏輯在回調函數fulfillRandomness()，而回調函數的呼叫者是VRF合約，而非鑄造NFT的用戶，這裡必須利用requestToSender狀態變數記錄VRF申請識別碼對應的用戶位址。 
+* fulfillRandomWords()：VRF的回調函數，由VRF合約在驗證隨機數真實性後自動調用，用返回的鏈下隨機數鑄造NFT。
+
+使用鏈上隨機數高效，但是不安全；而鏈下隨機數生成依賴於第三方提供的預言機服務，比較安全，但是沒那麼簡單經濟。專案方要根據業務場景來選擇適合自己的方案。
+
+# EIP1155
+ERC1155標準支援一個合約包含多種代幣。並且我們可以發行一個魔改的無聊猿（ BAYC1155）：它包含 10000 種代幣，且元資料與 BAYC 一致。
+
+　　不論是 ERC20 或 ERC721 標準，每個合約都對應一個獨立的代幣。假設我們要在以太坊上打造一個類似《魔獸世界》的大型遊戲，這需要我們對每個裝備都部署一個合約。上千種裝備就要部署和管理上千個合約，這非常麻煩。因此，以太坊 EIP1155 提出了一個多代幣標準 ERC1155，允許一個合約包含多個同質化和非同質化代幣。ERC1155 在 GameFi 應用最多，Decentraland、Sandbox 等知名鏈遊都使用它。
+　　簡單來說，ERC1155 與先前介紹的非同質化代幣標準 ERC721 類似：在 ERC721 中，每個代幣都有一個 tokenId 作為唯一標識，每個 tokenId 只對應一個代幣；而在 ERC1155 中，每一種代幣都有一個 id 作為唯一標識，每個 id 對應一種代幣。這樣，代幣種類就可以非同質的在同一個合約裡管理了，而且每種代幣都有一個網址 uri 來儲存它的元數據，類似 ERC721 的 tokenURI。下面是 ERC1155 的元資料介面合約 IERC1155MetadataURI：
+```
+/**
+ * @dev ERC1155的可選介面，加入了uri()函數查詢元數據
+ */
+interface IERC1155MetadataURI is IERC1155 {
+    /**
+     * @dev 回傳第`id`種類代幣的URI
+     */
+    function uri(uint256 id) external view returns (string memory);
+```
+那麼要怎麼區分 ERC1155 中的某類代幣是同質化還是非同質化代幣呢？其實很簡單：如果某一 id 對應的代幣總量為 1，那麼它就是非同質化代幣，類似 ERC721；如果某 id 對應的代幣總量大於 1，那麼他就是同質化代幣，因為這些代幣都分享同一個 id，類似 ERC20。
+## IERC1155 介面合約
+IERC1155 介面合約抽象化了 EIP1155 需要實現的功能，其中包含 4 個事件和 6 個函數。與 ERC721 不同，因為 ERC1155 包含多類代幣，它實現了批量轉帳和批量餘額查詢，一次操作多種代幣：
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "https://github.com/AmazingAng/WTF-Solidity/blob/main/34_ERC721/IERC165.sol";
+
+/**
+ * @dev ERC1155標準的介面合約，實現了EIP1155的功能
+ * 詳見：https://eips.ethereum.org/EIPS/eip-1155[EIP]
+ */
+interface IERC1155 is IERC165 {
+    /**
+     * @dev 單類代幣轉帳事件
+     * 當`value`個`id`種類的代幣被`operator`從`from`轉帳到`to`時釋放
+     */
+    event TransferSingle(address indexed operator, address indexed from, address indexed to, uint256 id, uint256 value);
+
+    /**
+     * @dev 批量代幣轉帳事件
+     * ids和values為轉帳的代幣種類和數量陣列
+     */
+    event TransferBatch(
+        address indexed operator,
+        address indexed from,
+        address indexed to,
+        uint256[] ids,
+        uint256[] values
+    );
+
+    /**
+     * @dev 批量授權事件
+     * 當`account`將所有代幣授權給`operator`時釋放
+     */
+    event ApprovalForAll(address indexed account, address indexed operator, bool approved);
+
+    /**
+     * @dev 當`id`種類的代幣的URI發生變化時釋放，`value`為新的URI
+     */
+    event URI(string value, uint256 indexed id);
+
+    /**
+     * @dev 持倉查詢，回傳`account`擁有的`id`種類的代幣的持倉量
+     */
+    function balanceOf(address account, uint256 id) external view returns (uint256);
+
+    /**
+     * 批量持倉查詢，`accounts`和`ids`陣列的長度要相等
+     */
+    function balanceOfBatch(address[] calldata accounts, uint256[] calldata ids)
+        external
+        view
+        returns (uint256[] memory);
+
+    /**
+     * @dev 批量授權，將呼叫者的代幣授權給`operator`地址。
+     * 釋放{ApprovalForAll}事件
+     */
+    function setApprovalForAll(address operator, bool approved) external;
+
+    /**
+     * @dev 批次授權查詢，如果授權位址`operator`被`account`授權，則傳回`true`
+     * 見 {setApprovalForAll}函數
+     */
+    function isApprovedForAll(address account, address operator) external view returns (bool);
+
+    /**
+     * @dev 安全轉賬，將`amount`單位`id`種類的代幣從`from`轉帳給`to`
+     * 釋放{TransferSingle}事件
+     * 要求:
+     * - 如果呼叫者不是`from`位址而是授權位址，則需要得到`from`的授權
+     * - `from`地址必須有足夠的持倉
+     * - 如果接收方是合約，則需要實作`IERC1155Receiver`的`onERC1155Received`方法，並傳回對應的值
+     */
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 id,
+        uint256 amount,
+        bytes calldata data
+    ) external;
+
+    /**
+     * @dev 批量安全轉帳
+     * 釋放{TransferBatch}事件
+     * 要求：
+     * - `ids`和`amounts`長度相等
+     * - 如果接收方是合約，則需要實作`IERC1155Receiver`的`onERC1155BatchReceived`方法，並傳回對應的值
+     */
+    function safeBatchTransferFrom(
+        address from,
+        address to,
+        uint256[] calldata ids,
+        uint256[] calldata amounts,
+        bytes calldata data
+    ) external;
+}
+```
+### IERC1155 事件
+* TransferSingle事件：單類代幣轉帳事件，在單幣種轉帳時釋放。
+* TransferBatch事件：大量代幣轉帳事件，在多幣種轉帳時釋放。
+* ApprovalForAll事件：批次授權事件，在批次授權時釋放。
+* URI事件：元資料位址變更事件，在uri變化時釋放。
+### IERC1155 函數
+* balanceOf()：單幣種餘額查詢，傳回account擁有的id種類的代幣的持倉量。
+* balanceOfBatch()：多幣種餘額查詢，查詢的位址accounts陣列和代幣種類ids陣列的長度要相等。
+* setApprovalForAll()：大量授權，將呼叫者的代幣授權給operator位址。
+* isApprovedForAll()：查詢批次授權訊息，如果授權地址operator被account授權，則傳回true。
+* safeTransferFrom()：安全單幣轉賬，將amount單位id種類的代幣從from地址轉帳給to地址。如果to位址是合約，則會驗證是否實作了onERC1155Received()接收函數。
+* safeBatchTransferFrom()：安全多幣轉賬，與單幣轉帳類似，只不過轉帳數量amounts和代幣種類ids變成數組，且長度相等。如果to位址是合約，則會驗證是否實作了onERC1155BatchReceived()接收函數。
+## ERC1155 接收合約
+與 ERC721 標準類似，為了避免代幣被轉入黑洞合約，ERC1155 要求代幣接收合約繼承 IERC1155Receiver 並實現兩個接收函數：
+* onERC1155Received()：單幣轉帳接收函數，接受ERC1155安全轉帳safeTransferFrom 需要實作並傳回自己的選擇器0xf23a6e61。
+* onERC1155BatchReceived()：多幣轉帳接收函數，接受ERC1155安全多幣轉帳safeBatchTransferFrom 需要實作並傳回自己的選擇器0xbc197c81。
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "https://github.com/AmazingAng/WTF-Solidity/blob/main/34_ERC721/IERC165.sol";
+
+/**
+ * @dev ERC1155接收合約，要接受ERC1155的安全轉賬，就需要實現這個合約
+ */
+interface IERC1155Receiver is IERC165 {
+    /**
+     * @dev 接受ERC1155安全轉帳`safeTransferFrom`
+     * 需要回傳 0xf23a6e61 或 `bytes4(keccak256("onERC1155Received(address,address,uint256,uint256,bytes)"))`
+     */
+    function onERC1155Received(
+        address operator,
+        address from,
+        uint256 id,
+        uint256 value,
+        bytes calldata data
+    ) external returns (bytes4);
+
+    /**
+     * @dev 接受ERC1155批量安全轉帳`safeBatchTransferFrom`
+     * 需要回傳 0xbc197c81 或 `bytes4(keccak256("onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)"))`
+     */
+    function onERC1155BatchReceived(
+        address operator,
+        address from,
+        uint256[] calldata ids,
+        uint256[] calldata values,
+        bytes calldata data
+    ) external returns (bytes4);
+}
+```
+## ERC1155 主合約
+ERC1155主合約實現了IERC1155介面合約規定的函數，以及單幣/多幣的鑄造和銷毀函數。
+### ERC1155 變數
+ERC1155 主合約包含 4 個狀態變數：
+* name：代幣名稱
+* symbol：代幣代號
+* _balances：代幣持倉映射，記錄代幣種類id下某地址account的持倉量balances。 
+* _operatorApprovals：批次授權映射，記錄持有位址給另一個位址的授權情況。
+### ERC1155 函數
+* 建構子：初始化狀態變數name和symbol。
+* supportsInterface()：實現ERC165標準，聲明它支援的接口，供其他合約檢查。 
+* balanceOf()：實作IERC1155的balanceOf()，查詢持倉量。與ERC721標準不同，這裡要輸入查詢的持倉地址account以及幣種id。
+* balanceOfBatch()：實作IERC1155的balanceOfBatch()，批次查詢持倉量。 
+* setApprovalForAll()：實作IERC1155的setApprovalForAll()，批次授權，釋放ApprovalForAll事件。
+* isApprovedForAll()：實作IERC1155的isApprovedForAll()，查詢批次授權資訊。
+* safeTransferFrom()：實作IERC1155的safeTransferFrom()，單幣種安全轉賬，釋放TransferSingle事件。與ERC721不同，這裡不僅需要填發出方from，接收方to，代幣種類id，還需要填轉帳金額amount。
+* safeBatchTransferFrom()：實作IERC1155的safeBatchTransferFrom()，多幣種安全轉賬，釋放TransferBatch事件。
+* _mint()：單幣種鑄造函數。
+* _mintBatch()：多幣種鑄造函數。
+* _burn()：單幣種銷毀函數。
+* _burnBatch()：多幣種銷毀函數。
+* _doSafeTransferAcceptanceCheck：單幣種轉帳的安全檢查，被safeTransferFrom()調用，確保接收方為合約的情況下，實作了onERC1155Received()函數。
+* _doSafeBatchTransferAcceptanceCheck：多幣種轉帳的安全檢查，，被safeBatchTransferFrom調用，確保接收方為合約的情況下，實現了onERC1155BatchReceived()函數。
+* uri()：傳回ERC1155的第id種代幣儲存元資料的網址，類似ERC721的tokenURI。
+* baseURI()：返回baseURI，uri就是把baseURI和id拼接在一起，需要開發重寫。
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "./IERC1155.sol";
+import "./IERC1155Receiver.sol";
+import "./IERC1155MetadataURI.sol";
+import "https://github.com/AmazingAng/WTF-Solidity/blob/main/34_ERC721/Address.sol";
+import "https://github.com/AmazingAng/WTF-Solidity/blob/main/34_ERC721/String.sol";
+import "https://github.com/AmazingAng/WTF-Solidity/blob/main/34_ERC721/IERC165.sol";
+
+/**
+ * @dev ERC1155多代幣標準
+ * 見 https://eips.ethereum.org/EIPS/eip-1155
+ */
+contract ERC1155 is IERC165, IERC1155, IERC1155MetadataURI {
+    using Address for address; // 使用Address庫，用isContract來判斷地址是否為合約
+    using Strings for uint256; // 使用String庫
+    // Token名稱
+    string public name;
+    // Token代號
+    string public symbol;
+    // 代幣種類id 到帳戶account 到餘額balances 的映射
+    mapping(uint256 => mapping(address => uint256)) private _balances;
+    // address 到 授權地址 的批次授權映射
+    mapping(address => mapping(address => bool)) private _operatorApprovals;
+
+    /**
+     * 建構子，初始化`name` 和`symbol`, uri_
+     */
+    constructor(string memory name_, string memory symbol_) {
+        name = name_;
+        symbol = symbol_;
+    }
+
+    /**
+     * @dev See {IERC165-supportsInterface}.
+     */
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return
+            interfaceId == type(IERC1155).interfaceId ||
+            interfaceId == type(IERC1155MetadataURI).interfaceId ||
+            interfaceId == type(IERC165).interfaceId;
+    }
+
+    /**
+     * @dev 持倉查詢 實現IERC1155的balanceOf，返回account地址的id種類代幣持倉量。
+     */
+    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {
+        require(account != address(0), "ERC1155: address zero is not a valid owner");
+        return _balances[id][account];
+    }
+
+    /**
+     * @dev 批量持倉查詢
+     * 要求:
+     * `accounts` 和 `ids` 陣列長度相等
+     */
+    function balanceOfBatch(address[] memory accounts, uint256[] memory ids)
+        public view virtual override
+        returns (uint256[] memory)
+    {
+        require(accounts.length == ids.length, "ERC1155: accounts and ids length mismatch");
+        uint256[] memory batchBalances = new uint256[](accounts.length);
+        for (uint256 i = 0; i < accounts.length; ++i) {
+            batchBalances[i] = balanceOf(accounts[i], ids[i]);
+        }
+        return batchBalances;
+    }
+
+    /**
+     * @dev 批量授權，調用者授權operator使用其所有代幣
+     * 釋放{ApprovalForAll}事件
+     * 條件：msg.sender != operator
+     */
+    function setApprovalForAll(address operator, bool approved) public virtual override {
+        require(msg.sender != operator, "ERC1155: setting approval status for self");
+        _operatorApprovals[msg.sender][operator] = approved;
+        emit ApprovalForAll(msg.sender, operator, approved);
+    }
+
+    /**
+     * @dev 查詢批量授權
+     */
+    function isApprovedForAll(address account, address operator) public view virtual override returns (bool) {
+        return _operatorApprovals[account][operator];
+    }
+
+    /**
+     * @dev 安全轉賬，將`amount`單位的`id`種類代幣從`from`轉賬到`to`
+     *  釋放 {TransferSingle} 事件
+     * 要求:
+     * - to 不能是0位址
+     * - from擁有足夠的持倉量，且呼叫者擁有授權
+     * - 如果 to 是智能合約，他必須支援 IERC1155Receiver-onERC1155Received
+     */
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 id,
+        uint256 amount,
+        bytes memory data
+    ) public virtual override {
+        address operator = msg.sender;
+        // 呼叫者是持有者或是被授權
+        require(
+            from == operator || isApprovedForAll(from, operator),
+            "ERC1155: caller is not token owner nor approved"
+        );
+        require(to != address(0), "ERC1155: transfer to the zero address");
+        // from地址有足夠持倉
+        uint256 fromBalance = _balances[id][from];
+        require(fromBalance >= amount, "ERC1155: insufficient balance for transfer");
+        // 更新持倉量
+        unchecked {
+            _balances[id][from] = fromBalance - amount;
+        }
+        _balances[id][to] += amount;
+        // 釋放事件
+        emit TransferSingle(operator, from, to, id, amount);
+        // 安全檢查
+        _doSafeTransferAcceptanceCheck(operator, from, to, id, amount, data);    
+    }
+
+    /**
+     * @dev 批量安全轉賬，將`amounts`數組單位的`ids`數組種類代幣從`from`轉賬到`to`
+     * 釋放 {TransferSingle} 事件
+     * 要求:
+     * - to 不能是0位址
+     * - from擁有足夠的持倉量，且呼叫者擁有授權
+     * - 如果 to 是智能合約, 他必須支援 IERC1155Receiver-onERC1155BatchReceived
+     * - ids和amounts陣列長度相等
+     */
+    function safeBatchTransferFrom(
+        address from,
+        address to,
+        uint256[] memory ids,
+        uint256[] memory amounts,
+        bytes memory data
+    ) public virtual override {
+        address operator = msg.sender;
+        // 呼叫者是持有者或是被授權
+        require(
+            from == operator || isApprovedForAll(from, operator),
+            "ERC1155: caller is not token owner nor approved"
+        );
+        require(ids.length == amounts.length, "ERC1155: ids and amounts length mismatch");
+        require(to != address(0), "ERC1155: transfer to the zero address");
+
+        // 透過for循環更新持倉
+        for (uint256 i = 0; i < ids.length; ++i) {
+            uint256 id = ids[i];
+            uint256 amount = amounts[i];
+
+            uint256 fromBalance = _balances[id][from];
+            require(fromBalance >= amount, "ERC1155: insufficient balance for transfer");
+            unchecked {
+                _balances[id][from] = fromBalance - amount;
+            }
+            _balances[id][to] += amount;
+        }
+
+        emit TransferBatch(operator, from, to, ids, amounts);
+        // 安全檢查
+        _doSafeBatchTransferAcceptanceCheck(operator, from, to, ids, amounts, data);    
+    }
+
+    /**
+     * @dev 鑄造
+     * 釋放 {TransferSingle} 事件
+     */
+    function _mint(
+        address to,
+        uint256 id,
+        uint256 amount,
+        bytes memory data
+    ) internal virtual {
+        require(to != address(0), "ERC1155: mint to the zero address");
+
+        address operator = msg.sender;
+
+        _balances[id][to] += amount;
+        emit TransferSingle(operator, address(0), to, id, amount);
+
+        _doSafeTransferAcceptanceCheck(operator, address(0), to, id, amount, data);
+    }
+
+    /**
+     * @dev 批量鑄造
+     * 釋放 {TransferBatch} 事件
+     */
+    function _mintBatch(
+        address to,
+        uint256[] memory ids,
+        uint256[] memory amounts,
+        bytes memory data
+    ) internal virtual {
+        require(to != address(0), "ERC1155: mint to the zero address");
+        require(ids.length == amounts.length, "ERC1155: ids and amounts length mismatch");
+
+        address operator = msg.sender;
+
+        for (uint256 i = 0; i < ids.length; i++) {
+            _balances[ids[i]][to] += amounts[i];
+        }
+
+        emit TransferBatch(operator, address(0), to, ids, amounts);
+
+        _doSafeBatchTransferAcceptanceCheck(operator, address(0), to, ids, amounts, data);
+    }
+
+    /**
+     * @dev 銷毀
+     */
+    function _burn(
+        address from,
+        uint256 id,
+        uint256 amount
+    ) internal virtual {
+        require(from != address(0), "ERC1155: burn from the zero address");
+
+        address operator = msg.sender;
+
+        uint256 fromBalance = _balances[id][from];
+        require(fromBalance >= amount, "ERC1155: burn amount exceeds balance");
+        unchecked {
+            _balances[id][from] = fromBalance - amount;
+        }
+
+        emit TransferSingle(operator, from, address(0), id, amount);
+    }
+
+    /**
+     * @dev 批量銷毀
+     */
+    function _burnBatch(
+        address from,
+        uint256[] memory ids,
+        uint256[] memory amounts
+    ) internal virtual {
+        require(from != address(0), "ERC1155: burn from the zero address");
+        require(ids.length == amounts.length, "ERC1155: ids and amounts length mismatch");
+
+        address operator = msg.sender;
+
+        for (uint256 i = 0; i < ids.length; i++) {
+            uint256 id = ids[i];
+            uint256 amount = amounts[i];
+
+            uint256 fromBalance = _balances[id][from];
+            require(fromBalance >= amount, "ERC1155: burn amount exceeds balance");
+            unchecked {
+                _balances[id][from] = fromBalance - amount;
+            }
+        }
+
+        emit TransferBatch(operator, from, address(0), ids, amounts);
+    }
+
+    // @dev ERC1155的安全轉帳檢查
+    function _doSafeTransferAcceptanceCheck(
+        address operator,
+        address from,
+        address to,
+        uint256 id,
+        uint256 amount,
+        bytes memory data
+    ) private {
+        if (to.isContract()) {
+            try IERC1155Receiver(to).onERC1155Received(operator, from, id, amount, data) returns (bytes4 response) {
+                if (response != IERC1155Receiver.onERC1155Received.selector) {
+                    revert("ERC1155: ERC1155Receiver rejected tokens");
+                }
+            } catch Error(string memory reason) {
+                revert(reason);
+            } catch {
+                revert("ERC1155: transfer to non-ERC1155Receiver implementer");
+            }
+        }
+    }
+
+    // @dev ERC1155的批量安全轉帳檢查
+    function _doSafeBatchTransferAcceptanceCheck(
+        address operator,
+        address from,
+        address to,
+        uint256[] memory ids,
+        uint256[] memory amounts,
+        bytes memory data
+    ) private {
+        if (to.isContract()) {
+            try IERC1155Receiver(to).onERC1155BatchReceived(operator, from, ids, amounts, data) returns (
+                bytes4 response
+            ) {
+                if (response != IERC1155Receiver.onERC1155BatchReceived.selector) {
+                    revert("ERC1155: ERC1155Receiver rejected tokens");
+                }
+            } catch Error(string memory reason) {
+                revert(reason);
+            } catch {
+                revert("ERC1155: transfer to non-ERC1155Receiver implementer");
+            }
+        }
+    }
+
+    /**
+     * @dev 返回ERC1155的id種類代幣的uri，存放metadata，類似ERC721的tokenURI
+     */
+    function uri(uint256 id) public view virtual override returns (string memory) {
+        string memory baseURI = _baseURI();
+        return bytes(baseURI).length > 0 ? string(abi.encodePacked(baseURI, id.toString())) : "";
+    }
+
+    /**
+     * 計算{uri}的BaseURI，uri就是把baseURI和tokenId拼接在一起，需要開發重寫
+     */
+    function _baseURI() internal view virtual returns (string memory) {
+        return "";
+    }
+}
+```
+
+## BAYC，但ERC1155
+我們魔改下 ERC721 標準的無聊猿 BAYC，創造一個免費鑄造的 BAYC1155。我們修改_baseURI()函數，讓 BAYC1155 的 uri 和 BAYC 的 tokenURI 一樣。這樣，BAYC1155元資料會與無聊猿的相同：
+```
+// SPDX-License-Identifier: MIT
+// by 0xAA
+pragma solidity ^0.8.21;
+
+import "./ERC1155.sol";
+
+contract BAYC1155 is ERC1155{
+    uint256 constant MAX_ID = 10000; 
+    // 建構子
+    constructor() ERC1155("BAYC1155", "BAYC1155"){
+    }
+
+    //BAYC的baseURI為ipfs://QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/
+    function _baseURI() internal pure override returns (string memory) {
+        return "ipfs://QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/";
+    }
+    
+    // 鑄造函數
+    function mint(address to, uint256 id, uint256 amount) external {
+        // id 不能超过10,000
+        require(id < MAX_ID, "id overflow");
+        _mint(to, id, amount, "");
+    }
+
+    // 批量鑄造函數
+    function mintBatch(address to, uint256[] memory ids, uint256[] memory amounts) external {
+        // id 不能超過10000
+        for (uint256 i = 0; i < ids.length; i++) {
+            require(ids[i] < MAX_ID, "id overflow");
+        }
+        _mintBatch(to, ids, amounts, "");
+    }
+}
+```
+### 2024.10.14
+# WETH
+WETH（Wrapped ETH）是 ETH 的包裝版本。我們常見的 WETH、WBTC、WBNB，都是帶包裝的原生代幣。那我們為什麼要包裝它們？
+2015 年，ERC20 標準出現，此代幣標準旨在為以太坊上的代幣制定一套標準化的規則，從而簡化了新代幣的發布，並使區塊鏈上的所有代幣相互可比。不幸的是，以太幣本身並不符合 ERC20 標準。 WETH 的開發是為了提高區塊鏈之間的互通性，並使 ETH 可用於去中心化應用程式（dApps）。它就像是給原生代幣穿了一件智能合約做的衣服：穿上衣服的時候，就變成了 WETH，符合 ERC20 同質化代幣標準，可以跨鏈，可以用於 dApp；脫下衣服，它可 1:1 兌換ETH。
+## WETH 合約
+目前在用的主網 WETH 合約寫於 2015 年，非常老，那時 solidity 是 0.4 版本。我們用 0.8 版本重寫一個 WETH。
+WETH 符合 ERC20 標準，它比普通的 ERC20 多了兩個功能：
+1. 存款：包裝，使用者將 ETH 存入 WETH 合約，並獲得等量的 WETH。
+2. 提款：拆包裝，使用者銷毀 WETH，並獲得等量的 ETH。
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+contract WETH is ERC20{
+    // 事件：存款和提款
+    event  Deposit(address indexed dst, uint wad);
+    event  Withdrawal(address indexed src, uint wad);
+
+    // 建構子，初始化ERC20的名字和代號
+    constructor() ERC20("WETH", "WETH"){
+    }
+
+    // 回傳函數，當使用者往WETH合約轉ETH時，會觸發deposit()函數
+    fallback() external payable {
+        deposit();
+    }
+    // 回傳函數，當使用者往WETH合約轉ETH時，會觸發deposit()函數
+    receive() external payable {
+        deposit();
+    }
+
+    // 存款函數，當使用者存入ETH時，給他鑄造等量的WETH
+    function deposit() public payable {
+        _mint(msg.sender, msg.value);
+        emit Deposit(msg.sender, msg.value);
+    }
+
+    // 提款函數，用戶銷毀WETH，取回等量的ETH
+    function withdraw(uint amount) public {
+        require(balanceOf(msg.sender) >= amount);
+        _burn(msg.sender, amount);
+        payable(msg.sender).transfer(amount);
+        emit Withdrawal(msg.sender, amount);
+    }
+}
+```
+## 繼承
+WETH 符合 ERC20 代幣標準，因此 WETH 合約繼承了 ERC20 合約。
+## 事件
+WETH 合約共有 2 個事件：
+* Deposit：存款事件，在存款的時候釋放。
+* Withdraw：取款事件，在取款的時候釋放。
+## 函數
+除了 ERC20 標準的函數外，WETH 合約有 5 個函數：
+* 建構子：初始化 WETH 的名字和代號。
+* 回傳函數：fallback() 和 receive()，當使用者往 WETH 合約轉 ETH 的時候，會自動觸發 deposit() 存款函數，獲得等量的 WETH。
+* `deposit()`：存款函數，當使用者存入 ETH 時，給他鑄造等量的 WETH。
+* `withdraw()`：提款函數，讓使用者銷毀 WETH，並歸還等量的 ETH。
+# 分帳
+分帳合約允許將 ETH 按權重轉給一組帳戶後，進行分帳。程式碼部分由 OpenZeppelin 函式庫的 PaymentSplitter 合約簡化而來。
+分帳就是依照一定比例分錢財。在現實中，經常會有「分贓不均」的事情發生；而在區塊鏈的世界裡 Code is Law，我們可以事先把每個人應分的比例寫在智能合約中，獲得收入後，再由智能合約來進行分帳。
+## 分帳合約
+分帳合約（PaymentSplit）具有以下幾個特點：
+1. 在創建合約時定好分帳受益人 payees 和每人的份額 shares。
+2. 份額可以是相等，也可以是其他任意比例。
+3. 在該合約收到的所有 ETH 中，每個受益人將能夠提取與其分配的份額成比例的金額。
+4. 分帳合約遵循 Pull Payment 模式，付款不會自動轉入帳戶，而是保存在此合約中。受益人透過呼叫 release() 函數觸發實際轉帳。
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+/**
+ * 分帳合約
+ * @dev 這個合約會把收到的ETH按事先定好的份額分給幾個帳戶。收到ETH會存在分帳合約中，需要每個受益人呼叫release()函數來領取。
+ */
+contract PaymentSplit{
+    // 事件
+    event PayeeAdded(address account, uint256 shares); // 增加受益人事件
+    event PaymentReleased(address to, uint256 amount); // 受益人提款事件
+    event PaymentReceived(address from, uint256 amount); // 合約收款事件
+    
+    // 狀態變數
+    uint256 public totalShares; // 總份額，為shares的和
+    uint256 public totalReleased; // 總支付，從分帳合約向受益人支付出去的ETH，為 released 的和
+
+    mapping(address => uint256) public shares; // address到uint256的映射，記錄每個受益人的份額
+    mapping(address => uint256) public released; // address到uint256的映射，記錄分帳合約支付給每個受益人的金額
+    address[] public payees; // address陣列，記錄受益人地址
+    
+    // 函數
+    /**
+     * @dev 建構子：始化受益人陣列_payees和分帳份額陣列_shares
+     * 陣列長度不能為0，兩個陣列長度要相等。 _shares中元素要大於0，_payees中位址不能為0位址且不能有重複位址。
+     */
+    constructor(address[] memory _payees, uint256[] memory _shares) payable {
+        // 檢查_payees和_shares儲存容量相同，且不為0
+        require(_payees.length == _shares.length, "PaymentSplitter: payees and shares length mismatch");
+        require(_payees.length > 0, "PaymentSplitter: no payees");
+        // 呼叫_addPayee，更新受益人地址payees、受益人份額shares和總份額totalShares
+        for (uint256 i = 0; i < _payees.length; i++) {
+            _addPayee(_payees[i], _shares[i]);
+        }
+    }
+
+    /**
+     * @dev 回傳函數，在分帳合約收到ETH時釋放PaymentReceived事件
+     */
+    receive() external payable virtual {
+        emit PaymentReceived(msg.sender, msg.value);
+    }
+
+    /**
+     * @dev 分帳函數，為有效受益人地址_account分配對應的ETH。任何人都可以觸發這個函數，但ETH會轉給受益人地址account。
+     * 呼叫了releasable()函數。
+     */
+    function release(address payable _account) public virtual {
+        // account必須是有效受益人
+        require(shares[_account] > 0, "PaymentSplitter: account has no shares");
+        // 計算account應得的eth
+        uint256 payment = releasable(_account);
+        // 應得的eth不能為0
+        require(payment != 0, "PaymentSplitter: account is not due payment");
+        // 更新總支付totalReleased和支付給每個受益人的金額released
+        totalReleased += payment;
+        released[_account] += payment;
+        // 轉帳
+        _account.transfer(payment);
+        emit PaymentReleased(_account, payment);
+    }
+
+    /**
+     * @dev 計算一個受益人地址應領取的ETH。
+     * 呼叫了pendingPayment()函數。
+     */
+    function releasable(address _account) public view returns (uint256) {
+        // 計算分帳合約總收入totalReceived
+        uint256 totalReceived = address(this).balance + totalReleased;
+        // 呼叫_pendingPayment計算帳戶應得的ETH
+        return pendingPayment(_account, totalReceived, released[_account]);
+    }
+
+    /**
+     * @dev 根據受益人地址_account, 分帳合約總收入_totalReceived和該地址已領取的錢_alreadyReleased，計算該受益人現在應分的ETH。
+     */
+    function pendingPayment(
+        address _account,
+        uint256 _totalReceived,
+        uint256 _alreadyReleased
+    ) public view returns (uint256) {
+        // account應得的ETH = 總應得ETH - 已領到的ETH
+        return (_totalReceived * shares[_account]) / totalShares - _alreadyReleased;
+    }
+
+    /**
+     * @dev 新增受益人函數及其份額函數。在合約初始化的時候被呼叫，之後不能修改。
+     */
+    function _addPayee(address _account, uint256 _accountShares) private {
+        // 檢查_account不為0地址
+        require(_account != address(0), "PaymentSplitter: account is the zero address");
+        // 檢查_accountShares不為0
+        require(_accountShares > 0, "PaymentSplitter: shares are 0");
+        // 檢查帳戶不重複
+        require(shares[_account] == 0, "PaymentSplitter: account already has shares");
+        // 更新payees，shares和totalShares
+        payees.push(_account);
+        shares[_account] = _accountShares;
+        totalShares += _accountShares;
+        // 釋放增加受益人事件
+        emit PayeeAdded(_account, _accountShares);
+    }
+```
+# 代幣歸屬條款
+在傳統金融領域，有些公司會向員工和管理階層提供股權。但大量股權同時釋出會在短期產生拋售壓力，拖累股價。因此，公司通常會引入一個歸屬期來延遲承諾資產的所有權。同樣的，在區塊鏈領域，Web3 新創公司會分配給團隊代幣，同時也會將代幣低價賣給風險投資和私募。如果他們把這些低成本的代幣同時提到交易所變現，幣價將被砸穿，散戶直接成為接盤俠。
+所以，專案方一般會約定代幣歸屬條款（token vesting），在歸屬期內逐步釋放代幣，減緩拋壓，並防止團隊和資本方過早躺平。
+## 線性釋放
+線性釋放指的是代幣在歸屬期內勻速釋放。舉個例子，某私募持有 365000 枚 ICU 代幣，歸屬期為 1 年（365天），那麼每天會釋放 1,000 枚代幣。
+下面是一個鎖倉並線性釋放 ERC20 代幣的合約 TokenVesting：
+1. 專案方規定線性釋放的起始時間、歸屬期和受益人。
+2. 專案方將鎖倉的 ERC20 代幣轉帳給 TokenVesting 合約。
+3. 受益人可以呼叫 release 函數，從合約中取出釋放的代幣。
+```
+contract TokenVesting {
+    // 事件
+    event ERC20Released(address indexed token, uint256 amount); // 提幣事件，當受益人提取釋放代幣時釋放
+    
+    // 狀態變數
+    mapping(address => uint256) public erc20Released; // 代幣地址->釋放數量的映射，記錄受益人已領取的代幣數量
+    address public immutable beneficiary; // 受益人地址
+    uint256 public immutable start; // 歸屬期起始時間戳記
+    uint256 public immutable duration; // 歸屬期，單位為秒
+    
+     
+    // 函數
+     /**
+     * @dev 建構子：初始化受益人地址，釋放週期(秒), 起始時間戳記(當前區塊鏈時間戳)
+     * 參數為受益人地址beneficiaryAddress和歸屬期durationSeconds。
+     * 為了方便，起始時間戳使用部署時的區塊鏈時間戳block.timestamp。
+     */
+    constructor(
+        address beneficiaryAddress,
+        uint256 durationSeconds
+    ) {
+        require(beneficiaryAddress != address(0), "VestingWallet: beneficiary is zero address");
+        beneficiary = beneficiaryAddress;
+        start = block.timestamp;
+        duration = durationSeconds;
+    }
+
+    /**
+     * @dev 提取代幣函數，將已釋放的代幣轉帳給受益人
+     * 呼叫了vestedAmount()函數計算可提取的代幣數量，然後將代幣transfer給受益人
+     * 參數為代幣地址token
+     * 釋放ERC20Released事件
+     */
+    function release(address token) public {
+        // 呼叫vestedAmount()函數計算可提取的代幣數量
+        uint256 releasable = vestedAmount(token, uint256(block.timestamp)) - erc20Released[token];
+        // 更新已釋放代幣數量   
+        erc20Released[token] += releasable; 
+        // 轉代幣給受益人
+        emit ERC20Released(token, releasable);
+        IERC20(token).transfer(beneficiary, releasable);
+    }
+
+    /**
+     * @dev 根據線性釋放公式，查詢已釋放的代幣數量。開發者可以透過修改這個函數，自訂釋放方式。
+     * @param token: 代幣地址
+     * @param timestamp: 查詢的時間戳
+     */
+    function vestedAmount(address token, uint256 timestamp) public view returns (uint256) {
+        // 合約裡總共收到了多少代幣（當前餘額 + 已經提取）
+        uint256 totalAllocation = IERC20(token).balanceOf(address(this)) + erc20Released[token];
+        // 根據線性釋放公式，計算已經釋放的數量
+        if (timestamp < start) {
+            return 0;
+        } else if (timestamp > start + duration) {
+            return totalAllocation;
+        } else {
+            return (totalAllocation * (timestamp - start)) / duration;
+        }
+    }
+```
+
+# 代幣鎖
+代幣鎖(Token Locker)是一種簡單的時間鎖合約，它可以把合約中的代幣鎖倉一段時間，受益人在鎖倉期滿後可以取走代幣。代幣鎖一般是用來鎖倉流動性提供者 LP 代幣的。
+## LP 代幣
+區塊鏈中，使用者在去中心化交易所(DEX)上交易代幣，例如 Uniswap 交易所。DEX 和中心化交易所(CEX)不同，去中心化交易所使用自動做市商(AMM，Automated Market Maker)機制，需要使用者或專案方提供資金池，以使得其他用戶能夠即時買賣。簡單來說，使用者/專案方需要質押相應的幣對（例如ETH/DAI）到資金池中，作為補償，DEX 會給他們鑄造相應的流動性提供者 LP 代幣憑證，證明他們質押了相應的份額，供他們收取手續費。
+## 為什麼要鎖定流動性？
+如果專案方毫無徵兆的撤出流動性池中的 LP 代幣，那麼投資者手中的代幣就無法變現，直接歸零了。這種行為也叫 rug-pull，光是 2021 年，各種 rug-pull 騙局就從投資者那裡騙取了價值超過28億美元的加密貨幣。
+但如果 LP 代幣是鎖倉在代幣鎖合約中，在鎖倉期結束前，專案方無法撤出流動性池，也沒辦法 rug pull。因此代幣鎖可以防止專案方過早跑路（要小心鎖倉期滿跑路的情況）。
+## 代幣鎖合約
+下面是一個鎖倉 ERC20 代幣的合約 TokenLocker：
+1. 開發者在部署合約時規定鎖倉的時間，受益人地址，以及代幣合約。
+2. 開發者將代幣轉入TokenLocker合約。
+3. 在鎖倉期滿時，受益人可以取走合約裡的代幣。
+```
+contract TokenLocker {
+    // 事件
+    event TokenLockStart(address indexed beneficiary, address indexed token, uint256 startTime, uint256 lockTime); // 鎖倉開始事件，在合約部署時釋放，記錄受益人地址，代幣地址，鎖倉起始時間，和結束時間。
+    event Release(address indexed beneficiary, address indexed token, uint256 releaseTime, uint256 amount); // 代幣釋放事件，在受益人取出代幣時釋放，記錄記錄受益人地址，代幣地址，釋放代幣時間，和代幣數量。
+    
+    // 狀態變數
+    IERC20 public immutable token; // 被鎖倉的ERC20代幣合約
+    address public immutable beneficiary; // 受益人地址
+    uint256 public immutable lockTime; // 鎖倉時間(秒)
+    uint256 public immutable startTime; // 鎖倉起始時間戳(秒)
+    
+    // 函數
+    /**
+     * @dev 初始化代幣合約，受益人地址，以及鎖倉時間
+     * @param token_: 被鎖倉的 ERC20 代幣合約
+     * @param beneficiary_: 受益人地址
+     * @param lockTime_: 鎖倉時間(秒)
+     */
+    constructor(
+        IERC20 token_,
+        address beneficiary_,
+        uint256 lockTime_
+    ) {
+        require(lockTime_ > 0, "TokenLock: lock time should greater than 0");
+        token = token_;
+        beneficiary = beneficiary_;
+        lockTime = lockTime_;
+        startTime = block.timestamp;
+
+        emit TokenLockStart(beneficiary_, address(token_), block.timestamp, lockTime_);
+    }
+
+    /**
+     * @dev 在鎖倉時間過後，將代幣釋放給受益人。
+     * 需要受益人主動調用release()函數提取代幣
+     */
+    function release() public {
+        require(block.timestamp >= startTime+lockTime, "TokenLock: current time is before release time");
+
+        uint256 amount = token.balanceOf(address(this));
+        require(amount > 0, "TokenLock: no tokens to release");
+
+        token.transfer(beneficiary, amount);
+
+        emit Release(msg.sender, address(token), block.timestamp, amount);
+    }
+}
+```
+
+### 2024.10.15
+# 時間鎖
+時間鎖（Timelock）是銀行金庫和其他高安全性容器中常見的鎖定機制。它是一種計時器，目的是為了防止保險箱在預設時間之前被打開，即使開鎖的人知道正確密碼。
+區塊鏈中，時間鎖被 DeFi 和 DAO 大量採用。它是一段程式碼，可以將智能合約的某些功能鎖定一段時間，可以大大改善智能合約的安全性：假如有一個駭客駭了 Uniswap 的多簽，準備提走金庫的錢，但金庫合約加了 2 天鎖定期的時間鎖，那麼駭客從創建提錢的交易，到實際把錢提走，需要 2 天的等待期。在這段時間，專案方可以找應對辦法，投資人可以提前拋售代幣減少損失。
+## 時間鎖合約
+範例的時間合約程式碼由 Compound 的 [Timelock 合約](https://github.com/compound-finance/compound-protocol/blob/master/contracts/Timelock.sol) 簡化而來。
+在建立 Timelock 合約時，專案方可以設定鎖定期，並把合約的管理員設為自己，時間鎖主要有三個功能：
+1. 建立交易，並加入到時間鎖佇列。
+2. 在交易的鎖定期滿後，執行交易。
+3. 若後悔了，取消時間鎖定佇列中的某些交易。
+專案方一般會把時間鎖合約設為重要合約的管理員，例如金庫合約，再透過時間鎖操作他們。時間鎖合約的管理員一般為專案的多簽錢包，以保證去中心化。
+```
+contract Timelock{
+    // 事件
+    // 交易取消事件
+    event CancelTransaction(bytes32 indexed txHash, address indexed target, uint value, string signature,  bytes data, uint executeTime);
+    // 交易執行事件
+    event ExecuteTransaction(bytes32 indexed txHash, address indexed target, uint value, string signature,  bytes data, uint executeTime);
+    // 交易建立並進入佇列事件
+    event QueueTransaction(bytes32 indexed txHash, address indexed target, uint value, string signature, bytes data, uint executeTime);
+    // 修改管理員地址的事件
+    event NewAdmin(address indexed newAdmin);
+    
+    // 狀態變數
+    address public admin; // 管理員地址
+    uint public constant GRACE_PERIOD = 7 days; // 交易有效期限，過期的交易作廢
+    uint public delay; // 交易鎖定時間 （秒）
+    mapping (bytes32 => bool) public queuedTransactions; // 進入時間鎖佇列交易的識別碼txHash到bool的映射，記錄所有在時間鎖佇列中的交易。
+}
+    
+    // 修飾器
+    /** @dev onlyOwner modifier
+     * 被修飾的函數只能由管理員執行。
+     */
+    modifier onlyOwner() {
+        require(msg.sender == admin, "Timelock: Caller not admin");
+        _;
+    }
+
+    /** onlyTimelock modifier
+     * 被修飾的函數只能被時間鎖合約執行。 
+     */
+    modifier onlyTimelock() {
+        require(msg.sender == address(this), "Timelock: Caller not Timelock");
+        _;
+    }
+    
+    // 函數
+    /**
+     * @dev 建構子：初始化交易鎖定時間（秒）和管理員位址。
+     */
+    constructor(uint delay_) {
+        delay = delay_;
+        admin = msg.sender;
+    }
+
+    /**
+     * @dev 修改管理員地址，只能被Timelock合約呼叫。
+     */
+    function changeAdmin(address newAdmin) public onlyTimelock {
+        admin = newAdmin;
+
+        emit NewAdmin(newAdmin);
+    }
+
+    /**
+     * @dev 立交易並新增到時間鎖佇列中。參數比較複雜，因為要描述一個完整的交易：
+     * @param target: 目標合約地址
+     * @param value: 發送ETH數額
+     * @param signature: 要呼叫的函數簽名（function signature）
+     * @param data: 交易的call data，裡面是一些參數
+     * @param executeTime: 交易執行的區塊鏈時間戳記。
+     *
+     * 要求：executeTime 大於目前區塊鏈時間戳+delay。進入佇列的交易會更新在queuedTransactions變數中，並釋放QueueTransaction事件。
+     */
+    function queueTransaction(address target, uint256 value, string memory signature, bytes memory data, uint256 executeTime) public onlyOwner returns (bytes32) {
+        // 檢查：交易執行時間滿足鎖定時間
+        require(executeTime >= getBlockTimestamp() + delay, "Timelock::queueTransaction: Estimated execution block must satisfy delay.");
+        // 計算交易的唯一識別符：所有參數的hash
+        bytes32 txHash = getTxHash(target, value, signature, data, executeTime);
+        // 將交易新增至佇列
+        queuedTransactions[txHash] = true;
+
+        emit QueueTransaction(txHash, target, value, signature, data, executeTime);
+        return txHash;
+    }
+
+    /**
+     * @dev 取消特定交易。參數與queueTransaction()相同。
+     *
+     * 要求：被取消的交易在佇列中，會更新queuedTransactions並釋放CancelTransaction事件。
+     */
+    function cancelTransaction(address target, uint256 value, string memory signature, bytes memory data, uint256 executeTime) public onlyOwner{
+        // 計算交易的唯一識別符：所有參數的hash
+        bytes32 txHash = getTxHash(target, value, signature, data, executeTime);
+        // 檢查：交易在時間鎖佇列中
+        require(queuedTransactions[txHash], "Timelock::cancelTransaction: Transaction hasn't been queued.");
+        // 將交易移出隊列
+        queuedTransactions[txHash] = false;
+
+        emit CancelTransaction(txHash, target, value, signature, data, executeTime);
+    }
+
+    /**
+     * @dev 執行特定交易。參數與queueTransaction()相同。
+     *
+     * 要求：
+     * 1. 交易在時間鎖佇列中
+     * 2. 達到交易的執行時間
+     * 3. 交易沒過期
+     * 執行交易時用到了solidity的低階成員函數call。
+     */
+    function executeTransaction(address target, uint256 value, string memory signature, bytes memory data, uint256 executeTime) public payable onlyOwner returns (bytes memory) {
+        bytes32 txHash = getTxHash(target, value, signature, data, executeTime);
+        // 檢查：交易是否在時間鎖佇列中
+        require(queuedTransactions[txHash], "Timelock::executeTransaction: Transaction hasn't been queued.");
+        // 檢查：達到交易的執行時間
+        require(getBlockTimestamp() >= executeTime, "Timelock::executeTransaction: Transaction hasn't surpassed time lock.");
+        // 檢查：交易沒過期
+       require(getBlockTimestamp() <= executeTime + GRACE_PERIOD, "Timelock::executeTransaction: Transaction is stale.");
+        // 將交易移出佇列
+        queuedTransactions[txHash] = false;
+
+        // 取得call data
+        bytes memory callData;
+        if (bytes(signature).length == 0) {
+            callData = data;
+        } else {
+            callData = abi.encodePacked(bytes4(keccak256(bytes(signature))), data);
+        }
+        // 利用call執行交易
+        (bool success, bytes memory returnData) = target.call{value: value}(callData);
+        require(success, "Timelock::executeTransaction: Transaction execution reverted.");
+
+        emit ExecuteTransaction(txHash, target, value, signature, data, executeTime);
+
+        return returnData;
+    }
+
+    /**
+     * @dev 取得當前區塊鏈時間戳
+     */
+    function getBlockTimestamp() public view returns (uint) {
+        return block.timestamp;
+    }
+
+    /**
+     * @dev 傳回交易的標識符，為很多交易參數的hash。
+     */
+    function getTxHash(
+        address target,
+        uint value,
+        string memory signature,
+        bytes memory data,
+        uint executeTime
+    ) public pure returns (bytes32) {
+        return keccak256(abi.encode(target, value, signature, data, executeTime));
+    }
+```
+# 代理合約
+Solidity合約部署在鏈上之後，程式碼是不可變的（immutable）。這樣既有優點，也有缺點：
+* 優點：使用者大部分時候知道會發生什麼，安全性較高。
+* 缺點：就算合約中存在bug，也不能修改或升級，只能部署新合約。但是新合約的地址與舊的不一樣，且合約的資料也需要花費大量 gas 進行遷移。
+## 代理模式
+透過代理模式就可以在合約部署後進行修改或升級，代理模式將合約資料和邏輯分開，分別保存在不同合約中。
+![](https://i.imgur.com/pdY13St.png)
+![](https://i.imgur.com/IaMLhH8.png)
+上圖是簡單的代理合約示意圖，可以對照 delegatecall 的用法，把資料（狀態變數）儲存在代理合約中，而邏輯（函數）則保存在另一個邏輯合約中。代理合約（Proxy）透過 delegatecall，將函數呼叫全權委託給邏輯合約（Implementation）執行，再把最終的結果回傳給呼叫者（Caller）。
+## 代理合約
+下面介紹一個簡單的代理合約，它是由 OpenZeppelin 的 [Proxy 合約](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/proxy/Proxy.sol)簡化而來。它有三個部分：
+* 代理合約 Proxy
+* 邏輯合約 Logic
+* 呼叫範例 Caller。
+它的執行邏輯：
+1. 部署邏輯合約Logic。
+2. 建立代理合約 Proxy，狀態變數 implementation 記錄 Logic 合約位址。
+3. Proxy 合約利用 fallback 函數，將所有呼叫委託給 Logic 合約
+4. 部署呼叫範例 Caller 合約，呼叫 Proxy 合約。
+Logic 合約和 Proxy 合約的狀態變數儲存結構相同，不然delegatecall會產生意想不到的行為，有安全隱患。Proxy 合約不長，但用到了內聯彙編，因此比較難理解。它只有一個狀態變數，一個建構子，和一個回調函數。狀態變數 implementation，在建構子中初始化，用來保存 Logic 合約位址。
+```
+contract Proxy {
+    address public implementation; // 邏輯合約地址。 implementation合約同一個位置的狀態變數型別必須和Proxy合約的相同，不然會報錯。
+
+    /**
+     * @dev 初始化邏輯合約地址
+     */
+    constructor(address implementation_){
+        implementation = implementation_;
+    }
+    
+    /**
+    * @dev 回傳函數，將外部對本合約的呼叫委託給 Logic 合約。
+    * 利用行內組語（inline assembly）讓本來不能有回傳值的fallback函數有了回傳值
+    */
+    fallback() external payable {
+        address _implementation = implementation;
+        assembly {
+            // 將msg.data複製到記憶體裡
+            // calldatacopy操作碼的參數: 記憶體起始位置，calldata起始位置，calldata長度
+            calldatacopy(0, 0, calldatasize())
+
+            // 利用delegatecall調用implementation合約
+            // delegatecall操作碼的參數：gas, 目標合約位址，input mem起始位置，input mem長度，output area mem起始位置，output area mem長度
+            // output area起始位置和長度位置，所以設為0
+            // delegatecall成功返回1，失敗返回0
+            let result := delegatecall(gas(), _implementation, 0, calldatasize(), 0, 0)
+
+            // 將return data複製到記憶體
+            // returndata操作碼的參數：記憶體起始位置，returndata起始位置，returndata長度
+            returndatacopy(0, 0, returndatasize())
+
+            switch result
+            // 如果delegate call失敗，revert
+            case 0 {
+                revert(0, returndatasize())
+            }
+            // 如果delegate call成功，回傳mem起始位置為0，長度為returndatasize()的資料（格式為bytes）
+            default {
+                return(0, returndatasize())
+            }
+        }
+    }
+```
+## 邏輯合約
+```
+/**
+ * @dev 邏輯合約，執行被委託的呼叫
+ */
+contract Logic {
+    address public implementation; // 佔位變數，與Proxy合約保持一致，專門用來存放代理相關的訊息，防止插槽衝突。
+    uint public x = 99; 
+    event CallSuccess(); // 在呼叫成功時釋放
+
+    // 會被Proxy合約調用，釋放CallSuccess事件，並回傳一個uint
+    // 函數selector: 0xd09de08a
+    function increment() external returns(uint) {
+        emit CallSuccess();
+        return x + 1;
+    }
+}
+```
+如果直接呼叫 increment() 會返回 100，但透過 Proxy 呼叫它會回傳 1，因為 delegatecall 會在 Proxy 合約的上下文中執行 Logic 合約的程式碼，導致 Logic 合約的狀態變數將會讀取和修改 Proxy 合約的存儲，所以 x 的值不再是來自 Logic 合約的存儲，而是 Proxy 合約的存儲。
+## 呼叫者合約 Caller
+```
+/**
+ * @dev Caller合約，呼叫代理合約，並取得執行結果
+ */
+contract Caller{
+    address public proxy; // 代理合約地址
+
+    // 建構子，在部署合約時初始化proxy變數
+    constructor(address proxy_){
+        proxy = proxy_;
+    }
+
+    /** 透過代理合約呼叫increment()函數
+     * 利用call來呼叫代理合約的increment()函數，並傳回一個uint。
+     * 在呼叫時，我們利用abi.encodeWithSignature()取得了increment()函數的selector。
+     * 在回傳時，利用abi.decode()將回傳值解碼為uint類型。
+     */
+    function increment() external returns(uint) {
+        ( , bytes memory data) = proxy.call(abi.encodeWithSignature("increment()"));
+        return abi.decode(data,(uint));
+    }
+}
+```
+# 可升級合約
+可升級合約就是一個可以更改邏輯合約的代理合約。
+下面是一個實作範例，包含：
+* 代理合約
+* 舊邏輯合約
+* 新邏輯合約
+## 代理合約
+這個代理合約比較簡單，沒有在它的 fallback() 函數中使用行內組語，只用了 implementation.delegatecall(msg.data)，所以 fallback 函數沒有回傳值，生產環境中不宜這樣用。
+```
+// SPDX-License-Identifier: MIT
+// wtf.academy
+pragma solidity ^0.8.21;
+
+// 簡單的可升級合約，管理員可以透過升級函數來變更邏輯合約位址，從而改變合約的邏輯
+contract SimpleUpgrade {
+    address public implementation; // 邏輯合約地址
+    address public admin; // admin地址
+    string public words; // 字串，可以透過邏輯合約的函數來改變
+
+    // 建構子，初始化admin和邏輯合約位址
+    constructor(address _implementation){
+        admin = msg.sender;
+        implementation = _implementation;
+    }
+
+    // fallback函數，將呼叫委託給邏輯合約
+    fallback() external payable {
+        (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+    }
+
+    // 升級函數，改變邏輯合約位址，只能由admin呼叫
+    function upgrade(address newImplementation) external {
+        require(msg.sender == admin);
+        implementation = newImplementation;
+    }
+}
+```
+## 舊邏輯合約
+這個邏輯合約包含 3 個狀態變數，與代理合約保持一致，防止插槽衝突。它只有一個函數 foo()，負責將代理合約中的 words 的值改為 "old"。
+```
+// 舊邏輯合約
+contract Logic1 {
+    // 狀態變數需和proxy合約一致，防止插槽衝突
+    address public implementation; 
+    address public admin; 
+    string public words; // 字串，可以透過邏輯合約的函數改變
+
+    // 改變proxy中狀態變數，選擇器： 0xc2985578
+    function foo() public{
+        words = "old";
+    }
+}
+```
+## 新邏輯合約
+這個邏輯合約包含 3 個狀態變數，與代理合約保持一致，防止插槽衝突。它只有一個函數 foo()，負責將代理合約中的 words 的值改為 "new"。
+```
+// 新邏輯合約
+contract Logic2 {
+    // 狀態變數需和proxy合約一致，防止插槽衝突
+    address public implementation; 
+    address public admin; 
+    string public words; // 字串，可以透過邏輯合約的函數改變
+
+    // 改變proxy中狀態變數，選擇器： 0xc2985578
+    function foo() public{
+        words = "new";
+    }
+}
+```
 <!-- Content_END -->

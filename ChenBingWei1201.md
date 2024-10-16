@@ -1559,5 +1559,374 @@ In this tutorial, I learned two special functions in Solidity, `receive()` and `
 
 </details>
 
-### 
+### 2024.10.14
+<details>
+<summary>20. Sending ETH</summary>
+
+There are three ways of sending ETH in Solidity: `transfer()`, `send()` and `call()`, in which `call()` is recommended.
+
+#### Contract of Receiving ETH
+Let's deploy a contract `ReceiveETH` to receive ETH. `ReceiveETH` has an event Log, which logs the received ETH amount and the remaining gas. Along with two other functions, one is the `receive()` function, which is executed when receiving ETH, and emits the Log event; the other is the `getBalance()` function that is used to get the balance of the contract.
+```solidity
+contract ReceiveETH {
+    // Receiving ETH event, log the amount and gas
+    event Log(uint amount,  uint gas);
+    
+    // receive() is executed when receiving ETH
+    receive() external payable{
+        emit Log(msg.value,  gasleft());
+    }
+    
+    // return the balance of the contract
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+}
+```
+After deploying `ReceiveETH`, call the `getBalance()` function, we can see the balance is `0` Ether.
+
+#### Contract of Sending ETH
+We will implement three ways to send ETH to the `ReceiveETH` contract. First, let's make the `constructor` of the `SendETH` contract `payable`, and add the `receive()` function, so we can transfer ETH to our contract at deployment and after.
+```solidity
+contract SendETH {
+    // constructor, make it payable so we can transfer ETH at deployment
+    constructor() payable{}
+    // receive() function, called when receiving ETH
+    receive() external payable{}
+}
+```
+
+##### `transfer`
+- Usage: `receiverAddress.transfer(value in Wei)`.
+- The gas limit of `transfer()` is `2300`, which is enough to make the transfer, but not if the receiving contract has a gas-consuming `fallback()` or `receive()`.
+- If `transfer()` fails, the transaction will revert.
+
+Sample code: note that `_to` is the address of the `ReceiveETH` contract, and `amount` is the value you want to send.
+```solidity
+// sending ETH with transfer()
+function transferETH(address payable _to,  uint256 amount) external payable{
+	_to.transfer(amount);
+}
+```
+After deploying the `SendETH` contract, we can send ETH to the `ReceiveETH` contract. If `amount` is `10`, and `value` is `0`, `amount` > `value`, the transaction fails and gets reverted.
+
+If `amount` is `10`, and `value` is `10`, `amount` <= `value`, then the transaction will go through.
+
+In the `ReceiveETH` contract, when we call `getBalance()`, we can see the balance of the contract is `10 Wei`.
+
+##### `send`
+- Usage: `receiverAddress.send(value in Wei)`.
+- The gas limit of `send()` is `2300`, which is enough to make the transfer, but not if the receiving contract has a gas-consuming `fallback()` or `receive()`.
+- If `send()` fails, the transaction will **not** be reverted.
+- The return value of `send()` is `bool`, which is the status of the transaction, you can choose to act on that.
+
+Sample Code:
+```solidity
+// sending ETH with send()
+function sendETH(address payable _to,  uint256 amount) external payable{
+    // check result of send()，revert with error when failed
+    bool success = _to.send(amount);
+    if(!success){
+    	revert SendFailed();
+    }
+}
+```
+Now we send ETH to the `ReceiveETH` contract, if `amount` is `10`, and `value` is `0`, `amount` > `value`, the transaction fails, since we handled the return value, the transaction will be reverted.
+
+If `amount` is `10`, and `value` is `11`, `amount` <= `value`, then the transaction will go through.
+
+##### `call`
+- Usage: `receiverAddress.call{value: value in Wei}("")`.
+- There is **no gas limit** for `call()`, so it supports more operations in `fallback()` or `receive()` of the receiving contract.
+- If `call()` fails, the transaction will **not** be reverted.
+- The return value of `call()` is `(bool,  data)`, in which `bool` is the status of the transaction, you can choose to act on that.
+
+Sample Code:
+```solidity
+// sending ETH with call()
+function callETH(address payable _to,  uint256 amount) external payable{
+    // check result of call()，revert with error when failed
+    (bool success, ) = _to.call{value: amount}("");
+    if(!success){
+    	revert CallFailed();
+    }
+}
+```
+Now we send ETH to the `ReceiveETH` contract, if `amount` is `10`, and `value` is `0`, `amount` > `value`, the transaction fails, since we handled the return value, the transaction will be reverted.
+
+If `amount` is `10`, and `value` is `11`, `amount` <= `value`, the transaction is successful.
+
+With any of these three methods, we send ETH to the `ReceiveETH` contract successfully.
+
+#### Summary
+
+In this tutorial, we talked about three ways of sending ETH in solidity: `transfer`, `send` and `call`.
+
+- There is **no gas limit** for `call`, which is the most flexible and recommended way.
+- The gas limit of `transfer` is `2300` gas, transaction will be reverted if it fails, which makes it the second choice.
+- The gas limit of `send` is `2300` gas, the transaction will **not** be reverted if it fails, which makes it the worst choice.
+
+</details>
+
+### 2024.10.15
+<details>
+<summary>21. Interact with other Contract</summary>
+
+#### Interact with deployed contract
+Interactions between contracts not only make the programs reusable on the blockchain, but also enrich the Ethereum ecosystem. Many web3 Dapps rely on other contracts to work, for example `yield farming`. In this tutorial, we will talk about how to interact with contracts whose source code (or ABI) and address are available.
+
+#### Target Contract
+Let's write a simple contract OtherContract to work with.
+```solidity
+contract OtherContract {
+    uint256 private _x = 0; // state variable x
+    // Receiving ETH event, log the amount and gas
+    event Log(uint amount, uint gas);
+    
+    // get the balance of the contract
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+
+    // set the value of x, as well as receiving ETH (payable)
+    function setX(uint256 x) external payable{
+        _x = x;
+        // emit Log event when receiving ETH
+        if(msg.value > 0){
+            emit Log(msg.value, gasleft());
+        }
+    }
+
+    // read the value of x
+    function getX() external view returns(uint x){
+        x = _x;
+    }
+}
+```
+
+This contract includes a state variable `_x`, a `Log` event which will emit when receiving ETH, and three functions:
+- `getBalance()`: return the balance of the contract.
+- `setX()`: `external payable` function, set the value of `_x`, as well as receiving ETH.
+- `getX()`: read the value of `_x`
+
+#### Interact with `OtherContract`
+We can create a reference to the contract with the contract address and source code (or ABI): `_Name(_Address)`, `_Name` is the contract name which should be consistent with the contract source code (or ABI), `_Address` is the contract address. Then we can call the functions in the contract like this: `_Name(_Address).f()`, `f()` is the function you want to call.
+
+##### 1. Pass the contract address
+We can pass the contract address as a parameter and create a reference of `OtherContract`, then call the function of `OtherContract`. For example, here we create a `callSetX` function which will call `setX` from `OtherContract`, pass the deployed contract address `_Address` and the `x` value as parameter:
+```solidity
+    function callSetX(address _Address, uint256 x) external{
+        OtherContract(_Address).setX(x);
+    }
+```
+Copy the address of `OtherContract`, and pass it as the first parameter of `callSetX`, after the transaction succeeds, we can call `getX` from `OtherContract` and the value of `x` is `123`.
+
+##### 2. Pass the contract variable
+We can also pass the reference of the contract as a parameter, we just change the type from `address` to the contract name, i.e. `OtherContract`. The following example shows how to call `getX()` from `OtherContract`.
+
+Note: The parameter `OtherContract _Address` is still `address` type behind the scene. You will find its `address` type in the generated ABI and when passing the parameter to `callGetX`.
+```solidity
+    function callGetX(OtherContract _Address) external view returns(uint x){
+        x = _Address.getX();
+    }
+```
+Copy the address of `OtherContract`, and pass it as the parameter of `callGetX`, after the transaction succeeds, we can get the value of `x`.
+
+##### 3. Create contract variable
+We can create a contract variable and call its functions. The following example shows how to create a reference of `OtherContract` and save it to `oc`:
+```solidity
+    function callGetX2(address _Address) external view returns(uint x){
+        OtherContract oc = OtherContract(_Address);
+        x = oc.getX();
+    }
+```
+Copy the address of `OtherContract`, and pass it as the parameter of `callGetX2`, after the transaction succeeds, we can get the value of `x`.
+
+##### 4. Interact with the contract and send ETH
+
+If the target function is `payable`, then we can also send ETH to that contract: `_Name(_Address).f{value: _Value}()`, `_Name` is the contract name, `_Address` is the contract address, `f` is the function to call, and `_Value` is the value of ETH to send (in wei).
+
+`OtherContract` has a `payable` function `setX`, in the following example we will send ETH to the contract by calling `setX`.
+```solidity
+    function setXTransferETH(address otherContract, uint256 x) payable external{
+        OtherContract(otherContract).setX{value: msg.value}(x);
+    }
+```
+opy the address of `OtherContract`, and pass it as the parameter of `setXTransferETH`, in addition, we send 10ETH.
+
+After the transaction is confirmed, we can check the balance of the contract by reading the `Log` event or by calling `getBalance()`.
+
+#### Summary
+In this tutorial, I learned how to create a contract reference with its source code (or ABI) and address, then call its functions.
+
+#### problem
+2. Assume that we have deployed the contract OtherContract (contract content is shown below)
+Its contract address is `0xd9145CCE52D386f254917e481eB44e9943F39138`. We want to call this contract in another contract, considering the following two methods:
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.6;
+
+interface IOtherContract {
+    function getBalance() external returns(uint);
+    function setX(uint256 x) external payable;
+    function getX() external view returns(uint x);
+}
+
+contract OtherContract is IOtherContract{
+    uint256 private _x = 0;
+    event Log(uint amount, uint gas);
+    
+    function getBalance() external view override returns(uint) {
+        return address(this).balance;
+    }
+
+    function setX(uint256 x) external override payable{
+        _x = x;
+        if(msg.value > 0){
+            emit Log(msg.value, gasleft());
+        }
+    }
+
+    function getX() external view override returns(uint x){
+        x = _x;
+    }
+}
+```
+```
+(1) OtherContract other = OtherContract(0xd9145CCE52D386f254917e481eB44e9943F39138)
+(2) IOtherContract other = IOtherContract(0xd9145CCE52D386f254917e481eB44e9943F39138)
+```
+Which is the correct answer?
+A. (1)(2) will both get error
+B. (1) is correct but (2) will get error
+C. (2) is correct but (1) will get error
+D. (1)(2) are both correct
+
+<details>
+<summary>answer</summary>
+D
+</details>
+
+</details>
+
+### 2024.10.16
+<details>
+<summary>22. Call</summary>
+
+Previously in [20: Sending ETH](https://github.com/AmazingAng/WTF-Solidity/tree/main/Languages/en/20_SendETH_en) we talked about sending ETH with `call`, in this tutorial we will dive into that.
+
+#### Call
+`call` is one of the `address` low-level functions which is used to interact with other contracts. It returns the success condition and the returned data: `(bool, data)`.
+
+- Officially recommended by solidity, `call` is used to send ETH by triggering `fallback` or `receive` functions.
+- `call` is not recommended for interacting with other contracts, because you give away the control when calling a malicious contract. The recommended way is to **create a contract reference and call its functions**. See [21: Interact with other Contract](https://github.com/AmazingAng/WTF-Solidity/tree/main/Languages/en/21_CallContract_en)
+- If the source code or `ABI` is not available, we cannot create a contract variable; However, we can still interact with other contracts using `call` function.
+
+##### Rules of using `call`
+Rules of using call:
+```solidity
+targetContractAddress.call(binary code);
+```
+the binary code is generated by `abi.encodeWithSignature`:
+```solidity
+abi.encodeWithSignature("function signature", parameters separated by comma);
+```
+function signature is `"functionName(parameters separated by comma)"`. For example, `abi.encodeWithSignature("f(uint256,address)", _x, _addr)`.
+
+In addition, we can specify the value of ETH and gas for the transaction when using call:
+```solidity
+contractAdress.call{value:ETH value, gas:gas limit}(binary code);
+```
+It looks a bit complicated, lets see how to use call in examples.
+
+##### Target contract
+Let's write and deploy a simple target contract `OtherContract`, the code is mostly the same as chapter 19, only with an extra `fallback` function.
+```solidity
+contract OtherContract {
+    uint256 private _x = 0; // state variable x
+    // Receiving ETH event, log the amount and gas
+    event Log(uint amount, uint gas);
+
+    fallback() external payable{}
+
+    // get the balance of the contract
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+
+    // set the value of _x, as well as receiving ETH (payable)
+    function setX(uint256 x) external payable{
+        _x = x;
+        // emit Log event when receiving ETH
+        if(msg.value > 0){
+            emit Log(msg.value, gasleft());
+        }
+    }
+
+    // read the value of x
+    function getX() external view returns(uint x){
+        x = _x;
+    }
+}
+```
+This contract includes a state variable `x`, a `Log` event for receiving ETH, and three functions:
+- `getBalance()`: get the balance of the contract
+- `setX()`: `external payable` function, can be used to set the value of `x` and receive ETH.
+- `getX()`: get the value of `x`.
+
+##### Contract interaction using `call`
+###### 1. Response Event
+Let's write a Call contract to interact with the target functions in `OtherContract`. First, we declare the `Response` event, which takes `success` and `data` returned from `call` as parameters. So we can check the return values.
+```solidity
+// Declare Response event, with parameters success and data
+event Response(bool success, bytes data);
+```
+###### 2. Call setX function
+Now we declare the `callSetX` function to call the target function `setX()` in `OtherContract`. Meanwhile, we send `msg.value` of ETH, then emit the `Response` event, with `success` and `data` as parameters:
+```solidity
+function callSetX(address payable _addr, uint256 x) public payable {
+	// call setX()，and send ETH
+	(bool success, bytes memory data) = _addr.call{value: msg.value}(
+		abi.encodeWithSignature("setX(uint256)", x)
+	);
+
+	emit Response(success, data); //emit event
+}
+```
+Now we call `callSetX` to change state variable `_x` to `5`, pass the `OtherContract` address and `5` as parameters, since `setX()` does not have a return value, so data is `0x` (i.e. `Null`) in `Response` event.
+###### 3. Call `getX` function
+Next, we call `getX()` function, and it will return the value of `_x` in `OtherContract`, the type is `uint256`. We can decode the return value from call function, and get its value.
+```solidity
+function callGetX(address _addr) external returns(uint256){
+	// call getX()
+	(bool success, bytes memory data) = _addr.call(
+		abi.encodeWithSignature("getX()")
+	);
+
+	emit Response(success, data); //emit event 
+	return abi.decode(data, (uint256));
+}
+```
+From the log of `Response` event, we see `data` is `0x0000000000000000000000000000000000000000000000000000000000000005`. After decoding with `abi.decode`, the final return value is `5`.
+
+###### 4. Call undeclared function
+If we try to call functions that are not present in `OtherContract` with call, the `fallback` function will be executed.
+```solidity
+function callNonExist(address _addr) external{
+	// call getX()
+	(bool success, bytes memory data) = _addr.call(
+		abi.encodeWithSignature("foo(uint256)")
+	);
+
+	emit Response(success, data); //emit event
+}
+```
+In this example, we try to call `foo` which is not declared with `call`, the transaction will still succeed and return `success`, but the actual function executed was the `fallback` function.
+
+#### Summary
+In this tutorial, we talked about how to interact with other contracts using the low-level function `call`. For security reasons, `call` is not a recommended method, but it's useful when we don't know the source code and `ABI` of the target contract.
+
+</details>
+
+###
 <!-- Content_END -->

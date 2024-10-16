@@ -1112,6 +1112,528 @@ function transferOwner1(uint256 tokenId, address newOwner) public {
 <img width="1262" alt="image" src="https://github.com/user-attachments/assets/3ec38c2a-52c5-4d6a-9e53-ae5972ff52ba">
 
 
+### 2024.10.13
+#### 学习笔记
 
+
+## 三种转账 ETH 的差异
+
+### transfer
+	•	用法是接收方地址.transfer(发送ETH数额)。
+	•	transfer()的gas限制是2300，足够用于转账，但对方合约的fallback()或receive()函数不能实现太复杂的逻辑。
+	•	transfer()如果转账失败，会自动revert（回滚交易）。
+
+
+```
+// 用transfer()发送ETH
+function transferETH(address payable _to, uint256 amount) external payable{
+    _to.transfer(amount);
+}
+```
+
+
+
+### Send
+
+	•	用法是接收方地址.Send (发送 ETH 数额)。
+	•	send ()的 gas 限制是 2300，足够用于转账，但对方合约的 fallback ()或 receive ()函数不能实现太复杂的逻辑。
+	•	send ()如果转账失败，不会 revert。
+	•	send ()的返回值是 bool，代表着转账成功或失败，需要额外代码处理一下。
+
+```
+error SendFailed(); // 用send发送ETH失败error
+
+// send()发送ETH
+function sendETH(address payable _to, uint256 amount) external payable{
+    // 处理下send的返回值，如果失败，revert交易并发送error
+    bool success = _to.send(amount);
+    if(!success){
+        revert SendFailed();
+    }
+}
+```
+
+
+
+### call[​]( https://www.wtf.academy/docs/solidity-102/SendETH/#call "call 的直接链接")
+
+- 用法是`接收方地址.call{value: 发送ETH数额}("")`。
+- `call()`没有`gas`限制，可以支持对方合约`fallback()`或`receive()`函数实现复杂逻辑。
+- `call()`如果转账失败，不会`revert`。
+- `call()` 的返回值是 `(bool, bytes)`，其中 `bool` 代表着转账成功或失败，需要额外代码处理一下。
+```
+error CallFailed(); // 用call发送ETH失败error
+
+// call()发送ETH
+function callETH(address payable _to, uint256 amount) external payable{
+    // 处理下call的返回值，如果失败，revert交易并发送error
+    (bool success,) = _to.call{value: amount}("");
+    if(!success){
+        revert CallFailed();
+    }
+}
+```
+
+
+### 2024.10.14
+#### 学习笔记
+
+## uniswap v 2 pair 
+
+```solidity
+
+function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external lock {
+    // 其他逻辑...
+
+    // 乐观的发送代币到to地址
+    if (amount0Out > 0) _safeTransfer(_token0, to, amount0Out);
+    if (amount1Out > 0) _safeTransfer(_token1, to, amount1Out);
+
+    // 调用to地址的回调函数uniswapV2Call
+    if (data.length > 0) IUniswapV2Callee(to).uniswapV2Call(msg.sender, amount0Out, amount1Out, data);
+
+    // 其他逻辑...
+
+    // 通过k=x*y公式，检查闪电贷是否归还成功
+    require(balance0Adjusted.mul(balance1Adjusted) >= uint(_reserve0).mul(_reserve1).mul(1000**2), 'UniswapV2: K');
+}
+```
+
+首先看下这个 uniswap v2 pair 合约，这里称之为 pair 合约是因为 swap 当中是有着交易对的存在，而交易对的对则是 pair 相同的意思。而进行闪电贷的钱也是交易对池子中的钱。
+在 swap 项目中一般会存在多个 pair 合约，对应着不用的交易对，各个 pair 合约各不影响。
+
+接着我们来看这个合约相对于其他合约第一眼看起来让人觉得陌生的地方：
+- **Amount 0 Out**    对于这种有进有出的交易，按照常理一般会定义为 in\out，但是这里都是 out  是为了方便确定用户具体需要那种 token 出去
+- **To**    一般我们会直接使用 address 或者 sender 来指代 swap 的调用地址或者调用合约。但是这里使用 to 来指代调用合约是为了
+- **调用 flash 合约位于 swap 转账之下**： 这是为了在进行贷款之前先把贷款合约需要的钱锁定住，不然如果有别人同时接待那不是可能会出现一份钱两个人争的情况吗。不过也不用担心现实世界默认的先签字再资金的惯例，这个 flash 设计的逻辑就是原子性的，后面的 flash 如果没有成功，那么之前的 transfer 也会撤销回滚。
+- **IUniswapV 2 Callee** ： 这是一个接口类型。这一个整体是一个接口类型的转换工具，会把调用合约按照这个 swap 的规定转换为接口形式，方便调用后续的函数
+- **balance 0 Adjusted**  这是一个调整后的余额查询函数，即接待合约有没有进行还款，具体的计算还需要恒定乘积模型，即是 balance 0 Adjusted 后面的那些计算命令。
+
+随后继续来看下 flash 合约的实现
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "./Lib.sol";
+
+// UniswapV2闪电贷回调接口
+interface IUniswapV2Callee {
+    function uniswapV2Call(address sender, uint amount0, uint amount1, bytes calldata data) external;
+}
+
+// UniswapV2闪电贷合约
+contract UniswapV2Flashloan is IUniswapV2Callee {
+    address private constant UNISWAP_V2_FACTORY =
+        0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
+
+    address private constant DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+    address private constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+    IUniswapV2Factory private constant factory = IUniswapV2Factory(UNISWAP_V2_FACTORY);
+
+    IERC20 private constant weth = IERC20(WETH);
+
+    IUniswapV2Pair private immutable pair;
+
+    constructor() {
+        pair = IUniswapV2Pair(factory.getPair(DAI, WETH));
+    }
+
+    // 闪电贷函数
+    function flashloan(uint wethAmount) external {
+        // calldata长度大于1才能触发闪电贷回调函数
+        bytes memory data = abi.encode(WETH, wethAmount);
+
+        // amount0Out是要借的DAI, amount1Out是要借的WETH
+        pair.swap(0, wethAmount, address(this), data);
+    }
+
+    // 闪电贷回调函数，只能被 DAI/WETH pair 合约调用
+    function uniswapV2Call(
+        address sender,
+        uint amount0,
+        uint amount1,
+        bytes calldata data
+    ) external {
+        // 确认调用的是 DAI/WETH pair 合约
+        address token0 = IUniswapV2Pair(msg.sender).token0(); // 获取token0地址
+        address token1 = IUniswapV2Pair(msg.sender).token1(); // 获取token1地址
+        assert(msg.sender == factory.getPair(token0, token1)); // ensure that msg.sender is a V2 pair
+
+        // 解码calldata
+        (address tokenBorrow, uint256 wethAmount) = abi.decode(data, (address, uint256));
+
+        // flashloan 逻辑，这里省略
+        require(tokenBorrow == WETH, "token borrow != WETH");
+
+        // 计算flashloan费用
+        // fee / (amount + fee) = 3/1000
+        // 向上取整
+        uint fee = (amount1 * 3) / 997 + 1;
+        uint amountToRepay = amount1 + fee;
+
+        // 归还闪电贷
+        weth.transfer(address(pair), amountToRepay);
+    }
+}
+```
+
+随后我们来看下这个合约中的令人觉得比较陌生的部分
+- **Lib. Sol**  这里不是具体的合约名称无法具体的得知，但是可以推断出来时类似于数学运算等合约的。
+- **IUniswapV 2 Callee**  这里的这个就是上文 pair 合约中实现 to 的接口话的一个函数，把传进来参数给他按照本合约的要求变化一下。
+- **UNISWAP_V 2_FACTORY**   第一眼看到这个工厂合约可能会令然非常好奇，直接部署不就完了么但是工厂合约名字是工厂，但是不止承担了交易对的创建等生产性功能，也承担了一些比如登记自己整个项目有多少个交易对，承接用户发起的交易等接口职能和管理职能。
+- **Constructor**   第一眼看到这个构造函数就很不明白，先前不是已经有了一个 pair 合约了么，为什么这里还要再去写一个构造函数呢？  原因是这样了，确实这个合约的上面写了两个代币的地址，但是这不是交易对啊所以需要从 IUniswapV 2 Pair 接口搞一个交易对的对象出来，方便后续的操作。
+- **abi** 一般我们所熟知的 ABI 是一种接口的规范，而这个 abi 则是 solidity 内部的内置全局变量，就是一个自带的功能箱对象。
+
+
+
+## uniswap v3
+pool 池合约
+```solidity
+function flash(
+    address recipient,
+    uint256 amount0,
+    uint256 amount1,
+    bytes calldata data
+) external override lock noDelegateCall {
+    // 其他逻辑...
+
+    // 乐观的发送代币到to地址
+    if (amount0 > 0) TransferHelper.safeTransfer(token0, recipient, amount0);
+    if (amount1 > 0) TransferHelper.safeTransfer(token1, recipient, amount1);
+
+    // 调用to地址的回调函数uniswapV3FlashCallback
+    IUniswapV3FlashCallback(msg.sender).uniswapV3FlashCallback(fee0, fee1, data);
+
+    // 检查闪电贷是否归还成功
+    uint256 balance0After = balance0();
+    uint256 balance1After = balance1();
+    require(balance0Before.add(fee0) <= balance0After, 'F0');
+    require(balance1Before.add(fee1) <= balance1After, 'F1');
+
+    // sub is safe because we know balanceAfter is gt balanceBefore by at least fee
+    uint256 paid0 = balance0After - balance0Before;
+    uint256 paid1 = balance1After - balance1Before;
+
+    // 其他逻辑...
+}
+```
+
+随后我们再来看下这个 uniswap V3
+- 首先是 <=  ，这个在 solidity 当中是左侧小于等于右侧的意思，第一眼看去很像追加符号
+- **balance 0 After**   这个默认情况下会给人造成一个误解会让认为是对于每个客户的一个金额变化的记录工具，实际不是这样的。因为本身这种 flash 是原子性的，一个交易内借出，一个交易内换回去，所以这个的金额是整体的全局金额进行了。
+
+
+
+### 2024.10.16
+#### 学习笔记
+
+
+## 代理合约如何运行
+
+代理合约就存在数据，而逻辑合约作为实际合约运行各种程序。
+
+<img width="1127" alt="image" src="https://github.com/user-attachments/assets/81935bbd-5927-468d-a42b-d3f6b6058a41">
+
+
+
+~~合约既然是固定的，那么怎么修改 delegate 指向的的合约~~    WTF 这里，给的代码不够全面，只给了一个 `fallback` 函数的实现。
+
+## 代理合约的框架
+```solidity
+// SPDX-License-Identifier: MIT
+
+pragma solidity >=0.4.22 <0.9.0;
+
+  
+
+contract Proxy {
+
+// 存储地址的状态变量，它将用于引用我们的逻辑合约。
+
+address internal _implementation;
+
+  
+
+function implementation() public view returns (address) {
+
+return _implementation;
+
+}
+
+  
+
+// 提供一个构造函数，以便我们在部署代理时可以设置逻辑合约的地址。
+
+constructor(address implementation_) {
+
+_implementation = implementation_;
+
+}
+
+  
+
+// 代理合约包含一个fallback函数。它是一个无名函数，当代理合约收到一个外部调用无法匹配的函数名时，这个函数会被触发。
+
+fallback () external payable {
+
+address localImpl = _implementation;
+
+assembly {
+
+let ptr := mload(0x40)
+
+calldatacopy(ptr, 0, calldatasize())
+
+let result := delegatecall(gas(), localImpl, ptr, calldatasize(), 0, 0)
+
+let size := returndatasize()
+
+returndatacopy(ptr, 0, size)
+
+  
+
+switch result
+
+case 0 {revert(ptr, size)}
+
+default {return(ptr, size)}
+
+}
+
+}
+
+}
+```
+
+
+
+
+
+因为 `implementation` 变量用来存放不同的逻辑合约，所以每次都可以通过部署新的逻辑合约来实现合约的升级
+```solidity
+contract Proxy {
+    address public implementation; // 逻辑合约地址。implementation合约同一个位置的状态变量类型必须和Proxy合约的相同，不然会报错。
+
+    /**
+     * @dev 初始化逻辑合约地址
+     */
+    constructor(address implementation_){
+        implementation = implementation_;
+    }
+```
+
+
+
+## 代理合约&可升级合约
+这两部分的概念不应该分开记忆，这两块是一个整体。可升级合约是依托于代理模式来实现的。
+（怪不得我看 WTF 的合约的时候给我看的想不明白。不过也正常，WTF 只放了一个 fallback 函数的实现，没有修改接口的位置。）
+
+
+
+
+## 代理模式
+### **透明代理模式**
+Transparent
+这个就是最基础的代理合约模式，通过修改代理合约中的地址来实现代理合约的更换。
+
+在透明模式中，除了代理合约和实现合约还有一个专门用来升级的合约的合约 `proxyadmin`。
+
+在调用 `proxyadmin` 前会验证是否是管理员，举个验证的例子：
+```solidity
+modifier ifAdmin() {
+    if (msg.sender == _getAdmin()) {
+        _;
+    } else {
+        _fallback();
+    }
+}
+
+```
+
+
+下图是透明模式的运行逻辑图
+<img width="601" alt="image" src="https://github.com/user-attachments/assets/7d7a5f52-e86e-47da-9baf-f88202ca9cdd">
+
+#### Implementation 的地址存放位置
+
+由于是 `delegatecall()` 是使用的代理合约的上下文，这个时候存放实现合约的地址应当较为注意，不然可能会出现 slot 冲突的情况。
+
+而存放的位置越靠后，碰撞的可能性越小，所以出现了一个计算存放位置的规范：
+```solidity
+在openzeppelin给出的代码中，选用的存放位置是:
+
+bytes32(uint256(keccak256('eip1967.proxy.implementation')) - 1)
+
+对于transparent合约而言，还需要存放ProxyAdmin的地址
+
+bytes32(uint256(keccak256("eip1967.proxy.admin")) - 1)
+```
+#### 初始化
+
+
+代理模式下的初始化特点：
+由于一般情况下变量的初始化是通过构造函数初始话的，而这个时候会把变量定义到实现合约的 `storage` 中，而我们都知道实现合约是只用来存储代码逻辑的，如果一旦更换存储的实现合约那么数据的迁移就会很麻烦。
+
+所以我们务必要将数据都放在代理合约上，为了达到这个目标我们就使用的 `delegatecall` ，而还要考虑的就有通过构造函数初始话变量的，这个时候我们就可以通过一个专门的函数来初始话变量，这样的话变量就会使用代理合约的上下文。
+
+比如下面的这个例子：
+
+当然，也不是随随便便一个函数就可以作为初始化的，还需要使用 `initializer` 修饰符表明只初始化一次。
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.4;
+
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+
+contract TransparentV1 is Initializable {
+    event IncreaseV1();
+
+    uint public val;
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(uint _val) public initializer {
+        val = _val; // set initial value in initializer
+    }
+
+    function increase() public {
+        val += 1;
+        emit IncreaseV1();
+    }
+}
+
+```
+
+**疑问：**
+
+难道使用 `delegatecall` 调用的合约可以使用构造函数把变量存储在自己合约的上下文么？那这样如果调用合约和被调用合约有相同变量名的话，那么在被调用合约中的函数调用这个变量的时候是调用的哪里的变量呢？
+
+不是的，在思考这个问题的时候忽略了一点：无论代理合约怎么调用实现合约，都需要在实现合约部署之后才去调用的。而构造函数是在部署合约的时候就执行的，所以这个时候对于变量的初始化是在实现合约内部的。
+
+同时，由于构造函数只会在部署合约的时候执行一次，所以就不用考虑在 `deleagate` 之后再调用构造函数来去把变量存在本地了。
+
+### **UUPS 代理模式**
+举例一个 UUPS 代理模式的可升级合约的大概例子
+
+
+
+好吧，其实没那么难。透明模式是因为无论谁都可以调用代理合约且升级函数的地方在，所以增加了一个 `proxyadmin`，而如果是放在实现合约中的话就不需要一个额外的合约了。
+当时，进行修改的时候做一下验证就可以了。
+
+<img width="585" alt="image" src="https://github.com/user-attachments/assets/6659d0ee-ef5d-4bf8-8200-a1111a41c501">
+
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.4;
+
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+
+contract UUPSV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable {
+    event IncreaseV1();
+
+    uint public val;
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(uint _val) initializer public {
+        val = _val;
+        __Ownable_init();
+        __UUPSUpgradeable_init();
+    }
+
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        onlyOwner
+        override
+    {}
+
+    function increase() public {
+        val += 1;
+        emit IncreaseV1();
+    }
+}
+
+contract UUPSV2 is Initializable, OwnableUpgradeable , UUPSUpgradeable {
+    event IncreaseV2();
+
+    uint public val;
+
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        onlyOwner
+        override
+    {}
+
+    function increase() public {
+        val += 2;
+        emit IncreaseV2();
+    }
+}
+
+
+```
+
+
+至于为什么说 UUPS 可以在升级之后就停止升级是在于在升级的时候可以指向一直新的实现合约，而这个合约如果没有用来升级的函数那不就是不刻意再升级了。
+
+
+### **Beacon 代理模式**
+这个就是将逻辑合约复用的情况。
+以透明模式为基础，先指向 beacon，然后再指向实际的逻辑合约。
+运行逻辑如下图：
+
+<img width="592" alt="image" src="https://github.com/user-attachments/assets/15697a4e-ceb2-4e40-9501-0ce52cfd2ce7">
+
+### Diamond Pattern
+
+
+为什么会有这样的说法
+```
+initialize()函数通常被“initializer”修饰符保护，以限制该函数只能被调用一次。在调用initialize()函数后，从代理合约的角度看，逻辑合约被初始化了。
+
+然而，从逻辑合约的角度来看，逻辑合约并没有被初始化，因为initialize()并没有在逻辑合约中被直接调用。鉴于逻辑合约本身未被初始化，任何人都可以调用initialize()函数来初始化它，将状态变量设置为一个恶意的值，并有可能接管逻辑合约。
+```
+
+
+## 代理合约&插槽冲突
+为什么在实现代理合约和可升级合约的时候要做防止插槽冲突呢 ？
+
+因为在代理合约中，实现代理委托的方法是 `delegatecall` 而其特点就是实现调用的时候运行的上下文不变，还是在原本的代理合约中，这个时候就容易出现插槽冲突的情况。
+
+<img width="610" alt="image" src="https://github.com/user-attachments/assets/b963a4c8-3da1-42e3-8d17-8c7b558ecc1f">
+
+
+
+为什么呢——————因为 `delegatecall`
+```
+在一个可升级的合约系统中，代理合约不会声明状态变量，而是使用伪随机存储槽来存储重要数据。
+
+代理合约将逻辑合约状态变量的值保存在它们被声明的相对位置。如果代理合约声明了它自己的状态变量，这时代理和逻辑合约都试图使用同一个存储槽，就会发生存储冲突。
+
+OpenZeppelin库提供的代理合约不会在合约中声明状态变量，而是基于EIP 1967标准，将需要存储的数值（如管理地址）保存到特定的存储槽中，以防止冲突。
+```
+
+
+## 代理合约&内联汇编
+实现代理合约的时候一定要使用内联汇编么？ 
+
+不是的，只是 WTF 使用了内联汇编作为接口。
+
+
+## 代理合约在&fallback 函数
+
+因为 fallback 出现于调用者调用了一个其合约中没有的函数的时候就调用 fallbahc 函数来实现。
+其实这个时候就类似于调用了一个无限包容的路由或者是强制跳转。
+从而将请求转发到逻辑路由。
    
 <!-- Content_END -->

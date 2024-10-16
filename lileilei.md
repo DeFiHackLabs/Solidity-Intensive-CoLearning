@@ -1087,5 +1087,29 @@ function auctionMint(uint256 quantity) external payable{
         (bool success, ) = msg.sender.call{value: address(this).balance}(""); // call函数的调用方式详见第22讲
         require(success, "Transfer failed.");
     }
+
+
+
+
+
+   ### 2024.10.14
+   哈希树是自下而上的加密树，一个字节的hash值来自于子节点的hash
+   verify()函数：利用proof数来验证leaf是否属于根为root的Merkle Tree中，如果是，则返回true。它调用了processProof()函数。
+   processProof()函数：利用proof和leaf依次计算出Merkle Tree的root。它调用了hashPair()函数。
+   hashPair()函数：用keccak256()函数计算非根节点对应的两个子节点的哈希（排序后）
+
+   function hashPair(bytes32 a, bytes32 b) private pure returns (bytes32) {
+        return a < b ? keccak256(abi.encodePacked(a, b)) : keccak256(abi.encodePacked(b, a));
+    }
+
+
+   ### 2024.10.15
+   function toEthSignedMessageHash(bytes32 hash) public pure returns (bytes32) {
+        // 哈希的长度为32
+        return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash));
+    }
+    hash签名，还可用web3签名
+
+    
   
 <!-- Content_END -->

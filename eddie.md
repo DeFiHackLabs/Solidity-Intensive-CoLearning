@@ -15,6 +15,100 @@ timezone: Asia/Shanghai
 ## Notes
 <!-- Content_START -->
 
+### 2024.10.15
+
+Ethers102章节：MerkleTree脚本、数字签名脚本、监听Mempool
+
+- Mempool
+
+  在用户的交易被矿工打包进以太坊区块链之前，所有交易会汇集到Mempool（交易内存池）中。矿工也是在这里寻找费用高的交易优先打包，实现利益最大化。通常来说，gas price越高的交易，越容易被打包。
+  
+  Mev也发生在其中，即为通过调整gas，机器人会在一笔滑点设置过高的swap交易之前插入买单，用户交易之后发送一个卖单，以此获利的一个过程；
+
+  ```tsx
+  let provider = new ethers.InfuraWebSocketProvider("mainnet", INFURA_API_KEY);
+  provider.on("pending", throttle(async (txHash) => {
+	   let tx = await provider.getTransaction(txHash);
+  	   console.log(tx);
+  }, 1000));
+  ```
+
+### 2024.10.14
+
+Ethers102章节：识别ERC721合约、编码calldata、批量生成钱包/批量转账/批量归集
+
+- interfaceId补充
+    
+    ```solidity
+    interfaceId = type(IERC721).interfaceId
+    //该Id通过计算所有函数选择器的异或得到
+    //常见interfaceId:
+    //IERC165: 0x01ffc9a7;IERC721: 0x80ac58cd
+    ```
+    
+- 接口类Interface
+    
+    ```ts
+    const interface = ethers.Interface(abi)
+    const interface2 = contract.interface
+    
+    interface.getSighash("balanceOf")
+    //获取函数选择器
+    interface.encodeDeploy("Wrapped ETH", "WETH")
+    //编码构造器的参数，可以附在合约字节码的后面
+    interface.encodeFunctionData("balanceOf", ["0xc778417e063141139fce010982780140aa0cd5ab"])
+    //编码函数的calldata
+    interface.decodeFunctionResult("balanceOf", resultData)
+    //解码函数的返回值
+    ```
+    
+- 通过calldata来调用函数
+    
+    ```ts
+    const param1 = contractWETH.interface.encodeFunctionData(
+        "balanceOf",
+        [address]
+      );
+    const tx1 = {
+        to: addressWETH,
+        data: param1
+    }
+    const balanceWETH = await provider.call(tx1)
+    ```
+
+### 2024.10.13
+
+Ethers101章节：检索事件，监听合约事件、事件过滤、BigInt和单位转换
+
+102章节：StaticCall
+
+- 监听合约
+    
+    ```tsx
+    contract.on("eventName", function)//持续监听
+    contract.once("eventName", function)//监听一次
+    const contractUSDT = new ethers.Contract(contractAddress, abi, provider);
+    contractUSDT.once('Transfer', (from, to, value)=>{
+        console.log()
+      })
+    ```
+    
+- 事件过滤
+    
+    ```tsx
+    contract.filters.Transfer(myAddress)//过滤来自myAddress地址的Transfer事件
+    contract.filters.Transfer(null, myAddress)//过滤所有发给 myAddress地址的Transfer事件
+    contract.filters.Transfer(myAddress, otherAddress)//过滤所有从 myAddress发给otherAddress的Transfer事件
+    contract.filters.Transfer(null, [ myAddress, otherAddress ])//过滤所有发给myAddress或otherAddress的Transfer事件
+    ```
+    
+- StaticCall
+    
+    ```tsx
+    //调用节点的eth_call、用于模拟状态改变函数的结果；在发送交易之前检查交易是否会失败
+    const tx2 = await contractDAI.transfer.staticCall("vitalik.eth", ethers.parseEther("10000"), {from: address})
+    ```
+
 ### 2024.10.12
 
 Ethers101章节：提供其Provider、读取合约信息、发送ETH、合约交互、部署合约

@@ -854,37 +854,64 @@ timezone: Asia/Shanghai
         - 撤單 (revoke)
         - 購買 (purchase)
         - 修改價格 (update)
-    - 實作
-        - 訂單
-            ```
-            struct Order {
-                address owner;
-                uint256 price;
-            }
-
-            // tokenId => Order
-            mapping(address => mapping(uint256 => Order)) public nftList;
-            ```
-        - 事件
-            - List
-            - Purchase
-            - Revoke
-            - Update
-        - 函數
-            - `fallback` function
-                ```
-                fallback() external payable{}
-                ```
-            - `onERC721Received`
-            - `list`
-            - `purchase`
-            - `revoke`
-            - `update`
+    - 實作 - [NFTSwap](./content/Ronas/NFTSwap.sol)
 - 鏈上隨機數
     - 鏈上直接使用 hash 函數生成 (不安全, 可預測)
         ```
         bytes32 randomBytes = keccak256(abi.encodePacked(block.timestamp, msg.sender, blockhash(block.number-1)));
         ```
     - [Chainlink VRF](https://vrf.chain.link/)
+
+### 2024.10.13
+
+> 進度: Solidity 103 41~44
+
+- WETH
+    - 乙太坊原生代幣 ETH 不符合 ERC20 標準, 因此創造符合 ERC20 標準的 ETH - WETH, 以便與 DApp 互動
+    - 實作 - [WETH](./content/Ronas/WETH.sol)
+- 分帳合約 - [PaymentSplit](./content/Ronas/PaymentSplit.sol)
+- 代幣線性解鎖 - [TokenVesting](./content/Ronas/TokenVesting.sol)
+- 代幣鎖倉 - [TokenLocker](./content/Ronas/TokenLocker.sol)
+
+### 2024.10.14
+
+> 進度: Solidity 103 45~46
+
+- 時間鎖 - [Timelock](./content/Ronas/Timelock.sol)
+- 代理合約 - [Proxy](./content/ROnas/Proxy.sol)
+    - 角色
+        - 代理合約  
+        - 邏輯合約
+        - 呼叫者
+
+### 2024.10.15
+
+> 進度: Solidity 103 47~50
+
+- Upgradeable Contract
+    - 運用代理合約, 抽換邏輯合約
+    - Example - [SimpleUpgrade](./content/Ronas/SimpleUpgrade.sol)
+
+- Selector Clash
+    - selector algorithm `bytes4(keccak256("func(types)"))`
+    - 4 bytes 容易出現碰撞, 造成安全性問題
+        ```
+        bytes4(keccak256("burn(uint256)")) # 0x42966c68
+        bytes4(keccak256("collate_propagate_storage(bytes16)")) # 0x42966c68
+        ```
+- Transparent Upgradeable Proxy
+    - 改變權限結構, 防止管理者受到選擇器碰撞攻擊
+        - 管理者: 不可使用回調函數呼叫邏輯合約, 只能呼叫代理合約的升級函數
+        - 任意使用者: 可使用回調函數呼叫邏輯合約(原本應有的功能), 不可呼叫代理合約的升級函數
+    - OP Implementation - https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/proxy/transparent/TransparentUpgradeableProxy.sol
+
+- 通用可升級代理 (UUPS)
+    - 升級函數放在邏輯合約部分
+    - 也能避免選擇器衝突
+
+- 多簽錢包
+    - 交易需要多個簽名簽署
+    - Gnosis Safe
+    - reference: https://peopledao.mirror.xyz/nFCBXda8B5ZxQVqSbbDOn2frFDpTxNVtdqVBXGIjj0s
 
 <!-- Content_END -->

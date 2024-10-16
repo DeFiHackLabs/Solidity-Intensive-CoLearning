@@ -143,4 +143,31 @@ timezone: Asia/Taipei
 
   [WTF Academy Solidity 103 50 多簽錢包 Note](/content/0xRory/118-MultisigWallet/MultisigWallet.md)
 
+### 2024.10.13
+  day21:
+
+  [WTF Academy Solidity 103 51 ERC4626 Note](/content/0xRory/119-ERC4626/119-ERC4626.md)
+
+  [WTF Academy Solidity 103 52 EIP712 Note](/content/0xRory/119-EIP712/119-ERC712.md)
+
+### 2024.10.14
+  day22:
+
+  [WTF Academy Solidity 103 53 ERC2612 Note](/content/0xRory/120-ERC2612/ERC-2612.md)
+
+  [WTF Academy Solidity 103 54 跨鏈橋 Note](/content/0xRory/120-跨鏈橋/跨鏈橋.md)
+
+  [WTF Academy Solidity 103 55 MultiCall Note](/content/0xRory/120-MultiCall/MultiCall.md)
+
+### 2024.10.15
+
+  day23:
+
+  [WTF Academy Solidity 103 56 去中心化交易所 Note](/content/0xRory/120-去中心化交易所/DEX.md)
+
+  [WTF Academy Solidity 103 57 Flashloan Note](/content/0xRory/120-Flashloan/Flashloan.md)
+
+### 2024.10.16
+
+   day:24: 打卡打卡打卡打卡打卡打卡打卡打卡打卡打卡打卡打卡打卡打卡打卡打卡
 <!-- Content_END -->

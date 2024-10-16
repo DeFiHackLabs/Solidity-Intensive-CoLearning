@@ -4539,16 +4539,1038 @@ Safety Note
 
 #### Chapter 54: Bridge
 
+Bridge allow assets to transfer from origin chain to destination chain, eg from Ethereum Mainnet to Optimism Mainnet.
+
+3 types of bridge architecture:
+
+- Burn/Mint: The assets burnt on origin chain and minting in destination chain. The protocol need the minting permission for the action
+- Stake/Mint: The assets staked on origin chain and minting a wrapped version or value-equivalent token in destination chain. It is convinient for protocol with limited permission but risky, the value on destination chain may effect if origin assets hacked
+- Stake/Unstake: The assets staked on origin chain and release in destination chain. It require the assets to stored in both chain, need liquidity support
+
+Burn/Mint Bridge Demo
+
+- Deploy ERC20 with burn and mint function on both chain
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract CrossChainToken is ERC20, Ownable {
+
+    // Bridge event
+    event Bridge(address indexed user, uint256 amount);
+    // Mint event
+    event Mint(address indexed to, uint256 amount);
+
+    /**
+     * @param name Token Name
+     * @param symbol Token Symbol
+     * @param totalSupply Token Supply
+     */
+    constructor(
+        string memory name,
+        string memory symbol,
+        uint256 totalSupply
+    ) payable ERC20(name, symbol) Ownable(msg.sender) {
+        _mint(msg.sender, totalSupply);
+    }
+
+    /**
+     * Bridge function
+     * @param amount: burn amount of token on the current chain and mint on the other chain
+     */
+    function bridge(uint256 amount) public {
+        _burn(msg.sender, amount);
+        emit Bridge(msg.sender, amount);
+    }
+
+    /**
+     * Mint function
+     */
+    function mint(address to, uint amount) external onlyOwner {
+        _mint(to, amount);
+        emit  Mint(to, amount);
+    }
+}
+```
+
+- A script/app on server listening to token events
+
+```
+import { ethers } from "ethers";
+
+// Initialize provider of both chains
+const providerGoerli = new ethers.JsonRpcProvider("Goerli_Provider_URL");
+const providerSepolia = new ethers.JsonRpcProvider("Sepolia_Provider_URL");
+
+// Contract owner with bridge/mint permission
+const privateKey = "Your_Key";
+const walletGoerli = new ethers.Wallet(privateKey, providerGoerli);
+const walletSepolia = new ethers.Wallet(privateKey, providerSepolia);
+
+// Contract address and ABI
+const contractAddressGoerli = "address";
+const contractAddressSepolia = "address";
+
+const abi = [
+    "event Bridge(address indexed user, uint256 amount)",
+    "function bridge(uint256 amount) public",
+    "function mint(address to, uint amount) external",
+];
+
+const contractGoerli = new ethers.Contract(contractAddressGoerli, abi, walletGoerli);
+const contractSepolia = new ethers.Contract(contractAddressSepolia, abi, walletSepolia);
+
+const main = async () => {
+    try{
+        console.log(`Listening to token events`)
+
+        // Listening to Bridge event of token on Sepolia
+        contractSepolia.on("Bridge", async (user, amount) => {
+            console.log(`Bridge event on Chain Sepolia: User ${user} burned ${amount} tokens`);
+
+            // Response to Bridge event and mint token
+            let tx = await contractGoerli.mint(user, amount);
+            await tx.wait();
+
+            console.log(`Minted ${amount} tokens to ${user} on Chain Goerli`);
+        });
+
+        // Listening to Bridge event of token on Goerli
+        contractGoerli.on("Bridge", async (user, amount) => {
+            console.log(`Bridge event on Chain Goerli: User ${user} burned ${amount} tokens`);
+
+            let tx = await contractSepolia.mint(user, amount);
+            await tx.wait();
+
+            console.log(`Minted ${amount} tokens to ${user} on Chain Sepolia`);
+        });
+    } catch(e) {
+        console.log(e);
+    }
+}
+
+main();
+```
+
+Bridges are the most attacked protocol in the decentralized system. Never trust any bridge protocols, limit the token allowance or revoke approval after each use.
+
 ### 2024.10.14
 
 #### Chapter 55: Multicall
 
-### 2024.10.15
+`multicall` refer to execute multiple functions in single transaction
+Benefits:
+
+- Convenience: Perform multiple action once instead of waiting for previous transaction to execute successfully
+- Gas saving: Reduce execution cost, reduce some steps during computation
+- Atomic operation: `multicall` can ensure transaction integrity; the transaction is successful if only all functions call success. If any of the function calls fail, the transaction will be reverted
+
+Multicall Contract Demo
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+contract Multicall {
+    // Call structure: Target address, allow of failure, encoded call data
+    struct Call {
+        address target;
+        bool allowFailure;
+        bytes callData;
+    }
+
+    // Result structure
+    struct Result {
+        bool success;
+        bytes returnData;
+    }
+
+    function multicall(Call[] calldata calls) public returns (Result[] memory returnData) {
+        uint256 length = calls.length;
+        returnData = new Result[](length);
+        Call calldata calli;
+
+        // Loop and intepret each call
+        for (uint256 i = 0; i < length; i++) {
+            Result memory result = returnData[i];
+            calli = calls[i];
+            (result.success, result.returnData) = calli.target.call(calli.callData);
+            // If calli.allowFailure and result.success are false，revert it
+            if (!(calli.allowFailure || result.success)){
+                revert("Multicall: call failed");
+            }
+        }
+    }
+}
+```
 
 #### Chapter 56: Decentralized Exchange
 
-### 2024.10.16
+Automated Market Maker (AMM) is the most used algorithm in decentralized exchange
+
+- Eliminate the need of order book (Sell order, Buy order)
+- Require Liquidity Provider (LP) to provide initial fund of two or more tokens and set the ratio according to assets value
+
+Constant Sum Automated Market Maker (CSAMM)
+
+- Formula: `x + y = k`
+- Ensure that the relative price of tokens remains unchanged, which is very important in stablecoin exchange
+- The liquidity can easily exchausted if the exchange amount near to liquidity pool amount
+
+Constant Product Automated Market Maker (CPAMM)
+
+- Formula: `x * y = k`
+- Ensure the constant remain unchanged
+- Almost infinite liquidity as the relative price of token change linearly
+
+DEX Demo
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+contract SimpleSwap is ERC20 {
+    // Address of tokens
+    IERC20 public token0;
+    IERC20 public token1;
+
+    // Token amount stored
+    uint public reserve0;
+    uint public reserve1;
+
+    event Mint(address indexed sender, uint amount0, uint amount1);
+    event Burn(address indexed sender, uint amount0, uint amount1);
+    event Swap(
+        address indexed sender,
+        uint amountIn,
+        address tokenIn,
+        uint amountOut,
+        address tokenOut
+        );
+
+    constructor(IERC20 _token0, IERC20 _token1) ERC20("SimpleSwap", "SS") {
+        token0 = _token0;
+        token1 = _token1;
+    }
+
+    function min(uint x, uint y) internal pure returns (uint z) {
+        z = x < y ? x : y;
+    }
+
+    // Compute the square root (Babylonian method)
+    function sqrt(uint y) internal pure returns (uint z) {
+        if (y > 3) {
+            z = y;
+            uint x = y / 2 + 1;
+            while (x < z) {
+                z = x;
+                x = (y / x + x) / 2;
+            }
+        } else if (y != 0) {
+            z = 1;
+        }
+    }
+
+    // Adding liquidity, transfer the specific amount of both token, mint LP token
+    // First time adding, LP amount = sqrt(amount0 * amount1)
+    // Or else, LP amount = min(amount0/reserve0, amount1/reserve1)* totalSupply_LP
+    // @param amount0Desired token0 amount
+    // @param amount1Desired token1 amount
+    function addLiquidity(uint amount0Desired, uint amount1Desired) public returns(uint liquidity){
+        token0.transferFrom(msg.sender, address(this), amount0Desired);
+        token1.transferFrom(msg.sender, address(this), amount1Desired);
+
+        uint _totalSupply = totalSupply();
+        if (_totalSupply == 0) {
+            liquidity = sqrt(amount0Desired * amount1Desired);
+        } else {
+            liquidity = min(amount0Desired * _totalSupply / reserve0, amount1Desired * _totalSupply /reserve1);
+        }
+
+        require(liquidity > 0, 'INSUFFICIENT_LIQUIDITY_MINTED');
+
+        // Update reserved token amount
+        reserve0 = token0.balanceOf(address(this));
+        reserve1 = token1.balanceOf(address(this));
+
+        _mint(msg.sender, liquidity);
+
+        emit Mint(msg.sender, amount0Desired, amount1Desired);
+    }
+
+    // Remove liquidity, burn LP token, redeem tokens
+    // Tokens amount = (liquidity / totalSupply_LP) * reserve
+    // @param liquidity LP amount
+    function removeLiquidity(uint liquidity) external returns (uint amount0, uint amount1) {
+        uint balance0 = token0.balanceOf(address(this));
+        uint balance1 = token1.balanceOf(address(this));
+
+        uint _totalSupply = totalSupply();
+        amount0 = liquidity * balance0 / _totalSupply;
+        amount1 = liquidity * balance1 / _totalSupply;
+
+        require(amount0 > 0 && amount1 > 0, 'INSUFFICIENT_LIQUIDITY_BURNED');
+
+        _burn(msg.sender, liquidity);
+        token0.transfer(msg.sender, amount0);
+        token1.transfer(msg.sender, amount1);
+        reserve0 = token0.balanceOf(address(this));
+        reserve1 = token1.balanceOf(address(this));
+
+        emit Burn(msg.sender, amount0, amount1);
+    }
+
+    // Calculate the amount of another token to exchange
+    // Before swap: k = x * y
+    // After swap: k = (x + delta_x) * (y + delta_y)
+    // delta_y = - delta_x * y / (x + delta_x)
+    // Positive/Negative represent transfer in/out
+    function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) public pure returns (uint amountOut) {
+        require(amountIn > 0, 'INSUFFICIENT_AMOUNT');
+        require(reserveIn > 0 && reserveOut > 0, 'INSUFFICIENT_LIQUIDITY');
+        amountOut = amountIn * reserveOut / (reserveIn + amountIn);
+    }
+
+    // Swap token
+    // @param amountIn Amount to exchange
+    // @param tokenIn Token to exchange with
+    // @param amountOutMin Minimum amount to exchange of another token
+    function swap(uint amountIn, IERC20 tokenIn, uint amountOutMin) external returns (uint amountOut, IERC20 tokenOut){
+        require(amountIn > 0, 'INSUFFICIENT_OUTPUT_AMOUNT');
+        require(tokenIn == token0 || tokenIn == token1, 'INVALID_TOKEN');
+
+        uint balance0 = token0.balanceOf(address(this));
+        uint balance1 = token1.balanceOf(address(this));
+
+        if(tokenIn == token0){
+            tokenOut = token1;
+            amountOut = getAmountOut(amountIn, balance0, balance1);
+            require(amountOut > amountOutMin, 'INSUFFICIENT_OUTPUT_AMOUNT');
+
+            tokenIn.transferFrom(msg.sender, address(this), amountIn);
+            tokenOut.transfer(msg.sender, amountOut);
+        }else{
+            tokenOut = token0;
+            amountOut = getAmountOut(amountIn, balance1, balance0);
+            require(amountOut > amountOutMin, 'INSUFFICIENT_OUTPUT_AMOUNT');
+
+            tokenIn.transferFrom(msg.sender, address(this), amountIn);
+            tokenOut.transfer(msg.sender, amountOut);
+        }
+
+        reserve0 = token0.balanceOf(address(this));
+        reserve1 = token1.balanceOf(address(this));
+
+        emit Swap(msg.sender, amountIn, address(tokenIn), amountOut, address(tokenOut));
+    }
+}
+```
+
+This DEX demo are simplified version without considering fee and security feature.
 
 #### Chapter 57: Flashloan
+
+Flashloan is an example of `multicall`, an atomic operation, where the borrow and pay back of asset and interest in single transaction without the need of collateral.
+
+- Usually have beneficial action between borrow and pay back
+- The transaction will be reverted if pay back failed
+- Protocol have no risk like bad debt
+
+Flashloan with Uniswap V3 Demo
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.26;
+
+contract UniswapV3Flash {
+    struct FlashCallbackData {
+        uint256 amount0;
+        uint256 amount1;
+        address caller;
+    }
+
+    IUniswapV3Pool private immutable pool;
+    IERC20 private immutable token0;
+    IERC20 private immutable token1;
+
+    constructor(address _pool) {
+        pool = IUniswapV3Pool(_pool);
+        token0 = IERC20(pool.token0());
+        token1 = IERC20(pool.token1());
+    }
+
+    function flash(uint256 amount0, uint256 amount1) external {
+        bytes memory data = abi.encode(
+            FlashCallbackData({
+                amount0: amount0,
+                amount1: amount1,
+                caller: msg.sender
+            })
+        );
+        IUniswapV3Pool(pool).flash(address(this), amount0, amount1, data);
+    }
+
+    function uniswapV3FlashCallback(
+        // Pool fee x amount requested
+        uint256 fee0,
+        uint256 fee1,
+        bytes calldata data
+    ) external {
+        require(msg.sender == address(pool), "not authorized");
+
+        FlashCallbackData memory decoded = abi.decode(data, (FlashCallbackData));
+
+        // Write custom code here
+        if (fee0 > 0) {
+            token0.transferFrom(decoded.caller, address(this), fee0);
+        }
+        if (fee1 > 0) {
+            token1.transferFrom(decoded.caller, address(this), fee1);
+        }
+
+        // Repay borrow
+        if (fee0 > 0) {
+            token0.transfer(address(pool), decoded.amount0 + fee0);
+        }
+        if (fee1 > 0) {
+            token1.transfer(address(pool), decoded.amount1 + fee1);
+        }
+    }
+}
+
+interface IUniswapV3Pool {
+    function token0() external view returns (address);
+    function token1() external view returns (address);
+    function flash(
+        address recipient,
+        uint256 amount0,
+        uint256 amount1,
+        bytes calldata data
+    ) external;
+}
+
+interface IERC20 {
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address recipient, uint256 amount)
+        external
+        returns (bool);
+    function transferFrom(address sender, address recipient, uint256 amount)
+        external
+        returns (bool);
+    function allowance(address owner, address spender)
+        external
+        view
+        returns (uint256);
+    function approve(address spender, uint256 amount) external returns (bool);
+}
+```
+
+Test with Foundry
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.26;
+
+import {Test, console2} from "forge-std/Test.sol";
+import "../../../src/defi/uniswap-v3-flash/UniswapV3Flash.sol";
+
+contract UniswapV3FlashTest is Test {
+    address constant DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+    address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    // DAI / WETH 0.3% fee
+    address constant POOL = 0xC2e9F25Be6257c210d7Adf0D4Cd6E3E881ba25f8;
+    uint24 constant POOL_FEE = 3000;
+
+    IERC20 private constant weth = IERC20(WETH);
+    IERC20 private constant dai = IERC20(DAI);
+    UniswapV3Flash private uni;
+    address constant user = address(11);
+
+    function setUp() public {
+        uni = new UniswapV3Flash(POOL);
+
+        deal(DAI, user, 1e6 * 1e18);
+        vm.prank(user);
+        dai.approve(address(uni), type(uint256).max);
+    }
+
+    function test_flash() public {
+        uint256 dai_before = dai.balanceOf(user);
+        vm.prank(user);
+        uni.flash(1e6 * 1e18, 0);
+        uint256 dai_after = dai.balanceOf(user);
+
+        uint256 fee = dai_before - dai_after;
+        console2.log("DAI fee", fee);
+    }
+}
+
+```
+
+Flashloan with AAVE V3 Demo
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "./Lib.sol";
+
+interface IFlashLoanSimpleReceiver {
+    function executeOperation(
+        address asset,
+        uint256 amount,
+        uint256 premium,
+        address initiator,
+        bytes calldata params
+    ) external returns (bool);
+}
+
+contract AaveV3Flashloan {
+    address private constant AAVE_V3_POOL =
+        0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
+
+    address private constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+    ILendingPool public aave;
+
+    constructor() {
+        aave = ILendingPool(AAVE_V3_POOL);
+    }
+
+    function flashloan(uint256 wethAmount) external {
+        aave.flashLoanSimple(address(this), WETH, wethAmount, "", 0);
+    }
+
+    // Flashloan fallback, call by AAVE pool only
+    function executeOperation(address asset, uint256 amount, uint256 premium, address initiator, bytes calldata)
+        external
+        returns (bool)
+    {
+        require(msg.sender == AAVE_V3_POOL, "not authorized");
+        require(initiator == address(this), "invalid initiator");
+
+        uint fee = (amount * 5) / 10000 + 1;
+        uint amountToRepay = amount + fee;
+
+        IERC20(WETH).approve(AAVE_V3_POOL, amountToRepay);
+
+        return true;
+    }
+}
+```
+
+Test with Foundry
+
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "forge-std/Test.sol";
+import "../src/AaveV3Flashloan.sol";
+
+address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+contract UniswapV2FlashloanTest is Test {
+    IWETH private weth = IWETH(WETH);
+
+    AaveV3Flashloan private flashloan;
+
+    function setUp() public {
+        flashloan = new AaveV3Flashloan();
+    }
+
+    function testFlashloan() public {
+        weth.deposit{value: 1e18}();
+        weth.transfer(address(flashloan), 1e18);
+
+        uint amountToBorrow = 100 * 1e18;
+        flashloan.flashloan(amountToBorrow);
+    }
+
+    function testFlashloanFail() public {
+        weth.deposit{value: 1e18}();
+        weth.transfer(address(flashloan), 4e16);
+
+        uint amountToBorrow = 100 * 1e18;
+        vm.expectRevert();
+        flashloan.flashloan(amountToBorrow);
+    }
+}
+```
+
+Flashloan is widely used in risk-free arbitrage and vulnerability attacks.
+
+End of WTF Solidity 103
+
+### 2024.10.15
+
+#### Ethers.js 101: Interaction with Ethereum
+
+[ethers](https://docs.ethers.org/) is a complete and compact open-source javascript library for interacting with the EVM. The usage has surpass the `web3.js` for a few reasons:
+
+- `ethers` take 116.5 kB while `web3.js` take 590.5 kB
+- `ethers` have `Provider` class to manage network connectivity, `Wallet` classs to manage private keys, more flexible
+- Native support for Ethereum Name Service (ENS)
+
+Installation
+`npm install ethers --save`
+
+Check address balance
+
+```
+import { ethers } from "ethers";
+const provider = ethers.getDefaultProvider(); // To use specific RPC: ethers.JsonRpcProvider(RPC_URL);
+const main = async () => {
+    const balance = await provider.getBalance(`vitalik.eth`); // Address or ENS
+    console.log(`ETH Balance of vitalik: ${ethers.formatEther(balance)} ETH`);
+}
+main();
+```
+
+Provider class
+
+`jsonRpcProvider` allow users to connect to a specific node service provider
+
+- [ChainList](https://chainlist.org/) have the most comprehensive collections of Chains and RPCs
+- Alchemy
+
+```
+const ALCHEMY_MAINNET_URL = 'https://eth-mainnet.g.alchemy.com/v2/API_KEY';
+const providerETH = new ethers.JsonRpcProvider(ALCHEMY_MAINNET_URL);
+const balance = await providerETH.getBalance(`vitalik.eth`);;
+const network = await providerETH.getNetwork(); // Retrieve network info
+const feeData = await providerETH.getFeeData(); // Retrieve current gas data
+const code = await providerETH.getCode("0xc778417e063141139fce010982780140aa0cd5ab"); // Retrieve bytecode of contract
+```
+
+Contract class
+
+Read only
+
+```
+const contract = new ethers.Contract(contractAddress, contractAbi, provider);
+```
+
+Read and write contract
+
+```
+const contract = new ethers.Contract(contractAddress, contractAbi, signer);
+```
+
+Example of Read/Write WETH Contract
+
+```
+const mnemonic = "announce room limb pattern dry unit scale effort smooth jazz weasel alcohol";
+const wallet = Wallet.fromMnemonic(mnemonic);
+
+const wethMainnet = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
+const wethAbi = [
+    "function deposit() payable",
+    "function totalSupply() view returns (uint)"
+];
+const weth = new ethers.Contract(wethMainnet, wethAbi, wallet);
+
+await weth.deposit({value: parseEther("1")}); // Wrap 1 ETH to 1 WETH
+const totalSupply = await weth.totalSupply(); // Retrieve current supply of WETH
+```
+
+Signer class and Wallet class
+
+- `Signer` class is an abstraction of an Ethereum account for signing messages and transactions, but `Signer` class is an abstract class and cannot be instantiated directly, so `Wallet` class which inherits from the `Signer` class is using as above example.
+
+```
+const walletRnd = ethers.Wallet.createRandom(); // Create wallet with random private key
+const walletPk = new ethers.Wallet(pkString); // Create wallet with known private key
+const walletMmn = ethers.Wallet.fromMnemonic(mnemonicString); // Create wallet with mnemonic phrase BIP39
+```
+
+Sending transaction
+
+```
+const wallet = new ethers.Wallet(pkString, provider);
+const receipt = await wallet.sendTransaction({
+        to: recipientAddress,
+        value: ethers.parseEther("1")
+    }); // Transfer 1 ETH to recipient
+await receipt.wait() // Wait for the transaction to be confirmed on the chain
+console.log(receipt) // Print the transaction details
+```
+
+Deploy Contract Demo
+
+```
+const abiERC20 = [
+    "constructor(string memory name_, string memory symbol_)",
+    "function name() view returns (string)",
+    "function symbol() view returns (string)",
+    "function totalSupply() view returns (uint256)",
+    "function balanceOf(address) view returns (uint)",
+    "function transfer(address to, uint256 amount) external returns (bool)",
+    "event Transfer(address indexed from, address indexed to, uint256 amount)"
+];
+const bytecodeERC20 = "608060405260646000553480156100...";
+const factoryERC20 = new ethers.ContractFactory(abiERC20, bytecodeERC20, wallet);
+const contractERC20 = await factoryERC20.deploy("WTF Token", "WTF");
+await contractERC20.waitForDeployment(); // Wait for the transaction to be confirmed on the chain
+
+await contractERC20.name(); // Retrieve ERC20 info after contract deployed
+await contractERC20.symbol();
+```
+
+Event
+
+- Events emitted by smart contracts are stored in the logs of the Ethereum virtual machine.
+
+Retrieving events
+
+```
+const endingBlock = await provider.getBlockNumber();
+const startingBlock = endingBlock - 10;
+const transferEvents = await contractERC20.queryFilter("Transfer", startingBlock, endingBlock); // Retrieve Transfer event within the 10 blocks
+```
+
+Listening events
+
+```
+contractERC20.on("Transfer", (from, to, value) => {
+    console.log(from, to, value)
+}); // Continuosly listening every Transfer event of contractERC20
+
+contractERC20.on("Transfer", (from, to, value) => {
+    console.log(from, to, value)
+}); // Listen just once
+```
+
+Event filtering
+
+- When a contract emits a log (fires an event), it can contain up to 4 indexed items. These indexed data items are hashed and included in a Bloom filter, which is a data structure that allows for efficient filtering
+
+```
+// event Transfer(address indexed from, address indexed to, uint256 amount)
+
+contractERC20.filters.Transfer(myAddress); // Retrieve only transfer from myAddress
+
+contractERC20.filters.Transfer(null, myAddress); // Retrieve only transfer to myAddress
+
+contractERC20.filters.Transfer(myAddress, otherAddress); // Retrieve only transfer from myAddress to otherAddress
+
+contractERC20.filters.Transfer(null, [myAddress, otherAddress]); // Retrieve only transfer to myAddress or otherAddress
+```
+
+Unit conversion
+
+- In Ethereum, the most used integer variables (`uint256`) are exceed the safe range of JavaScript integers. Thus, `Ethers` use BigInt class to securely perform the mathematical operations.
+
+```
+const bigint_one = 1n;
+const oneWei = ethers.getBigInt("1");
+console.log(bigint_one == oneWei); // True
+
+const oneGwei = ethers.getBigInt("1000000000");
+console.log(ethers.formatUnits(oneGwei, 0)); // '1000000000' wei
+console.log(ethers.formatUnits(oneGwei, "gwei")); // '1.0' gwei
+console.log(ethers.formatUnits(oneGwei, 9)); // '1.0' gwei
+console.log(ethers.formatUnits(oneGwei, "ether")); // '0.000000001' eth
+console.log(ethers.formatUnits(1000000000, "gwei")); // '1.0' eth
+console.log(ethers.formatEther(oneGwei)); // '0.000000001' eth, equivalent to formatUnits(value, "ether")
+
+console.log(ethers.parseUnits("1.0").toString()); // { BigNumber: "1000000000000000000" } wei
+console.log(ethers.parseUnits("1.0", "ether").toString()); // { BigNumber: "1000000000000000000" } wei
+console.log(ethers.parseUnits("1.0", 18).toString()); // { BigNumber: "1000000000000000000" } wei
+console.log(ethers.parseUnits("1.0", "gwei").toString()); // { BigNumber: "1000000000" } wei
+console.log(ethers.parseUnits("1.0", 9).toString()); // { BigNumber: "1000000000" } wei
+console.log(ethers.parseEther("1.0").toString()); // { BigNumber: "1000000000000000000" } wei, equivalent to parseUnits(value, "ether")
+```
+
+### 2024.10.16
+
+#### Ether.js 102: Advanced
+
+`staticCall`
+
+- a method available in the `ethers.Contract` to check whether a transaction will fail before sending it
+- eliminate the risk of failure and saving gas
+
+```
+const tx = await weth.deposit({value: parseEther("1")}); // Contract call
+
+const tx = await weth.deposit.staticCall({value: parseEther("1")}); // Test run with staticCall, return True if success or error if fail
+```
+
+Identify ERC721 via Ethers
+
+```
+const selectorERC721 = "0x80ac58cd"; // Interface ID of ERC721
+const isERC721 = await contract.supportsInterface(selectorERC721); // via ERC165, return true or false
+```
+
+Interface class
+
+- Abstract the ABI encoding and decoding
+
+```
+const interface = ethers.Interface(abi); // Generated with ABI
+
+const interface = contract.interface; // Retrieve from initiated contract class
+
+interface.getSighash("balanceOf"); // '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
+
+interface.encodeFunctionData("balanceOf", ["0xc778417e063141139fce010982780140aa0cd5ab"]); // Encode the calldata of the function
+
+interface.decodeFunctionResult("balanceOf", resultData); // Decode the return value of the function
+```
+
+HD Wallets (Hierarchical Deterministic Wallets)
+
+- A commonly used technique to store the digital keys for blockchain
+- Allow to create a series of key pairs from a random seed, providing convenience, security, and privacy
+- BIP32
+  - Derivation of multiple private keys from a single seed, eg: derivation path m/0/0/1
+- BIP44
+  - A set of universal specifications for derivation path in BIP32, consists of six levels
+  - `m / purpose' / coin_type' / account' / change / address_index`
+  - `m/44'/60'/0'/0/0`: 60 represent Ethereum network; Account index starting from 0; Change is usually 0; Address index can start from 0
+- BIP39
+  - Allow user to store private keys in human-readable mnemonic words, can be 3, 6, 9, 12, 15, 18, 21, 24 words
+  - Support multiple languages
+  - eg: `air organ twist rule prison symptom jazz cheap rather dizzy verb glare`
+
+Generate Wallets in Batch
+
+```
+const mnemonic = ethers.Mnemonic.entropyToPhrase(randomBytes(32)); // Generate a random mnemonic phrase
+const hdNode = ethers.HDNodeWallet.fromPhrase(mnemonic); // Create an HD wallet
+let basePath = "m/44'/60'/0'/0";
+for (let i = 0; i < 10; i++) {
+    let hdNodeNew = hdNode.derivePath(basePath + "/" + i); // Create 10 private keys by changing only address index
+    let walletNew = new ethers.Wallet(hdNodeNew.privateKey); // Create wallet class with private key
+}
+```
+
+MerkleTree
+
+- Also known as hash tree, is a fundamental cryptographic technology used in blockchain system
+- A bottom-up constructed binary tree, each leaf node represents the hash of data, non-leaf node represents the hash of two child nodes
+- Allow for efficient and secure verification of large data structures
+- `MerkleTree.js`
+  - A JavaScript package for building Merkle Trees and generating Merkle Proof
+  - Install via npm `npm install merkletreejs`
+
+```
+import { MerkleTree } from "merkletreejs";
+
+const tokens = [
+    "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4",
+    "0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2",
+    "0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"
+    ...
+]; // A list of data
+const leaf = tokens.map(x => ethers.keccak256(x))l // Hash data with keccak256 to match Solidity hashing function
+const merkletree = new MerkleTree(leaf, ethers.keccak256, { sortPairs: true }); // Apply keccak256 hashing and keep data sorted
+
+const root = merkletree.getHexRoot(); // Retrieve merkle root
+const proof = merkletree.getHexProof(leaf[0]); // Retrieve the proof of a leaf node
+```
+
+Digital Signature
+
+- The digital signature algorithm used by Ethereum is called Elliptic Curve Digital Signature Algorithm (ECDSA)
+- It serves three main purposes:
+  - Identity Authentication: Proves that the signer is the holder of the private key
+  - Non-Repudiation: The sender cannot deny sending the message
+  - Integrity: The message cannot be modified during transmission
+
+```
+const account = "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4";
+const tokenId = "0";
+
+const msgHash = ethers.solidityKeccak256(
+    ['address', 'uint256'],
+    [account, tokenId]
+); // Equivalent to keccak256(abi.encodePacked(account, tokenId)) in Solidity
+const messageHashBytes = ethers.getBytes(msgHash);
+
+const signature = await wallet.signMessage(messageHashBytes); // Get the wallet/signer to sign the message
+```
+
+MEV (Maximal Extractable Value)
+
+- In blockchain, miners/validators can profit by packing, excluding, or reordering transactions in the blocks they generate
+
+Mempool
+
+- The transactions send by users will gather in the Mempool
+- Miners will then search for transactions with high fees in the Mempool to prioritize packaging and maximize their profits
+- Miner/MEV Bot can perform profitable trades by execute sandwich/front-running attack
+
+```
+provider.on("pending", async (txHash) => {
+    console.log(`[${(new Date).toLocaleTimeString()}]: ${txHash}`); // Retrieve the transaction hash
+    let tx = await provider.getTransaction(txHash); // Get transaction detail with transaction hash
+});
+```
+
+Decoding Transaction Data
+
+```
+const functionSignature = 'transferFrom(address,address,uint256)'; // ERC20 TransferFrom function
+const selector = iface.getSighash(functionSignature); // Get TransferFrom signature hash
+
+provider.on('pending', async (txHash) => {
+if (txHash) {
+    const tx = await provider.getTransaction(txHash);
+    if (tx !== null && tx.data.indexOf(selector) !== -1) { // Matching function signature hash
+        console.log(`[${(new Date).toLocaleTimeString()}]: ${txHash}`);
+        console.log(`Decoded transaction details: ${JSON.stringify(iface.parseTransaction(tx), null, 2)}`); // Formatted transaction details
+        console.log(`Origin address: ${iface.parseTransaction(tx).args[0]}`); // From
+        console.log(`Recipient address: ${iface.parseTransaction(tx).args[1]}`); // To
+        console.log(`Transfer amount: ${ethers.utils.formatEther(iface.parseTransaction(tx).args[2])}`); // Amount
+        provider.removeListener('pending', this); // Unsubscribe listening to Mempool
+    }
+}});
+```
+
+Vanity Address
+
+- An address usually generated by bruteforcing to get an easy to recognize address, eg: `0x0000000fe6a514a32abdcdfcc076c85243de899b`
+
+```
+const regex = /^0x1234.*$/; // Expression to matches addresses starting with 0x1234
+let isValid = false;
+while(!isValid){
+    const wallet = ethers.Wallet.createRandom(); // Generate a random wallet
+    isValid = regex.test(wallet.address); // Check the regular expression
+}
+```
+
+EVM Data
+
+- All data on Ethereum is public, including `private` variable stated in Smart contract (Read via some hacks!)
+
+Smart Contract Storage Layout
+
+- The storage is a mapping of `uint256 -> uint256`
+- The size of `uint256` is `32 bytes`, the fixed-size storage space is called a slot
+- Contract's data is stored in individual slots, starting from `slot 0`, by default and sequentially
+- `private` variables also stored in the storage slot accordingly without a `getter` function
+
+Read contract data
+
+```
+const slot = 0;
+const paddedAddress = ethers.utils.hexZeroPad(contractAddress, 32);
+const paddedSlot = ethers.utils.hexZeroPad(slot, 32);
+const concatenated = ethers.utils.concat([paddedAddress, paddedSlot]);
+const slotHash = ethers.utils.keccak256(concatenated);
+const value = await provider.getStorageAt(contractAddress, slotHash);
+
+```
+
+Front-running Demo
+
+```
+//2. Build contract instance
+const contractABI = [
+    "function mint() public",
+];
+const contractAddress = '0xC76A71C4492c11bbaDC841342C4Cb470b5d12193'; // Address of the contract
+const nft = new ethers.Contract(contractAddress, contractABI, provider);
+const iface = new ethers.utils.Interface(contractABI);
+
+const wallet = new ethers.Wallet(privateKey, provider);
+
+provider.on('pending', async (txHash) => {
+        const tx = await provider.getTransaction(txHash);
+        if (tx.data.indexOf(iface.getSighash("mint")) !== -1 && tx.from !== wallet.address) { // Filter own address
+            const frontRunTx = {
+                to: tx.to,
+                value: tx.value,
+                maxPriorityFeePerGas: tx.maxPriorityFeePerGas.mul(2), // Double up gas to let miner prioritize this transaction
+                maxFeePerGas: tx.maxFeePerGas.mul(2),
+                gasLimit: tx.gasLimit.mul(2),
+                data: tx.data
+            };
+            const sentFR = await wallet.sendTransaction(frontRunTx);
+            const receipt = await sentFR.wait();
+            console.log(`Transaction hash:${receipt.transactionHash}`); // Frontrun transaction confirmed
+
+            const block = await provider.getBlock(tx.blockNumber); // Retrieve the confirmed block's transactions
+            // In the block's transactions, if the later transaction is placed before the earlier transaction, indicating a successful front-run.
+        }
+    })
+```
+
+Identify ERC20 via Ethers
+
+```
+// ERC20 Contract Interface
+interface IERC20 {
+    function totalSupply() external view returns (uint256);
+    function transfer(address to, uint256 amount) external returns (bool);
+}
+
+
+let code = await provider.getCode(contractAddress)
+if(code != "0x"){
+        // Check if bytecode includes the selectors of the transfer and totalSupply functions
+        if(code.includes("a9059cbb") && code.includes("18160ddd")){
+            return true;
+        }else{
+            return false // Not an ERC20
+        }
+    }
+```
+
+Flashbots
+
+- A research organization committed to mitigating the harm caused by MEV
+- Products:
+  - Flashbots RPC: Protects users from harmful MEV (sandwich attacks).
+  - Flashbots Bundle: Helps MEV searchers extract MEV on Ethereum.
+  - mev-boost: Helps Ethereum POS nodes earn more ETH rewards through MEV.
+
+EIP712 Signature
+
+- Typed Data Signatures provides a more advanced and secure method for signatures
+
+```
+let contractName = "EIP712Storage"
+let version = "1"
+let chainId = "1"
+let contractAddress = "0xf8e81D47203A594245E36C48e151709F0C19fBe8"
+const domain = {
+    name: contractName,
+    version: version,
+    chainId: chainId,
+    verifyingContract: contractAddress,
+};
+
+let spender = "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"
+let number = "100"
+
+const types = {
+    Storage: [
+        { name: "spender", type: "address" },
+        { name: "number", type: "uint256" },
+    ],
+};
+
+const message = {
+    spender: spender,
+    number: number,
+};
+
+const signature = await wallet.signTypedData(domain, types, message); // All 3 params are required for EIP712 Signature
+const signer = ethers.verifyTypedData(domain, types, message, signature); // Recover the signer address from signature
+```
+
+End of WTF Ethers 102
 
 <!-- Content_END -->

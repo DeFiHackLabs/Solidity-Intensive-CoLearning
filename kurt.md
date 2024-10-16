@@ -1055,7 +1055,309 @@ contract DutchAuction is Ownable ,ERC721{
 ![image](https://github.com/user-attachments/assets/0ce636a1-6d8c-4945-b14a-9b78b3b27b23)
 
 ### 2024.10.13
+MerkleProof 
+```
+pragma solidity ^0.8.26;
+import "contracts/ERC721.sol";
+
+library MerkleProof {
+    function verify(bytes32 leaf,bytes32 root,bytes32[] memory proof) internal pure returns (bool){
+        return processProof(leaf,proof) == root;
+    }
+    function processProof(bytes32 leaf,bytes32[] memory proof) internal pure returns (bytes32){
+       bytes32 computedHash = leaf;
+        for(uint256 i = 0;i<proof.length;i++){
+            computedHash = _hashPair(computedHash,proof[i]);
+        }
+        return computedHash;
+    }
+    function _hashPair(bytes32 a,bytes32 b) private pure returns (bytes32){
+        return a < b ? keccak256(abi.encodePacked(a,b)) :keccak256(abi.encodePacked(b,a));
+    }
+}
+
+contract merkleTree is ERC721 {
+    bytes32 public immutable root;
+    mapping (address=>bool) public  minedAddress;
+    constructor(string memory name,string memory symbol,bytes32  merkleroot) ERC721(name,symbol){
+        root = merkleroot;
+    }
+    function mint(address account,uint256 tokenId,bytes32[] calldata proof) external {
+            require(_verify(_leaf(account),proof),"Invalid merkle proo");
+            require(!minedAddress[account],"already mined");
+            minedAddress[account] = true;
+            _mint(account, tokenId);
+    }
+    function _leaf(address account) internal pure  returns (bytes32){
+        return keccak256(abi.encodePacked(account));
+    }
+    function _verify(bytes32 leaf,bytes32[] memory proof) internal view  returns (bool){
+        return MerkleProof.verify(leaf, root, proof);
+    }
+}
+```
 ### 2024.10.14
-### 2024.10.15
-    
+signature
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.26;
+import "contracts/ERC721.sol";
+library ECDSA{
+
+function verify(bytes32 _msgHash, bytes memory _signature,address signer) internal pure returns (bool){
+    return recoverSigner(_msgHash,_signature) == signer;
+}
+
+function recoverSigner(bytes32 _msgHash,bytes memory _signature) internal pure returns (address){
+    require(_signature.length == 65,"invalid signature length");
+    bytes32 r;
+    bytes32 s;
+    uint8 v;
+    assembly{
+        r:= mload(add(_signature,0x20))
+        s:= mload(add(_signature,0x40))
+        v:= byte(0,mload(add(_signature,0x60)))
+    }
+    ecrecover(_msgHash, v, r, s);//唉亏卡微
+}
+function toEthSignedMessage(bytes32 hash) public pure returns (bytes32){
+    return keccak256(abi.encodePacked("\x19Ethereum signed Message:\n32",hash));
+}
+
+}
+contract SignatureNFT is ERC721 {
+    address immutable public signer; 
+    mapping(address => bool) public mintedAddress;  
+
+    constructor(string memory _name, string memory _symbol, address _signer)
+    ERC721(_name, _symbol)
+    {
+        signer = _signer;
+    }
+
+    function mint(address _account, uint256 _tokenId, bytes memory _signature)
+    external
+    {
+        bytes32 _msgHash = getMessageHash(_account, _tokenId); // 将_account和_tokenId打包消息
+        bytes32 _ethSignedMessageHash = ECDSA.toEthSignedMessageHash(_msgHash); // 计算以太坊签名消息
+        require(verify(_ethSignedMessageHash, _signature), "Invalid signature"); // ECDSA检验通过
+        require(!mintedAddress[_account], "Already minted!"); // 地址没有mint过
+        mintedAddress[_account] = true; // 记录mint过的地址
+        _mint(_account, _tokenId); // mint
+    }
+
+    /*
+     * 将mint地址（address类型）和tokenId（uint256类型）拼成消息msgHash
+     * _account: 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4
+     * _tokenId: 0
+     * 对应的消息msgHash: 0x1bf2c0ce4546651a1a2feb457b39d891a6b83931cc2454434f39961345ac378c
+     */
+    function getMessageHash(address _account, uint256 _tokenId) public pure returns(bytes32){
+        return keccak256(abi.encodePacked(_account, _tokenId));
+    }
+
+    // ECDSA验证，调用ECDSA库的verify()函数
+    function verify(bytes32 _msgHash, bytes memory _signature)
+    public view returns (bool)
+    {
+        return ECDSA.verify(_msgHash, _signature, signer);
+    }
+}
+
+contract VerifySignature {
+
+    function getMessageHash(
+        address _addr,
+        uint256 _tokenId
+    ) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(_addr, _tokenId));
+    }
+
+    function getEthSignedMessageHash(bytes32 _messageHash)
+        public
+        pure
+        returns (bytes32)
+    {
+        return
+            keccak256(
+                abi.encodePacked("\x19Ethereum Signed Message:\n32", _messageHash)
+            );
+    }
+
+    function verify(
+        address _signer,
+        address _addr,
+        uint _tokenId,
+        bytes memory signature
+    ) public pure returns (bool) {
+        bytes32 messageHash = getMessageHash(_addr, _tokenId);
+        bytes32 ethSignedMessageHash = getEthSignedMessageHash(messageHash);
+
+        return recoverSigner(ethSignedMessageHash, signature) == _signer;
+    }
+
+    function recoverSigner(bytes32 _ethSignedMessageHash, bytes memory _signature)
+        public
+        pure
+        returns (address)
+    {
+        (bytes32 r, bytes32 s, uint8 v) = splitSignature(_signature);
+
+        return ecrecover(_ethSignedMessageHash, v, r, s);
+    }
+
+    function splitSignature(bytes memory sig)
+        public
+        pure
+        returns (
+            bytes32 r,
+            bytes32 s,
+            uint8 v
+        )
+    {
+        // 检查签名长度，65是标准r,s,v签名的长度
+        require(sig.length == 65, "invalid signature length");
+
+        assembly {
+
+            // first 32 bytes, after the length prefix
+            r := mload(add(sig, 0x20))
+            // second 32 bytes
+            s := mload(add(sig, 0x40))
+            // final byte (first byte of the next 32 bytes)
+            v := byte(0, mload(add(sig, 0x60)))
+        }
+
+        // implicitly return (r, s, v)
+    }
+}
+```
+### 2024.10.16
+NFTSwap
+```
+    pragma solidity ^0.8.21;
+
+import "../34_ERC721/IERC721.sol";
+import "../34_ERC721/IERC721Receiver.sol";
+import "../34_ERC721/WTFApe.sol";
+
+contract NFTSwap is IERC721Receiver {
+    event List(
+        address indexed seller,
+        address indexed nftAddr,
+        uint256 indexed tokenId,
+        uint256 price
+    );
+    event Purchase(
+        address indexed buyer,
+        address indexed nftAddr,
+        uint256 indexed tokenId,
+        uint256 price
+    );
+    event Revoke(
+        address indexed seller,
+        address indexed nftAddr,
+        uint256 indexed tokenId
+    );
+    event Update(
+        address indexed seller,
+        address indexed nftAddr,
+        uint256 indexed tokenId,
+        uint256 newPrice
+    );
+
+    // 定义order结构体
+    struct Order {
+        address owner;
+        uint256 price;
+    }
+    // NFT Order映射
+    mapping(address => mapping(uint256 => Order)) public nftList;
+
+    fallback() external payable {}
+
+    // 挂单: 卖家上架NFT，合约地址为_nftAddr，tokenId为_tokenId，价格_price为以太坊（单位是wei）
+    function list(address _nftAddr, uint256 _tokenId, uint256 _price) public {
+        IERC721 _nft = IERC721(_nftAddr); // 声明IERC721接口合约变量
+        require(_nft.getApproved(_tokenId) == address(this), "Need Approval"); // 合约得到授权
+        require(_price > 0); // 价格大于0
+
+        Order storage _order = nftList[_nftAddr][_tokenId]; //设置NF持有人和价格
+        _order.owner = msg.sender;
+        _order.price = _price;
+        // 将NFT转账到合约
+        _nft.safeTransferFrom(msg.sender, address(this), _tokenId);
+
+        // 释放List事件
+        emit List(msg.sender, _nftAddr, _tokenId, _price);
+    }
+
+    // 购买: 买家购买NFT，合约为_nftAddr，tokenId为_tokenId，调用函数时要附带ETH
+    function purchase(address _nftAddr, uint256 _tokenId) public payable {
+        Order storage _order = nftList[_nftAddr][_tokenId]; // 取得Order
+        require(_order.price > 0, "Invalid Price"); // NFT价格大于0
+        require(msg.value >= _order.price, "Increase price"); // 购买价格大于标价
+        // 声明IERC721接口合约变量
+        IERC721 _nft = IERC721(_nftAddr);
+        require(_nft.ownerOf(_tokenId) == address(this), "Invalid Order"); // NFT在合约中
+
+        // 将NFT转给买家
+        _nft.safeTransferFrom(address(this), msg.sender, _tokenId);
+        // 将ETH转给卖家，多余ETH给买家退款
+        payable(_order.owner).transfer(_order.price);
+        payable(msg.sender).transfer(msg.value - _order.price);
+
+        delete nftList[_nftAddr][_tokenId]; // 删除order
+
+        // 释放Purchase事件
+        emit Purchase(msg.sender, _nftAddr, _tokenId, _order.price);
+    }
+
+    // 撤单： 卖家取消挂单
+    function revoke(address _nftAddr, uint256 _tokenId) public {
+        Order storage _order = nftList[_nftAddr][_tokenId]; // 取得Order
+        require(_order.owner == msg.sender, "Not Owner"); // 必须由持有人发起
+        // 声明IERC721接口合约变量
+        IERC721 _nft = IERC721(_nftAddr);
+        require(_nft.ownerOf(_tokenId) == address(this), "Invalid Order"); // NFT在合约中
+
+        // 将NFT转给卖家
+        _nft.safeTransferFrom(address(this), msg.sender, _tokenId);
+        delete nftList[_nftAddr][_tokenId]; // 删除order
+
+        // 释放Revoke事件
+        emit Revoke(msg.sender, _nftAddr, _tokenId);
+    }
+
+    // 调整价格: 卖家调整挂单价格
+    function update(
+        address _nftAddr,
+        uint256 _tokenId,
+        uint256 _newPrice
+    ) public {
+        require(_newPrice > 0, "Invalid Price"); // NFT价格大于0
+        Order storage _order = nftList[_nftAddr][_tokenId]; // 取得Order
+        require(_order.owner == msg.sender, "Not Owner"); // 必须由持有人发起
+        // 声明IERC721接口合约变量
+        IERC721 _nft = IERC721(_nftAddr);
+        require(_nft.ownerOf(_tokenId) == address(this), "Invalid Order"); // NFT在合约中
+
+        // 调整NFT价格
+        _order.price = _newPrice;
+
+        // 释放Update事件
+        emit Update(msg.sender, _nftAddr, _tokenId, _newPrice);
+    }
+
+    // 实现{IERC721Receiver}的onERC721Received，能够接收ERC721代币
+    function onERC721Received(
+        address operator,
+        address from,
+        uint tokenId,
+        bytes calldata data
+    ) external override returns (bytes4) {
+        return IERC721Receiver.onERC721Received.selector;
+    }
+}
+```
 <!-- Content_END -->

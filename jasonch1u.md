@@ -2058,10 +2058,264 @@ contract Factory {
 selfdestruct(_addr);
 _addr：接收剩餘ETH的地址（不需要有receive()或fallback()函數）
 ```
-### 2024.10.13
+### 2024.10.14
 #### 27_ABIEncode
+ABI (Application Binary Interface) 是與以太坊智能合約互動的標準。數據根據類型進行編碼,解碼時需要指定類型。
+
+## ABI編碼函數
+
+Solidity提供了4種ABI編碼函數:
+
+1. **abi.encode**
+   - 將參數按ABI規則編碼
+   - 每個參數填充為32字節
+   - 用於與智能合約互動
+
+2. **abi.encodePacked**
+   - 根據最低所需空間編碼參數
+   - 省略填充的零,結果更緊湊
+   - 適用於節省空間,不與合約互動時(如計算哈希)
+
+3. **abi.encodeWithSignature**
+   - 類似`abi.encode`,但首個參數為函數簽名
+   - 用於調用其他合約
+
+4. **abi.encodeWithSelector**
+   - 類似`abi.encodeWithSignature`,但使用函數選擇器
+   - 選擇器是函數簽名Keccak哈希的前4字節
+
+## ABI解碼函數
+
+Solidity提供了1個ABI解碼函數:
+
+- **abi.decode**
+  - 用於解碼`abi.encode`生成的二進制編碼
+  - 將編碼數據還原為原始參數
+
+## 使用場景
+
+1. 配合`call`實現對合約的底層調用
+2. 在ethers.js中用於合約導入和函數調用
+3. 調用不開源合約中無法查到函數簽名的函數
+
+## 程式碼示例
+
+```solidity
+// 編碼示例
+function encode() public view returns(bytes memory result) {
+    result = abi.encode(x, addr, name, array);
+}
+
+// 解碼示例
+function decode(bytes memory data) public pure returns(uint dx, address daddr, string memory dname, uint[2] memory darray) {
+    (dx, daddr, dname, darray) = abi.decode(data, (uint, address, string, uint[2]));
+}
+```
+
+## 注意事項
+
+- 編碼後的數據不包含類型信息,解碼時需要指定正確的類型
+- `abi.encodePacked`結果更緊湊,但不適用於與合約互動
+- 使用ABI函數選擇器可以調用未知函數簽名的合約函數
+
+### 2024.10.15
 #### 28_Hash
+# 哈希函數筆記
+
+## 1. 基本概念
+哈希函數是一個密碼學概念,可以將任意長度的消息轉換為固定長度的值(稱為哈希)。
+
+## 2. 哈希的性質
+一個好的哈希函數應具備:
+- 單向性: 正向運算簡單,反向非常難
+- 靈敏性: 輸入小改變導致輸出大改變
+- 高效性: 計算過程高效
+- 均一性: 每個哈希值被取到的概率基本相等
+- 抗碰撞性:
+  - 弱抗碰撞性: 難以找到具有相同哈希值的不同消息
+  - 強抗碰撞性: 難以找到任意兩個具有相同哈希值的不同消息
+
+## 3. 哈希的應用
+- 生成數據唯一標識
+- 加密簽名
+- 安全加密
+
+## 4. Solidity中的Keccak256
+- 最常用的哈希函數
+- 用法: `哈希 = keccak256(數據);`
+
+### Keccak256 vs SHA3
+- Keccak是SHA3的前身
+- 以太坊使用Keccak256,而非標準的NIST-SHA3
+
+## 5. Solidity中的應用示例
+
+### 生成唯一標識
+```solidity
+function hash(uint _num, string memory _string, address _addr) public pure returns (bytes32) {
+    return keccak256(abi.encodePacked(_num, _string, _addr));
+}
+```
+
+### 演示弱抗碰撞性
+```solidity
+function weak(string memory string1) public view returns (bool) {
+    return keccak256(abi.encodePacked(string1)) == _msg;
+}
+```
+
+### 演示強抗碰撞性
+```solidity
+function strong(string memory string1, string memory string2) public pure returns (bool) {
+    return keccak256(abi.encodePacked(string1)) == keccak256(abi.encodePacked(string2));
+}
+```
+### 2024.10.16
 #### 29_Selector
+# Solidity 函數選擇器(Function Selector)筆記
+
+## 1. 函數選擇器概述
+
+- 函數選擇器是調用智能合約時發送的 calldata 的前 4 個字節
+- 作用是告訴合約要調用哪個函數
+
+## 2. msg.data
+
+- Solidity 中的全局變量
+- 包含完整的 calldata (調用函數時傳入的數據)
+- 結構: [函數選擇器(4 字節)] + [參數(32 字節)]
+
+## 3. 函數簽名與 Method ID
+
+- 函數簽名格式: "函數名(參數類型1,參數類型2,...)"
+  - 例: "mint(address)"
+- Method ID: 函數簽名的 Keccak 哈希後的前 4 個字節
+- 函數選擇器與 Method ID 相匹配時,表示調用該函數
+
+## 4. 計算 Method ID
+
+- 使用 keccak256 哈希函數
+- 語法: `bytes4(keccak256("函數簽名"))`
+
+## 5. 不同參數類型的處理
+
+1. 基礎類型 (uint256, bool, address 等):
+   - 直接使用類型名稱
+
+2. 固定長度類型 (如 uint256[5]):
+   - 包含數組長度
+
+3. 可變長度類型 (uint256[], string 等):
+   - 使用類型名稱,不包含長度
+
+4. 映射類型 (contract, enum, struct):
+   - 需轉換為 ABI 類型
+     - contract → address
+     - enum → uint8
+     - struct → tuple
+
+## 6. 使用 Selector 調用函數
+
+- 使用 `abi.encodeWithSelector` 函數
+- 語法: `abi.encodeWithSelector(函數選擇器, 參數1, 參數2, ...)`
+- 與 `call` 函數配合使用
+
+## 注意事項
+
+- 在函數簽名中, uint 和 int 應寫為 uint256 和 int256
+- 相同合約中,不同函數有不同的函數簽名
+- 計算 Method ID 時需考慮參數類型的正確表示
+
 #### 30_TryCatch
+# Solidity 中的 try-catch 異常處理
+
+## 1. try-catch 概述
+
+- Solidity 0.6 版本引入
+- 用於處理智能合約中的異常
+- 只能用於外部函數調用或合約創建
+
+## 2. 基本語法
+
+```solidity
+try externalContract.f() {
+    // 調用成功時執行的代碼
+} catch {
+    // 調用失敗時執行的代碼
+}
+```
+
+- `externalContract.f()` 是外部合約的函數調用
+- 可以使用 `this.f()` 替代,但不能在構造函數中使用
+
+## 3. 處理返回值
+
+```solidity
+try externalContract.f() returns (returnType val) {
+    // 使用返回值 val
+} catch {
+    // 處理異常
+}
+```
+
+- 必須在 `try` 後聲明 `returns(returnType val)`
+- 返回值可在 `try` 區塊中使用
+
+## 4. 捕獲特定異常
+
+```solidity
+try externalContract.f() {
+    // 成功時的代碼
+} catch Error(string memory reason) {
+    // 處理 revert 和 require 拋出的異常
+} catch Panic(uint errorCode) {
+    // 處理 Panic 類型的錯誤 (如 assert 失敗、溢出、除零等)
+} catch (bytes memory lowLevelData) {
+    // 處理其他類型的 revert
+}
+```
+
+## 5. 實際應用
+
+### 5.1 處理外部函數調用異常
+
+```solidity
+function execute(uint amount) external returns (bool success) {
+    try even.onlyEven(amount) returns (bool _success) {
+        emit SuccessEvent();
+        return _success;
+    } catch Error(string memory reason) {
+        emit CatchEvent(reason);
+    }
+}
+```
+
+### 5.2 處理合約創建異常
+
+```solidity
+function executeNew(uint a) external returns (bool success) {
+    try new OnlyEven(a) returns (OnlyEven _even) {
+        emit SuccessEvent();
+        success = _even.onlyEven(a);
+    } catch Error(string memory reason) {
+        emit CatchEvent(reason);
+    } catch (bytes memory reason) {
+        emit CatchByte(reason);
+    }
+}
+```
+
+## 6. 注意事項
+
+- 僅適用於外部合約調用和合約創建
+- 如果 `try` 執行成功,必須聲明返回變量,且類型需匹配
+- 可以捕獲不同類型的異常: Error, Panic, 和其他類型的 revert
+- 在合約創建時,返回值是新創建的合約變量
+
+## 7. 優點
+
+- 提高合約的健壯性
+- 允許更細緻的錯誤處理
+- 可以區分不同類型的異常,進行針對性處理
 <!-- Content_END -->
 
