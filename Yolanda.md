@@ -183,5 +183,13 @@ timezone: Asia/Shanghai
 3. 調用deleteContract()函數，合約將觸發selfdestruct操作，只是將合約包含的ETH轉移到指定地址，而合約依然能夠調用
 4. selfdestruct能銷毀合約並將剩餘ETH轉移到指定帳戶
 
+### 2024.10.16
+1. Solidity中的ABI編碼有4個函數：abi.encode, abi.encodePacked, abi.encodeWithSignature, abi.encodeWithSelector
+2. 在以太坊中，數據必須編碼成字節碼才能和智能合約交互
+3. Hash的應用：生成數據唯一標誌、加密簽名、安全加密
+4. msg.data是Solidity中的一個全局變量，值為完整的calldata（調用函數時傳入的數據）
+5. 在Solidity中，函數的參數類型主要分為：基礎類型參數，固定長度類型參數，可變長度類型參數和映射類型參數。
+
+
 
 <!-- Content_END -->
