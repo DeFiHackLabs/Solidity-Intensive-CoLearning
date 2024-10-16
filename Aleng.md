@@ -136,4 +136,10 @@ ERC20與IERC20的不同，並理解其推出的意義。
 - [學習筆記36](https://hackmd.io/@82tWd8u0TI6fMRC9VG6JXw/BJd3E6u11g)
 
 ERC721原理與一些擴充接口，荷蘭拍賣的運用場景與實作，Merkle Tree發放白名單，並且尋找其他運用場景，Merkle Tree是用來驗證某個區塊或是值得有效性與是否存在。
+
+### 2024.10.15
+#### 學習筆記
+筆記 : 
+- [學習筆記37](https://hackmd.io/@82tWd8u0TI6fMRC9VG6JXw/BkcBMLFJyg)
+
 <!-- Content_END -->

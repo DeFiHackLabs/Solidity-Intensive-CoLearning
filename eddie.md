@@ -15,6 +15,24 @@ timezone: Asia/Shanghai
 ## Notes
 <!-- Content_START -->
 
+### 2024.10.15
+
+Ethers102章节：MerkleTree脚本、数字签名脚本、监听Mempool
+
+- Mempool
+
+  在用户的交易被矿工打包进以太坊区块链之前，所有交易会汇集到Mempool（交易内存池）中。矿工也是在这里寻找费用高的交易优先打包，实现利益最大化。通常来说，gas price越高的交易，越容易被打包。
+  
+  Mev也发生在其中，即为通过调整gas，机器人会在一笔滑点设置过高的swap交易之前插入买单，用户交易之后发送一个卖单，以此获利的一个过程；
+
+  ```tsx
+  let provider = new ethers.InfuraWebSocketProvider("mainnet", INFURA_API_KEY);
+  provider.on("pending", throttle(async (txHash) => {
+	   let tx = await provider.getTransaction(txHash);
+  	   console.log(tx);
+  }, 1000));
+  ```
+
 ### 2024.10.14
 
 Ethers102章节：识别ERC721合约、编码calldata、批量生成钱包/批量转账/批量归集

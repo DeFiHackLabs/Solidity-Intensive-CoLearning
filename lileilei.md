@@ -1101,5 +1101,15 @@ function auctionMint(uint256 quantity) external payable{
    function hashPair(bytes32 a, bytes32 b) private pure returns (bytes32) {
         return a < b ? keccak256(abi.encodePacked(a, b)) : keccak256(abi.encodePacked(b, a));
     }
+
+
+   ### 2024.10.15
+   function toEthSignedMessageHash(bytes32 hash) public pure returns (bytes32) {
+        // 哈希的长度为32
+        return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash));
+    }
+    hash签名，还可用web3签名
+
+    
   
 <!-- Content_END -->

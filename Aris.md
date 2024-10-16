@@ -2778,6 +2778,121 @@ timezone: Asia/Shanghai
 
 ---
 
+### 2024.10.15
+
+#### 学习内容 52. EIP712 类型化数据签名
+
+1. EIP712 类型化数据签名
+
+   - EIP191标准签名,简单,当签名数据比较复杂时，用户只能看到一串十六进制字符串（数据的哈希），无法核实签名内容是否与预期相符。
+   -  EIP712 的 Dapp 请求签名时，钱包会展示签名消息的原始数据，用户可以在验证数据符合预期之后签名。
+
+2. EIP712 使用方法-链下签名
+
+   - EIP712 签名必须包含一个 `EIP712Domain` 部分，它包含了合约的 name，version（一般约定为 “1”），chainId，和 verifyingContract（验证签名的合约地址）。
+   - 你需要根据使用场景自定义一个签名的数据类型，他要与合约匹配。
+   - 创建一个 `message` 变量，传入要被签名的类型化数据
+   - 调用钱包对象的 `signTypedData()` 方法，传入前面步骤中的 `domain`，`types`，和 `message` 变量进行签名（这里使用 `ethersjs v6`）
+
+3. EIP712 使用方法-链上验证
+
+   - `EIP712DOMAIN_TYPEHASH`: `EIP712Domain` 的类型哈希，为常量。
+
+   - `STORAGE_TYPEHASH`: `Storage` 的类型哈希，为常量。
+
+   - `DOMAIN_SEPARATOR`: 这是混合在签名中的每个域 (Dapp) 的唯一值，由 `EIP712DOMAIN_TYPEHASH` 以及 `EIP712Domain` （name, version, chainId, verifyingContract）组成，在 `constructor()` 中初始化。
+
+   - `number`: 合约中存储值的状态变量，可以被 `permitStore()` 方法修改。
+
+   - `owner`: 合约所有者，在 `constructor()` 中初始化，在 `permitStore()` 方法中验证签名的有效性。
+
+   - ```solidity
+     function permitStore(uint256 _num, bytes memory _signature) public {
+         // 检查签名长度，65是标准r,s,v签名的长度
+         require(_signature.length == 65, "invalid signature length");
+         bytes32 r;
+         bytes32 s;
+         uint8 v;
+         // 目前只能用assembly (内联汇编)来从签名中获得r,s,v的值
+         assembly {
+             /*
+             前32 bytes存储签名的长度 (动态数组存储规则)
+             add(sig, 32) = sig的指针 + 32
+             等效为略过signature的前32 bytes
+             mload(p) 载入从内存地址p起始的接下来32 bytes数据
+             */
+             // 读取长度数据后的32 bytes
+             r := mload(add(_signature, 0x20))
+             // 读取之后的32 bytes
+             s := mload(add(_signature, 0x40))
+             // 读取最后一个byte
+             v := byte(0, mload(add(_signature, 0x60)))
+         }
+     
+         // 获取签名消息hash
+         bytes32 digest = keccak256(abi.encodePacked(
+             "\x19\x01",
+             DOMAIN_SEPARATOR,
+             keccak256(abi.encode(STORAGE_TYPEHASH, msg.sender, _num))
+         )); 
+     
+         address signer = digest.recover(v, r, s); // 恢复签名者
+         require(signer == owner, "EIP712Storage: Invalid signature"); // 检查签名
+     
+         // 修改状态变量
+         number = _num;
+     }
+     ```
+
+   - 
+
+4. 合约部署
+
+   - 部署EIP712Storage合约
+
+   - 安装 http-server
+
+     - ![image-20241015210331945](./content/Aris/image-20241015210331945.png)
+
+   - 进入目录,运行 http-server,打开浏览器访问本地 html 文件
+
+     - ```shell
+       cd contracts # 我的 html 文件在这个目录中,所以进入该目录
+       npx http-server # 意思是使本项目的 http-server
+       ```
+
+   - 打开浏览器访问地址,并连接 metamask
+
+     - ![image-20241015210816176](./content/Aris/image-20241015210816176.png)
+     - name 输入 EIP712Storage,因为合约中使用的是 keccak256(bytes("EIP712Storage")),要保持一致
+     - Chain Id 输入 1,因为当前钱包连接的是 EVM 主网,另外部署合约的网络是 Remix VM(Cancun),是 fork 了 EVM 主网,故 chain id 就是 1
+       - `Remix VM (Cancun)` : Cancun is the current fork of Ethereum
+       - https://remix-ide.readthedocs.io/en/latest/run.html#environment
+     - Contract Address 输入 刚部署的合约地址, 0x540d7E428D5207B30EE03F2551Cbb5751D3c7569
+     - Spender: 要与 Remix 合约部署账户一致 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4
+     - number: 100
+
+   - 点击 Sign Permit 按钮,唤起钱包,开始签名,此时,签名数据能显示出具体信息及数据类型
+
+     - ![image-20241015211557365](./content/Aris/image-20241015211557365.png)
+     - ![image-20241015211650951](./content/Aris/image-20241015211650951.png)
+
+   - 此时链下签名成功!
+
+   - 回到合约中,点击 retrieve 函数,返回值为 0
+
+   - 复制刚刚的签名数据,调用合约的 perimitStore 函数 出入 100 和签名数据
+
+     - ![image-20241015212126392](./content/Aris/image-20241015212126392.png)
+
+   - signer 与owner 一致,且 number 从 0 变成 100,链上验证成功!
+
+---
+
+
+
+---
+
 
 
 <!-- Content_END -->

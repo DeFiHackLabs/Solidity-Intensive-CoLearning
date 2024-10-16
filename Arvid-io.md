@@ -2013,4 +2013,153 @@ Copy
         require(success, "Transfer failed.");
     }
 
+### 2024.10.15
+
+試圖了解create function 時整個代碼的結構，這樣寫起來更知道，下一個單詞是為什麼存在的: 總共有九個部分:
+
+function keyword
+function name
+parameters
+visibility specifier
+state mutability keyword
+return type
+function body
+local variable declaration
+return statement
+然後了解了struct，知道怎麼寫，什麼時候用:
+
+When to Use a Struct
+
+When You Have Multiple Related Data Fields
+When You Want to Improve Code Readability -When You Need to Reuse a Logical Grouping of Data -When You Need a Data Model in a Mapping or Array
+When Not to Use a Struct:
+
+For Simple Data: If your data is very simple (e.g., just a uint or a string), using a struct may be overkill. Structs are useful when there are multiple related fields.
+When Performance Is a Concern: Structs in Solidity are stored in memory or storage, which might consume more gas compared to simpler types, especially if the struct is large and complex. Use them wisely, considering the gas cost.
+了解MAPPING的結構: This line of code declares a public mapping in Solidity:
+
+mapping(address => string[]) public tweets;
+Here's what it does:
+
+It creates a mapping called "tweets"
+The key to this mapping is an Ethereum address
+The value associated with each address is an array of strings
+Each address can have multiple tweets (stored as strings in the array)
+The 'public' keyword automatically creates a getter function for this mapping
+In the context of a Twitter-like contract, this mapping allows each Ethereum address (user) to have an array of tweets associated with it. Users can add tweets to their array, and anyone can retrieve tweets for a specific address.
+
+20-3
+
+在ReceiveETH合约中，运行getBalance()函数，可以看到当前合约的ETH余额为10。
+
+20-4
+
+send
+用法是接收方地址.send(发送ETH数额)。
+send()的gas限制是2300，足够用于转账，但对方合约的fallback()或receive()函数不能实现太复杂的逻辑。
+send()如果转账失败，不会revert。
+send()的返回值是bool，代表着转账成功或失败，需要额外代码处理一下。
+代码样例：
+
+error SendFailed(); // 用send发送ETH失败error
+
+// send()发送ETH
+function sendETH(address payable _to, uint256 amount) external payable{
+    // 处理下send的返回值，如果失败，revert交易并发送error
+    bool success = _to.send(amount);
+    if(!success){
+        revert SendFailed();
+    }
+}
+
+Copy
+对ReceiveETH合约发送ETH，此时amount为10，value为0，amount>value，转账失败，因为经过处理，所以发生revert。
+
+20-5
+
+此时amount为10，value为11，amount<=value，转账成功。
+
+20-6
+
+call
+用法是接收方地址.call{value: 发送ETH数额}("")。
+call()没有gas限制，可以支持对方合约fallback()或receive()函数实现复杂逻辑。
+call()如果转账失败，不会revert。
+call()的返回值是(bool, bytes)，其中bool代表着转账成功或失败，需要额外代码处理一下。
+代码样例：
+
+error CallFailed(); // 用call发送ETH失败error
+
+// call()发送ETH
+function callETH(address payable _to, uint256 amount) external payable{
+    // 处理下call的返回值，如果失败，revert交易并发送error
+    (bool success,) = _to.call{value: amount}("");
+    if(!success){
+        revert CallFailed();
+    }
+}
+
+Copy
+对ReceiveETH合约发送ETH，此时amount为10，value为0，amount>value，转账失败，因为经过处理，所以发生revert。
+
+20-7
+
+此时amount为10，value为11，amount<=value，转账成功。
+
+什么是选择器冲突？
+
+选择器冲突是指不同的函数对应的函数选择器相同。
+
+// 选择器冲突的例子
+contract Foo {
+    function burn(uint256) external {}
+    function collate_propagate_storage(bytes16) external {}
+}
+上面的代码中，函数burn()和collate_propagate_storage()的选择器都为0x42966c68，这种情况被称为“选择器冲突”。在这种情况下，EVM无法通过函数选择器分辨用户调用哪个函数，因此该合约无法通过编译。
+
+由于代理合约和逻辑合约是两个合约，就算他们之间存在“选择器冲突”也可以正常编译，这可能会导致很严重的安全事故。举个例子，如果逻辑合约的a函数和代理合约的升级函数的选择器相同，那么管理人就会在调用a函数的时候，将代理合约升级成一个黑洞合约，后果不堪设想。
+
+而透明代理就是通过限制管理员和普通用户的权限来解决选择器冲突的。
+
+透明代理（Transparent Proxy）- 可以解决代理合约的选择器冲突（Selector Clash）问题。
+
+透明代理解决冲突的思路
+
+将管理员设置为仅能调用代理合约的升级函数，且不能通过回调函数调用逻辑合约。
+
+其他用户只能通过回调函数调用逻辑合约，不能调用逻辑合约的升级函数。
+
+// 透明可升级合约的教学代码，不要用于生产。
+contract TransparentProxy {
+    address implementation; // logic合约地址
+    address admin; // 管理员
+    string public words; // 字符串，可以通过逻辑合约的函数改变
+
+    // 构造函数，初始化admin和逻辑合约地址
+    constructor(address _implementation){
+        admin = msg.sender;
+        implementation = _implementation;
+    }
+
+    // fallback函数，将调用委托给逻辑合约
+    // 不能被admin调用，避免选择器冲突引发意外
+    fallback() external payable {
+        require(msg.sender != admin);
+        (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+    }
+
+    // 升级函数，改变逻辑合约地址，只能由admin调用
+    function upgrade(address newImplementation) external {
+        if (msg.sender != admin) revert();
+        implementation = newImplementation;
+    }
+}
+学习总结
+
+用户透明性：用户与代理合约交互时，感知不到背后逻辑合约的升级，所有调用都被透明地委托给最新的逻辑合约。
+
+开发者透明性：只有非管理员角色（即普通用户）可以通过代理合约调用逻辑合约，而管理员角色只能进行合约升级。这种权限控制确保了合约升级过程对普通用户是“透明”的，避免了他们调用到升级相关的函数。
+
+以上。
+
 <!-- Content_END -->

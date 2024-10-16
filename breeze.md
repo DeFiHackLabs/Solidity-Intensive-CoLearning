@@ -207,5 +207,9 @@ contract DiamondExample {
         delete diamondCut;
     }
 }
+
+### 2024.10.15
+completed lessons 34-35；ERC165，ERC721
+
 ```
 <!-- Content_END -->

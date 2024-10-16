@@ -900,6 +900,41 @@ require(success, "Failed to send Ether");
 
 ### 2024.10.16
 
-笔记内容
+virtual
+override
+继承
 
+1. 让 FundMe 的参与者，基于 mapping 来领取相应数量的通证
+2. 让 FundMe 的参与者， transfer 通证
+3. 在使用完成以后，需要 burn 通证
+变量 public getter
+Remix
+项目管理
+难以批量部署和测试
+难以统一版本
+Hardhat JavaScript
+Foundry Rust
+
+brew -v
+brew update
+brew install nvm
+pwd
+ls -a
+vim .zprofile
+source .zprofile
+nvm
+nvm install --lts
+nvm install 20
+nvm list
+nvm use 20
+nvm uninstall 18
+
+brew install --cask visual-studio-code
+mkdir test
+cd test/
+touch test.txt
+cd test
+code .
+npm init
+npm install --save-dev hardhat
 <!-- Content_END -->
