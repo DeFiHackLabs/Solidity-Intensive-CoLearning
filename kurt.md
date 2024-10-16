@@ -1097,6 +1097,141 @@ contract merkleTree is ERC721 {
 }
 ```
 ### 2024.10.14
+signature
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.26;
+import "contracts/ERC721.sol";
+library ECDSA{
+
+function verify(bytes32 _msgHash, bytes memory _signature,address signer) internal pure returns (bool){
+    return recoverSigner(_msgHash,_signature) == signer;
+}
+
+function recoverSigner(bytes32 _msgHash,bytes memory _signature) internal pure returns (address){
+    require(_signature.length == 65,"invalid signature length");
+    bytes32 r;
+    bytes32 s;
+    uint8 v;
+    assembly{
+        r:= mload(add(_signature,0x20))
+        s:= mload(add(_signature,0x40))
+        v:= byte(0,mload(add(_signature,0x60)))
+    }
+    ecrecover(_msgHash, v, r, s);//唉亏卡微
+}
+function toEthSignedMessage(bytes32 hash) public pure returns (bytes32){
+    return keccak256(abi.encodePacked("\x19Ethereum signed Message:\n32",hash));
+}
+
+}
+contract SignatureNFT is ERC721 {
+    address immutable public signer; 
+    mapping(address => bool) public mintedAddress;  
+
+    constructor(string memory _name, string memory _symbol, address _signer)
+    ERC721(_name, _symbol)
+    {
+        signer = _signer;
+    }
+
+    function mint(address _account, uint256 _tokenId, bytes memory _signature)
+    external
+    {
+        bytes32 _msgHash = getMessageHash(_account, _tokenId); // 将_account和_tokenId打包消息
+        bytes32 _ethSignedMessageHash = ECDSA.toEthSignedMessageHash(_msgHash); // 计算以太坊签名消息
+        require(verify(_ethSignedMessageHash, _signature), "Invalid signature"); // ECDSA检验通过
+        require(!mintedAddress[_account], "Already minted!"); // 地址没有mint过
+        mintedAddress[_account] = true; // 记录mint过的地址
+        _mint(_account, _tokenId); // mint
+    }
+
+    /*
+     * 将mint地址（address类型）和tokenId（uint256类型）拼成消息msgHash
+     * _account: 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4
+     * _tokenId: 0
+     * 对应的消息msgHash: 0x1bf2c0ce4546651a1a2feb457b39d891a6b83931cc2454434f39961345ac378c
+     */
+    function getMessageHash(address _account, uint256 _tokenId) public pure returns(bytes32){
+        return keccak256(abi.encodePacked(_account, _tokenId));
+    }
+
+    // ECDSA验证，调用ECDSA库的verify()函数
+    function verify(bytes32 _msgHash, bytes memory _signature)
+    public view returns (bool)
+    {
+        return ECDSA.verify(_msgHash, _signature, signer);
+    }
+}
+
+contract VerifySignature {
+
+    function getMessageHash(
+        address _addr,
+        uint256 _tokenId
+    ) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(_addr, _tokenId));
+    }
+
+    function getEthSignedMessageHash(bytes32 _messageHash)
+        public
+        pure
+        returns (bytes32)
+    {
+        return
+            keccak256(
+                abi.encodePacked("\x19Ethereum Signed Message:\n32", _messageHash)
+            );
+    }
+
+    function verify(
+        address _signer,
+        address _addr,
+        uint _tokenId,
+        bytes memory signature
+    ) public pure returns (bool) {
+        bytes32 messageHash = getMessageHash(_addr, _tokenId);
+        bytes32 ethSignedMessageHash = getEthSignedMessageHash(messageHash);
+
+        return recoverSigner(ethSignedMessageHash, signature) == _signer;
+    }
+
+    function recoverSigner(bytes32 _ethSignedMessageHash, bytes memory _signature)
+        public
+        pure
+        returns (address)
+    {
+        (bytes32 r, bytes32 s, uint8 v) = splitSignature(_signature);
+
+        return ecrecover(_ethSignedMessageHash, v, r, s);
+    }
+
+    function splitSignature(bytes memory sig)
+        public
+        pure
+        returns (
+            bytes32 r,
+            bytes32 s,
+            uint8 v
+        )
+    {
+        // 检查签名长度，65是标准r,s,v签名的长度
+        require(sig.length == 65, "invalid signature length");
+
+        assembly {
+
+            // first 32 bytes, after the length prefix
+            r := mload(add(sig, 0x20))
+            // second 32 bytes
+            s := mload(add(sig, 0x40))
+            // final byte (first byte of the next 32 bytes)
+            v := byte(0, mload(add(sig, 0x60)))
+        }
+
+        // implicitly return (r, s, v)
+    }
+}
+```
 ### 2024.10.15
     
 <!-- Content_END -->

@@ -1801,22 +1801,296 @@ contract MerkleTree is ERC721 {
 
 ### 2024.10.14
 
+38. NFT 交易所
+
+```solidity
+construct SwapNFT{
+    event List(address indexed seller, address indexed nftAddr, uint256 indexed tokenId, uint256 price);
+    event Purchase(address indexed buyer, address indexed nftAddr, uint256 indexed tokenId, uint256 price);
+    event Revoke(address indexed seller, address indexed nftAddr, uint256 indexed tokenId);
+    event Update(address indexed seller, address indexed nftAddr, uint256 indexed tokenId, uint256 newPrice);
+
+    // 定义order结构体
+    struct Order{
+        address owner;
+        uint256 price;
+    }
+    // NFT Order映射
+    mapping(address => mapping(uint256 => Order)) public nftList;
+
+    fallback() external payable{}
+
+    contract NFTSwap is IERC721Receiver{
+
+    // 实现{IERC721Receiver}的onERC721Received，能够接收ERC721代币
+    function onERC721Received(
+        address operator,
+        address from,
+        uint tokenId,
+        bytes calldata data
+    ) external override returns (bytes4){
+        return IERC721Receiver.onERC721Received.selector;
+    }
+
+    // 挂单: 卖家上架NFT，合约地址为_nftAddr，tokenId为_tokenId，价格_price为以太坊（单位是wei）
+    function list(address _nftAddr, uint256 _tokenId, uint256 _price) public{
+        IERC721 _nft = IERC721(_nftAddr); // 声明IERC721接口合约变量
+        require(_nft.getApproved(_tokenId) == address(this), "Need Approval"); // 合约得到授权
+        require(_price > 0); // 价格大于0
+
+        Order storage _order = nftList[_nftAddr][_tokenId]; //设置NF持有人和价格
+        _order.owner = msg.sender;
+        _order.price = _price;
+        // 将NFT转账到合约
+        _nft.safeTransferFrom(msg.sender, address(this), _tokenId);
+
+        // 释放List事件
+        emit List(msg.sender, _nftAddr, _tokenId, _price);
+    }
+
+    // 撤单： 卖家取消挂单
+    function revoke(address _nftAddr, uint256 _tokenId) public {
+        Order storage _order = nftList[_nftAddr][_tokenId]; // 取得Order
+        require(_order.owner == msg.sender, "Not Owner"); // 必须由持有人发起
+        // 声明IERC721接口合约变量
+        IERC721 _nft = IERC721(_nftAddr);
+        require(_nft.ownerOf(_tokenId) == address(this), "Invalid Order"); // NFT在合约中
+
+        // 将NFT转给卖家
+        _nft.safeTransferFrom(address(this), msg.sender, _tokenId);
+        delete nftList[_nftAddr][_tokenId]; // 删除order
+
+        // 释放Revoke事件
+        emit Revoke(msg.sender, _nftAddr, _tokenId);
+    }
+
+    // 调整价格: 卖家调整挂单价格
+    function update(address _nftAddr, uint256 _tokenId, uint256 _newPrice) public {
+        require(_newPrice > 0, "Invalid Price"); // NFT价格大于0
+        Order storage _order = nftList[_nftAddr][_tokenId]; // 取得Order
+        require(_order.owner == msg.sender, "Not Owner"); // 必须由持有人发起
+        // 声明IERC721接口合约变量
+        IERC721 _nft = IERC721(_nftAddr);
+        require(_nft.ownerOf(_tokenId) == address(this), "Invalid Order"); // NFT在合约中
+
+        // 调整NFT价格
+        _order.price = _newPrice;
+
+        // 释放Update事件
+        emit Update(msg.sender, _nftAddr, _tokenId, _newPrice);
+    }
+
+    // 购买: 买家购买NFT，合约为_nftAddr，tokenId为_tokenId，调用函数时要附带ETH
+    function purchase(address _nftAddr, uint256 _tokenId) payable public {
+        Order storage _order = nftList[_nftAddr][_tokenId]; // 取得Order
+        require(_order.price > 0, "Invalid Price"); // NFT价格大于0
+        require(msg.value >= _order.price, "Increase price"); // 购买价格大于标价
+        // 声明IERC721接口合约变量
+        IERC721 _nft = IERC721(_nftAddr);
+        require(_nft.ownerOf(_tokenId) == address(this), "Invalid Order"); // NFT在合约中
+
+        // 将NFT转给买家
+        _nft.safeTransferFrom(address(this), msg.sender, _tokenId);
+        // 将ETH转给卖家，多余ETH给买家退款
+        payable(_order.owner).transfer(_order.price);
+        payable(msg.sender).transfer(msg.value-_order.price);
+
+        delete nftList[_nftAddr][_tokenId]; // 删除order
+
+        // 释放Purchase事件
+        emit Purchase(msg.sender, _nftAddr, _tokenId, _order.price);
+    }
+}
+```
+
 ### 2024.10.15
+
+39. 链上随机数
+
+- getRandomOnchain 是伪随机，不安全
+- 用 chainlink 的 vrf
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
+import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
+
+contract RandomNumberConsumer is VRFConsumerBaseV2{
+
+    //请求随机数需要调用VRFCoordinatorV2Interface接口
+    VRFCoordinatorV2Interface COORDINATOR;
+
+    // 申请后的subId
+    uint64 subId;
+
+    //存放得到的 requestId 和 随机数
+    uint256 public requestId;
+    uint256[] public randomWords;
+
+    /**
+     * 使用chainlink VRF，构造函数需要继承 VRFConsumerBaseV2
+     * 不同链参数填的不一样
+     * 具体可以看：https://docs.chain.link/vrf/v2/subscription/supported-networks
+     * 网络: Sepolia测试网
+     * Chainlink VRF Coordinator 地址: 0x8103B0A8A00be2DDC778e6e7eaa21791Cd364625
+     * LINK 代币地址: 0x01BE23585060835E02B77ef475b0Cc51aA1e0709
+     * 30 gwei Key Hash: 0x474e34a077df58807dbe9c96d3c009b23b3c6d0cce433e59bbf5b34f823bc56c
+     * Minimum Confirmations 最小确认块数 : 3 （数字大安全性高，一般填12）
+     * callbackGasLimit gas限制 : 最大 2,500,000
+     * Maximum Random Values 一次可以得到的随机数个数 : 最大 500
+     */
+    address vrfCoordinator = 0x8103B0A8A00be2DDC778e6e7eaa21791Cd364625;
+    bytes32 keyHash = 0x474e34a077df58807dbe9c96d3c009b23b3c6d0cce433e59bbf5b34f823bc56c;
+    uint16 requestConfirmations = 3;
+    uint32 callbackGasLimit = 200_000;
+    uint32 numWords = 3;
+
+    constructor(uint64 s_subId) VRFConsumerBaseV2(vrfCoordinator){
+        COORDINATOR = VRFCoordinatorV2Interface(vrfCoordinator);
+        subId = s_subId;
+    }
+
+    /**
+     * 向VRF合约申请随机数
+     */
+    function requestRandomWords() external {
+        requestId = COORDINATOR.requestRandomWords(
+            keyHash,
+            subId,
+            requestConfirmations,
+            callbackGasLimit,
+            numWords
+        );
+    }
+
+    /**
+     * VRF合约的回调函数，验证随机数有效之后会自动被调用
+     * 消耗随机数的逻辑写在这里
+     */
+    function fulfillRandomWords(uint256 requestId, uint256[] memory s_randomWords) internal override {
+        randomWords = s_randomWords;
+    }
+```
+
+- 随机铸造 nft
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+import "https://github.com/AmazingAng/WTF-Solidity/blob/main/34_ERC721/ERC721.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
+import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
+
+contract Random is ERC721, VRFConsumerBaseV2{
+    // NFT相关
+    uint256 public totalSupply = 100; // 总供给
+    uint256[100] public ids; // 用于计算可供mint的tokenId
+    uint256 public mintCount; // 已mint数量
+
+    // chainlink VRF参数
+
+    //VRFCoordinatorV2Interface
+    VRFCoordinatorV2Interface COORDINATOR;
+
+    /**
+     * 使用chainlink VRF，构造函数需要继承 VRFConsumerBaseV2
+     * 不同链参数填的不一样
+     * 网络: Sepolia测试网
+     * Chainlink VRF Coordinator 地址: 0x8103B0A8A00be2DDC778e6e7eaa21791Cd364625
+     * LINK 代币地址: 0x01BE23585060835E02B77ef475b0Cc51aA1e0709
+     * 30 gwei Key Hash: 0x474e34a077df58807dbe9c96d3c009b23b3c6d0cce433e59bbf5b34f823bc56c
+     * Minimum Confirmations 最小确认块数 : 3 （数字大安全性高，一般填12）
+     * callbackGasLimit gas限制 : 最大 2,500,000
+     * Maximum Random Values 一次可以得到的随机数个数 : 最大 500
+     */
+    address vrfCoordinator = 0x8103B0A8A00be2DDC778e6e7eaa21791Cd364625;
+    bytes32 keyHash = 0x474e34a077df58807dbe9c96d3c009b23b3c6d0cce433e59bbf5b34f823bc56c;
+    uint16 requestConfirmations = 3;
+    uint32 callbackGasLimit = 1_000_000;
+    uint32 numWords = 1;
+    uint64 subId;
+    uint256 public requestId;
+
+    // 记录VRF申请标识对应的mint地址
+    mapping(uint256 => address) public requestToSender;
+
+    //构造函数
+    constructor(uint64 s_subId) VRFConsumerBaseV2(vrfCoordinator) ERC721("WTF Random", "WTF"){
+            COORDINATOR = VRFCoordinatorV2Interface(vrfCoordinator);
+            subId = s_subId;
+    }
+
+    /**
+    * 输入uint256数字，返回一个可以mint的tokenId
+    * 算法过程可理解为：totalSupply个空杯子（0初始化的ids）排成一排，每个杯子旁边放一个球，编号为[0, totalSupply - 1]。
+    每次从场上随机拿走一个球（球可能在杯子旁边，这是初始状态；也可能是在杯子里，说明杯子旁边的球已经被拿走过，则此时新的球从末尾被放到了杯子里）
+    再把末尾的一个球（依然是可能在杯子里也可能在杯子旁边）放进被拿走的球的杯子里，循环totalSupply次。相比传统的随机排列，省去了初始化ids[]的gas。
+    */
+    function pickRandomUniqueId(uint256 random) private returns (uint256 tokenId) {
+        //先计算减法，再计算++, 关注(a++，++a)区别
+        uint256 len = totalSupply - mintCount++; // 可mint数量
+        require(len > 0, "mint close"); // 所有tokenId被mint完了
+        uint256 randomIndex = random % len; // 获取链上随机数
+
+        //随机数取模，得到tokenId，作为数组下标，同时记录value为len-1，如果取模得到的值已存在，则tokenId取该数组下标的value
+        tokenId = ids[randomIndex] != 0 ? ids[randomIndex] : randomIndex; // 获取tokenId
+        ids[randomIndex] = ids[len - 1] == 0 ? len - 1 : ids[len - 1]; // 更新ids 列表
+        ids[len - 1] = 0; // 删除最后一个元素，能返还gas
+    }
+
+    /**
+    * 链上伪随机数生成
+    * keccak256(abi.encodePacked())中填上一些链上的全局变量/自定义变量
+    * 返回时转换成uint256类型
+    */
+    function getRandomOnchain() public view returns(uint256){
+        /*
+         * 本例链上随机只依赖区块哈希，调用者地址，和区块时间，
+         * 想提高随机性可以再增加一些属性比如nonce等，但是不能根本上解决安全问题
+         */
+        bytes32 randomBytes = keccak256(abi.encodePacked(blockhash(block.number-1), msg.sender, block.timestamp));
+        return uint256(randomBytes);
+    }
+
+    // 利用链上伪随机数铸造NFT
+    function mintRandomOnchain() public {
+        uint256 _tokenId = pickRandomUniqueId(getRandomOnchain()); // 利用链上随机数生成tokenId
+        _mint(msg.sender, _tokenId);
+    }
+
+    /**
+     * 调用VRF获取随机数，并mintNFT
+     * 要调用requestRandomness()函数获取，消耗随机数的逻辑写在VRF的回调函数fulfillRandomness()中
+     * 调用前，需要在Subscriptions中转入足够的Link
+     */
+    function mintRandomVRF() public {
+        // 调用requestRandomness获取随机数
+        requestId = COORDINATOR.requestRandomWords(
+            keyHash,
+            subId,
+            requestConfirmations,
+            callbackGasLimit,
+            numWords
+        );
+        requestToSender[requestId] = msg.sender;
+    }
+
+    /**
+     * VRF的回调函数，由VRF Coordinator调用
+     * 消耗随机数的逻辑写在本函数中
+     */
+    function fulfillRandomWords(uint256 requestId, uint256[] memory s_randomWords) internal override{
+        address sender = requestToSender[requestId]; // 从requestToSender中获取minter用户地址
+        uint256 tokenId = pickRandomUniqueId(s_randomWords[0]); // 利用VRF返回的随机数生成tokenId
+        _mint(sender, tokenId);
+    }
+}
+
+```
 
 ### 2024.10.16
 
-### 2024.10.17
-
-### 2024.10.18
-
-### 2024.10.19
-
-### 2024.10.20
-
-### 2024.10.21
-
 <!-- Content_END -->
-
-```
-
-```

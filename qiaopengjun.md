@@ -882,7 +882,21 @@ contract HelloWorldFactory {
 
 ### 2024.10.15
 
-笔记内容
+1. 创建一个收款函数
+2. 记录投资人并且查看
+3. 在锁定期内，达到目标值，生产商可以提取资金
+4. 在锁定期内，未达到目标值，投资人可以提取资金
+
+Transfer: transfer ETH and revert if tx failed
+payable(msg.sender).transfer(address(this).balance);
+
+send: transfer ETH and return false if tx failed
+bool success = payable(msg.sender).send(address(this).balance);
+require(success, "Failed to send Ether");
+
+call: transfer ETH with data return value of the called function and bool
+(bool success, ) = payable(msg.sender).call{value: address(this).balance}("");
+require(success, "Failed to send Ether");
 
 ### 2024.10.16
 

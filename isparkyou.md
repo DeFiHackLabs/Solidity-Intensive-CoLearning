@@ -6847,6 +6847,7 @@ if (txHash) {
 }})
 ```
 
+### 2024.10.13
 ### 靓号生成器
 ```
 const wallet = ethers.Wallet.createRandom() // 随机生成钱包，安全
@@ -6920,6 +6921,344 @@ async function CreateWallet(regexList) {
     return data
 }
 ```
+
+### 2024.10.14
+### 读取任意数据
+#### 智能合约存储布局
+以太坊智能合约的存储是一个 uint256 -> uint256 的映射。uint256 大小为 32 bytes，这个固定大小的存储空间被称为 slot （插槽）。智能合约的数据就被存在一个个的 slot 中，从 slot 0 开始依次存储。
+![image](https://github.com/user-attachments/assets/dc20d265-d5ad-4c91-aaed-97f3ee6bb785)
+即使是没有 getter 函数的 private 变量，你依然可以通过 slot 索引来读取它的值。
+```
+const value = await provider.getStorageAt(contractAddress, slot)
+```
+#### 读取任意数据脚本
+```
+import { ethers } from "ethers";
+
+//准备 alchemy API 可以参考https://github.com/AmazingAng/WTFSolidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md 
+const ALCHEMY_MAINNET_URL = 'https://eth-mainnet.g.alchemy.com/v2/oKmOQKbneVkxgHZfibs-iFhIlIAl6HDN';
+const provider = new ethers.JsonRpcProvider(ALCHEMY_MAINNET_URL);
+
+// 目标合约地址: Arbitrum ERC20 bridge（主网）
+const addressBridge = '0x8315177aB297bA92A06054cE80a67Ed4DBd7ed3a' // DAI Contract
+// 合约所有者 slot
+const slot = `0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103`
+
+const main = async () => {
+    console.log("开始读取特定slot的数据")
+    const privateData = await provider.getStorage(addressBridge, slot)
+    console.log("读出的数据（owner地址）: ", ethers.getAddress(ethers.dataSlice(privateData, 12)))    
+}
+
+main()
+```
+
+### 抢先交易脚本
+![image](https://github.com/user-attachments/assets/2573dc89-1a1e-4237-b7a1-f20a6dc4f394)
+#### Freemint NFT合约
+```
+// SPDX-License-Identifier: MIT
+// By 0xAA
+pragma solidity ^0.8.4;
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+
+// 我们尝试frontrun一笔Free mint交易
+contract FreeMint is ERC721 {
+    uint256 public totalSupply;
+
+    // 构造函数，初始化NFT合集的名称、代号
+    constructor() ERC721("Free Mint NFT", "FreeMint"){}
+
+    // 铸造函数
+    function mint() external {
+        totalSupply++;
+        _mint(msg.sender, totalSupply); // mint
+    }
+}
+```
+#### 抢跑脚本
+```
+//1.连接到foundry本地网络
+
+import { ethers } from "ethers";
+const provider = new ethers.providers.JsonRpcProvider('<http://127.0.0.1:8545>')
+let network = provider.getNetwork()
+network.then(res => console.log(`[${(new Date).toLocaleTimeString()}]链接到网络${res.chainId}`))
+//2.构建contract实例
+const contractABI = [
+    "function mint() public",
+    "function ownerOf(uint256) public view returns (address) ",
+    "function totalSupply() view returns (uint256)"
+]
+
+const contractAddress = '0xC76A71C4492c11bbaDC841342C4Cb470b5d12193'//合约地址
+const contractFM = new ethers.Contract(contractAddress, contractABI, provider)
+//3.创建Interface对象，用于检索mint函数。
+//V6版本 const iface = new ethers.Interface(contractABI)
+const iface = new ethers.utils.Interface(contractABI)
+function getSignature(fn) {
+// V6版本 return iface.getFunction("mint").selector
+    return iface.getSighash(fn)
+}
+//4. 创建测试钱包，用于发送抢跑交易，私钥是foundry测试网提供
+const privateKey = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
+const wallet = new ethers.Wallet(privateKey, provider)
+//5. 构建正常mint函数，检验mint结果，显示正常。
+const normaltx = async () => {
+provider.on('pending', async (txHash) => {
+    provider.getTransaction(txHash).then(
+        async (tx) => {
+            if (tx.data.indexOf(getSignature("mint")) !== -1) {
+                console.log(`[${(new Date).toLocaleTimeString()}]监听到交易:${txHash}`)
+                console.log(`铸造发起的地址是:${tx.from}`)//打印交易发起地址
+                await tx.wait()
+                const tokenId = await contractFM.totalSupply()
+                console.log(`mint的NFT编号:${tokenId}`)
+                console.log(`编号${tokenId}NFT的持有者是${await contractFM.ownerOf(tokenId)}`)//打印nft持有者地址
+                console.log(`铸造发起的地址是不是对应NFT的持有者:${tx.from === await contractFM.ownerOf(tokenId)}`)//比较二者是否一致
+            }
+        }
+    )
+})
+}
+const frontRun = async () => {
+provider.on('pending', async (txHash) => {
+    const tx = await provider.getTransaction(txHash)
+    if (tx.data.indexOf(getSignature("mint")) !== -1 && tx.from !== wallet.address) {
+        console.log(`[${(new Date).toLocaleTimeString()}]监听到交易:${txHash}\n准备抢先交易`)
+        const frontRunTx = {
+            to: tx.to,
+            value: tx.value,
+// V6版本 maxPriorityFeePerGas: tx.maxPriorityFeePerGas * 2n， 其他运算同理。参考https://docs.ethers.org/v6/migrating/#migrate-bigint
+            maxPriorityFeePerGas: tx.maxPriorityFeePerGas.mul(2),
+            maxFeePerGas: tx.maxFeePerGas.mul(2),
+            gasLimit: tx.gasLimit.mul(2),
+            data: tx.data
+        }
+        const aimTokenId = (await contractFM.totalSupply()).add(1)
+        console.log(`即将被mint的NFT编号是:${aimTokenId}`)//打印应该被mint的nft编号
+        const sentFR = await wallet.sendTransaction(frontRunTx)
+        console.log(`正在frontrun交易`)
+        const receipt = await sentFR.wait()
+        console.log(`frontrun 交易成功,交易hash是:${receipt.transactionHash}`)
+        console.log(`铸造发起的地址是:${tx.from}`)
+        console.log(`编号${aimTokenId}NFT的持有者是${await contractFM.ownerOf(aimTokenId)}`)//刚刚mint的nft持有者并不是tx.from
+        console.log(`编号${aimTokenId.add(1)}的NFT的持有者是:${await contractFM.ownerOf(aimTokenId.add(1))}`)//tx.from被wallet.address抢跑，mint了下一个nft
+        console.log(`铸造发起的地址是不是对应NFT的持有者:${tx.from === await contractFM.ownerOf(aimTokenId)}`)//比对地址，tx.from被抢跑
+        //检验区块内数据结果
+        const block = await provider.getBlock(tx.blockNumber)
+        console.log(`区块内交易数据明细:${block.transactions}`)//在区块内，后发交易排在先发交易前，抢跑成功。
+    }
+})
+}
+```
+
+### 识别ERC20合约
+我们了解基于 ERC165 识别 ERC721 合约。但是由于 ERC20 的发布早于 ERC165（20 < 165），因此我们没法用相同的办法识别 ERC20 合约，只能另找办法。
+区块链是公开的，我们能获取任意合约地址上的代码（bytecode）。因此，我们可以先获取合约代码，然后对比其是否包含 ERC20 标准中的函数就可以了。
+首先，我们用 provider 的 getCode() 函数来取得对应地址的 bytecode：
+```
+let code = await provider.getCode(contractAddress)
+```
+接下来我们要检查合约 bytecode 是否包含 ERC20 标准中的函数。合约 bytecode 中存储了相应的[函数选择器]：如果合约包含 transfer(address, uint256) 函数，那么 bytecode 就会包含 a9059cbb；如果合约包含 totalSupply()，那么 bytecode 就会包含 18160ddd。
+仅需检测 transfer(address, uint256) 和 totalSupply() 两个函数，而不用检查全部6个，这是因为：
+ERC20标准中只有 transfer(address, uint256) 不包含在 ERC721标准、ERC1155和ERC777标准中。因此如果一个合约包含 transfer(address, uint256) 的选择器，就能确定它是 ERC20 代币合约，而不是其他。
+额外检测 totalSupply() 是为了防止选择器碰撞：一串随机的字节码可能和 transfer(address, uint256) 的选择器（4字节）相同。
+```
+async function erc20Checker(addr){
+    // 获取合约bytecode
+    let code = await provider.getCode(addr)
+    // 非合约地址的bytecode是0x
+    if(code != "0x"){
+        // 检查bytecode中是否包含transfer函数和totalSupply函数的selector
+        if(code.includes("a9059cbb") && code.includes("18160ddd")){
+            // 如果有，则是ERC20
+            return true
+        }else{
+            // 如果没有，则不是ERC20
+            return false
+        }
+    }else{
+        return null;
+    }
+}
+```
+
+### 2024.10.15
+### Flashbots
+Flashbots 是致力于减轻 MEV（最大可提取价值）对区块链造成危害的研究组织。目前有以下几款产品:
+1. Flashbots RPC: 保护以太坊用户受到有害 MEV（三明治攻击）的侵害。
+2. Flashbots Bundle: 帮助 MEV 搜索者（Searcher）在以太坊上提取 MEV。
+3. mev-boost: 帮助以太坊 POS 节点通过 MEV 获取更多的 ETH 奖励。
+#### Flashbots RPC
+Flashbots RPC 是一款面向以太坊普通用户的免费产品，你只需要在加密的钱包中将 RPC（网络节点）设置为Flashbots RPC，就可以将交易发送到Flashbots的私有交易缓存池（mempool）而非公开的，从而免受抢先交易/三明治攻击的损害。
+#### Flashbots Bundle
+在区块链上搜索 MEV 机会的开发者被称为搜索者。Flashbots Bundle（交易包）是一款帮助搜索者提取以太坊交易中 MEV 的工具。搜索者可以利用它将多笔交易组合在一起，按照指定的顺序执行。
+```
+// 1. 普通rpc （非flashbots rpc）
+const ALCHEMY_GOERLI_URL = 'https://eth-sepolia.g.alchemy.com/v2/424OtGw_2L1A2wH6wrbPVPvyukI-sCoK';
+const provider = new ethers.JsonRpcProvider(ALCHEMY_GOERLI_URL);
+const authKey = '0x227dbb8586117d55284e26620bc76534dfbd2394be34cf4a09cb775d593b6f2c'
+const authSigner = new ethers.Wallet(authKey, provider)
+const flashbotsProvider = await FlashbotsBundleProvider.create(
+    provider,
+    authSigner,
+    // 使用主网 Flashbots，需要把下面两行删去
+    'https://relay-sepolia.flashbots.net'', 
+    'sepolia'
+    );
+const privateKey = '0x227dbb8586117d55284e26620bc76534dfbd2394be34cf4a09cb775d593b6f2c'
+const wallet = new ethers.Wallet(privateKey, provider)
+// EIP 1559 transaction
+const transaction0 = {
+chainId: CHAIN_ID,
+type: 2,
+to: "0x25df6DA2f4e5C178DdFF45038378C0b08E0Bce54",
+value: ethers.parseEther("0.001"),
+maxFeePerGas: GWEI * 100n,
+maxPriorityFeePerGas: GWEI * 50n
+}
+const transactionBundle = [
+    {
+        signer: wallet, // ethers signer
+        transaction: transaction0 // ethers populated transaction object
+    }
+    // 也可以加入mempool中签名好的交易（可以是任何人发送的）
+    // ,{
+    //     signedTransaction: SIGNED_ORACLE_UPDATE_FROM_PENDING_POOL // serialized signed transaction hex
+    // }
+]
+// 签名交易
+const signedTransactions = await flashbotsProvider.signBundle(transactionBundle)
+// 设置交易的目标执行区块（在哪个区块执行）
+const targetBlockNumber = (await provider.getBlockNumber()) + 1
+// 模拟
+const simulation = await flashbotsProvider.simulate(signedTransactions, targetBlockNumber)
+// 检查模拟是否成功
+if ("error" in simulation) {
+    console.log(`模拟交易出错: ${simulation.error.message}`);
+} else {
+    console.log(`模拟交易成功`);
+    console.log(JSON.stringify(simulation, (key, value) => 
+        typeof value === 'bigint' 
+            ? value.toString() 
+            : value, // return everything else unchanged
+        2
+    ));
+}
+for (let i = 1; i <= 100; i++) {
+    let targetBlockNumberNew = targetBlockNumber + i - 1;
+    // 发送交易
+    const res = await flashbotsProvider.sendRawBundle(signedTransactions, targetBlockNumberNew);
+    if ("error" in res) {
+    throw new Error(res.error.message);
+    }
+    // 检查交易是否上链
+    const bundleResolution = await res.wait();
+    // 交易有三个状态: 成功上链/没有上链/Nonce过高。
+    if (bundleResolution === FlashbotsBundleResolution.BundleIncluded) {
+    console.log(`恭喜, 交易成功上链，区块: ${targetBlockNumberNew}`);
+    console.log(JSON.stringify(res, null, 2));
+    process.exit(0);
+    } else if (
+    bundleResolution === FlashbotsBundleResolution.BlockPassedWithoutInclusion
+    ) {
+    console.log(`请重试, 交易没有被纳入区块: ${targetBlockNumberNew}`);
+    } else if (
+    bundleResolution === FlashbotsBundleResolution.AccountNonceTooHigh
+    ) {
+    console.log("Nonce 太高，请重新设置");
+    process.exit(1);
+    }
+}
+```
+
+### EIP712签名脚本
+```
+// 使用 Alchemy 的 RPC 节点连接以太坊网络
+// 准备 Alchemy API 可以参考 https://github.com/AmazingAng/WTFSolidity/blob/main/Topics/Tools/TOOL04_Alchemy/readme.md 
+const ALCHEMY_GOERLI_URL = 'https://eth-goerli.alchemyapi.io/v2/GlaeWuylnNM3uuOo-SAwJxuwTdqHaY5l';
+const provider = new ethers.JsonRpcProvider(ALCHEMY_GOERLI_URL);
+
+// 使用私钥和 provider 创建 wallet 对象
+const privateKey = '0x503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb'
+const wallet = new ethers.Wallet(privateKey, provider)
+// 创建 EIP712 Domain
+let contractName = "EIP712Storage"
+let version = "1"
+let chainId = "1"
+let contractAddress = "0xf8e81D47203A594245E36C48e151709F0C19fBe8"
+
+const domain = {
+    name: contractName,
+    version: version,
+    chainId: chainId,
+    verifyingContract: contractAddress,
+};
+// 创建类型化数据，Storage
+let spender = "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"
+let number = "100"
+
+const types = {
+    Storage: [
+        { name: "spender", type: "address" },
+        { name: "number", type: "uint256" },
+    ],
+};
+
+const message = {
+    spender: spender,
+    number: number,
+};
+// EIP712 签名
+const signature = await wallet.signTypedData(domain, types, message);
+console.log("Signature:", signature);
+// Signature: 0xdca07f0c1dc70a4f9746a7b4be145c3bb8c8503368e94e3523ea2e8da6eba7b61f260887524f015c82dd77ebd3c8938831c60836f905098bf71b3e6a4a09b7311b
+// 验证 EIP712 签名，从签名和消息复原出 signer 地址
+let eip712Signer = ethers.verifyTypedData(domain, types, message, signature)
+console.log("EIP712 Signer: ", eip712Signer)
+//EIP712 Signer: 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4
+```
+
+### Hello Opcodes
+Opcodes（操作码）是以太坊智能合约的基本单元。大家写的Solidity智能合约会被编译为字节码（bytecode），然后才能在EVM（以太坊虚拟机）上运行。而字节码就是由一系列Opcodes组成的。当用户在EVM中调用这个智能合约的函数时，EVM会解析并执行这些Opcodes，以实现合约逻辑。
+![image](https://github.com/user-attachments/assets/7f78befc-a765-4e50-8104-979ecb5eb98d)
+#### 堆栈Stack
+EVM是基于堆栈的，这意味着它处理数据的方式是使用堆栈数据结构进行大多数计算。堆栈是一种“后进先出”（LIFO）的数据结构，高效而简洁。你可以把它想像成一叠盘子，当你需要添加一个盘子时，你只能把它放在堆栈的最上面，我们把这个动作叫压入PUSH；而当你需要取一个盘子时，你只能取最上面的那一个，我们称之为弹出POP。许多操作码涉及将数据压入堆栈或从堆栈弹出数据。
+
+在堆栈中，每个元素长度为256位（32字节），最大深度为1024元素，但是每个操作只能操作堆栈顶的16个元素。这也是为什么有时Solidity会报Stack too deep错误。
+![image](https://github.com/user-attachments/assets/6c18f2ae-bc02-4b73-81ac-c5ad6f1a1966)
+#### 内存Memory
+堆栈虽然计算高效，但是存储能力有限，因此EVM使用内存来支持交易执行期间的数据存储和读取。EVM的内存是一个线性寻址存储器，你可以把它理解为一个动态字节数组，可以根据需要动态扩展。它支持以8或256 bit写入（MSTORE8/MSTORE），但只支持以256 bit读取（MLOAD）。
+
+需要注意的是，EVM的内存是“易失性”的：交易开始时，所有内存位置的值均为0；交易执行期间，值被更新；交易结束时，内存中的所有数据都会被清除，不会被持久化。如果需要永久保存数据，就需要使用EVM的存储
+![image](https://github.com/user-attachments/assets/87716d69-87d0-4bb3-a3cb-49805314b407)
+#### 存储Storage
+EVM的账户存储（Account Storage）是一种映射（mapping，键值对存储），每个键和值都是256 bit的数据，它支持256 bit的读和写。这种存储在每个合约账户上都存在，并且是持久的，它的数据会保持在区块链上，直到被明确地修改。
+
+对存储的读取（SLOAD）和写入（SSTORE）都需要gas，并且比内存操作更昂贵。这样设计可以防止滥用存储资源，因为所有的存储数据都需要在每个以太坊节点上保存。
+![image](https://github.com/user-attachments/assets/525202c2-c616-44a6-85fd-c54751caf1f2)
+#### EVM字节码
+Solidity智能合约会被编译为EVM字节码，然后才能在EVM上运行。这个字节码是由一系列的Opcodes组成的，通常表现为一串十六进制的数字。EVM字节码在执行的时候，会按照顺序一个一个地读取并执行每个Opcode。
+#### Gas
+Gas是以太坊中执行交易和运行合约的"燃料"。每个交易或合约调用都需要消耗一定数量的Gas，这个数量取决于它们进行的计算的复杂性和数据存储的大小。
+
+EVM上每笔交易的gas是如何计算的呢？其实是通过opcodes。以太坊规定了每个opcode的gas消耗，复杂度越高的opcodes消耗越多的gas，比如：
+ADD操作消耗3 gas
+SSTORE操作消耗20000 gas
+SLOAD操作消耗200 Gas
+一笔交易的gas消耗等于其中所有opcodes的gas成本总和。当你调用一个合约函数时，你需要预估这个函数执行所需要的Gas，并在交易中提供足够的Gas。如果提供的Gas不够，那么函数执行会在中途停止，已经消耗的Gas不会退回。
+![image](https://github.com/user-attachments/assets/61fd0247-8c8b-429e-aa04-d5562944d0ce)
+#### 执行模型
+1. 当一个交易被接收并准备执行时，以太坊会初始化一个新的执行环境并加载合约的字节码。
+2. 字节码被翻译成Opcode，被逐一执行。每个Opcodes代表一种操作，比如算术运算、逻辑运算、存储操作或者跳转到其他操作码。
+3. 每执行一个Opcodes，都要消耗一定数量的Gas。如果Gas耗尽或者执行出错，执行就会立即停止，所有的状态改变（除了已经消耗的Gas）都会被回滚。
+4. 执行完成后，交易的结果会被记录在区块链上，包括Gas的消耗、交易日志等信息。
+![image](https://github.com/user-attachments/assets/ca1bea1a-a38f-4311-8ee7-fccac58f3076)
+
+
+
+
 
 
 

@@ -1774,4 +1774,139 @@ contract ERC721 is IERC721, IERC721Metadata{
 
 假如我想计算我ETH地址 `0x5B38Da6a701c568545dCfcB03FcB875f56beddC4` 是否在白名单内，这个地址的Proof要怎么生成？
 
+另外一个问题是，这种将白名单的Merkle Tree Root存在合约的方式有点不灵活，这意味着白名单不能动态变化，毕竟只要白名单变化了，Merkle Tree Root 和 Proof 都得变.
+
+### 2024.10.15
+#### Signature
+
+在阅读第37课的时候发现了个问题, 讲解到「步骤4通过签名和消息恢复公钥」和「步骤5 对比公钥并验证签名」, 通过截图展示了在Remix IDE 上 调用 `recoverSigner` 函数和 `verify` 函数的过程:
+
+![](https://www.wtf.academy/assets/images/37-8-50f993208c23bea33eacd5ed18de69ff.png)
+
+![](https://www.wtf.academy/assets/images/37-9-2e2029b1978cafb7cd211511f2769082.png)
+
+但是 `recoverSigner` 和 `verify` 函数都被声明成 `internal` 函数，`internal` 函数是无论从合约外被调用的，即使是使用 Remix IDE进行调试
+
+```solidity
+    // @dev 从_msgHash和签名_signature中恢复signer地址
+    function recoverSigner(bytes32 _msgHash, bytes memory _signature) internal pure returns (address){
+    }
+
+    /**
+     * @dev 通过ECDSA，验证签名地址是否正确，如果正确则返回true
+     * _msgHash为消息的hash
+     * _signature为签名
+     * _signer为签名地址
+     */
+    function verify(bytes32 _msgHash, bytes memory _signature, address _signer) internal pure returns (bool) {
+        return recoverSigner(_msgHash, _signature) == _signer;
+    }
+```
+
+我顺便提了个[PR](https://github.com/WTFAcademy/frontend/pull/246)来修复这个问题, 关于 Solidity `external` 和 `public` 的差别， Ethereum StackExchange 的[这个回答](https://ethereum.stackexchange.com/questions/19380/external-vs-public-best-practices)讲得非常好.
+
+而签名中的包含的 `r`,`s`,`v` 信息，是 ECDSA（椭圆曲线数字签名算法）签名的三个组成部分。
+
+- r：一个32字节的值，代表签名的第一部分，通常对应于签名过程中随机选取点的x坐标。
+- s：另一个32字节的值，与 r 共同用于验证签名的唯一性和有效性。
+- v：1字节的值，通常为27或28，表示 recovery id，帮助确定签名使用的两个可能的公钥中的哪一个，从而可以恢复出签名者的地址。
+
+因为对非对称加密算法研究不深, 只能理解是3个关键要素了.
+
+我很喜欢这种通过签名来下发NFT的方式，相当于它把白名单管理和领取的逻辑给分离出来，项目方只要给白名单内的地址进行签名，白名单内的地址就可以拿着签名来领取NFT了, 还能节省 gas fee, 既灵活也经济, 智能合约在这里的作用相当是白名单验证+Token下发.
+
+> 由于签名是链下的，不需要gas，因此这种白名单发放模式比Merkle Tree模式还要经济；
+> 但由于用户要请求中心化接口去获取签名，不可避免的牺牲了一部分去中心化；
+
+但是即使使用 Merkle Tree 模式，还是要向中心化接口请求，获取Merkle Proof。
+
+我觉得还是要看清楚技术的价值所在，去中心化是手段，而不是目的, 更何况现在虽然有Web3 的概念，但是现在绝大多数的项目还是跑在Web2上的，各个项目的官网不还是要跑在服务器上嘛.
+
+作为用户，既不会关心你的网站是用Java写的，还是用PHP写的，只会关心网站的体验好不好。
+
+同理，用户也不会关心你是用Web2或者是Web3方案做的，也只关心这个东西好不好用，区块链的确通过不可变性解决了信任问题，但是就好像EVM
+可以通过gas fee经济模型来处理计算成本的问题，会有多种方案来解决同一个问题的，比如也可以通过法律来解决信任问题。
+
+技术终究是手段，能解决问题才是目的.
+
+### 2024.10.16
+#### Random
+
+生成随机数的方式有两种：
+
+方式一：链上通过 `block.timestamp`, `msg.sender`, `blockhash(block.number - 1)` 变量生成随机数:
+```solidity
+    /** 
+    * 链上伪随机数生成
+    * 利用keccak256()打包一些链上的全局变量/自定义变量
+    * 返回时转换成uint256类型
+    */
+    function getRandomOnchain() public view returns(uint256){
+        // remix运行blockhash会报错
+        bytes32 randomBytes = keccak256(abi.encodePacked(block.timestamp, msg.sender, blockhash(block.number-1)));
+        
+        return uint256(randomBytes);
+    }
+```
+
+但是这些变量连伪随机数都不算，就更用说能生成安全随机数了(SecureRandom)了.
+
+方式二：线下生成随机数，再通过通过预言机上传到链上，我对这个机制就比较感兴趣, 就去了解了一下预言机(Oracle).
+
+预言机，名字很玄乎，实际上就是同步链外数据到链上，从而让智能合约拥有了获取链外数据的能力。
+
+简而言之就是智能合约不能请求外部数据，所以需要找到一种方式让链外数据能够被保存到链上，这个解决方案就是 Oracle。
+
+Oracle 的代码逻辑就是一个存储 + 异步任务引擎，接口定义如下:
+
+```solidity
+// 这是一个很标准的异步任务流程，发起任务，拿到 taskID，然后轮询 taskID 直到任务完成。
+//
+// 当某个 consumer（其他的智能合约）需要 offchain 数据时，就请求 Oracle 的 request 接口，
+// 创建一个异步任务，拿到 requestID。Oracle 本身也就是一个智能合约，也不能请求外部，
+// 所以不可能实时处理请求，只能等链外的组件喂数据，所以只能以异步任务的模式来实现。
+//
+// 一般一个 Oracle 只负责某一类的任务，比如获取当前币价，或者获取一个随机数。
+// 任务创建后会 emit 一个 Event，链外的基础设施监听到这个事件后就可以开始喂数据。
+function request() external onlyOwner returns (uint256 requestId)
+
+// fulfill 函数就是给 offchain 的基础设施喂数据用的，
+// offchain 通过 Event 事件了解到有新的任务被创建了，然后准备好所需的数据，
+// 用 fulfill 函数把数据喂给 Oracle，Oracle 再把数据和 requestID 一起保存到内部的一个 mapping 变量里，
+// 这就实现了将链外数据保存到链上。
+function fulfill(uint256 _requestId, uint256[] memory _randomWords) internal override
+
+// consumer 在创建完任务后，轮询该接口获取任务的执行结果，也就是所请求的 offchain data
+function getRequestStatus(uint256 _requestId) external view returns (uint256 paid, bool fulfilled, uint256[] memory result)
+```
+
+这个就是标准的异步操作流程了，画个流程图就很清晰了:
+
+```mermaid
+sequenceDiagram
+ConsumerContract ->> Oracle: 调用[request]接口，创建获取随机数任务
+Oracle -->> ConsumerContract: requestId
+loop SubscribeEvent
+    OffChainService ->> Oracle: 监听Event 事件
+end
+Oracle->>OffChainService: emit 事件, 触发OffChainService
+OffChainService ->> OffChainService: 执行对应的链下逻辑
+OffChainService ->> Oracle: 调用fullfill 接口填充数据
+loop TaskStatusCheck
+    ConsumerContract->>Oracle: 通过[requestId]查询任务执行结果
+end
+Note right of ConsumerContract: [optional]Consumer可以通过查询接口轮询任务状态
+Oracle ->> ConsumerContract: 拿到链下数据后，执行consumer中的回调函数[fulfillRandomWords]
+```
+
+1. Consumer 调用 Oracle `request` 函数创建任务
+2. Oracle 创建任务后，返回requestId 作为任务标识符, 并 emit 事件
+3. 订阅了Oracle 事件的链下服务被新事件触发，执行任务（比如生成随机数）
+4. 链下服务调用 `fullfill` 函数填充指定任务的数据
+5. 当任务完成之后，Consumer 智能合约有两种方式可以获取到指定的数据，通过 `getRequestStatus` 接口轮询，或者等 Oracle 回调(如果Oracle 支持的话). 课程生成随机数的 Chainlink 预言机支持回调接口，所以课程用的就是回调（这个也的确更费心）
+
+整套流程下来，就实现了链下数据向链上数据的转移, 而课程中提到的生成随机数，就是其中一个预言机的应用场景了。
+
+但这么大费周章，目的只是为了生成个随机数，成本着实有点高。
+
 <!-- Content_END -->

@@ -3991,4 +3991,340 @@ contract TokenLocker {
     }
 }
 ```
+
+### 2024.10.15
+# 時間鎖
+時間鎖（Timelock）是銀行金庫和其他高安全性容器中常見的鎖定機制。它是一種計時器，目的是為了防止保險箱在預設時間之前被打開，即使開鎖的人知道正確密碼。
+區塊鏈中，時間鎖被 DeFi 和 DAO 大量採用。它是一段程式碼，可以將智能合約的某些功能鎖定一段時間，可以大大改善智能合約的安全性：假如有一個駭客駭了 Uniswap 的多簽，準備提走金庫的錢，但金庫合約加了 2 天鎖定期的時間鎖，那麼駭客從創建提錢的交易，到實際把錢提走，需要 2 天的等待期。在這段時間，專案方可以找應對辦法，投資人可以提前拋售代幣減少損失。
+## 時間鎖合約
+範例的時間合約程式碼由 Compound 的 [Timelock 合約](https://github.com/compound-finance/compound-protocol/blob/master/contracts/Timelock.sol) 簡化而來。
+在建立 Timelock 合約時，專案方可以設定鎖定期，並把合約的管理員設為自己，時間鎖主要有三個功能：
+1. 建立交易，並加入到時間鎖佇列。
+2. 在交易的鎖定期滿後，執行交易。
+3. 若後悔了，取消時間鎖定佇列中的某些交易。
+專案方一般會把時間鎖合約設為重要合約的管理員，例如金庫合約，再透過時間鎖操作他們。時間鎖合約的管理員一般為專案的多簽錢包，以保證去中心化。
+```
+contract Timelock{
+    // 事件
+    // 交易取消事件
+    event CancelTransaction(bytes32 indexed txHash, address indexed target, uint value, string signature,  bytes data, uint executeTime);
+    // 交易執行事件
+    event ExecuteTransaction(bytes32 indexed txHash, address indexed target, uint value, string signature,  bytes data, uint executeTime);
+    // 交易建立並進入佇列事件
+    event QueueTransaction(bytes32 indexed txHash, address indexed target, uint value, string signature, bytes data, uint executeTime);
+    // 修改管理員地址的事件
+    event NewAdmin(address indexed newAdmin);
+    
+    // 狀態變數
+    address public admin; // 管理員地址
+    uint public constant GRACE_PERIOD = 7 days; // 交易有效期限，過期的交易作廢
+    uint public delay; // 交易鎖定時間 （秒）
+    mapping (bytes32 => bool) public queuedTransactions; // 進入時間鎖佇列交易的識別碼txHash到bool的映射，記錄所有在時間鎖佇列中的交易。
+}
+    
+    // 修飾器
+    /** @dev onlyOwner modifier
+     * 被修飾的函數只能由管理員執行。
+     */
+    modifier onlyOwner() {
+        require(msg.sender == admin, "Timelock: Caller not admin");
+        _;
+    }
+
+    /** onlyTimelock modifier
+     * 被修飾的函數只能被時間鎖合約執行。 
+     */
+    modifier onlyTimelock() {
+        require(msg.sender == address(this), "Timelock: Caller not Timelock");
+        _;
+    }
+    
+    // 函數
+    /**
+     * @dev 建構子：初始化交易鎖定時間（秒）和管理員位址。
+     */
+    constructor(uint delay_) {
+        delay = delay_;
+        admin = msg.sender;
+    }
+
+    /**
+     * @dev 修改管理員地址，只能被Timelock合約呼叫。
+     */
+    function changeAdmin(address newAdmin) public onlyTimelock {
+        admin = newAdmin;
+
+        emit NewAdmin(newAdmin);
+    }
+
+    /**
+     * @dev 立交易並新增到時間鎖佇列中。參數比較複雜，因為要描述一個完整的交易：
+     * @param target: 目標合約地址
+     * @param value: 發送ETH數額
+     * @param signature: 要呼叫的函數簽名（function signature）
+     * @param data: 交易的call data，裡面是一些參數
+     * @param executeTime: 交易執行的區塊鏈時間戳記。
+     *
+     * 要求：executeTime 大於目前區塊鏈時間戳+delay。進入佇列的交易會更新在queuedTransactions變數中，並釋放QueueTransaction事件。
+     */
+    function queueTransaction(address target, uint256 value, string memory signature, bytes memory data, uint256 executeTime) public onlyOwner returns (bytes32) {
+        // 檢查：交易執行時間滿足鎖定時間
+        require(executeTime >= getBlockTimestamp() + delay, "Timelock::queueTransaction: Estimated execution block must satisfy delay.");
+        // 計算交易的唯一識別符：所有參數的hash
+        bytes32 txHash = getTxHash(target, value, signature, data, executeTime);
+        // 將交易新增至佇列
+        queuedTransactions[txHash] = true;
+
+        emit QueueTransaction(txHash, target, value, signature, data, executeTime);
+        return txHash;
+    }
+
+    /**
+     * @dev 取消特定交易。參數與queueTransaction()相同。
+     *
+     * 要求：被取消的交易在佇列中，會更新queuedTransactions並釋放CancelTransaction事件。
+     */
+    function cancelTransaction(address target, uint256 value, string memory signature, bytes memory data, uint256 executeTime) public onlyOwner{
+        // 計算交易的唯一識別符：所有參數的hash
+        bytes32 txHash = getTxHash(target, value, signature, data, executeTime);
+        // 檢查：交易在時間鎖佇列中
+        require(queuedTransactions[txHash], "Timelock::cancelTransaction: Transaction hasn't been queued.");
+        // 將交易移出隊列
+        queuedTransactions[txHash] = false;
+
+        emit CancelTransaction(txHash, target, value, signature, data, executeTime);
+    }
+
+    /**
+     * @dev 執行特定交易。參數與queueTransaction()相同。
+     *
+     * 要求：
+     * 1. 交易在時間鎖佇列中
+     * 2. 達到交易的執行時間
+     * 3. 交易沒過期
+     * 執行交易時用到了solidity的低階成員函數call。
+     */
+    function executeTransaction(address target, uint256 value, string memory signature, bytes memory data, uint256 executeTime) public payable onlyOwner returns (bytes memory) {
+        bytes32 txHash = getTxHash(target, value, signature, data, executeTime);
+        // 檢查：交易是否在時間鎖佇列中
+        require(queuedTransactions[txHash], "Timelock::executeTransaction: Transaction hasn't been queued.");
+        // 檢查：達到交易的執行時間
+        require(getBlockTimestamp() >= executeTime, "Timelock::executeTransaction: Transaction hasn't surpassed time lock.");
+        // 檢查：交易沒過期
+       require(getBlockTimestamp() <= executeTime + GRACE_PERIOD, "Timelock::executeTransaction: Transaction is stale.");
+        // 將交易移出佇列
+        queuedTransactions[txHash] = false;
+
+        // 取得call data
+        bytes memory callData;
+        if (bytes(signature).length == 0) {
+            callData = data;
+        } else {
+            callData = abi.encodePacked(bytes4(keccak256(bytes(signature))), data);
+        }
+        // 利用call執行交易
+        (bool success, bytes memory returnData) = target.call{value: value}(callData);
+        require(success, "Timelock::executeTransaction: Transaction execution reverted.");
+
+        emit ExecuteTransaction(txHash, target, value, signature, data, executeTime);
+
+        return returnData;
+    }
+
+    /**
+     * @dev 取得當前區塊鏈時間戳
+     */
+    function getBlockTimestamp() public view returns (uint) {
+        return block.timestamp;
+    }
+
+    /**
+     * @dev 傳回交易的標識符，為很多交易參數的hash。
+     */
+    function getTxHash(
+        address target,
+        uint value,
+        string memory signature,
+        bytes memory data,
+        uint executeTime
+    ) public pure returns (bytes32) {
+        return keccak256(abi.encode(target, value, signature, data, executeTime));
+    }
+```
+# 代理合約
+Solidity合約部署在鏈上之後，程式碼是不可變的（immutable）。這樣既有優點，也有缺點：
+* 優點：使用者大部分時候知道會發生什麼，安全性較高。
+* 缺點：就算合約中存在bug，也不能修改或升級，只能部署新合約。但是新合約的地址與舊的不一樣，且合約的資料也需要花費大量 gas 進行遷移。
+## 代理模式
+透過代理模式就可以在合約部署後進行修改或升級，代理模式將合約資料和邏輯分開，分別保存在不同合約中。
+![](https://i.imgur.com/pdY13St.png)
+![](https://i.imgur.com/IaMLhH8.png)
+上圖是簡單的代理合約示意圖，可以對照 delegatecall 的用法，把資料（狀態變數）儲存在代理合約中，而邏輯（函數）則保存在另一個邏輯合約中。代理合約（Proxy）透過 delegatecall，將函數呼叫全權委託給邏輯合約（Implementation）執行，再把最終的結果回傳給呼叫者（Caller）。
+## 代理合約
+下面介紹一個簡單的代理合約，它是由 OpenZeppelin 的 [Proxy 合約](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/proxy/Proxy.sol)簡化而來。它有三個部分：
+* 代理合約 Proxy
+* 邏輯合約 Logic
+* 呼叫範例 Caller。
+它的執行邏輯：
+1. 部署邏輯合約Logic。
+2. 建立代理合約 Proxy，狀態變數 implementation 記錄 Logic 合約位址。
+3. Proxy 合約利用 fallback 函數，將所有呼叫委託給 Logic 合約
+4. 部署呼叫範例 Caller 合約，呼叫 Proxy 合約。
+Logic 合約和 Proxy 合約的狀態變數儲存結構相同，不然delegatecall會產生意想不到的行為，有安全隱患。Proxy 合約不長，但用到了內聯彙編，因此比較難理解。它只有一個狀態變數，一個建構子，和一個回調函數。狀態變數 implementation，在建構子中初始化，用來保存 Logic 合約位址。
+```
+contract Proxy {
+    address public implementation; // 邏輯合約地址。 implementation合約同一個位置的狀態變數型別必須和Proxy合約的相同，不然會報錯。
+
+    /**
+     * @dev 初始化邏輯合約地址
+     */
+    constructor(address implementation_){
+        implementation = implementation_;
+    }
+    
+    /**
+    * @dev 回傳函數，將外部對本合約的呼叫委託給 Logic 合約。
+    * 利用行內組語（inline assembly）讓本來不能有回傳值的fallback函數有了回傳值
+    */
+    fallback() external payable {
+        address _implementation = implementation;
+        assembly {
+            // 將msg.data複製到記憶體裡
+            // calldatacopy操作碼的參數: 記憶體起始位置，calldata起始位置，calldata長度
+            calldatacopy(0, 0, calldatasize())
+
+            // 利用delegatecall調用implementation合約
+            // delegatecall操作碼的參數：gas, 目標合約位址，input mem起始位置，input mem長度，output area mem起始位置，output area mem長度
+            // output area起始位置和長度位置，所以設為0
+            // delegatecall成功返回1，失敗返回0
+            let result := delegatecall(gas(), _implementation, 0, calldatasize(), 0, 0)
+
+            // 將return data複製到記憶體
+            // returndata操作碼的參數：記憶體起始位置，returndata起始位置，returndata長度
+            returndatacopy(0, 0, returndatasize())
+
+            switch result
+            // 如果delegate call失敗，revert
+            case 0 {
+                revert(0, returndatasize())
+            }
+            // 如果delegate call成功，回傳mem起始位置為0，長度為returndatasize()的資料（格式為bytes）
+            default {
+                return(0, returndatasize())
+            }
+        }
+    }
+```
+## 邏輯合約
+```
+/**
+ * @dev 邏輯合約，執行被委託的呼叫
+ */
+contract Logic {
+    address public implementation; // 佔位變數，與Proxy合約保持一致，專門用來存放代理相關的訊息，防止插槽衝突。
+    uint public x = 99; 
+    event CallSuccess(); // 在呼叫成功時釋放
+
+    // 會被Proxy合約調用，釋放CallSuccess事件，並回傳一個uint
+    // 函數selector: 0xd09de08a
+    function increment() external returns(uint) {
+        emit CallSuccess();
+        return x + 1;
+    }
+}
+```
+如果直接呼叫 increment() 會返回 100，但透過 Proxy 呼叫它會回傳 1，因為 delegatecall 會在 Proxy 合約的上下文中執行 Logic 合約的程式碼，導致 Logic 合約的狀態變數將會讀取和修改 Proxy 合約的存儲，所以 x 的值不再是來自 Logic 合約的存儲，而是 Proxy 合約的存儲。
+## 呼叫者合約 Caller
+```
+/**
+ * @dev Caller合約，呼叫代理合約，並取得執行結果
+ */
+contract Caller{
+    address public proxy; // 代理合約地址
+
+    // 建構子，在部署合約時初始化proxy變數
+    constructor(address proxy_){
+        proxy = proxy_;
+    }
+
+    /** 透過代理合約呼叫increment()函數
+     * 利用call來呼叫代理合約的increment()函數，並傳回一個uint。
+     * 在呼叫時，我們利用abi.encodeWithSignature()取得了increment()函數的selector。
+     * 在回傳時，利用abi.decode()將回傳值解碼為uint類型。
+     */
+    function increment() external returns(uint) {
+        ( , bytes memory data) = proxy.call(abi.encodeWithSignature("increment()"));
+        return abi.decode(data,(uint));
+    }
+}
+```
+# 可升級合約
+可升級合約就是一個可以更改邏輯合約的代理合約。
+下面是一個實作範例，包含：
+* 代理合約
+* 舊邏輯合約
+* 新邏輯合約
+## 代理合約
+這個代理合約比較簡單，沒有在它的 fallback() 函數中使用行內組語，只用了 implementation.delegatecall(msg.data)，所以 fallback 函數沒有回傳值，生產環境中不宜這樣用。
+```
+// SPDX-License-Identifier: MIT
+// wtf.academy
+pragma solidity ^0.8.21;
+
+// 簡單的可升級合約，管理員可以透過升級函數來變更邏輯合約位址，從而改變合約的邏輯
+contract SimpleUpgrade {
+    address public implementation; // 邏輯合約地址
+    address public admin; // admin地址
+    string public words; // 字串，可以透過邏輯合約的函數來改變
+
+    // 建構子，初始化admin和邏輯合約位址
+    constructor(address _implementation){
+        admin = msg.sender;
+        implementation = _implementation;
+    }
+
+    // fallback函數，將呼叫委託給邏輯合約
+    fallback() external payable {
+        (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+    }
+
+    // 升級函數，改變邏輯合約位址，只能由admin呼叫
+    function upgrade(address newImplementation) external {
+        require(msg.sender == admin);
+        implementation = newImplementation;
+    }
+}
+```
+## 舊邏輯合約
+這個邏輯合約包含 3 個狀態變數，與代理合約保持一致，防止插槽衝突。它只有一個函數 foo()，負責將代理合約中的 words 的值改為 "old"。
+```
+// 舊邏輯合約
+contract Logic1 {
+    // 狀態變數需和proxy合約一致，防止插槽衝突
+    address public implementation; 
+    address public admin; 
+    string public words; // 字串，可以透過邏輯合約的函數改變
+
+    // 改變proxy中狀態變數，選擇器： 0xc2985578
+    function foo() public{
+        words = "old";
+    }
+}
+```
+## 新邏輯合約
+這個邏輯合約包含 3 個狀態變數，與代理合約保持一致，防止插槽衝突。它只有一個函數 foo()，負責將代理合約中的 words 的值改為 "new"。
+```
+// 新邏輯合約
+contract Logic2 {
+    // 狀態變數需和proxy合約一致，防止插槽衝突
+    address public implementation; 
+    address public admin; 
+    string public words; // 字串，可以透過邏輯合約的函數改變
+
+    // 改變proxy中狀態變數，選擇器： 0xc2985578
+    function foo() public{
+        words = "new";
+    }
+}
+```
 <!-- Content_END -->

@@ -1563,4 +1563,464 @@ CREATE2的实际应用场景：
 
 
 
+### 2024.10.14
+
+- [solidity-102 第二十六课  删除合约](https://www.wtf.academy/docs/solidity-102/DeleteContract/)
+- [solidity-102 第二十七课  ABI编码解码](https://www.wtf.academy/docs/solidity-102/ABIEncode/)
+- [solidity-102 第二十八课  Hash](https://www.wtf.academy/docs/solidity-102/Hash/)
+
+笔记
+
+
+#### 删除合约
+
+##### selfdestruct 的演变
+1. 最初命名为 `suicide`，后改为 `selfdestruct`。
+2. 在 v0.8.18 版本中被标记为"不再建议使用"。
+3. 以太坊坎昆（Cancun）升级后，功能发生重大变化（EIP-6780）。
+
+##### 坎昆升级后的 selfdestruct
+1. 已部署的合约无法被 `selfdestruct` 删除。
+2. 只有在同一笔交易中创建并 `selfdestruct` 的合约才能被删除。
+3. 主要功能变为转移合约中的 ETH 到指定地址。
+
+##### 使用方法
+```solidity
+selfdestruct(_addr);
+```
+`_addr` 是接收合约剩余 ETH 的地址。
+
+##### 示例代码
+
+1. 转移 ETH 功能（坎昆升级后）:
+```solidity
+contract DeleteContract {
+    uint public value = 10;
+    constructor() payable {}
+    receive() external payable {}
+    function deleteContract() external {
+        selfdestruct(payable(msg.sender));
+    }
+    function getBalance() external view returns(uint balance){
+        balance = address(this).balance;
+    }
+}
+```
+
+2. 同笔交易内实现合约创建-自毁:
+```solidity
+contract DeployContract {
+    struct DemoResult {
+        address addr;
+        uint balance;
+        uint value;
+    }
+    constructor() payable {}
+    function demo() public payable returns (DemoResult memory){
+        DeleteContract del = new DeleteContract{value:msg.value}();
+        DemoResult memory res = DemoResult({
+            addr: address(del),
+            balance: del.getBalance(),
+            value: del.value()
+        });
+        del.deleteContract();
+        return res;
+    }
+}
+```
+
+##### 思考与解答
+
+1. 为什么以太坊要改变 `selfdestruct` 的功能？
+   - 解答：
+     - 提高网络安全性：防止合约被意外或恶意删除。
+     - 简化状态管理：有助于实现 Verkle Tree 等优化。
+     - 减少潜在的漏洞：`selfdestruct` 曾被用于一些攻击向量。
+
+2. `selfdestruct` 的变化对已有的 DApp 有何影响？
+   - 解答：
+     - 依赖 `selfdestruct` 删除功能的合约可能需要重新设计。
+     - 某些升级或应急机制可能需要重新考虑。
+     - 合约审计和安全评估标准可能需要更新。
+
+3. 在不能删除合约的情况下，如何实现类似的紧急停止功能？
+   - 解答：
+     - 实现暂停机制：使用 `pause()` 函数来停止关键功能。
+     - 使用代理模式：允许将逻辑合约升级到新版本。
+     - 实现权限控制：只允许特定角色执行敏感操作。
+
+
+##### 注意事项
+1. 限制 `selfdestruct` 的调用权限，通常只允许合约所有者调用。
+2. 谨慎使用 `selfdestruct`，它可能引起安全问题和用户信任问题。
+3. 考虑使用替代方案，如暂停功能或可升级合约模式。
+
+
+#### ABI编码解码
+
+##### ABI 编码方法
+
+1. **abi.encode**
+   - 功能：将给定参数按 ABI 规则编码，每个参数填充为 32 字节。
+   - 用途：主要用于与智能合约交互。
+   ```solidity
+   function encode() public view returns(bytes memory result) {
+       result = abi.encode(x, addr, name, array);
+   }
+   ```
+
+2. **abi.encodePacked**
+   - 功能：将参数按最小所需空间编码，省略填充的零。
+   - 用途：用于节省空间，如计算数据哈希。
+   ```solidity
+   function encodePacked() public view returns(bytes memory result) {
+       result = abi.encodePacked(x, addr, name, array);
+   }
+   ```
+
+3. **abi.encodeWithSignature**
+   - 功能：类似 abi.encode，但第一个参数为函数签名。
+   - 用途：调用其他合约时使用。
+   ```solidity
+   function encodeWithSignature() public view returns(bytes memory result) {
+       result = abi.encodeWithSignature("foo(uint256,address,string,uint256[2])", x, addr, name, array);
+   }
+   ```
+
+4. **abi.encodeWithSelector**
+   - 功能：类似 abi.encodeWithSignature，但使用函数选择器。
+   - 用途：更底层的合约调用。
+   ```solidity
+   function encodeWithSelector() public view returns(bytes memory result) {
+       result = abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array);
+   }
+   ```
+
+##### ABI 解码方法
+
+**abi.decode**
+- 功能：解码 abi.encode 生成的二进制编码。
+- 用途：将编码数据还原为原始参数。
+```solidity
+function decode(bytes memory data) public pure returns(uint dx, address daddr, string memory dname, uint[2] memory darray) {
+    (dx, daddr, dname, darray) = abi.decode(data, (uint, address, string, uint[2]));
+}
+```
+
+##### 思考与解答
+
+1. 为什么需要不同的 ABI 编码方法？
+   - 解答：
+     - abi.encode：标准方法，用于合约间完整数据交互。
+     - abi.encodePacked：节省空间，适用于不需要完整 ABI 的场景，如计算哈希。
+     - abi.encodeWithSignature 和 abi.encodeWithSelector：用于更灵活的跨合约调用。
+
+2. abi.encodePacked 和 abi.encode 的主要区别是什么？
+   - 解答：
+     - abi.encode 对每个参数填充到 32 字节，保证了数据的完整性和一致性。
+     - abi.encodePacked 压缩编码，省略了填充，节省空间但可能导致歧义。
+     - abi.encode 更安全，特别是处理动态类型时；abi.encodePacked 更节省 gas。
+
+3. 在实际开发中，如何选择合适的编码方法？
+   - 解答：
+     - 与合约交互：使用 abi.encode 或 abi.encodeWithSignature。
+     - 计算哈希：使用 abi.encodePacked 以节省 gas。
+     - 底层调用：根据需要选择 abi.encodeWithSignature 或 abi.encodeWithSelector。
+     - 处理动态类型：优先使用 abi.encode 以避免潜在的哈希冲突。
+
+
+##### ABI 的使用场景
+1. 合约间的底层调用：
+   ```solidity
+   bytes4 selector = contract.getValue.selector;
+   bytes memory data = abi.encodeWithSelector(selector, _x);
+   (bool success, bytes memory returnedData) = address(contract).staticcall(data);
+   require(success);
+   return abi.decode(returnedData, (uint256));
+   ```
+
+2. 在 ethers.js 中导入和调用合约：
+   ```javascript
+   const wavePortalContract = new ethers.Contract(contractAddress, contractABI, signer);
+   const waves = await wavePortalContract.getAllWaves();
+   ```
+
+3. 调用未开源或反编译后的合约函数：
+   ```solidity
+   bytes memory data = abi.encodeWithSelector(bytes4(0x533ba33a));
+   (bool success, bytes memory returnedData) = address(contract).staticcall(data);
+   require(success);
+   return abi.decode(returnedData, (uint256));
+   ```
+
+
+#### Hash
+
+##### 哈希函数的性质
+1. 单向性：正向计算简单，反向计算困难
+2. 灵敏性：输入微小变化导致输出大幅变化
+3. 高效性：计算速度快
+4. 均一性：哈希值分布均匀
+5. 抗碰撞性：
+   - 弱抗碰撞性：难以找到具有相同哈希值的不同输入
+   - 强抗碰撞性：难以找到任意两个具有相同哈希值的不同输入
+
+##### Solidity 中的 Keccak256
+Keccak256 是 Solidity 中最常用的哈希函数。用法：
+```solidity
+bytes32 hash = keccak256(abi.encodePacked(data));
+```
+
+注意：Ethereum 和 Solidity 中的 SHA3 实际上指的是 Keccak256，而非标准的 NIST-SHA3。
+
+##### 应用示例
+
+1. 生成数据唯一标识：
+```solidity
+function hash(uint _num, string memory _string, address _addr) public pure returns (bytes32) {
+    return keccak256(abi.encodePacked(_num, _string, _addr));
+}
+```
+
+2. 演示弱抗碰撞性：
+```solidity
+function weak(string memory string1) public view returns (bool) {
+    return keccak256(abi.encodePacked(string1)) == _msg;
+}
+```
+
+3. 演示强抗碰撞性：
+```solidity
+function strong(string memory string1, string memory string2) public pure returns (bool) {
+    return keccak256(abi.encodePacked(string1)) == keccak256(abi.encodePacked(string2));
+}
+```
+
+##### 思考与解答
+
+1. 为什么 Keccak256 在 Solidity 中如此重要？
+   - 解答：
+     - 安全性：Keccak256 提供了高度的安全性和抗碰撞能力。
+     - 确定性：相同输入总是产生相同的输出，这对智能合约的可预测性很重要。
+     - 广泛应用：用于生成唯一标识符、数据完整性验证、签名验证等。
+     - 以太坊特性：是以太坊生态系统的标准哈希函数，用于地址生成、交易签名等。
+
+2. abi.encodePacked 和 keccak256 的组合使用有什么优势？
+   - 解答：
+     - 灵活性：abi.encodePacked 允许组合不同类型的数据。
+     - 效率：相比单独使用 keccak256，这种组合可以更有效地处理复杂数据结构。
+     - 唯一性：能够为复杂的数据结构生成唯一的哈希值。
+     - Gas 优化：在某些情况下可以节省 gas，因为 encodePacked 压缩了数据。
+
+3. 在智能合约中，哈希函数的抗碰撞性有何实际意义？
+   - 解答：
+     - 安全性：防止攻击者通过构造特定输入来伪造数据或签名。
+     - 唯一性保证：确保合约中的唯一标识符（如 tokenId）的真实唯一性。
+     - 数据完整性：确保存储或传输的数据未被篡改。
+     - 隐私保护：可以存储数据的哈希值而非原始数据，增加隐私保护。
+
+
+### 2024.10.15
+
+- [solidity-102 第二十九课 函数选择器Selector](https://www.wtf.academy/docs/solidity-102/Selector/)
+- [solidity-102 第三十课 Try Catch](https://www.wtf.academy/docs/solidity-102/TryCatch/)
+
+笔记
+
+#### 函数选择器Selector
+
+##### msg.data 和函数选择器
+- `msg.data` 是完整的 calldata，包含函数选择器和参数。
+- 函数选择器是 `msg.data` 的前 4 个字节。
+
+示例代码：
+```solidity
+event Log(bytes data);
+
+function mint(address to) external {
+    emit Log(msg.data);
+}
+```
+
+##### 函数签名和 Method ID
+- 函数签名：`"函数名(参数类型1,参数类型2,...)"`
+- Method ID：函数签名的 Keccak 哈希的前 4 个字节
+- Selector 与 Method ID 相匹配时，表示调用该函数
+
+计算 Method ID 示例：
+```solidity
+function mintSelector() external pure returns(bytes4 mSelector) {
+    return bytes4(keccak256("mint(address)"));
+}
+```
+
+##### 不同参数类型的 Selector 计算
+
+1. 基础类型参数
+   ```solidity
+   function elementaryParamSelector(uint256 param1, bool param2) external returns(bytes4) {
+       return bytes4(keccak256("elementaryParamSelector(uint256,bool)"));
+   }
+   ```
+
+2. 固定长度类型参数
+   ```solidity
+   function fixedSizeParamSelector(uint256[3] memory param1) external returns(bytes4) {
+       return bytes4(keccak256("fixedSizeParamSelector(uint256[3])"));
+   }
+   ```
+
+3. 可变长度类型参数
+   ```solidity
+   function nonFixedSizeParamSelector(uint256[] memory param1, string memory param2) external returns(bytes4) {
+       return bytes4(keccak256("nonFixedSizeParamSelector(uint256[],string)"));
+   }
+   ```
+
+4. 映射类型参数
+   ```solidity
+   function mappingParamSelector(DemoContract demo, User memory user, uint256[] memory count, School mySchool) external returns(bytes4) {
+       return bytes4(keccak256("mappingParamSelector(address,(uint256,bytes),uint256[],uint8)"));
+   }
+   ```
+
+##### 使用 Selector 调用函数
+```solidity
+function callWithSignature() external {
+    (bool success1, bytes memory data1) = address(this).call(abi.encodeWithSelector(0x3ec37834, 1, 0));
+}
+```
+
+##### 思考与解答
+
+1. 为什么需要函数选择器？
+   - 解答：
+     - 效率：快速识别要调用的函数，无需解析整个调用数据。
+     - 节省存储：只需存储 4 字节，而不是完整函数签名。
+     - 标准化：提供了一种统一的函数识别方法。
+
+2. 函数选择器与 ABI 的关系是什么？
+   - 解答：
+     - 函数选择器是 ABI（Application Binary Interface）的一部分。
+     - ABI 定义了如何编码函数调用和数据结构。
+     - 选择器使得 ABI 能够高效地路由函数调用。
+
+3. 如何处理函数选择器冲突？
+   - 解答：
+     - 冲突概率低：4 字节提供了 2^32 种可能，冲突较罕见。
+     - 重命名函数：如果发生冲突，可以通过修改函数名来解决。
+     - 使用接口：通过接口来区分同名但不同合约的函数。
+
+
+#### Try Catch
+
+##### try-catch 基本语法
+
+```solidity
+try externalContract.f() {
+    // 调用成功时执行的代码
+} catch {
+    // 调用失败时执行的代码
+}
+```
+
+注意事项：
+- 只能用于 external 函数调用或合约创建。
+- 可以使用 `this.f()` 替代 `externalContract.f()`。
+- 如果函数有返回值，需要在 try 后声明 `returns(returnType val)`。
+
+##### 捕获特定异常
+
+```solidity
+try externalContract.f() returns(returnType) {
+    // 调用成功的代码
+} catch Error(string memory reason) {
+    // 捕获 revert 和 require 抛出的异常
+} catch Panic(uint errorCode) {
+    // 捕获 Panic 类型的错误（如 assert 失败、溢出等）
+} catch (bytes memory lowLevelData) {
+    // 捕获其他类型的 revert
+}
+```
+
+##### 实战示例
+
+1. 外部合约 OnlyEven：
+
+```solidity
+contract OnlyEven {
+    constructor(uint a) {
+        require(a != 0, "invalid number");
+        assert(a != 1);
+    }
+
+    function onlyEven(uint256 b) external pure returns(bool success) {
+        require(b % 2 == 0, "Ups! Reverting");
+        success = true;
+    }
+}
+```
+
+2. 处理外部函数调用异常：
+
+```solidity
+contract TryCatch {
+    event SuccessEvent();
+    event CatchEvent(string message);
+    event CatchByte(bytes data);
+
+    OnlyEven even;
+
+    constructor() {
+        even = new OnlyEven(2);
+    }
+
+    function execute(uint amount) external returns (bool success) {
+        try even.onlyEven(amount) returns(bool _success) {
+            emit SuccessEvent();
+            return _success;
+        } catch Error(string memory reason) {
+            emit CatchEvent(reason);
+        }
+    }
+}
+```
+
+3. 处理合约创建异常：
+
+```solidity
+function executeNew(uint a) external returns (bool success) {
+    try new OnlyEven(a) returns(OnlyEven _even) {
+        emit SuccessEvent();
+        success = _even.onlyEven(a);
+    } catch Error(string memory reason) {
+        emit CatchEvent(reason);
+    } catch (bytes memory reason) {
+        emit CatchByte(reason);
+    }
+}
+```
+
+##### 思考与解答
+
+1. 为什么 try-catch 只能用于外部函数调用或合约创建？
+   - 解答：
+     - 内部一致性：保证合约内部逻辑的一致性和可预测性。
+     - 性能考虑：内部调用的异常处理可能导致额外的gas消耗。
+     - 外部交互风险：外部调用更容易失败，需要更robust的错误处理。
+
+2. try-catch 与传统的 require 和 assert 有什么区别？
+   - 解答：
+     - 粒度：try-catch 提供更细粒度的错误处理。
+     - 灵活性：允许在捕获异常后继续执行，而不是直接回滚。
+     - 用途：try-catch 主要用于处理外部调用，require 和 assert 用于内部状态检查。
+
+3. 在实际开发中，如何选择使用 try-catch 还是 require/assert？
+   - 解答：
+     - 外部调用：优先使用 try-catch 处理可能的失败情况。
+     - 内部状态验证：使用 require 进行常规检查，assert 用于不应发生的情况。
+     - 代码可读性：根据具体情况选择更清晰、易维护的方式。
+
+
+
 <!-- Content_END -->

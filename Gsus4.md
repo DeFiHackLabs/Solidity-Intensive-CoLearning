@@ -53,6 +53,8 @@ contract HelloWeb3{                 // 合約部分
    * ```int``` 整數
 2. (待補)
 
+不補筆記了，因為我在學習程式語言時沒有做筆記的習慣，覺得將內容再抄寫一遍沒什麼意義，也不想直接叫AI幫我做筆記，所以之後單純紀錄學習進度。
+
 ---
 
 ### 2024.09.24
@@ -62,8 +64,6 @@ contract HelloWeb3{                 // 合約部分
 * 變量初始值
 * 常數：constant & immutable
 * 控制流：if-else、for loop、while loop、do-while、三元運算子
-#### 筆記
-(先簽到，有空再補)
 
 ---
 
@@ -203,6 +203,16 @@ contract HelloWeb3{                 // 合約部分
 * 操縱預言機
 * NFT 重入攻擊
 * "跨服"重入攻擊
+
+---
+
+### 2024.10.15
+#### 學習內容：NFT 專題
+* ERC721 庫：Address, String, Context
+* ERC721 相關接口
+* ERC721 主合約
+* BAYC 主合約和嚴重漏洞
+* Loot
 
 
 ### 

@@ -1376,6 +1376,7 @@ contract structType{
 **Delegatecall**
    * 与`call`类似，是Solidity中地址类型的低级成员函数。
    * `delegate`是委托/代表的意思
+   
    **delegatecall委托了什么？**
       * 用户A通过合约B来`call`合约C的时候，执行的是合约C的函数，上下文(`Context`，可以理解为包含变量和状态的环境)也是合约C的
       * `msg.sender`是B的地址，并且如果函数改变一些状态变量，产生的效果会作用于合约C的变量上。
@@ -1397,6 +1398,7 @@ contract structType{
       2. EIP-2535 Diamonds（钻石）:
          * 支持构建可在生产中扩展的模块化智能合约系统的标准
          * 具有多个实施合约的代理合约
+
 **delegatecall例子**
 * 调用结构：你（A）通过合约B调用目标合约C。
    * 被调用的合约C:
@@ -1445,6 +1447,7 @@ contract structType{
 **去中心化交易所uniswap**
    * `create`: `Contract x = new Contract{value: _value}(params)`
    * 如果构造函数是`payable`，可以创建时转入`_value`数量的`ETH`，`params`是新合约构造函数的参数。
+
 **极简Uniswap**
    * `Uniswap V2`核心合约中包含两个合约
      1. UniswapV2Pair: 币对合约，用于管理币对地址、流动性、买卖。
@@ -1656,4 +1659,246 @@ contract structType{
 **注意事项**
    1. 对外提供合约销毁接口时，最好设置为只有合约所有者可以调用，可以使用函数修饰符onlyOwner进行函数声明。
    2. 当合约中有selfdestruct功能时常常会带来安全问题和信任问题，合约中的`selfdestruct`功能会为攻击者打开攻击向量(例如使用`selfdestruct`向一个合约频繁转入token进行攻击，这将大大节省了GAS的费用，虽然很少人这么做)，此外，此功能还会降低用户对合约的信心。
+
+###  2024.10.14
+**ABI编码**
+   * 4个函数
+     1. `abi.encode`: 将给定参数利用ABI规则编码。`ABI`被设计出来跟智能合约交互，他将每个参数填充为32字节的数据，并拼接在一起。
+      ```Solidity
+      uint x = 10;
+      address addr = 0x7A58c0Be72BE218B41C608b7Fe7C5bB630736C71;
+      string name = "0xAA";
+      uint[2] array = [5, 6];
+      
+      function encode() public view returns(bytes memory result) {
+          result = abi.encode(x, addr, name, array);
+      }
+      ```
+      
+         * 编码的结果为`0x000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000043078414100000000000000000000000000000000000000000000000000000000`，由于abi.encode将每个数据都填充为32字节，中间有很多0。
+           
+     2. `abi.encodePacked`: 将给定参数根据其所需最低空间编码。当你想省空间，并且不与合约交互的时候，可以使用。
+      ```Solidity
+      function encodePacked() public view returns(bytes memory result) {
+      result = abi.encodePacked(x, addr, name, array);
+      }
+      ```
+
+         * 编码的结果为`0x000000000000000000000000000000000000000000000000000000000000000a7a58c0be72be218b41c608b7fe7c5bb630736c713078414100000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000006`，由于abi.encodePacked对编码进行了压缩，长度比abi.encode短很多。
+        
+     3. `abi.encodeWithSignature`: 与`abi.encode`功能类似，只不过第一个参数为函数签名，比如`foo(uint256,address,string,uint256[2])`。当调用其他合约的时候可以使用。
+      ```Solidity
+      function encodeWithSignature() public view returns(bytes memory result) {
+         result = abi.encodeWithSignature("foo(uint256,address,string,uint256[2])", x, addr, name, array);
+      }
+      ```
+      
+        * 编码的结果为`0xe87082f1000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000043078414100000000000000000000000000000000000000000000000000000000`，等同于在`abi.encode`编码结果前加上了4字节的函数选择器(通过函数名和参数进行签名处理(Keccak–Sha3)来标识函数，可以用于不同合约之间的函数调用)。
+       
+     4. `abi.encodeWithSelector`: 与`abi.encodeWithSignature`功能类似，只不过第一个参数为函数选择器，为函数签名Keccak哈希的前4个字节。
+      ```Solidity
+      function encodeWithSelector() public view returns(bytes memory result) {
+         result = abi.encodeWithSelector(bytes4(keccak256("foo(uint256,address,string,uint256[2])")), x, addr, name, array);
+      }
+      ```
+      
+      * 编码的结果为  `0xe87082f1000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c7100000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000043078414100000000000000000000000000000000000000000000000000000000`，与`abi.encodeWithSignature`结果一样。
+       
+**ABI解码**
+   * `abi.decode`: `abi.decode`用于解码`abi.encode`生成的二进制编码，将它还原成原本的参数。
+     ```Solidity
+     function decode(bytes memory data) public pure returns(uint dx, address daddr, string memory dname, uint[2] memory darray) {
+        (dx, daddr, dname, darray) = abi.decode(data, (uint, address, string, uint[2]));
+     }
+     ```
+     ![image](https://github.com/user-attachments/assets/be259e82-59ee-401a-9076-e0a8e0ae817c)
+
+**Hash的性质**
+   * 可以将任意长度的消息转换为一个固定长度的值，这个值也称作哈希（hash）。
+   * 一个好的哈希函数应该具有以下几个特性：
+      * 单向性：从输入的消息到它的哈希的正向运算简单且唯一确定，而反过来非常难，只能靠暴力枚举。
+      * 灵敏性：输入的消息改变一点对它的哈希改变很大。
+      * 高效性：从输入的消息到哈希的运算高效。
+      * 均一性：每个哈希值被取到的概率应该基本相等。
+      * 抗碰撞性：
+         *  弱抗碰撞性：给定一个消息x，找到另一个消息x'，使得hash(x) = hash(x')是困难的。
+         *  强抗碰撞性：找到任意x和x'，使得hash(x) = hash(x')是困难的。
+  * 应用
+      * 生成数据唯一标识
+      * 加密签名
+      * 安全加密
+        
+**Keccak256**
+   * `Keccak256`函数是Solidity中最常用的哈希函数，用法非常简单: `哈希 = keccak256(数据);`
+   * Keccak256和sha3:
+     1. sha3由keccak标准化而来，在很多场合下Keccak和SHA3是同义词，但在2015年8月SHA3最终完成标准化时，NIST调整了填充算法。*所以SHA3就和keccak计算的结果不一样*，这点在实际开发中要注意。
+     2. 以太坊在开发的时候sha3还在标准化中，所以采用了keccak，所以Ethereum和Solidity智能合约代码中的SHA3是指Keccak256，而不是标准的NIST-SHA3，为了避免混淆，直接在合约代码中写成Keccak256是最清晰的。
+   * 生成数据唯一标识: 我们有几个不同类型的数据：`uint`，`string`，`address`，我们可以先用`abi.encodePacked`方法将他们打包编码，然后再用`keccak256`来生成唯一标识：
+     ```Solidity
+     function hash(
+         uint _num,
+         string memory _string,
+         address _addr
+         ) public pure returns (bytes32) {
+         return keccak256(abi.encodePacked(_num, _string, _addr));
+     }
+     ```
+   * 弱抗碰撞性: 给定一个消息`0xAA`，试图去找另一个消息，使得它们的哈希值相等：
+     ```Solidity
+     function weak(
+         string memory string1
+         )public view returns (bool){
+         return keccak256(abi.encodePacked(string1)) == _msg;
+     }
+     ```
+   * 强抗碰撞性: 构造一个函数`strong`，接收两个不同的`string`参数`string1`和`string2`，然后判断它们的哈希是否相同
+     ```Solidity
+     function strong(
+        string memory string1,
+        string memory string2
+        )public pure returns (bool){
+        return keccak256(abi.encodePacked(string1)) == keccak256(abi.encodePacked(string2));
+     }
+     ```
+
+###  2024.10.15
+**函数选择器**
+   * 当我们调用智能合约时，本质上是向目标合约发送了一段`calldata`，发送的`calldata`中前4个字节是`selector`（函数选择器）
+   * `msg.data`: 是Solidity中的一个全局变量，值为完整的`calldata`（调用函数时传入的数据）。
+      ```Solidity
+      // event 返回msg.data
+      event Log(bytes data);
+      
+      function mint(address to) external{
+          emit Log(msg.data);
+      }
+      ```
+      * 当参数为`0x2c44b726ADF1963cA47Af88B284C06f30380fC78`时，输出的`calldata`为`0x6a6278420000000000000000000000002c44b726adf1963ca47af88b284c06f30380fc78`
+      * 前4个字节为函数选择器`selector`；后面32个字节为输入的参数。
+      * calldata就是告诉智能合约，我要调用哪个函数，以及参数是什么。
+     
+**method id、selector和函数签名**
+   * `method id`定义为函数签名的`Keccak`哈希后的前4个字节，当`selector`与`method id`相匹配时，即表示调用该函数>。
+   * 计算method id时，需要通过函数名和函数的参数类型来计算，Solidity中，函数的参数类型主要分为：基础类型参数，固定长度类型参数，可变长度类型参数和映射类型参数。
+      1. 基础类型参数: e.g. `bytes4(keccak256("函数名(参数类型1,参数类型2,...)"))`
+      2. 固定长度类型参数: e.g. `bytes4(keccak256("fixedSizeParamSelector(uint256[3])"))`
+      3. 可变长度类型参数: e.g. `bytes4(keccak256("nonFixedSizeParamSelector(uint256[],string)"))`
+      4. 映射类型参数: e.g. `bytes4(keccak256("mappingParamSelector(address,(uint256,bytes),uint256[],uint8)"))`
+     
+**使用selector**
+   * 我们可以利用selector来调用目标函数。
+   * 例如我想调用elementaryParamSelector函数，我只需要利用abi.encodeWithSelector将elementaryParamSelector函数的method id作为selector和参数打包编码，传给call函数
+     ```Solidity
+     // 使用selector来调用函数
+     function callWithSignature() external{
+     ...
+         // 调用elementaryParamSelector函数
+         (bool success1, bytes memory data1) = address(this).call(abi.encodeWithSelector(0x3ec37834, 1, 0));
+     ...
+     }
+     ```
+
+###  2024.10.16
+**try-catch**
+   * 只能被用于`external`函数或创建合约时`constructor`（被视为`external`函数）的调用。
+   ```Solidity
+   try externalContract.f() { // 某个外部合约的函数调用
+       // call成功的情况下 运行一些代码
+   } catch {
+       // call失败的情况下 运行一些代码
+   }
+   ```
+
+      * 可以使用`this.f()`来替代`externalContract.f()`
+      * `this.f()`也被视作为外部调用，但不可在构造函数中使用，因为此时合约还未创建。
+      * 如果调用的函数有返回值，那么必须在`try`之后声明`returns(returnType val)`，并且在`try`模块中可以使用返回的变量
+      * 如果是创建合约，那么返回值是新创建的合约变量。
+      
+   ```Solidity
+   try externalContract.f() returns(returnType val){
+       // call成功的情况下 运行一些代码
+   } catch {
+       // call失败的情况下 运行一些代码
+   }
+   ```
+   * `catch`模块支持捕获特殊的异常原因
+   ```Solidity
+   try externalContract.f() returns(returnType){
+       // call成功的情况下 运行一些代码
+   } catch Error(string memory /*reason*/) {
+       // 捕获revert("reasonString") 和 require(false, "reasonString")
+   } catch Panic(uint /*errorCode*/) {
+       // 捕获Panic导致的错误 例如assert失败 溢出 除零 数组访问越界
+   } catch (bytes memory /*lowLevelData*/) {
+       // 如果发生了revert且上面2个异常类型匹配都失败了 会进入该分支
+       // 例如revert() require(false) revert自定义类型的error
+   }
+   ```
+
+**try-catch实战**
+   * 创建一个外部合约`OnlyEven`，并使用`try-catch`来处理异常
+   ```Solidity
+   contract OnlyEven{
+       constructor(uint a){
+           require(a != 0, "invalid number");
+           assert(a != 1);
+       }
+   
+       function onlyEven(uint256 b) external pure returns(bool success){
+           // 输入奇数时revert
+           require(b % 2 == 0, "Ups! Reverting");
+           success = true;
+       }
+   }
+   ```
+
+   * 处理外部函数调用异常
+   ```Solidity
+   // 成功event
+   event SuccessEvent();
+   
+   // 失败event
+   event CatchEvent(string message);
+   event CatchByte(bytes data);
+   
+   // 声明OnlyEven合约变量
+   OnlyEven even;
+   
+   constructor() {
+       even = new OnlyEven(2);
+   }
+   
+   // 在external call中使用try-catch
+   function execute(uint amount) external returns (bool success) {
+       try even.onlyEven(amount) returns(bool _success){
+           // call成功的情况下
+           emit SuccessEvent();
+           return _success;
+       } catch Error(string memory reason){
+           // call不成功的情况下
+           emit CatchEvent(reason);
+       }
+   }
+   ```
+
+   * 处理合约创建异常: 只需要把`try`模块改写为`OnlyEven`合约的创建就行
+   ```Solidity
+   // 在创建新合约中使用try-catch （合约创建被视为external call）
+   // executeNew(0)会失败并释放`CatchEvent`
+   // executeNew(1)会失败并释放`CatchByte`
+   // executeNew(2)会成功并释放`SuccessEvent`
+   function executeNew(uint a) external returns (bool success) {
+       try new OnlyEven(a) returns(OnlyEven _even){
+           // call成功的情况下
+           emit SuccessEvent();
+           success = _even.onlyEven(a);
+       } catch Error(string memory reason) {
+           // catch失败的 revert() 和 require()
+           emit CatchEvent(reason);
+       } catch (bytes memory reason) {
+           // catch失败的 assert()
+           emit CatchByte(reason);
+       }
+   }
+   ```
 <!-- Content_END -->

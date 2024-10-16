@@ -171,5 +171,17 @@ timezone: Asia/Shanghai
 3. 目前delegatecall主要的應用場景：代理合約（Proxy Contract）、EIP-2535 Diamonds（鑽石）
 4. 代理合約（Proxy Contract）儲存所有相關變量後保存邏輯合約的地址。升級時，只需要將代理合約指向新的邏輯合約即可。
 
+### 2024.10.14
+1. 有兩種方法可以在合約中創建新合約，create和create2
+2. Pair合約，包含3個狀態變量：factory（工廠合約地址）、token0、token1
+3. CREATE2的目的：讓合約地址獨立於未來的事件。不管未來區塊鏈上發生了什麼，你都可以把合約部署在事先計算好的地址上
+4. 用CREATE2創建的合約地址由4個部分决定：(1)0xFF：常數，避免和CREATE衝突；(2)CreatorAddress: 調用CREATE2的當前合約地址(3)salt（鹽）：影響新創建的合約地址（4)initcode: 新合約的初始字節碼
+
+### 2024.10.15
+1. 已經部署的合約無法被SELFDESTRUCT
+2. 如果要使用原先的SELFDESTRUCT功能，必須在同一筆交易中創建並SELFDESTRUCT
+3. 調用deleteContract()函數，合約將觸發selfdestruct操作，只是將合約包含的ETH轉移到指定地址，而合約依然能夠調用
+4. selfdestruct能銷毀合約並將剩餘ETH轉移到指定帳戶
+
 
 <!-- Content_END -->
