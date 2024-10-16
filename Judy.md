@@ -2916,4 +2916,382 @@ require(success, "Transfer failed.");
     - **使用 `ReentrancyGuard`**：這是一個常用的合約設計模式，它通過添加一個鎖來防止重入調用。
     - **限制 `fallback` 函數的使用**：避免在 `fallback` 函數中執行複雜的邏輯，或者限制其調用頻率和操作範圍。
     - **使用 `transfer` 或 `send` 而非 `call`**：`transfer` 和 `send` 會限制 gas，這樣即使惡意合約有 `fallback` 函數，它也無法完成複雜的邏輯。但在新版 Solidity 中，因為 `transfer` 和 `send` 的局限性，更多使用 `call`，因此需要更多防範措施。
+
+### 2024.10.16
+### **1.發送 ETH (Sending ETH)**
+
+- Solidity 提供多種方式來發送 ETH，但每種方式有其限制和風險：
+1. **`transfer`**:
+    - 固定 2300 gas，防止重入攻擊，但在 gas 限制情況下可能失敗。
+    
+    ```solidity
+    payable(receiver).transfer(1 ether);
+    ```
+    
+2. **`send`**:
+    - 與 `transfer` 類似，但返回布林值，需手動檢查成功與否。
+    
+    ```solidity
+    bool success = payable(receiver).send(1 ether);
+    require(success, "Send failed");
+    ```
+    
+3. **`call`**:
+    - 建議使用的方式，可附帶資料，返回成功狀態和返回值。推薦在交易需要更高 gas 的情況下使用。
+    
+    ```solidity
+    (bool success, ) = receiver.call{value: 1 ether}("");
+    require(success, "Call failed");
+    ```
+    
+
+---
+
+### **2. 調用其他合約 (Calling Other Contracts)**
+
+- 合約可以直接調用其他合約的函數，支援內部或外部的交互：
+    
+    **內部合約調用**：
+    
+    ```solidity
+    function callInternalContract(address _contract) external {
+        SomeContract(_contract).someFunction();
+    }
+    ```
+    
+    **帶參數的外部合約調用**：
+    
+    ```solidity
+    interface ISomeContract {
+        function setValue(uint256 _value) external;
+    }
+    
+    function callExternalContract(address _contract, uint256 value) external {
+        ISomeContract(_contract).setValue(value);
+    }
+    ```
+    
+
+---
+
+### **3.`call`**
+
+- **低層次函數調用**，允許與其他合約進行靈活交互。能附帶 ETH 或調用不在 ABI 中的函數。
+    
+    **範例**：
+    
+    ```solidity
+    (bool success, bytes memory data) = targetContract.call(abi.encodeWithSignature("foo(uint256)", 42));
+    require(success, "Call failed");
+    ```
+    
+
+---
+
+### **4. `delegatecall`**
+
+- **`delegatecall` 將目標合約的邏輯在調用者合約的上下文中執行**。`msg.sender` 和 `storage` 保持原狀，因此用於 **代理合約模式**。
+- **什麼是代理合約（Proxy Contract）？**
+    - 一種設計模式
+    - 用於解決 **智能合約的升級問題**
+    - 由於區塊鏈上的智能合約一旦部署，合約的程式碼無法修改，因此需要透過 **代理合約** 來達成合約邏輯的靈活性和可升級性。
+    - **代理合約模式的運作原理**
+        1. **代理合約（Proxy Contract）**：
+            - 儲存業務邏輯的地址（邏輯合約地址）。
+            - 使用 `delegatecall` 將調用委派給邏輯合約。
+        2. **邏輯合約（Logic Contract）**：
+            - 包含實際業務邏輯的程式碼。
+            - 可在需要時部署新的邏輯合約，並讓代理合約指向新邏輯合約。
+    
+    **範例**：
+    
+    ```solidity
+    (bool success, ) = targetContract.delegatecall(abi.encodeWithSignature("foo()"));
+    require(success, "Delegatecall failed");
+    ```
+    
+
+---
+
+### **5. 在合約中創建新合約 (Creating Contracts from Contracts)**
+
+- 合約可以透過 `new` 來創建新的合約。
+    
+    **範例**：
+    
+    ```solidity
+    contract NewContract {
+        uint256 public value;
+        constructor(uint256 _value) {
+            value = _value;
+        }
+    }
+    
+    contract Factory {
+        function createNewContract(uint256 _value) external returns (address) {
+            NewContract newContract = new NewContract(_value);
+            return address(newContract);
+        }
+    }
+    ```
+    
+
+---
+
+### **6. Create2**
+
+- **`create2`** 可以用 **可預測的地址** 來部署合約，使得在部署前就能計算合約地址
+- **使用 `Create2`**，合約的地址可基於：
+    1. **部署者地址（deployer address）**
+    2. **鹽值（salt）**（一個用於生成地址的隨機值）
+    3. **合約的 bytecode（合約的程式碼）**
+    
+    **範例**：
+    
+    ```solidity
+    bytes32 salt = keccak256(abi.encodePacked("salt"));
+    address newContractAddress = address(new NewContract{salt: salt}());
+    ```
+    
+- **使用預測合約地址的好處**
+    
+    ### 1. **提升合約交互的確定性**
+    
+    - 在合約部署前，就能知道合約的 **最終地址**。這對於 **合約之間的交互** 尤其有用。
+    - 範例：如果 A 合約需要與即將部署的 B 合約交互，可以提前將 B 合約地址寫入 A 合約的變數中，無需等待 B 合約的部署完成。
+    
+    ### 2. **減少信任風險**
+    
+    - 在 DeFi 應用中，合約地址的預測讓使用者可以提前驗證地址，避免惡意方替換合約的風險。
+    - 範例：治理合約在等待新邏輯合約部署時，可以提前計算新合約地址，確保部署後使用的邏輯是預期的。
+    
+    ### 3. **合約升級與無縫遷移**
+    
+    - 開發者可以提前計算新的邏輯合約地址，並在代理合約內指定此地址，實現無縫的 **合約升級**。
+    - 範例：透過 `Create2` 預計算地址，升級後的合約地址能在升級前就保證無誤。
+    
+    ### 4. **Gas 優化**
+    
+    - 預測地址允許提前配置多個合約之間的交互，避免在部署完成後修改合約狀態（如地址註冊或白名單）。
+    - 範例：NFT 合約可以提前生成藏品地址，省去交易後修改白名單的步驟，節省 Gas 成本。
+    
+    ### 5. **在 Layer 2 或 Rollup 系統中的應用**
+    
+    - 在 Layer 2 或 Rollup 系統中，開發者可以預先計算合約地址，確保跨鏈或跨層交互的合約地址保持一致。
+    - 範例：在 L1 和 L2 上的錢包地址或合約地址一致，提升用戶體驗。
+    
+    ### 6. **提高合約地址的預測性，實現未來功能**
+    
+    - 某些項目可能會先公佈即將部署的合約地址，讓用戶提前與即將部署的合約進行交互或準備。
+    - 範例：DeFi 協議可以提前讓用戶存入資金到預定地址，在合約部署完成後立即啟用。
+- 計算合約地址：
+    
+    ```solidity
+    address predictedAddress = address(uint160(uint256(keccak256(abi.encodePacked(
+        bytes1(0xff),
+        deployerAddress,
+        salt,
+        keccak256(abi.encodePacked(bytecode))
+    )))));
+    ```
+    
+
+---
+
+### **7. 刪除合約 (Self-Destructing a Contract)**
+
+- 在 Solidity 中，當不再需要某個合約時，可以使用 **`selfdestruct`** 將其從區塊鏈上永久刪除。刪除後：
+    1. **合約的所有代碼與儲存空間會被移除**。
+    2. **合約餘額會自動轉移給指定的接收者（不必為owner地址）**。
+
+**範例**：
+
+```solidity
+selfdestruct(payable(owner));
+```
+
+- **注意**：刪除合約後，所有的資料將無法恢復。
+- 如何檢查合約被刪除？嘗試調用該合約，將不會有任何響應。
+
+**範例：嘗試調用已刪除的合約**
+
+```solidity
+ExampleContract contract = ExampleContract(deployedAddress);
+contract.someFunction(); // 此調用將失敗，因為合約已被刪除
+```
+
+---
+
+### **8. ABI 編碼解碼 (ABI Encoding and Decoding)**
+
+- 定義了 **合約與外部世界（如其他合約或應用程式）之間的交互格式**
+- **編碼**：將參數打包成字節形式，用於低層次的合約交互。
+    
+    ```solidity
+    bytes memory encodedData = abi.encodeWithSignature("foo(uint256)", 123);
+    ```
+    
+- **解碼**：解析返回的字節數據。
+    
+    ```solidity
+    (uint256 result) = abi.decode(encodedData, (uint256));
+    ```
+    
+
+---
+
+### **9. Hash (哈希函數)**
+
+- Hash 函數必須具備的 5 個重要特性
+    
+    ### **1. 確定性（Deterministic）**
+    
+    - **同一輸入必須始終產生相同的輸出**。
+    - 這意味著無論在哪裡或何時對相同的數據進行 Hash，結果都必須一致。
+    
+    **範例：**
+    
+    ```solidity
+    bytes32 hash1 = keccak256(abi.encodePacked("Hello"));
+    bytes32 hash2 = keccak256(abi.encodePacked("Hello"));
+    require(hash1 == hash2, "Hash values must be identical");
+    ```
+    
+    ---
+    
+    ### **2. 快速計算（Fast Computation）**
+    
+    - Hash 函數應該能夠快速計算輸出的哈希值，適合高效處理大量數據。
+    - **區塊鏈節點需要快速驗證交易**，所以 Hash 計算必須快速完成。
+    
+    ---
+    
+    ### **3. 預映射抗性（Preimage Resistance）**
+    
+    - **從 Hash 值無法逆推出原始輸入**。
+    - 換句話說，給定一個哈希值，要找到對應的輸入幾乎不可能（需要大量計算資源）。
+    
+    **範例：**
+    
+    ```
+    Given: H(x) = hash_value
+    It's hard to find x such that H(x) = hash_value
+    ```
+    
+    ---
+    
+    ### **4. 弱碰撞抗性（Weak Collision Resistance）**
+    
+    - **給定一個輸入 x 和其 Hash 值 H(x)，很難找到另一個輸入 y，使得 H(y) == H(x)**。
+    - 這避免了攻擊者找到不同的輸入來偽造相同的哈希值。
+    
+    **範例：**
+    
+    ```
+    Given: H(x)
+    It's hard to find y ≠ x such that H(x) = H(y)
+    ```
+    
+    ---
+    
+    ### **5. 強碰撞抗性（Strong Collision Resistance）**
+    
+    - **幾乎不可能找到兩個不同的輸入 x 和 y，使得 H(x) == H(y)**。
+    - 這防止攻擊者通過構造不同的輸入來製造假資料，欺騙系統。
+    
+    **範例：**
+    
+    ```
+    It's hard to find x ≠ y such that H(x) = H(y)
+    ```
+    
+- 使用 **`keccak256`**（等同於 SHA3）計算資料的哈希值。用於驗證資料一致性和建立不可逆的資料摘要。
+    
+    **範例**：
+    
+    ```solidity
+    bytes32 hash = keccak256(abi.encodePacked("Solidity"));
+    ```
+    
+- **用途**：
+    - 建立唯一標識。
+    - 驗證資料的一致性（如簽名驗證）。
+
+---
+
+### **10. 選擇器 (Function Selector)**
+
+- **函數選擇器**是函數名稱和參數的哈希值的前 4 個字節。用於識別合約中的特定函數。
+    
+    **範例**：
+    
+    ```solidity
+    bytes4 selector = bytes4(keccak256("transfer(address,uint256)"));
+    ```
+    
+- 可以與 `call` 一起使用：
+    
+    ```solidity
+    (bool success, ) = target.call(abi.encodeWithSelector(selector, recipient, amount));
+    ```
+    
+
+---
+
+### **11. Try-Catch**
+
+- **用於捕捉外部合約的錯誤**，避免交易失敗導致整個交易回滾。
+    
+    **範例**：
+    
+    ```solidity
+    try externalContract.someFunction() {
+        // 成功處理
+    } catch {
+        // 捕捉錯誤並處理
+    }
+    ```
+    
+- catch 捕捉類型：
+    - **catch (Error memory err)**：捕捉 Solidity 內部的 `revert` 錯誤。
+    - **catch (bytes memory reason)**：捕捉低層次的錯誤（如 `call` 失敗）。
+- 使用時機：
+    1. **外部合約調用**：當你需要調用外部合約的函數且該函數可能會失敗時，可以使用 `try-catch`。
+    2. **創建新合約**：當你使用 `new` 關鍵字動態部署合約時，可以使用 `try-catch` 捕捉部署失敗的情況。
+
+### **範例：捕捉外部合約的錯誤**
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract ExternalContract {
+    function willFail(bool shouldFail) external pure returns (string memory) {
+        require(!shouldFail, "External call failed");
+        return "Success";
+    }
+}
+
+contract TryCatchExample {
+    ExternalContract public externalContract;
+
+    constructor(address _externalContract) {
+        externalContract = ExternalContract(_externalContract);
+    }
+
+    function callExternalFunction(bool shouldFail) public returns (string memory) {
+        try externalContract.willFail(shouldFail) returns (string memory result) {
+            // 成功呼叫時返回結果
+            return result;
+        } catch (Error memory err) {
+            // 捕捉 Solidity 內部的錯誤
+            return string(abi.encodePacked("Error: ", err.message));
+        } catch (bytes memory reason) {
+            // 捕捉低層錯誤（例如使用 call 失敗）
+            return string(abi.encodePacked("Low-level error: ", string(reason)));
+        }
+    }
+}
+
+```
 <!-- Content_END -->
