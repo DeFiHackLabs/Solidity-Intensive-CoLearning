@@ -923,6 +923,13 @@ onERC721Received
 - 修改價格 update(), 賣家修改 NFT 訂單價格, 並釋放 Update 事件
 - 購買 purchase(), 買家支付 ETH 購買掛單的 NFT, 並釋放 Purchase 事件; 成功後, ETH 轉給賣家, NFT 從 NFTSwap 合約轉給買家
 
+### 2024.10.16        
+學習內容  
+筆記:  
+
+#### 鏈上隨機數
+- 鏈上, 透過 哈希函數隨機生成, 不過因鏈上資訊公開透明, 容易有風險
+- 鏈下, 透過 chainlink 預言機隨機生成
 
 
 
