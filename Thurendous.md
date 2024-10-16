@@ -2368,4 +2368,166 @@ main();
 金库合约是DeFi乐高中的基础。它允许你把基础的资产质押到合约之中。换取一定的收益。包括以下的应用场景。
 
 
+### 2024.10.16
+
+(Day 20)
+
+学习笔记
+
+#### 数字签名
+
+我们将简单介绍ECDSA数字签名算法。以及如何使用它进行NFT白名单的发放。
+
+使用opensea的时候会有一个签名的请求。这个请求实际上就是让你签名一个消息然后证明你是这个地址的拥有者。
+
+这个原理其实就是让你使用私钥对一个消息进行签名，然后服务端通过验签来证明你是这个地址的拥有者。
+
+以此，你就证明了你是私钥的拥有者的同时，没有公布这个私钥的任何信息。
+
+以太坊使用数字签名算法叫做椭圆曲线数字签名算法（ECDSA）。基于这个椭圆曲线的（私钥，公钥）的算法。
+
+他有3个作用：
+
+1. 身份证明：证明消息的发送者是某个特定的地址
+2. 不可否认：发送方不能否认发送过消息
+3. 消息完整性：消息在传输过程中没有被篡改
+
+
+- 创建签名
+
+1. 打包消息：在以太坊的ECDSA标准中，被签名的消息是一组数据的keccak256哈希。为bytes32类型。我们可以把任何想要签名的内容利用`abi.encodePacked()`函数打包，然后用`keccak256()`函数进行哈希，作为消息。我们的例子中的消息是一个`address`类型的变量和一个`uint256`类型的变量得到的。
+
+```solidity
+    /*
+     * 将mint地址（address类型）和tokenId（uint256类型）拼成消息msgHash
+     * _account: 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4
+     * _tokenId: 0
+     * 对应的消息msgHash: 0x1bf2c0ce4546651a1a2feb457b39d891a6b83931cc2454434f39961345ac378c
+     */
+    function getMessageHash(address _account, uint256 _tokenId) public pure returns(bytes32){
+        return keccak256(abi.encodePacked(_account, _tokenId));
+    }
+```
+
+2. 以太坊的签名消息：消息可以是能被执行的交易，也可以是其他的任何的形式。为了避免用户错误签名了恶意交易。`EIP191`提倡在消息的前边加上`\x19Ethereum Signed Message:\n`，然后再加上消息的长度`32`。这样，就能避免用户错误签名了恶意交易。再做一次这个`keccak256`哈希，作为以太坊的签名消息。经过`toEthSignedMessageHash()`函数，就能得到以太坊的签名消息。
+这里的恶意消息的意思就是说：如果签名了一个恶意的交易，那么这个交易就会被他人给执行。而这里的这个`toEthSignedMessageHash()`函数所得到的签名消息是无法被执行的。
+
+```solidity
+    /**
+     * @dev 返回 以太坊签名消息
+     * `hash`：消息
+     * 遵从以太坊签名标准：https://eth.wiki/json-rpc/API#eth_sign[`eth_sign`]
+     * 以及`EIP191`:https://eips.ethereum.org/EIPS/eip-191`
+     * 添加"\x19Ethereum Signed Message:\n32"字段，防止签名的是可执行交易。
+     */
+    function toEthSignedMessageHash(bytes32 hash) public pure returns (bytes32) {
+        // 哈希的长度为32
+        return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash));
+    }
+```
+
+处理后的消息为：
+
+```
+以太坊签名消息: 0xb42ca4636f721c7a331923e764587e98ec577cea1a185f60dfcc14dbb9bd900b
+```
+
+
+可以利用签名来发放白名单。
+比如NFT项目可以利用这个ECDSA特性来发放白名单，将tokenId和地址进行一个绑定，然后用owner的私钥对这个地址进行一个签名。
+
+那么用户持有这个签名的话，就可以在合约中进行一个验证之后，对这个地址进行合理的mint请求了。
+
+具体的实现如下：
+
+```solidity
+contract SignatureNFT is ERC721 {
+    address immutable public signer; // 签名地址
+    mapping(address => bool) public mintedAddress;   // 记录已经mint的地址
+
+    // 构造函数，初始化NFT合集的名称、代号、签名地址
+    constructor(string memory _name, string memory _symbol, address _signer)
+    ERC721(_name, _symbol)
+    {
+        signer = _signer;
+    }
+
+    // 利用ECDSA验证签名并mint
+    function mint(address _account, uint256 _tokenId, bytes memory _signature)
+    external
+    {
+        bytes32 _msgHash = getMessageHash(_account, _tokenId); // 将_account和_tokenId打包消息
+        bytes32 _ethSignedMessageHash = ECDSA.toEthSignedMessageHash(_msgHash); // 计算以太坊签名消息
+        require(verify(_ethSignedMessageHash, _signature), "Invalid signature"); // ECDSA检验通过
+        require(!mintedAddress[_account], "Already minted!"); // 地址没有mint过
+        _mint(_account, _tokenId); // mint
+        mintedAddress[_account] = true; // 记录mint过的地址
+    }
+
+    /*
+     * 将mint地址（address类型）和tokenId（uint256类型）拼成消息msgHash
+     * _account: 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4
+     * _tokenId: 0
+     * 对应的消息: 0x1bf2c0ce4546651a1a2feb457b39d891a6b83931cc2454434f39961345ac378c
+     */
+    function getMessageHash(address _account, uint256 _tokenId) public pure returns(bytes32){
+        return keccak256(abi.encodePacked(_account, _tokenId));
+    }
+
+    // ECDSA验证，调用ECDSA库的verify()函数
+    function verify(bytes32 _msgHash, bytes memory _signature)
+    public view returns (bool)
+    {
+        return ECDSA.verify(_msgHash, _signature, signer);
+    }
+}
+```
+
+- 由于签名是链下的，所以节省了gas，比merkle tree更加节省gas。
+- 但是由于需要请求中心化接口去获得签名，不可避免的失去了一部分去中心化的方式。
+- 额外的还有一个好处就是白名单可以动态变化，而不是提前写死在合约之中了。因为项目方的中心化后端可以接受任何新地址的请求并且给予白名单的签名。
+
+#### 链上随机数
+
+链上也需要随机数，比如赌博，比如NFT随机抽一个tokenId实现盲盒效果。gamefi战斗中，随机分胜负等等。
+
+由于以太坊的公开透明，没有随机数这个概念了。
+
+所以，如果想要在链上实现随机数，就需要用到链下的随机数。
+
+我们讲一下如何实现链上和链下的随机数生成的两种方法。并且利用他们做一款tokenId的随机铸造NFT。
+
+- 链上随机数的生成
+
+我们写一个反例，来看一下这个不好的例子：
+
+```solidity
+    /** 
+    * 链上伪随机数生成
+    * 利用keccak256()打包一些链上的全局变量/自定义变量
+    * 返回时转换成uint256类型
+    */
+    function getRandomOnchain() public view returns(uint256){
+        // remix运行blockhash会报错
+        bytes32 randomBytes = keccak256(abi.encodePacked(block.timestamp, msg.sender, blockhash(block.number-1)));
+        
+        return uint256(randomBytes);
+    }
+```
+这里的变量都是链上的，所以是伪随机数。因为都是链上的信息，所以全部都是公开可以被他人预测的。这并不安全。
+
+其次，矿工还可以操纵blockhash和block.timestamp，使得生成的随机数符合他的利益。
+
+尽管如此，由于这种方法是最便捷的链上随机数生成方法，大量的项目依靠它来生成一个不安全的随机数。包括致命的项目meebits，loots等等。
+
+当然这些项目也无一例外地都被攻击了。
+
+攻击者可以铸造任何他们想要的稀有的NFT，而不是随机抽取了。
+
+我们可以在链下生成一个随机数字。然后通过预言机把这个数据带上链。
+
+Chainlink提供的VRF服务，可以实现链上随机数。链上开发者需要支付LINK代币来获取随机数。
+
+
+
 <!-- Content_END -->

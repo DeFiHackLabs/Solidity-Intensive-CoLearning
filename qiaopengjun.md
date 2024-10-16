@@ -882,10 +882,59 @@ contract HelloWorldFactory {
 
 ### 2024.10.15
 
-笔记内容
+1. 创建一个收款函数
+2. 记录投资人并且查看
+3. 在锁定期内，达到目标值，生产商可以提取资金
+4. 在锁定期内，未达到目标值，投资人可以提取资金
+
+Transfer: transfer ETH and revert if tx failed
+payable(msg.sender).transfer(address(this).balance);
+
+send: transfer ETH and return false if tx failed
+bool success = payable(msg.sender).send(address(this).balance);
+require(success, "Failed to send Ether");
+
+call: transfer ETH with data return value of the called function and bool
+(bool success, ) = payable(msg.sender).call{value: address(this).balance}("");
+require(success, "Failed to send Ether");
 
 ### 2024.10.16
 
-笔记内容
+virtual
+override
+继承
 
+1. 让 FundMe 的参与者，基于 mapping 来领取相应数量的通证
+2. 让 FundMe 的参与者， transfer 通证
+3. 在使用完成以后，需要 burn 通证
+变量 public getter
+Remix
+项目管理
+难以批量部署和测试
+难以统一版本
+Hardhat JavaScript
+Foundry Rust
+
+brew -v
+brew update
+brew install nvm
+pwd
+ls -a
+vim .zprofile
+source .zprofile
+nvm
+nvm install --lts
+nvm install 20
+nvm list
+nvm use 20
+nvm uninstall 18
+
+brew install --cask visual-studio-code
+mkdir test
+cd test/
+touch test.txt
+cd test
+code .
+npm init
+npm install --save-dev hardhat
 <!-- Content_END -->

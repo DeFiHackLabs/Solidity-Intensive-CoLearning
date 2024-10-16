@@ -157,6 +157,17 @@ timezone: Asia/Taipei
 
   [WTF Academy Solidity 103 54 跨鏈橋 Note](/content/0xRory/120-跨鏈橋/跨鏈橋.md)
 
-  [WTF Academy Solidity 103 55 MultiCall Note](/content/0xRory/120-Multicall/Multicall.md)
+  [WTF Academy Solidity 103 55 MultiCall Note](/content/0xRory/120-MultiCall/MultiCall.md)
 
+### 2024.10.15
+
+  day23:
+
+  [WTF Academy Solidity 103 56 去中心化交易所 Note](/content/0xRory/120-去中心化交易所/DEX.md)
+
+  [WTF Academy Solidity 103 57 Flashloan Note](/content/0xRory/120-Flashloan/Flashloan.md)
+
+### 2024.10.16
+
+   day:24: 打卡
 <!-- Content_END -->

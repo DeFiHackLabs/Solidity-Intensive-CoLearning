@@ -2503,6 +2503,48 @@ uint8 public decimals = 18; // 小数位数
     }
     ```
 
+### 2024.10.16
 
+#### 代幣水龍頭
+代幣水龍頭是讓用戶免費領帶幣的網站/應用。  
+最早的代幣水龍頭是彼特幣(BTC)水龍頭。  
+
+#### ERC20水龍頭合約
+簡易的`ERC20`合約：將一些`ERC20`代幣轉入合約中，用戶可以通過合約`requestToken()`函數去領取`100`單位的代幣，每個地址只能領一次。  
+
+**狀態變量**  
+```Solidity
+uint256 public amountAllowed = 100; // 设定每次能领取代币数量（默认为100，不是一百枚，因为代币有小数位数）。
+address public tokenContract;   // 记录发放的ERC20代币合约地址。
+mapping(address => bool) public requestedAddress;   // 记录领取过代币的地址。
+```
+
+**事件**  
+```Solidity
+// 定義SendToken事件，紀錄每次領取代幣的地址和數量，在requestTokens()被調用時釋放。
+event SendToken(address indexed Receiver, uint256 indexed Amount); 
+```
+
+**函數**  
+合約中只有兩個函數：  
+```Solidity
+// 构造函数：初始化tokenContract状态变量，确定发放的ERC20代币地址。
+constructor(address _tokenContract) {
+  tokenContract = _tokenContract; // set token contract
+}
+
+
+// 用户领取代币函数
+function requestTokens() external {
+    require(!requestedAddress[msg.sender], "Can't Request Multiple Times!"); // 每个地址只能领一次
+    IERC20 token = IERC20(tokenContract); // 创建IERC20合约对象
+    require(token.balanceOf(address(this)) >= amountAllowed, "Faucet Empty!"); // 水龙头空了
+
+    token.transfer(msg.sender, amountAllowed); // 发送token
+    requestedAddress[msg.sender] = true; // 记录领取地址 
+    
+    emit SendToken(msg.sender, amountAllowed); // 释放SendToken事件
+}
+```
 
 <!-- Content_END -->

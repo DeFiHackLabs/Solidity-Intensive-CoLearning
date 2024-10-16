@@ -2262,6 +2262,205 @@ contract OtherContract is IOtherContract{
 
 ### 2024.10.14
 #### WTF Academy Solidity 102.22 Call
+`call` 是 `Solidity` 提供的低级成员函数，用来与其他合约交互，特别是当我们不知道目标合约的 `ABI` 时，它可以通过发送字节码直接调用目标合约的函数。
+
+##### `call` 的语法结构
+```solidity
+(bool success, bytes memory data) = address.call{value: 发送的ETH, gas: gas数额}(字节码);
+```
+
+
+1. **目标地址**: 
+   `address.call` 用于指定目标合约的地址，调用这个地址上的合约或发送 ETH。
+
+2. **可选参数**:
+   - `{value: 发送的ETH}`: 发送的 ETH 数额（单位为 wei）。如果不需要发送 ETH，可以省略。
+   - `{gas: gas数额}`: 指定调用时允许使用的最大 gas 数量。如果不指定，默认会使用全部可用的 gas。
+
+3. **字节码**: 
+   - `abi.encodeWithSignature("函数签名", 参数)` 用于生成调用函数的字节码。函数签名为 `"函数名(参数类型列表)"`，后面接具体的参数值。
+
+4. **返回值**:
+   - `bool success`: 表示调用是否成功，`true` 表示成功，`false` 表示失败。
+   - `bytes memory data`: 返回的字节数据，可以通过 `abi.decode` 来解码获取具体的返回值。
+
+##### 用法
+###### 目标合约
+```solidity
+contract OtherContract {
+    uint256 private _x = 0; // 状态变量x
+    // 收到eth的事件，记录amount和gas
+    event Log(uint amount, uint gas);
+    
+    fallback() external payable{}
+
+    // 返回合约ETH余额
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+
+    // 可以调整状态变量_x的函数，并且可以往合约转ETH (payable)
+    function setX(uint256 x) external payable{
+        _x = x;
+        // 如果转入ETH，则释放Log事件
+        if(msg.value > 0){
+            emit Log(msg.value, gasleft());
+        }
+    }
+
+    // 读取x
+    function getX() external view returns(uint x){
+        x = _x;
+    }
+}
+```
+
+1. **调用目标合约的 `payable` 函数并发送 ETH**:
+
+```solidity
+(bool success, bytes memory data) = targetAddress.call{value: 1 ether}(
+    abi.encodeWithSignature("setX(uint256)", 42)
+);
+```
+
+2. **调用目标合约的 `view` 函数**（无需发送 ETH）:
+
+```solidity
+(bool success, bytes memory data) = targetAddress.call(
+    abi.encodeWithSignature("getX()")
+);
+uint256 x = abi.decode(data, (uint256)); // 解码返回值
+```
+
+3. **调用不存在的函数**（会触发目标合约的 `fallback` 或 `receive` 函数）:
+
+```solidity
+(bool success, bytes memory data) = targetAddress.call(
+    abi.encodeWithSignature("nonExistentFunction()")
+);
+```
+
+4. **仅发送 ETH 而不调用任何函数**:
+
+```solidity
+(bool success, ) = targetAddress.call{value: 1 ether}("");
+require(success, "ETH transfer failed");
+```
+
+##### 测验结果
+- 100/100
+##### 测验错题
+
+
+### 2024.10.15
+#### WTF Academy Solidity 102.23 Delegatecall
+
+#####
+`delegatecall` 是 Solidity 中一种特殊的低级调用方式，允许一个合约在另一个合约的上下文中执行其代码。简单来说，它让调用者（调用方合约）的存储和上下文被目标合约的逻辑操作。
+
+区别于常规的 `call`，`delegatecall` 不会将调用的上下文切换到被调用合约的上下文，而是保持在调用合约的上下文中。这意味着，任何对状态变量的修改都会影响调用合约的变量，而不是被调用合约的变量。
+
+`delegatecall` 主要在代理合约模式中使用，这种模式通过将存储和逻辑分离，允许合约升级功能，而不需要更换合约地址。常见场景有：
+
+1. **代理合约 (Proxy Contract)**：将逻辑合约和存储合约分离，通过代理合约来调用逻辑合约的功能。
+2. **EIP-2535 Diamonds 标准**：允许合约在生产中扩展和模块化。
+
+##### 代码示例：合约 B 调用合约 C 的代码
+
+1. **被调用的合约 `C`**
+
+这个合约有两个变量：`num` 和 `sender`。其中 `num` 是存储的一个整数，`sender` 是存储调用者地址的一个变量。合约中的 `setVars` 函数用于更新这两个变量：
+
+```solidity
+// 被调用的合约C
+contract C {
+    uint public num;
+    address public sender;
+
+    // 更新 num 和 sender，记录调用者
+    function setVars(uint _num) public payable {
+        num = _num; // 更新 num
+        sender = msg.sender; // 更新调用者地址，注意这里的 msg.sender 是调用该函数的合约地址
+    }
+}
+
+```
+- `num`: 存储一个 `uint` 型的数。
+- `sender`: 存储调用者的地址。
+- `setVars`: 更新 `num` 和 `sender`。`msg.sender` 是调用该函数的账户地址，通常是合约的地址或外部账户。
+
+**2. 发起调用的合约 `B`**
+
+合约 `B` 中也有两个相同类型和顺序的状态变量：`num` 和 `sender`，以保证 `delegatecall` 时存储布局一致。
+
+```solidity
+contract B {
+    uint public num;
+    address public sender;
+}
+
+```
+
+- 合约 `B` 的状态变量必须与合约 `C` 保持一致的存储布局，以确保 `delegatecall` 调用时不会出现存储冲突。
+
+**3. 使用 `call` 调用**
+
+先通过 `call` 来调用合约 `C` 的 `setVars` 函数，观察效果：
+
+```solidity
+// 通过 call 调用 C 合约的 setVars() 函数，更新 C 合约中的状态变量
+function callSetVars(address _addr, uint _num) external payable {
+    (bool success, bytes memory data) = _addr.call(
+        abi.encodeWithSignature("setVars(uint256)", _num) // 将函数和参数编码为二进制数据
+    );
+}
+
+```
+
+- `_addr`: `C` 合约的地址。
+- `_num`: 要传递的数值，更新 `num`。
+- `call`: 普通调用会在 `C` 合约的上下文中执行函数，修改 `C` 合约的 `num` 和 `sender`。
+
+当使用 `call` 时，合约 `B` 调用 `C` 合约的函数，执行的上下文是 `C` 合约的，所以任何状态变量的变化都体现在 `C` 合约上，`msg.sender` 是合约 `B` 的地址。
+
+**4. 使用 `delegatecall` 调用**
+
+通过 `delegatecall`，合约 `B` 可以调用 `C` 合约的代码，但状态变量的更改会发生在 `B` 的存储中，而不是 `C`：
+
+```solidity
+// 通过 delegatecall 调用 C 合约的 setVars() 函数，更新 B 合约中的状态变量
+function delegatecallSetVars(address _addr, uint _num) external payable {
+    (bool success, bytes memory data) = _addr.delegatecall(
+        abi.encodeWithSignature("setVars(uint256)", _num) // 将函数和参数编码为二进制数据
+    );
+}
+
+```
+- `delegatecall`: 执行 `C` 合约的代码，但对状态变量的操作发生在 `B` 合约中。`msg.sender` 是调用者地址（即最初发起交易的用户）。
+- 由于 `delegatecall` 保持了调用合约（`B`）的上下文，`num` 和 `sender` 的更新会影响 `B` 合约中的变量，而不是 `C`。
+
+##### `call` 和 `delegatecall`对比
+
+- **`call`**：在被调用合约的上下文中执行代码，修改的是被调用合约的状态变量。
+- **`delegatecall`**：在调用合约的上下文中执行目标合约的代码，修改的是调用合约的状态变量。
+
+这两者的核心区别是状态变量的存储位置，以及 `msg.sender` 的值。使用 `delegatecall` 时，注意存储布局一致性以及目标合约的安全性，以避免潜在的安全漏洞。
+
+##### 测验结果
+- 100/100
+
+### 2024.10.16
+#### WTF Academy Solidity 102.24
+
+##### 笔记
+
+##### 测验结果
+
+##### 测验错题
+
+
+### 2024.10.17
+#### WTF Academy Solidity 102.25
 
 ##### 笔记
 
