@@ -2450,14 +2450,98 @@ function delegatecallSetVars(address _addr, uint _num) external payable {
 - 100/100
 
 ### 2024.10.16
-#### WTF Academy Solidity 102.24
+#### WTF Academy Solidity 102.24 Create
 
-##### 笔记
+##### `Create`基本语法
+```solidity
+Contract x = new Contract{value: _value}(params);
+```
+- `Contract` 是要创建的新合约类型。
+- `x` 是存储新合约地址的变量。
+- `{value: _value}` 是可选的，表示可以在创建时发送一定数量的`ETH`。
+- `(params)` 是传递给新合约构造函数的参数。
 
+##### 代码示例
+###### 简单的创建合约
+```solidity
+// 被创建的合约
+contract NewContract {
+    uint public x;
+    address public creator;
+
+    constructor(uint _x) payable {
+        x = _x;
+        creator = msg.sender;
+    }
+}
+
+// 用于创建新合约的合约
+contract Creator {
+    function createNewContract(uint _x) external payable returns (address) {
+        NewContract newContract = new NewContract{value: msg.value}(_x);
+        return address(newContract);
+    }
+}
+```
+
+1. `NewContract` 是要创建的目标合约，它有一个`uint`类型的变量`x`，并记录创建者的地址。
+2. 构造函数中接受`x`的值并设置`msg.sender`为`creator`。
+3. `Creator` 合约有一个函数 `createNewContract`，通过 `new` 创建一个 `NewContract` 实例，同时传入构造函数参数 `_x`，并附带`ETH`。
+4. 在Remix上验证，通过Creator创建后，返回`decoded output: {
+	"0": "address: 0xeae1f6F987196E95E526B1601119D1d5Bb3Ed03F"
+}`
+###### Uniswap V2
+```solidity
+contract Pair{
+    address public factory; // 工厂合约地址
+    address public token0; // 代币1
+    address public token1; // 代币2
+
+    constructor() payable {
+        factory = msg.sender;
+    }
+
+    // called once by the factory at time of deployment
+    function initialize(address _token0, address _token1) external {
+        require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
+        token0 = _token0;
+        token1 = _token1;
+    }
+}
+
+contract PairFactory{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair(address tokenA, address tokenB) external returns (address pairAddr) {
+        // 创建新合约
+        Pair pair = new Pair(); 
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+}
+```
+- `mapping(address => mapping(address => address)) public getPair;`
+    - 这是一个嵌套的映射，作用是通过**两个代币的地址**查找它们对应的**交易对合约地址**。例如，如果你有两个代币的地址`tokenA`和`tokenB`，你可以通过`getPair[tokenA][tokenB]`查询它们对应的交易对地址。
+    - **外层`address`**：代表第一个代币（`tokenA`）的地址。
+    - **内层`address`**：代表第二个代币（`tokenB`）的地址。
+    - **最终的`address`**：是这两个代币组成的交易对（Pair）的合约地址。
+- `address[] public allPairs;`
+    - 这是一个保存所有交易对（Pair）合约地址的数组。
+    - **`address[]`**：表示一个存储地址类型的数组，每个地址代表一个交易对合约的地址。
+    - **`public`**：这个数组是公开的，因此可以直接读取它的内容。
+    - **`allPairs`**：这个数组用于存储所有已经创建的交易对地址，顺序依次加入每次创建的新交易对。
+- `createPair`函数
+    - 创建新的`Pair`合约实例。
+    - 调用`Pair`合约的`initialize`函数，传入两个代币地址以初始化币对。
+    - 记录并存储新创建的币对地址。
 ##### 测验结果
-
-##### 测验错题
-
+- 100/100
 
 ### 2024.10.17
 #### WTF Academy Solidity 102.25
@@ -2468,4 +2552,31 @@ function delegatecallSetVars(address _addr, uint _num) external payable {
 
 ##### 测验错题
 
+
+### 2024.10.18
+#### WTF Academy Solidity 102.26
+
+##### 笔记
+
+##### 测验结果
+
+##### 测验错题
+
+### 2024.10.19
+#### WTF Academy Solidity 102.27
+
+##### 笔记
+
+##### 测验结果
+
+##### 测验错题
+
+### 2024.10.20
+#### WTF Academy Solidity 102.28
+
+##### 笔记
+
+##### 测验结果
+
+##### 测验错题
 <!-- Content_END -->
