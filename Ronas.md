@@ -914,4 +914,35 @@ timezone: Asia/Shanghai
     - Gnosis Safe
     - reference: https://peopledao.mirror.xyz/nFCBXda8B5ZxQVqSbbDOn2frFDpTxNVtdqVBXGIjj0s
 
+### 2024.10.16
+
+> 進度: Solidity 103 51
+
+- ERC4626 (Tokenized Vault Standard)
+    - Standard
+        - https://eips.ethereum.org/EIPS/eip-4626
+    - 功能
+        - 資產數據
+            - asset
+        - 存提款邏輯
+            - deposit
+            - mint
+            - withdraw
+            - redeem
+        - 會計邏輯
+            - totalAssets
+            - convertToShares
+            - convertToAssets
+            - previewDeposit
+            - previewMint
+            - previewWithdraw
+            - previewRedeem
+        - 存提款限額
+            - maxDeposit
+            - maxMint
+
+    - OP Implemetation 
+        - [IERC4626](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/interfaces/IERC4626.sol)
+        - [ERC4626](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/extensions/ERC4626.sol)
+
 <!-- Content_END -->
