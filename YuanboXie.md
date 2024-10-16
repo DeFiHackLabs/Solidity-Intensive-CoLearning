@@ -3163,6 +3163,74 @@ import '@openzeppelin/contracts/access/Ownable.sol';
         - 检查低级调用的返回值；
         - 使用OpenZeppelin的[Address](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol)库，封装了低级调用检查返回值功能；
 - [104-S14] 操纵区块时间
+    - 在 The Merge 之前，以太坊矿工可以操纵区块时间，如果抽奖合约的伪随机数依赖于区块时间，则可能被攻击。区块时间（block timestamp）是包含在以太坊区块头中的一个 uint64 值，代表此区块创建的 UTC 时间戳（单位：秒），在合并（The Merge）之前，以太坊会根据算力调整区块难度，因此出块时间不定，平均 14.5s 出一个区块，矿工可以操纵区块时间；合并之后，改为固定 12s 一个区块，验证节点不能操纵区块时间。
+    - [Foundry 教程](https://github.com/AmazingAng/WTF-Solidity/blob/main/Topics/Tools/TOOL07_Foundry/readme.md) | [Foundry book](https://book.getfoundry.sh/forge/cheatcodes)
+    - 例子：
+    ```solidity
+    contract TimeManipulation is ERC721 {
+        uint256 totalSupply;
+        constructor() ERC721("", ""){}
+        // 铸造函数：当区块时间能被7整除时才能mint成功
+        function luckyMint() external returns(bool success){
+            if(block.timestamp % 170 == 0){
+                _mint(msg.sender, totalSupply); // mint
+                totalSupply++;
+                success = true;
+            }else{
+                success = false;
+            }
+        }
+    }
+    ```
+    - 选择 Foundry 来复现这个攻击，因为它提供了修改区块时间的作弊码（cheatcodes）。
+    ```solidity
+    // SPDX-License-Identifier: UNLICENSED
+    pragma solidity ^0.8.21;
+    import "forge-std/Test.sol";
+    import "forge-std/console.sol";
+    import "../src/TimeManipulation.sol";
+
+    contract TimeManipulationTest is Test {
+        TimeManipulation public nft;
+
+        // Computes address for a given private key
+        address alice = vm.addr(1);
+
+        function setUp() public {
+            nft = new TimeManipulation();
+        }
+
+        // forge test -vv --match-test  testMint
+        function testMint() public {
+            console.log("Condition 1: block.timestamp % 170 != 0");
+            // Set block.timestamp to 169
+            vm.warp(169);
+            console.log("block.timestamp: %s", block.timestamp);
+            // Sets all subsequent calls' msg.sender to be the input address
+            // until `stopPrank` is called
+            vm.startPrank(alice);
+            console.log("alice balance before mint: %s", nft.balanceOf(alice));
+            nft.luckyMint();
+            console.log("alice balance after mint: %s", nft.balanceOf(alice));
+
+            // Set block.timestamp to 17000
+            console.log("Condition 2: block.timestamp % 170 == 0");
+            vm.warp(17000);
+            console.log("block.timestamp: %s", block.timestamp);
+            console.log("alice balance before mint: %s", nft.balanceOf(alice));
+            nft.luckyMint();
+            console.log("alice balance after mint: %s", nft.balanceOf(alice));
+            vm.stopPrank();
+        }
+    }
+    ```
+    ```bash
+    forge init TimeManipulation
+    cd TimeManipulation
+    forge install Openzeppelin/openzeppelin-contracts
+
+    forge test -vv --match-test testMint
+    ```
 - [104-S15] 操纵预言机
 - [104-S16] NFT重入攻击
     - 转账NFT时并不会触发合约的fallback或receive函数，为什么会有重入风险呢？这是因为NFT标准（ERC721/ERC1155）为了防止用户误把资产转入黑洞而加入了安全转账：如果转入地址为合约，则会调用该地址相应的检查函数，确保它已准备好接收NFT资产。例如 ERC721 的 safeTransferFrom() 函数会调用目标地址的 onERC721Received() 函数，而黑客可以把恶意代码嵌入其中进行攻击。
