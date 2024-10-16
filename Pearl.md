@@ -1376,6 +1376,7 @@ contract structType{
 **Delegatecall**
    * 与`call`类似，是Solidity中地址类型的低级成员函数。
    * `delegate`是委托/代表的意思
+   
    **delegatecall委托了什么？**
       * 用户A通过合约B来`call`合约C的时候，执行的是合约C的函数，上下文(`Context`，可以理解为包含变量和状态的环境)也是合约C的
       * `msg.sender`是B的地址，并且如果函数改变一些状态变量，产生的效果会作用于合约C的变量上。
@@ -1397,6 +1398,7 @@ contract structType{
       2. EIP-2535 Diamonds（钻石）:
          * 支持构建可在生产中扩展的模块化智能合约系统的标准
          * 具有多个实施合约的代理合约
+
 **delegatecall例子**
 * 调用结构：你（A）通过合约B调用目标合约C。
    * 被调用的合约C:
@@ -1445,6 +1447,7 @@ contract structType{
 **去中心化交易所uniswap**
    * `create`: `Contract x = new Contract{value: _value}(params)`
    * 如果构造函数是`payable`，可以创建时转入`_value`数量的`ETH`，`params`是新合约构造函数的参数。
+
 **极简Uniswap**
    * `Uniswap V2`核心合约中包含两个合约
      1. UniswapV2Pair: 币对合约，用于管理币对地址、流动性、买卖。
@@ -1794,4 +1797,108 @@ contract structType{
      ...
      }
      ```
+
+###  2024.10.16
+**try-catch**
+   * 只能被用于`external`函数或创建合约时`constructor`（被视为`external`函数）的调用。
+   ```Solidity
+   try externalContract.f() { // 某个外部合约的函数调用
+       // call成功的情况下 运行一些代码
+   } catch {
+       // call失败的情况下 运行一些代码
+   }
+   ```
+
+      * 可以使用`this.f()`来替代`externalContract.f()`
+      * `this.f()`也被视作为外部调用，但不可在构造函数中使用，因为此时合约还未创建。
+      * 如果调用的函数有返回值，那么必须在`try`之后声明`returns(returnType val)`，并且在`try`模块中可以使用返回的变量
+      * 如果是创建合约，那么返回值是新创建的合约变量。
+      
+   ```Solidity
+   try externalContract.f() returns(returnType val){
+       // call成功的情况下 运行一些代码
+   } catch {
+       // call失败的情况下 运行一些代码
+   }
+   ```
+   * `catch`模块支持捕获特殊的异常原因
+   ```Solidity
+   try externalContract.f() returns(returnType){
+       // call成功的情况下 运行一些代码
+   } catch Error(string memory /*reason*/) {
+       // 捕获revert("reasonString") 和 require(false, "reasonString")
+   } catch Panic(uint /*errorCode*/) {
+       // 捕获Panic导致的错误 例如assert失败 溢出 除零 数组访问越界
+   } catch (bytes memory /*lowLevelData*/) {
+       // 如果发生了revert且上面2个异常类型匹配都失败了 会进入该分支
+       // 例如revert() require(false) revert自定义类型的error
+   }
+   ```
+
+**try-catch实战**
+   * 创建一个外部合约`OnlyEven`，并使用`try-catch`来处理异常
+   ```Solidity
+   contract OnlyEven{
+       constructor(uint a){
+           require(a != 0, "invalid number");
+           assert(a != 1);
+       }
+   
+       function onlyEven(uint256 b) external pure returns(bool success){
+           // 输入奇数时revert
+           require(b % 2 == 0, "Ups! Reverting");
+           success = true;
+       }
+   }
+   ```
+
+   * 处理外部函数调用异常
+   ```Solidity
+   // 成功event
+   event SuccessEvent();
+   
+   // 失败event
+   event CatchEvent(string message);
+   event CatchByte(bytes data);
+   
+   // 声明OnlyEven合约变量
+   OnlyEven even;
+   
+   constructor() {
+       even = new OnlyEven(2);
+   }
+   
+   // 在external call中使用try-catch
+   function execute(uint amount) external returns (bool success) {
+       try even.onlyEven(amount) returns(bool _success){
+           // call成功的情况下
+           emit SuccessEvent();
+           return _success;
+       } catch Error(string memory reason){
+           // call不成功的情况下
+           emit CatchEvent(reason);
+       }
+   }
+   ```
+
+   * 处理合约创建异常: 只需要把`try`模块改写为`OnlyEven`合约的创建就行
+   ```Solidity
+   // 在创建新合约中使用try-catch （合约创建被视为external call）
+   // executeNew(0)会失败并释放`CatchEvent`
+   // executeNew(1)会失败并释放`CatchByte`
+   // executeNew(2)会成功并释放`SuccessEvent`
+   function executeNew(uint a) external returns (bool success) {
+       try new OnlyEven(a) returns(OnlyEven _even){
+           // call成功的情况下
+           emit SuccessEvent();
+           success = _even.onlyEven(a);
+       } catch Error(string memory reason) {
+           // catch失败的 revert() 和 require()
+           emit CatchEvent(reason);
+       } catch (bytes memory reason) {
+           // catch失败的 assert()
+           emit CatchByte(reason);
+       }
+   }
+   ```
 <!-- Content_END -->
