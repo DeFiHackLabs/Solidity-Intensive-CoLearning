@@ -383,5 +383,7 @@ interface IERC721Receiver {
 - 提供lp的唯一风险就是Impermanent loss ，无论币价上涨或者下跌
 - uniswap v3做出了很多改变
 - 阅读了uniswap部分源码
-
+### 2024.10.16
+学习了闪电贷合约，阅读了uniswap源码
+如果没有还上，说明钱没借出去
 <!-- Content_END -->
