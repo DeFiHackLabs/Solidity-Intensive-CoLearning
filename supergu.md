@@ -524,4 +524,45 @@ contract SendETH {
 
 ```
 
+### 2024.10.15
+
+#### Chapter 21: Calling other contracts
+
+trying to call this: `contract OtherContract {...}`
+
+```solidity
+// Method 1
+function callSetX(address _Address, uint256 x) external{
+    OtherContract(_Address).setX(x);
+}
+
+// Method 2
+// Note: _Address is still address underlying
+function callGetX(OtherContract _Address) external view returns(uint x){
+    x = _Address.getX();
+}
+
+// Method 3
+function callGetX2(address _Address) external view returns(uint x){
+    OtherContract oc = OtherContract(_Address);
+    x = oc.getX();
+}
+
+// Method 4: calling + transferring ETH
+function setXTransferETH(address otherContract, uint256 x) payable external{
+    OtherContract(otherContract).setX{value: msg.value}(x);
+}
+
+```
+
+### 2024.10.16
+
+#### Chapter 22: Call
+
+- a low level method of `address`
+- to interact with another contract if ABI / source code is not known
+- syntax: `(bool success, bytes memory data) = targetContract.call{value:ethAmount, gas:gas}(bytecode);`, where bytecode e.g. can be obtained by `abi.encodeWithSignature("setX(uint256)", x)`
+- decode data: `abi.decode(data, (uint256))`
+- will trigger fallback if calling an non-existence function, but `success = true`
+
 <!-- Content_END -->

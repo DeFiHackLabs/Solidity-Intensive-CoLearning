@@ -5293,4 +5293,284 @@ console.log(ethers.parseEther("1.0").toString()); // { BigNumber: "1000000000000
 
 #### Ether.js 102: Advanced
 
+`staticCall`
+
+- a method available in the `ethers.Contract` to check whether a transaction will fail before sending it
+- eliminate the risk of failure and saving gas
+
+```
+const tx = await weth.deposit({value: parseEther("1")}); // Contract call
+
+const tx = await weth.deposit.staticCall({value: parseEther("1")}); // Test run with staticCall, return True if success or error if fail
+```
+
+Identify ERC721 via Ethers
+
+```
+const selectorERC721 = "0x80ac58cd"; // Interface ID of ERC721
+const isERC721 = await contract.supportsInterface(selectorERC721); // via ERC165, return true or false
+```
+
+Interface class
+
+- Abstract the ABI encoding and decoding
+
+```
+const interface = ethers.Interface(abi); // Generated with ABI
+
+const interface = contract.interface; // Retrieve from initiated contract class
+
+interface.getSighash("balanceOf"); // '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
+
+interface.encodeFunctionData("balanceOf", ["0xc778417e063141139fce010982780140aa0cd5ab"]); // Encode the calldata of the function
+
+interface.decodeFunctionResult("balanceOf", resultData); // Decode the return value of the function
+```
+
+HD Wallets (Hierarchical Deterministic Wallets)
+
+- A commonly used technique to store the digital keys for blockchain
+- Allow to create a series of key pairs from a random seed, providing convenience, security, and privacy
+- BIP32
+  - Derivation of multiple private keys from a single seed, eg: derivation path m/0/0/1
+- BIP44
+  - A set of universal specifications for derivation path in BIP32, consists of six levels
+  - `m / purpose' / coin_type' / account' / change / address_index`
+  - `m/44'/60'/0'/0/0`: 60 represent Ethereum network; Account index starting from 0; Change is usually 0; Address index can start from 0
+- BIP39
+  - Allow user to store private keys in human-readable mnemonic words, can be 3, 6, 9, 12, 15, 18, 21, 24 words
+  - Support multiple languages
+  - eg: `air organ twist rule prison symptom jazz cheap rather dizzy verb glare`
+
+Generate Wallets in Batch
+
+```
+const mnemonic = ethers.Mnemonic.entropyToPhrase(randomBytes(32)); // Generate a random mnemonic phrase
+const hdNode = ethers.HDNodeWallet.fromPhrase(mnemonic); // Create an HD wallet
+let basePath = "m/44'/60'/0'/0";
+for (let i = 0; i < 10; i++) {
+    let hdNodeNew = hdNode.derivePath(basePath + "/" + i); // Create 10 private keys by changing only address index
+    let walletNew = new ethers.Wallet(hdNodeNew.privateKey); // Create wallet class with private key
+}
+```
+
+MerkleTree
+
+- Also known as hash tree, is a fundamental cryptographic technology used in blockchain system
+- A bottom-up constructed binary tree, each leaf node represents the hash of data, non-leaf node represents the hash of two child nodes
+- Allow for efficient and secure verification of large data structures
+- `MerkleTree.js`
+  - A JavaScript package for building Merkle Trees and generating Merkle Proof
+  - Install via npm `npm install merkletreejs`
+
+```
+import { MerkleTree } from "merkletreejs";
+
+const tokens = [
+    "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4",
+    "0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2",
+    "0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"
+    ...
+]; // A list of data
+const leaf = tokens.map(x => ethers.keccak256(x))l // Hash data with keccak256 to match Solidity hashing function
+const merkletree = new MerkleTree(leaf, ethers.keccak256, { sortPairs: true }); // Apply keccak256 hashing and keep data sorted
+
+const root = merkletree.getHexRoot(); // Retrieve merkle root
+const proof = merkletree.getHexProof(leaf[0]); // Retrieve the proof of a leaf node
+```
+
+Digital Signature
+
+- The digital signature algorithm used by Ethereum is called Elliptic Curve Digital Signature Algorithm (ECDSA)
+- It serves three main purposes:
+  - Identity Authentication: Proves that the signer is the holder of the private key
+  - Non-Repudiation: The sender cannot deny sending the message
+  - Integrity: The message cannot be modified during transmission
+
+```
+const account = "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4";
+const tokenId = "0";
+
+const msgHash = ethers.solidityKeccak256(
+    ['address', 'uint256'],
+    [account, tokenId]
+); // Equivalent to keccak256(abi.encodePacked(account, tokenId)) in Solidity
+const messageHashBytes = ethers.getBytes(msgHash);
+
+const signature = await wallet.signMessage(messageHashBytes); // Get the wallet/signer to sign the message
+```
+
+MEV (Maximal Extractable Value)
+
+- In blockchain, miners/validators can profit by packing, excluding, or reordering transactions in the blocks they generate
+
+Mempool
+
+- The transactions send by users will gather in the Mempool
+- Miners will then search for transactions with high fees in the Mempool to prioritize packaging and maximize their profits
+- Miner/MEV Bot can perform profitable trades by execute sandwich/front-running attack
+
+```
+provider.on("pending", async (txHash) => {
+    console.log(`[${(new Date).toLocaleTimeString()}]: ${txHash}`); // Retrieve the transaction hash
+    let tx = await provider.getTransaction(txHash); // Get transaction detail with transaction hash
+});
+```
+
+Decoding Transaction Data
+
+```
+const functionSignature = 'transferFrom(address,address,uint256)'; // ERC20 TransferFrom function
+const selector = iface.getSighash(functionSignature); // Get TransferFrom signature hash
+
+provider.on('pending', async (txHash) => {
+if (txHash) {
+    const tx = await provider.getTransaction(txHash);
+    if (tx !== null && tx.data.indexOf(selector) !== -1) { // Matching function signature hash
+        console.log(`[${(new Date).toLocaleTimeString()}]: ${txHash}`);
+        console.log(`Decoded transaction details: ${JSON.stringify(iface.parseTransaction(tx), null, 2)}`); // Formatted transaction details
+        console.log(`Origin address: ${iface.parseTransaction(tx).args[0]}`); // From
+        console.log(`Recipient address: ${iface.parseTransaction(tx).args[1]}`); // To
+        console.log(`Transfer amount: ${ethers.utils.formatEther(iface.parseTransaction(tx).args[2])}`); // Amount
+        provider.removeListener('pending', this); // Unsubscribe listening to Mempool
+    }
+}});
+```
+
+Vanity Address
+
+- An address usually generated by bruteforcing to get an easy to recognize address, eg: `0x0000000fe6a514a32abdcdfcc076c85243de899b`
+
+```
+const regex = /^0x1234.*$/; // Expression to matches addresses starting with 0x1234
+let isValid = false;
+while(!isValid){
+    const wallet = ethers.Wallet.createRandom(); // Generate a random wallet
+    isValid = regex.test(wallet.address); // Check the regular expression
+}
+```
+
+EVM Data
+
+- All data on Ethereum is public, including `private` variable stated in Smart contract (Read via some hacks!)
+
+Smart Contract Storage Layout
+
+- The storage is a mapping of `uint256 -> uint256`
+- The size of `uint256` is `32 bytes`, the fixed-size storage space is called a slot
+- Contract's data is stored in individual slots, starting from `slot 0`, by default and sequentially
+- `private` variables also stored in the storage slot accordingly without a `getter` function
+
+Read contract data
+
+```
+const slot = 0;
+const paddedAddress = ethers.utils.hexZeroPad(contractAddress, 32);
+const paddedSlot = ethers.utils.hexZeroPad(slot, 32);
+const concatenated = ethers.utils.concat([paddedAddress, paddedSlot]);
+const slotHash = ethers.utils.keccak256(concatenated);
+const value = await provider.getStorageAt(contractAddress, slotHash);
+
+```
+
+Front-running Demo
+
+```
+//2. Build contract instance
+const contractABI = [
+    "function mint() public",
+];
+const contractAddress = '0xC76A71C4492c11bbaDC841342C4Cb470b5d12193'; // Address of the contract
+const nft = new ethers.Contract(contractAddress, contractABI, provider);
+const iface = new ethers.utils.Interface(contractABI);
+
+const wallet = new ethers.Wallet(privateKey, provider);
+
+provider.on('pending', async (txHash) => {
+        const tx = await provider.getTransaction(txHash);
+        if (tx.data.indexOf(iface.getSighash("mint")) !== -1 && tx.from !== wallet.address) { // Filter own address
+            const frontRunTx = {
+                to: tx.to,
+                value: tx.value,
+                maxPriorityFeePerGas: tx.maxPriorityFeePerGas.mul(2), // Double up gas to let miner prioritize this transaction
+                maxFeePerGas: tx.maxFeePerGas.mul(2),
+                gasLimit: tx.gasLimit.mul(2),
+                data: tx.data
+            };
+            const sentFR = await wallet.sendTransaction(frontRunTx);
+            const receipt = await sentFR.wait();
+            console.log(`Transaction hash:${receipt.transactionHash}`); // Frontrun transaction confirmed
+
+            const block = await provider.getBlock(tx.blockNumber); // Retrieve the confirmed block's transactions
+            // In the block's transactions, if the later transaction is placed before the earlier transaction, indicating a successful front-run.
+        }
+    })
+```
+
+Identify ERC20 via Ethers
+
+```
+// ERC20 Contract Interface
+interface IERC20 {
+    function totalSupply() external view returns (uint256);
+    function transfer(address to, uint256 amount) external returns (bool);
+}
+
+
+let code = await provider.getCode(contractAddress)
+if(code != "0x"){
+        // Check if bytecode includes the selectors of the transfer and totalSupply functions
+        if(code.includes("a9059cbb") && code.includes("18160ddd")){
+            return true;
+        }else{
+            return false // Not an ERC20
+        }
+    }
+```
+
+Flashbots
+
+- A research organization committed to mitigating the harm caused by MEV
+- Products:
+  - Flashbots RPC: Protects users from harmful MEV (sandwich attacks).
+  - Flashbots Bundle: Helps MEV searchers extract MEV on Ethereum.
+  - mev-boost: Helps Ethereum POS nodes earn more ETH rewards through MEV.
+
+EIP712 Signature
+
+- Typed Data Signatures provides a more advanced and secure method for signatures
+
+```
+let contractName = "EIP712Storage"
+let version = "1"
+let chainId = "1"
+let contractAddress = "0xf8e81D47203A594245E36C48e151709F0C19fBe8"
+const domain = {
+    name: contractName,
+    version: version,
+    chainId: chainId,
+    verifyingContract: contractAddress,
+};
+
+let spender = "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"
+let number = "100"
+
+const types = {
+    Storage: [
+        { name: "spender", type: "address" },
+        { name: "number", type: "uint256" },
+    ],
+};
+
+const message = {
+    spender: spender,
+    number: number,
+};
+
+const signature = await wallet.signTypedData(domain, types, message); // All 3 params are required for EIP712 Signature
+const signer = ethers.verifyTypedData(domain, types, message, signature); // Recover the signer address from signature
+```
+
+End of WTF Ethers 102
+
 <!-- Content_END -->
