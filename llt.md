@@ -121,5 +121,11 @@ day18:
 
 [solidity-102 27(ABI编码解码) Note](./content/llt/118.md)
 
+### 2024.10.15
+
+day19:
+
+[solidity-102 28(hash) Note](./content/llt/119.md)
+
 <!-- Content_END -->
 
