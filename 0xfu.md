@@ -869,4 +869,10 @@ contract Timelock{
 
 ### 
 
+
+### 2024.10.16
+
+#### [Multicall](./content/0xfu/MultiCall.md)
+
+### 
 <!-- Content_END -->
