@@ -1229,5 +1229,62 @@ contract MerkleTreeContract{
           return ECDSA.verify(_msgHash, _signature, signer);
           }
     ```
+### 2024.10.16
 
+學習內容:
+
+- [x] NFT 交易所
+- [x] NFT 链上随机数
+  - 链上的全局变量作为种子，利用keccak256()哈希函数来获取伪随机数
+    - 使用链上随机数高效，但是不安全
+  - 链下生成随机数，然后通过预言机把随机数上传到链上
+    - 链下随机数生成依赖于第三方提供的预言机服务，比较安全，但是没那么简单经济
+- [x] ERC1155
+  - 以太坊EIP1155提出了一个多代币标准ERC1155，允许一个合约包含多个同质化和非同质化代币
+  - 每种代币都有一个唯一的ID，可以通过ID来区分不同的代币
+  - 如果某个id对应的代币总量为1，那么它就是非同质化代币，类似ERC721
+  - 如果某个id对应的代币总量大于1，那么他就是同质化代币，因为这些代币都分享同一个id，类似ERC20。
+
+  - [x] WETH
+    - WETH是Wrapped Ether的缩写，是一种以太坊的封装代币，它是一种ERC20代币，它的价值和以太币是1:1的，可以在以太坊网络上自由流通。
+      ![img.png](./content/Robin/img.png)
+    ```solidity
+      // SPDX-License-Identifier: MIT
+      pragma solidity ^0.8.0;
+    
+      import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+    
+      contract WETH is ERC20{
+      // 事件：存款和取款
+      event  Deposit(address indexed dst, uint wad);
+      event  Withdrawal(address indexed src, uint wad);
+    
+          // 构造函数，初始化ERC20的名字和代号
+          constructor() ERC20("WETH", "WETH"){
+          }
+    
+          // 回调函数，当用户往WETH合约转ETH时，会触发deposit()函数
+          fallback() external payable {
+              deposit();
+          }
+          // 回调函数，当用户往WETH合约转ETH时，会触发deposit()函数
+          receive() external payable {
+              deposit();
+          }
+    
+          // 存款函数，当用户存入ETH时，给他铸造等量的WETH
+          function deposit() public payable {
+              _mint(msg.sender, msg.value);
+              emit Deposit(msg.sender, msg.value);
+          }
+    
+          // 提款函数，用户销毁WETH，取回等量的ETH
+          function withdraw(uint amount) public {
+              require(balanceOf(msg.sender) >= amount);
+              _burn(msg.sender, amount);
+              payable(msg.sender).transfer(amount);
+              emit Withdrawal(msg.sender, amount);
+          }
+      }
+    ```
 <!-- Content_END -->
