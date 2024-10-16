@@ -923,6 +923,21 @@ onERC721Received
 - 修改價格 update(), 賣家修改 NFT 訂單價格, 並釋放 Update 事件
 - 購買 purchase(), 買家支付 ETH 購買掛單的 NFT, 並釋放 Purchase 事件; 成功後, ETH 轉給賣家, NFT 從 NFTSwap 合約轉給買家
 
+### 2024.10.16        
+學習內容  
+筆記:  
+
+#### 鏈上隨機數
+- 鏈上, 透過 哈希函數隨機生成, 不過因鏈上資訊公開透明, 容易有風險(攻擊者可以鑄造任何他們想要的稀有 NFT, 而非隨機抽取)
+```Solidity
+function getRandomOnchain() public view returns(uint256){
+   bytes randomBytes = keccak256(abi.encodePacked(block.timestamp, msg.sender, blockchain(block.number-1)));
+   return ruint256(randomBytes);
+}
+```
+
+- 鏈下, 再鏈下生成隨機樹, 然後透過預言機(ex: Chainlink VRF)把隨機數傳到鏈上
+- 範例, 用一個簡單的合約向 VRF 請求隨機數, 摒除存在狀態變數中
 
 
 
