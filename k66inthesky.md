@@ -283,4 +283,27 @@ receive()   fallback()
 學習內容: `25. CREATE2`
 + `CREATE2`和前一篇的`CREATE`不同，`Uniswap v2`用來驅動factory合約。
 
+### 2024.10.16
+學習內容: `26. DeleteContract`
++ `selfdestruct`在v.0.8.18後不再建議使用，但目前還沒有替代方案。
++ 將合約自我銷毀，範例:
+   ```
+   contract DelContract{
+      ...
+      function delContract() external{
+         selfdestruct(payable(msg.sender));
+      }
+   }
+
+   // 外部呼叫
+   contract DeployContract{
+      ...
+      function demo() public payable returns (DemeResult memory){
+         ...
+         DelContract del = new DelContract{value:msg.value)();
+         del.delContract();
+      }
+   }
+   ```
+
 <!-- Content_END -->
