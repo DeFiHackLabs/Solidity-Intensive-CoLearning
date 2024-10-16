@@ -50,9 +50,31 @@ timezone: Australia/Sydney # 澳大利亚东部标准时间 (UTC+10)
 ## Notes
 
 <!-- Content_START -->
+### 2024.10.16
+
+Day 21
+
+WTF Academy Solidity 101 51_ERC4626
+
+**Round up and Round down in accounting logic**
+
+Recommendation
+
+Follow this.
+
+- previewMint(uint256 shares) - Round Up ⬆
+- previewWithdraw(uint256 assets) - Round Up ⬆
+- previewRedeem(uint256 shares) - Round Down ⬇
+- previewDeposit(uint256 assets) - Round Down ⬇
+- convertToAssets(uint256 shares) - Round Down ⬇
+- convertToShares(uint256 assets) - Round Down ⬇
+
+
+---
+
 ### 2024.10.15
 
-Day 19
+Day 20
 
 WTF Academy Solidity 101 50_MultisigWallet
 
@@ -105,7 +127,7 @@ Return:
 ---
 ### 2024.10.14
 
-Day 18
+Day 19
 
 WTF Academy Solidity 101 49_UUPS
 
@@ -119,7 +141,7 @@ WTF Academy Solidity 101 49_UUPS
 ---
 ### 2024.10.12
 
-Day 16
+Day 18
 
 WTF Academy Solidity 101 48_TransparentProxy
 
@@ -132,7 +154,7 @@ TransparentProxy
 ---
 ### 2024.10.11
 
-Day 15
+Day 17
 
 WTF Academy Solidity 101 46_ProxyContract, 47_Upgrade
 
@@ -366,7 +388,7 @@ graph TB
 ---
 ### 2024.10.10
 
-Day 14
+Day 16
 
 WTF Academy Solidity 101 44_TokenLocker, 45_Timelock
 
@@ -406,7 +428,7 @@ Key Differences:
 
 ### 2024.10.09
 
-Day 13
+Day 15
 
 WTF Academy Solidity 101 42_PaymentSplit, 43_TokenVesting
 
@@ -486,7 +508,7 @@ Types of Vesting:
 ---
 ### 2024.10.08
 
-Day 13
+Day 14
 
 WTF Academy Solidity 101 40_ERC1155, 41_WETH
 
@@ -510,7 +532,7 @@ WTF Academy Solidity 101 40_ERC1155, 41_WETH
 ----
 ### 2024.10.07
 
-Day 12
+Day 13
 
 WTF Academy Solidity 101 38_NFTSwap, 39_Random
 
@@ -735,7 +757,7 @@ contract Random is ERC721, VRFConsumerBaseV2Plus{
 ```
 ### 2024.10.05
 
-Day 11
+Day 12
 
 WTF Academy Solidity 101 36_MerkleTree, 37_Signature
 
@@ -886,7 +908,7 @@ WTF Merkle Tree lib (Modified from OpenZepplin)
 ---
 ### 2024.10.04
 
-Day 10
+Day 11
 
 WTF Academy Solidity 101 34_ERC721, 35_DutchAuction
 
@@ -969,7 +991,7 @@ Dutch Auction mechanism design:
 ---
 ### 2024.10.03
 
-Day 9
+Day 10
 
 WTF Academy Solidity 101 32_Faucet, 33_Airdrop
 
@@ -1076,7 +1098,7 @@ contract Airdrop {
 ---
 ### 2024.10.02
 
-Day 8
+Day 9
 
 WTF Academy Solidity 101 30_TryCatch, 31_ERC20
 
@@ -1094,7 +1116,7 @@ ERC20
 ---
 ### 2024.10.01
 
-Day 7
+Day 8
 
 WTF Academy Solidity 101 27_ABIEncode, 28_Hash, 29_Selector
 
@@ -1265,7 +1287,7 @@ Selector
 
 ### 2024.09.30
 
-Day 6
+Day 7
 
 WTF Academy Solidity 101 24-26
 
@@ -1282,7 +1304,7 @@ Opinion of `SELFDESTRUCT` change after Cancun Update
 
 ---
 ### 2024.09.28
-Day 5
+Day 6
 WTF Academy Solidity 101 20-23
 
 20. Sending ETH
