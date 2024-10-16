@@ -167,5 +167,7 @@ timezone: Asia/Taipei
 
   [WTF Academy Solidity 103 57 Flashloan Note](/content/0xRory/120-Flashloan/Flashloan.md)
 
+### 2024.10.16
 
+   day:24: 打卡
 <!-- Content_END -->
