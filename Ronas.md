@@ -945,4 +945,43 @@ timezone: Asia/Shanghai
         - [IERC4626](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/interfaces/IERC4626.sol)
         - [ERC4626](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/extensions/ERC4626.sol)
 
+### 2024.10.17
+
+> 進度: Solidity 103 52
+
+- EIP712
+    - https://eips.ethereum.org/EIPS/eip-712
+    - 使用戶簽名時可以預覽即將簽名的資料
+    - 步驟
+        - 鏈下簽名: 只有特定鏈(chainId), 特定合約可以驗證此簽名
+            ```
+            const domain = {
+                name: "EIP712Storage",
+                version: "1",
+                chainId: "1",
+                verifyingContract: "0xf8e81D47203A594245E36C48e151709F0C19fBe8",
+            };
+
+            const types = {
+                Storage: [
+                    { name: "spender", type: "address" },
+                    { name: "number", type: "uint256" },
+                ],
+            };
+
+            const message = {
+                spender: "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4",
+                number: "100",
+            };
+
+            // 获得provider
+            const provider = new ethers.BrowserProvider(window.ethereum)
+            
+            // 获得signer后调用signTypedData方法进行eip712签名
+            const signature = await signer.signTypedData(domain, types, message);
+            console.log("Signature:", signature);
+            ```
+        - 鏈上驗證
+            - [EIP712Storage](./content/Ronas/EIP712Storage.sol)
+
 <!-- Content_END -->
