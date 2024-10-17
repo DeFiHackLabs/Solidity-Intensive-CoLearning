@@ -127,5 +127,11 @@ day19:
 
 [solidity-102 28(hash) Note](./content/llt/119.md)
 
+### 2024.10.16
+
+day20:
+
+[solidity-102 29(选择器) Note](./content/llt/120.md)
+
 <!-- Content_END -->
 
