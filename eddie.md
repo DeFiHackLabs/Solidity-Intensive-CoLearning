@@ -15,6 +15,60 @@ timezone: Asia/Shanghai
 ## Notes
 <!-- Content_START -->
 
+### 2024.10.16
+
+Ethers102章节：解码交易详情，靓号生成器、读取任意数据、抢先交易脚本、识别ERC20合约
+
+- ERC1967Proxy
+    
+    ERC1967Proxy，为了避免代理和逻辑合约在存储使用上的冲突，逻辑合约的地址通常保存在一个特定的存储槽，并保证编译器永远不会分配该存储槽；
+    
+    ```solidity
+    _ADMIN_SLOT = bytes32(uint256(keccak256("eip1967.proxy.admin")) - 1)
+    //其作为代理合约，逻辑合约所在storage slot是固定的
+    //为‘0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103’
+    ```
+    
+- 通过slot获取某一个ERC20代币的private 变量
+    
+    如shib的合约，_balance是一个mapping (address => uint256) private；
+    
+    ```solidity
+    const contract= '0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE'//shib合约
+    function calculateBalanceSlot(address: string) {
+        const slot = 0; // _balances 的基础槽位
+        const encodedSlot = ethers.AbiCoder.defaultAbiCoder().encode(
+            ["address", "uint256"],
+            [address, slot]
+        );
+        return ethers.keccak256(encodedSlot);
+    }
+    const slot = calculateBalanceSlot('0x02E2201576FBbeFb52812f2eE7F08eB4774B481e')
+    //计算某一个地址的存储位置
+    const balance= await provider.getStorage(contract,slot);
+    //该balance即为获取到的地址余额
+    ```
+    
+    这里的_balance作为一个映射类型，并且由于是第一个状态变量，因此基础槽位是0，而其中具体的value存储位置，需要进一步进行哈希计算；同理_allowances基础槽位为1；
+    
+    针对多个槽位共同占用一个槽的情况时：需要先读取整个槽，然后通过位运算提取所需的值；
+    
+- 抢先交易脚本设置
+    
+    ```solidity
+    const frontRunTx = {
+                    to: tx.to,
+                    value: tx.value,
+        // V6版本 maxPriorityFeePerGas: tx.maxPriorityFeePerGas * 2n
+                    maxPriorityFeePerGas: tx.maxPriorityFeePerGas.mul(2),
+                    maxFeePerGas: tx.maxFeePerGas.mul(2),
+                    gasLimit: tx.gasLimit.mul(2),
+                    data: tx.data
+                }
+    ```
+- Last Day
+  每天共学活动的不断打卡，非常适合个人学习，有效解决了注意力容易被分散这个问题；这段时间针对solidity编程获得了肉眼可见的进步，感谢主办方，非常期待DeFiHackLabs的下一次活动，WAGMI~
+
 ### 2024.10.15
 
 Ethers102章节：MerkleTree脚本、数字签名脚本、监听Mempool

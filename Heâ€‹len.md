@@ -1,3 +1,4 @@
+
 ---
 timezone: Asia/Shanghai
 ---
@@ -15,6 +16,49 @@ timezone: Asia/Shanghai
 ## Notes
 
 <!-- Content_START -->
+### 2024.10.16
+   2. internal v.s. external
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+contract FunctionTypes{
+    uint256 public number = 5;
+// 默认function
+function add() external{
+    number = number + 1;
+}
+
+// pure: 纯纯牛马
+function addPure(uint256 _number) external pure returns(uint256 new_number){
+    new_number = _number + 1;
+}
+// internal: 内部函数
+function minus() internal {
+    number = number - 1;
+}
+
+// 合约内的函数可以调用内部函数
+function minusCall() external {
+    minus();
+}
+// 合约内的函数可以调用内部函数
+function minusCall() external {
+    minus();
+}
+// payable: 递钱，能给合约支付eth的函数
+function minusPayable() external payable returns(uint256 balance) {
+    minus();    
+    balance = address(this).balance;
+}
+}
+```
+我們定義一個函數internal，minus()每次調用使得變數減number1 。internalexternalminusCall()minus()
+
+3.應付
+定義一個external payable函數minusPayable()，引用的調用，並且返回合約minus()裡的ETH餘額（this關鍵字可以讓我們引用合約位址）。minusPayable()
+
+
+
 ### 2024.10.12
 實作
 ```solidity

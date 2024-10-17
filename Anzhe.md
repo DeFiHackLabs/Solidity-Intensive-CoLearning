@@ -4327,4 +4327,339 @@ contract Logic2 {
     }
 }
 ```
+### 2024.10.16
+# 透明代理
+透明代理（Transparent Proxy）用於解決代理合約的選擇器衝突（Selector Clash），教學程式碼由 OpenZeppelin 的 TransparentUpgradeableProxy 簡化而來，不應用於生產環境。
+## 選擇器衝突
+在智能合約中，函數選擇器（selector）是函數簽署的雜湊的前4個位元組。例如 mint(address account) 的選擇器為 bytes4(keccak256("mint(address)"))，也就是0x6a627842。
+由於函數選擇器只有4個位元組，範圍很小，因此兩個不同的函數可能會有相同的選擇器：
+```
+// 選擇器衝突的例子
+contract Foo {
+    function burn(uint256) external {}
+    function collate_propagate_storage(bytes16) external {}
+}
+```
+上面兩個函數的選擇器都是 0x42966c68，EVM 無法透過函數選擇器分辨使用者呼叫哪個函數，因此該合約無法通過編譯。
+
+由於代理合約和邏輯合約是兩個合約，就算他們之間存在「選擇器衝突」也可以正常編譯，這可能會導致很嚴重的安全事故。舉個例子，如果邏輯合約的 a 函數和代理合約的升級函數的選擇器相同，那麼管理人就會在呼叫 a 函數的時候，將代理合約升級成一個黑洞合約，造成巨大損失。
+
+目前，有兩個可升級合約標準解決了這個問題：透明代理 Transparent Proxy 和通用可升級代理 UUPS。
+
+透明代理的邏輯非常簡單：管理員可能會因為「函數選擇器衝突」，在呼叫邏輯合約的函數時，誤呼叫成代理合約的可升級函數。所以透明代理的概念是限制管理員的權限，不讓他呼叫任何邏輯合約的函數，就能解決衝突：
+* 管理員變成工具人，僅能呼叫代理合約的可升級函數對合約升級，不能透過 fallback 函數呼叫邏輯合約。
+* 其它使用者不能呼叫可升級函數，但是可以呼叫邏輯合約的函數。
+### 透明代理的代理合約
+fallback() 函數限制了管理員地址的呼叫:
+```
+contract TransparentProxy {
+    address implementation; // logic合約地址
+    address admin; // 管理員
+    string public words; // 字串，可以透過邏輯合約的函數改變
+
+    // 建構函數，初始化admin和邏輯合約位址
+    constructor(address _implementation){
+        admin = msg.sender;
+        implementation = _implementation;
+    }
+
+    // fallback函數，將呼叫委託給邏輯合約
+    // 不能被admin調用，避免選擇器衝突引發意外
+    fallback() external payable {
+        require(msg.sender != admin);
+        (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+    }
+
+    // 升級函數，改變邏輯合約位址，只能由admin調用
+    function upgrade(address newImplementation) external {
+        if (msg.sender != admin) revert();
+        implementation = newImplementation;
+    }
+}
+```
+### 透明代理的邏輯合約
+邏輯合約包含3個狀態變量，與保持代理合約一致，防止插槽衝突；包含一個函數foo()，舊邏輯合約會將words的值改為"old"，新的會改為"new"。
+```
+// 舊邏輯合約
+contract Logic1 {
+    // 狀態變數和proxy合約一致，防止插槽衝突
+    address public implementation; 
+    address public admin; 
+    string public words; // 字串，可以透過邏輯合約的函數改變
+
+    // 改變proxy中狀態變數，選擇器： 0xc2985578
+    function foo() public{
+        words = "old";
+    }
+}
+
+// 新邏輯合約
+contract Logic2 {
+    // 狀態變數和proxy合約一致，防止插槽衝突
+    address public implementation; 
+    address public admin; 
+    string public words; //  字串，可以透過邏輯合約的函數改變
+
+    // 改變proxy中狀態變數，選擇器： 0xc2985578
+    function foo() public{
+        words = "new";
+    }
+}
+```
+透明代理的邏輯簡單，透過限制管理員呼叫邏輯合約解決「選擇器衝突」問題。它也有缺點，每次使用者呼叫函數時，都會多一步是否為管理員的檢查，消耗更多gas。但瑕不掩瑜，透明代理商仍是多數專案方選擇的方案。
+# UUPS
+通用可升級代理標準（UUPS，universal upgradeable proxy standard）是選擇器衝突（Selector Clash）的另一個解決辦法，UUPS 將升級函數放在邏輯合約中，如果有其它函數與升級函數存在選擇器衝突，編譯時就會報錯。
+### 普通可升級代理、透明代理、UUPS 比較
+| 標準 | 升級函數位置 | 是否會選擇器衝突 | 缺點 |
+|---|---|---|---|
+| 可升級代理 | Proxy 合約 | Yes | 選擇器衝突 |
+| 透明代理 | Proxy 合約 | No | 較耗 gas |
+| UUPS | Logic 合約 | No | 較複雜 |
+
+## UUPS 合約
+![](https://i.imgur.com/pdY13St.png)
+如果使用者 A 透過合約 B（代理合約）去 delegatecall 合約C（邏輯合約），上下文仍是合約 B 的上下文， msg.sender 仍是使用者 A 而不是合約 B。因此，UUPS 合約可以將升級函數放在邏輯合約中，並**檢查呼叫者是否為管理員**。
+
+### UUPS 的代理合約
+UUPS 的代理合約看起來像是個不可升級的代理合約，因為升級函數被放在了邏輯合約中。
+```
+contract UUPSProxy {
+    address implementation; // logic合約地址
+    address admin; // 管理員
+    string public words; // 字串，可以透過邏輯合約的函數改變
+
+    // 建構函數，初始化admin和邏輯合約位址
+    constructor(address _implementation){
+        admin = msg.sender;
+        implementation = _implementation;
+    }
+
+    // fallback函數，將呼叫委託給邏輯合約
+    fallback() external payable {
+        (bool success, bytes memory data) = implementation.delegatecall(msg.data);
+    }
+}
+```
+### UUPS 的邏輯合約
+UUPS 的邏輯合約多了個升級函數。狀態變量與保持代理合約一致以防插槽衝突。
+```
+// UUPS邏輯合約（升級函數寫在邏輯合約內）
+contract UUPS1{
+    // 狀態變數和 proxy 合約一致，防止插槽衝突
+    address public implementation; 
+    address public admin; 
+    string public words; // 字串，可以透過邏輯合約的函數改變
+
+    // 改變proxy中狀態變數，選擇器： 0xc2985578
+    function foo() public{
+        words = "old";
+    }
+
+    // 升級函數，改變邏輯合約位址，只能由admin呼叫。選擇器：0x0900f010
+    // UUPS中，邏輯合約中必須包含升級函數，不然就不能再升級了。
+    function upgrade(address newImplementation) external {
+        require(msg.sender == admin);
+        implementation = newImplementation;
+    }
+}
+
+// 新的UUPS邏輯合約
+contract UUPS2{
+    // 狀態變數和proxy合約一致，防止插槽衝突
+    address public implementation; 
+    address public admin; 
+    string public words; // 字串，可以透過邏輯合約的函數改變
+
+    // 改變proxy中狀態變量，選擇器： 0xc2985578
+    function foo() public{
+        words = "new";
+    }
+
+    // 升級函數，改變邏輯合約位址，只能由 admin 呼叫。選擇器：0x0900f010
+    // UUPS 中，邏輯合約中必須包含升級函數，不然就不能再升級了。
+    function upgrade(address newImplementation) external {
+        require(msg.sender == admin);
+        implementation = newImplementation;
+    }
+}
+```
+# 多簽錢包
+多簽錢包是一種電子錢包，特點是交易被多個私鑰持有者（多簽人）授權後才能執行：例如錢包由 3 個多簽案人管理，每筆交易需要至少 2 人簽章授權。多簽錢包可以防止單點故障（私鑰遺失、單人作惡），更加去中心化，更加安全，被許多去中心化自治組織採用。
+Gnosis Safe 多簽錢包是以太坊最受歡迎的多簽錢包，管理近 400 億美元資產，合約經過審計和實戰測試，支援多鏈（以太坊、BSC、Polygon 等），並提供豐富的 DAPP 支援。
+## 多簽錢包合約
+以太坊上的多簽錢包其實是智能合約，屬於合約錢包。下面是一個極簡版的多簽錢包 MultisigWallet 合約：
+1. 設定多簽人和門檻（鏈上）：部署多簽合約時，我們需要初始化多簽人清單和執行門檻（至少n個多簽人簽名授權後，交易才能執行）。
+2. 創建交易（鏈下）：一筆待授權的交易包含以下內容
+    * to：目標合約。
+    * value：交易發送的以太坊數量。
+    * data：calldata，包含呼叫函數的選擇器和參數。
+    * nonce：初始為0，隨著多簽合約每筆成功執行的交易遞增的值，可以防止簽章重播攻擊。
+    * chainid：鏈id，防止不同鏈的簽章重播攻擊。
+3. 收集多簽簽名（鏈下）：將上一步驟的交易 ABI 編碼並計算 hash，得到交易 hash，然後讓多簽人簽名，並拼接到打包簽名。
+    ```
+    交易哈希: 0xc1b055cf8e78338db21407b425114a2e258b0318879327945b661bfdea570e66
+
+    多簽人A簽名: 0x014db45aa753fefeca3f99c2cb38435977ebb954f779c2b6af6f6365ba4188df542031ace9bdc53c655ad2d4794667ec2495196da94204c56b1293d0fbfacbb11c
+    
+    多簽人B簽名: 0xbe2e0e6de5574b7f65cad1b7062be95e7d73fe37dd8e888cef5eb12e964ddc597395fa48df1219e7f74f48d86957f545d0fbce4eee1adfbaff6c267046ade0d81c
+    
+    打包簽名：
+    0x014db45aa753fefeca3f99c2cb38435977ebb954f779c2b6af6f6365ba4188df542031ace9bdc53c655ad2d4794667ec2495196da94204c56b1293d0fbfacbb11cbe2e0e6de5574b7f65cad1b7062be95e7d73fe37dd8e888cef5eb12e964ddc597395fa48df1219e7f74f48d86957f545d0fbce4eee1adfbaff6c267046ade0d81c
+    ```
+4. 呼叫多簽合約的執行函數，驗證簽名並執行交易（鏈上）。
+```
+// SPDX-License-Identifier: MIT
+// author: @0xAA_Science from wtf.academy
+pragma solidity ^0.8.21;
+
+/// 基於簽名的多簽錢包，由gnosis safe合約簡化而來，教學使用。
+contract MultisigWallet {
+    event ExecutionSuccess(bytes32 txHash);    // 交易成功事件，交易成功則釋放交易哈希
+    event ExecutionFailure(bytes32 txHash);    // 交易失敗事件，交易失敗則釋放交易哈希
+    address[] public owners;                   // 多簽持有人陣列
+    mapping(address => bool) public isOwner;   // 記錄一個地址是否為多簽持有人
+    uint256 public ownerCount;                 // 多簽持有人數量
+    uint256 public threshold;                  // 多簽執行門檻，交易至少有n個多簽人簽名才能被執行
+    uint256 public nonce;                      // nonce，隨著多簽合約每筆成功執行的交易遞增的值，防止簽章重播攻擊
+
+    receive() external payable {}
+
+    // 建構子，初始化owners、isOwner、ownerCount、threshold，初始化和多簽持有人和執行門檻相關的變數
+    constructor(        
+        address[] memory _owners,
+        uint256 _threshold
+    ) {
+        _setupOwners(_owners, _threshold);
+    }
+
+    /// @dev 初始化owners、isOwner、ownerCount、threshold，在合約部署時被建構函數調用，初始化owners，isOwner，ownerCount，threshold狀態變數。傳入的參數中，執行門檻需大於等於1且小於等於多簽人數；多簽地址不能為0地址且不能重複。
+    /// @param _owners: 多簽持有人陣列
+    /// @param _threshold: 多簽執行門檻，至少有幾個多簽人簽署了交易
+    function _setupOwners(address[] memory _owners, uint256 _threshold) internal {
+        // threshold未初始化過
+        require(threshold == 0, "WTF5000");
+        // 多簽執行門檻 小於 多簽人數
+        require(_threshold <= _owners.length, "WTF5001");
+        // 多簽執行門檻至少為1
+        require(_threshold >= 1, "WTF5002");
+
+        for (uint256 i = 0; i < _owners.length; i++) {
+            address owner = _owners[i];
+            // 多簽人不能為0地址、本合約地址，不能重複
+            require(owner != address(0) && owner != address(this) && !isOwner[owner], "WTF5003");
+            owners.push(owner);
+            isOwner[owner] = true;
+        }
+        ownerCount = _owners.length;
+        threshold = _threshold;
+    }
+
+    /// @dev 收集足夠的多簽簽名後，驗證簽名並執行交易
+    /// @param to 目標合約地址
+    /// @param value msg.value，支付的以太坊數額
+    /// @param data calldata資料
+    /// @param signatures 打包的簽名，打包到一個[bytes]資料中，對應的多簽地址由小到大，以便檢查。 ({bytes32 r}{bytes32 s}{uint8 v}) (第一個多簽的簽名, 第二個多簽的簽名 ... )
+    function execTransaction(
+        address to,
+        uint256 value,
+        bytes memory data,
+        bytes memory signatures
+    ) public payable virtual returns (bool success) {
+        // 編碼交易資料，計算哈希
+        bytes32 txHash = encodeTransactionData(to, value, data, nonce, block.chainid);
+        nonce++;  // 增加nonce
+        checkSignatures(txHash, signatures); // 檢查簽名是否有效、數量是否達到執行門檻
+        // 利用call執行交易，並取得交易結果
+        (success, ) = to.call{value: value}(data);
+        require(success , "WTF5004");
+        if (success) emit ExecutionSuccess(txHash);
+        else emit ExecutionFailure(txHash);
+    }
+
+    /**
+     * @dev 檢查簽名和交易資料的哈希是否對應，數量是否達到門檻。如果是無效簽名，交易會revert。單一簽章長度為 65 byte，因此打包簽章的長度要大於 threshold * 65
+     * @param dataHash 交易資料哈希
+     * @param signatures 幾個多簽簽名打包在一起
+     */
+    function checkSignatures(
+        bytes32 dataHash,
+        bytes memory signatures
+    ) public view {
+        // 讀取多簽執行門檻
+        uint256 _threshold = threshold;
+        require(_threshold > 0, "WTF5005");
+
+        // 檢查簽名長度夠長
+        require(signatures.length >= _threshold * 65, "WTF5006");
+
+        //透過一個循環，檢查收集的簽名是否有效
+        // 大概思路：
+        // 1. 用ecdsa先驗證簽名是否有效
+        // 2. 利用 currentOwner > lastOwner 確定簽章來自不同多簽（多簽地址遞增）
+        // 3. 利用 isOwner[currentOwner] 確定簽名者為多簽持有人
+        address lastOwner = address(0); 
+        address currentOwner;
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+        uint256 i;
+        for (i = 0; i < _threshold; i++) {
+            (v, r, s) = signatureSplit(signatures, i); // 呼叫 signatureSplit() 分離出單一簽章。
+            // 利用ecrecover檢查簽名是否有效
+            currentOwner = ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", dataHash)), v, r, s);
+            require(currentOwner > lastOwner && isOwner[currentOwner], "WTF5007");
+            lastOwner = currentOwner;
+        }
+    }
+    
+    /// 將單一簽名從打包的簽名中分離出來
+    /// @param signatures 打包的多簽
+    /// @param pos 要讀取的簽章位置index.
+    /// 利用了行內組語，將簽名的r、s和 v三個值分開出來。
+    function signatureSplit(bytes memory signatures, uint256 pos)
+        internal
+        pure
+        returns (
+            uint8 v,
+            bytes32 r,
+            bytes32 s
+        )
+    {
+        // 簽名的格式：{bytes32 r}{bytes32 s}{uint8 v}
+        assembly {
+            let signaturePos := mul(0x41, pos)
+            r := mload(add(signatures, add(signaturePos, 0x20)))
+            s := mload(add(signatures, add(signaturePos, 0x40)))
+            v := and(mload(add(signatures, add(signaturePos, 0x41))), 0xff)
+        }
+    }
+
+    /// @dev 交易資料編碼，將交易資料打包併計算哈希
+    /// @param to 目標合約地址
+    /// @param value msg.value，支付的以太坊
+    /// @param data calldata
+    /// @param _nonce 交易的nonce.
+    /// @param chainid 鏈id
+    /// @return 交易哈希bytes.
+    function encodeTransactionData(
+        address to,
+        uint256 value,
+        bytes memory data,
+        uint256 _nonce,
+        uint256 chainid
+    ) public pure returns (bytes32) {
+        bytes32 safeTxHash =
+            keccak256(
+                abi.encode(
+                    to,
+                    value,
+                    keccak256(data),
+                    _nonce,
+                    chainid
+                )
+            );
+        return safeTxHash;
+    }
+}
+```
 <!-- Content_END -->

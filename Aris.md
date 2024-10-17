@@ -2889,7 +2889,121 @@ timezone: Asia/Shanghai
 
 ---
 
+### 2024.10.16
 
+#### 学习内容 53. ERC-2612 ERC20Permit
+
+1. ERC20
+
+   - ERC20是以太坊最流行的代币标准,`approve` 和 `transferFrom` 两个函数搭配使用，使得代币不仅可以在外部拥有账户（EOA）之间转移，还可以被其他合约使用。
+   - ERC20的 `approve` 函数限制了只有代币所有者才能调用，这意味着所有 `ERC20` 代币的初始操作必须由 `EOA` 执行。
+     - 用户调用 `approve` 将 `USDT` 授权给合约。
+     - 用户调用合约进行交换且必须持有 `ETH` 用于支付交易的 gas。
+
+2. ERC20Permit
+
+   - 扩展了 ERC20 标准，添加了一个 permit 函数，允许用户通过 EIP-712 签名修改授权，而不是通过 msg.sender。
+
+     - 授权这步仅需用户在链下签名，减少一笔交易。
+     - 签名后，用户可以委托第三方进行后续交易。
+     - ![image-20241016210008173](./content/Aris/image-20241016210008173.png)
+
+   - 链下签名
+
+   - ```javascript
+     const domain = {
+         name: name,
+         version: version,
+         chainId: chainId,
+         verifyingContract: contractAddress,
+     };
+     
+     const types = {
+         Permit: [
+             { name: "owner", type: "address" },
+             { name: "spender", type: "address" },
+             { name: "value", type: "uint256" },
+             { name: "nonce", type: "uint256" },
+             { name: "deadline", type: "uint256" },
+         ],
+     };
+     
+     const message = {
+         owner: owner,
+         spender: spender,
+         value: value,
+         nonce: nonce,
+         deadline: deadline,
+     };
+     const signature = await signer.signTypedData(domain, types, message);
+     const sig = ethers.Signature.from(signature);
+     console.log("Signature:", signature);
+     SignatureV.innerHTML = `${sig.v}`;
+     SignatureR.innerHTML = `${sig.r}`;
+     SignatureS.innerHTML = `${sig.s}`;
+     showSignature.innerHTML = `${signature}`;
+     ```
+
+   - 链上验证
+
+   - ```solidity
+     function permit(
+         address owner,
+         address spender,
+         uint256 value,
+         uint256 deadline,
+         uint8 v,
+         bytes32 r,
+         bytes32 s
+     ) public override {
+         // 检查过期时间
+         require(block.timestamp <= deadline, "ERC20Permit: expired deadline");
+         bytes32 structHash = keccak256(
+             abi.encode(
+                 _PERMIT_TYPEHASH,
+                 owner,
+                 spender,
+                 value,
+                 _userNonce(owner),
+                 deadline
+             )
+         );
+         bytes32 hash = _hashTypedDataV4(structHash);
+         address signer = ECDSA.recover(hash, v, r, s);
+         require(owner == signer, "ERC20Permit: invalid signature");
+     
+         _approve(owner, spender, value);
+     }
+     ```
+
+3. 合约部署
+
+   - 部署合约,命名为 ArisPermit,复制合约地址 0xE3Ca443c9fd7AF40A2B5a95d43207E763e56005F
+     - ![image-20241016203836169](./content/Aris/image-20241016203836169.png)
+   - 本地启动 http-server 在浏览器中访问 html 页面
+     - name: ArisPermit
+     - chainId: 1
+     - Contract Address: 刚部署的合约地址 0xE3Ca443c9fd7AF40A2B5a95d43207E763e56005F
+     - Spender: 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2
+     - Amount: 100
+     - Nonce: 调用合约中的nonces()函数获得,第一次是 0
+     - Deadline: 设置一个比较久的时间, 1829082524 (对应2027-12-17 22:28:44 UTC 时间 )
+       - ![image-20241016204319376](./content/Aris/image-20241016204319376.png)
+   - 点击 connect metamask 与钱包链接
+     - ![image-20241016204522048](./content/Aris/image-20241016204522048.png)
+   - 点击 sign ERC20Permit 按钮,唤起钱包进行签名,此时钱包会显示详细签名信息
+     - ![image-20241016204725619](./content/Aris/image-20241016204725619.png)
+   - 点击确认后,会获取的签名的 r,s,v 信息
+     - ![image-20241016204822431](./content/Aris/image-20241016204822431.png)
+   - 回到合约交互页面,permit 函数参数分别输入
+     - owner: 签名钱包账户地址 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4
+     - spender: 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2
+     - value: 100 (对应 HTML 页面中的 amount)
+     - deadline: 1829082524 (上面的时间)
+     - r,s,v分别输入刚刚签名得到的数据
+     - ![image-20241016205253926](./content/Aris/image-20241016205253926.png)
+   - 触发 Approval 授权事件,代表签名验证成功,此时再调用 allowance,返回授权额度为 `100`!
+     - ![image-20241016205505020](./content/Aris/image-20241016205505020.png)
 
 ---
 

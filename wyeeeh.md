@@ -2355,22 +2355,193 @@ require(success, "ETH transfer failed");
 ### 2024.10.15
 #### WTF Academy Solidity 102.23 Delegatecall
 
-##### 笔记
+#####
+`delegatecall` 是 Solidity 中一种特殊的低级调用方式，允许一个合约在另一个合约的上下文中执行其代码。简单来说，它让调用者（调用方合约）的存储和上下文被目标合约的逻辑操作。
+
+区别于常规的 `call`，`delegatecall` 不会将调用的上下文切换到被调用合约的上下文，而是保持在调用合约的上下文中。这意味着，任何对状态变量的修改都会影响调用合约的变量，而不是被调用合约的变量。
+
+`delegatecall` 主要在代理合约模式中使用，这种模式通过将存储和逻辑分离，允许合约升级功能，而不需要更换合约地址。常见场景有：
+
+1. **代理合约 (Proxy Contract)**：将逻辑合约和存储合约分离，通过代理合约来调用逻辑合约的功能。
+2. **EIP-2535 Diamonds 标准**：允许合约在生产中扩展和模块化。
+
+##### 代码示例：合约 B 调用合约 C 的代码
+
+1. **被调用的合约 `C`**
+
+这个合约有两个变量：`num` 和 `sender`。其中 `num` 是存储的一个整数，`sender` 是存储调用者地址的一个变量。合约中的 `setVars` 函数用于更新这两个变量：
+
+```solidity
+// 被调用的合约C
+contract C {
+    uint public num;
+    address public sender;
+
+    // 更新 num 和 sender，记录调用者
+    function setVars(uint _num) public payable {
+        num = _num; // 更新 num
+        sender = msg.sender; // 更新调用者地址，注意这里的 msg.sender 是调用该函数的合约地址
+    }
+}
+
+```
+- `num`: 存储一个 `uint` 型的数。
+- `sender`: 存储调用者的地址。
+- `setVars`: 更新 `num` 和 `sender`。`msg.sender` 是调用该函数的账户地址，通常是合约的地址或外部账户。
+
+**2. 发起调用的合约 `B`**
+
+合约 `B` 中也有两个相同类型和顺序的状态变量：`num` 和 `sender`，以保证 `delegatecall` 时存储布局一致。
+
+```solidity
+contract B {
+    uint public num;
+    address public sender;
+}
+
+```
+
+- 合约 `B` 的状态变量必须与合约 `C` 保持一致的存储布局，以确保 `delegatecall` 调用时不会出现存储冲突。
+
+**3. 使用 `call` 调用**
+
+先通过 `call` 来调用合约 `C` 的 `setVars` 函数，观察效果：
+
+```solidity
+// 通过 call 调用 C 合约的 setVars() 函数，更新 C 合约中的状态变量
+function callSetVars(address _addr, uint _num) external payable {
+    (bool success, bytes memory data) = _addr.call(
+        abi.encodeWithSignature("setVars(uint256)", _num) // 将函数和参数编码为二进制数据
+    );
+}
+
+```
+
+- `_addr`: `C` 合约的地址。
+- `_num`: 要传递的数值，更新 `num`。
+- `call`: 普通调用会在 `C` 合约的上下文中执行函数，修改 `C` 合约的 `num` 和 `sender`。
+
+当使用 `call` 时，合约 `B` 调用 `C` 合约的函数，执行的上下文是 `C` 合约的，所以任何状态变量的变化都体现在 `C` 合约上，`msg.sender` 是合约 `B` 的地址。
+
+**4. 使用 `delegatecall` 调用**
+
+通过 `delegatecall`，合约 `B` 可以调用 `C` 合约的代码，但状态变量的更改会发生在 `B` 的存储中，而不是 `C`：
+
+```solidity
+// 通过 delegatecall 调用 C 合约的 setVars() 函数，更新 B 合约中的状态变量
+function delegatecallSetVars(address _addr, uint _num) external payable {
+    (bool success, bytes memory data) = _addr.delegatecall(
+        abi.encodeWithSignature("setVars(uint256)", _num) // 将函数和参数编码为二进制数据
+    );
+}
+
+```
+- `delegatecall`: 执行 `C` 合约的代码，但对状态变量的操作发生在 `B` 合约中。`msg.sender` 是调用者地址（即最初发起交易的用户）。
+- 由于 `delegatecall` 保持了调用合约（`B`）的上下文，`num` 和 `sender` 的更新会影响 `B` 合约中的变量，而不是 `C`。
+
+##### `call` 和 `delegatecall`对比
+
+- **`call`**：在被调用合约的上下文中执行代码，修改的是被调用合约的状态变量。
+- **`delegatecall`**：在调用合约的上下文中执行目标合约的代码，修改的是调用合约的状态变量。
+
+这两者的核心区别是状态变量的存储位置，以及 `msg.sender` 的值。使用 `delegatecall` 时，注意存储布局一致性以及目标合约的安全性，以避免潜在的安全漏洞。
 
 ##### 测验结果
-
-##### 测验错题
-
+- 100/100
 
 ### 2024.10.16
-#### WTF Academy Solidity 102.24
+#### WTF Academy Solidity 102.24 Create
 
-##### 笔记
+##### `Create`基本语法
+```solidity
+Contract x = new Contract{value: _value}(params);
+```
+- `Contract` 是要创建的新合约类型。
+- `x` 是存储新合约地址的变量。
+- `{value: _value}` 是可选的，表示可以在创建时发送一定数量的`ETH`。
+- `(params)` 是传递给新合约构造函数的参数。
 
+##### 代码示例
+###### 简单的创建合约
+```solidity
+// 被创建的合约
+contract NewContract {
+    uint public x;
+    address public creator;
+
+    constructor(uint _x) payable {
+        x = _x;
+        creator = msg.sender;
+    }
+}
+
+// 用于创建新合约的合约
+contract Creator {
+    function createNewContract(uint _x) external payable returns (address) {
+        NewContract newContract = new NewContract{value: msg.value}(_x);
+        return address(newContract);
+    }
+}
+```
+
+1. `NewContract` 是要创建的目标合约，它有一个`uint`类型的变量`x`，并记录创建者的地址。
+2. 构造函数中接受`x`的值并设置`msg.sender`为`creator`。
+3. `Creator` 合约有一个函数 `createNewContract`，通过 `new` 创建一个 `NewContract` 实例，同时传入构造函数参数 `_x`，并附带`ETH`。
+4. 在Remix上验证，通过Creator创建后，返回`decoded output: {
+	"0": "address: 0xeae1f6F987196E95E526B1601119D1d5Bb3Ed03F"
+}`
+###### Uniswap V2
+```solidity
+contract Pair{
+    address public factory; // 工厂合约地址
+    address public token0; // 代币1
+    address public token1; // 代币2
+
+    constructor() payable {
+        factory = msg.sender;
+    }
+
+    // called once by the factory at time of deployment
+    function initialize(address _token0, address _token1) external {
+        require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
+        token0 = _token0;
+        token1 = _token1;
+    }
+}
+
+contract PairFactory{
+    mapping(address => mapping(address => address)) public getPair; // 通过两个代币地址查Pair地址
+    address[] public allPairs; // 保存所有Pair地址
+
+    function createPair(address tokenA, address tokenB) external returns (address pairAddr) {
+        // 创建新合约
+        Pair pair = new Pair(); 
+        // 调用新合约的initialize方法
+        pair.initialize(tokenA, tokenB);
+        // 更新地址map
+        pairAddr = address(pair);
+        allPairs.push(pairAddr);
+        getPair[tokenA][tokenB] = pairAddr;
+        getPair[tokenB][tokenA] = pairAddr;
+    }
+}
+```
+- `mapping(address => mapping(address => address)) public getPair;`
+    - 这是一个嵌套的映射，作用是通过**两个代币的地址**查找它们对应的**交易对合约地址**。例如，如果你有两个代币的地址`tokenA`和`tokenB`，你可以通过`getPair[tokenA][tokenB]`查询它们对应的交易对地址。
+    - **外层`address`**：代表第一个代币（`tokenA`）的地址。
+    - **内层`address`**：代表第二个代币（`tokenB`）的地址。
+    - **最终的`address`**：是这两个代币组成的交易对（Pair）的合约地址。
+- `address[] public allPairs;`
+    - 这是一个保存所有交易对（Pair）合约地址的数组。
+    - **`address[]`**：表示一个存储地址类型的数组，每个地址代表一个交易对合约的地址。
+    - **`public`**：这个数组是公开的，因此可以直接读取它的内容。
+    - **`allPairs`**：这个数组用于存储所有已经创建的交易对地址，顺序依次加入每次创建的新交易对。
+- `createPair`函数
+    - 创建新的`Pair`合约实例。
+    - 调用`Pair`合约的`initialize`函数，传入两个代币地址以初始化币对。
+    - 记录并存储新创建的币对地址。
 ##### 测验结果
-
-##### 测验错题
-
+- 100/100
 
 ### 2024.10.17
 #### WTF Academy Solidity 102.25
@@ -2381,4 +2552,31 @@ require(success, "ETH transfer failed");
 
 ##### 测验错题
 
+
+### 2024.10.18
+#### WTF Academy Solidity 102.26
+
+##### 笔记
+
+##### 测验结果
+
+##### 测验错题
+
+### 2024.10.19
+#### WTF Academy Solidity 102.27
+
+##### 笔记
+
+##### 测验结果
+
+##### 测验错题
+
+### 2024.10.20
+#### WTF Academy Solidity 102.28
+
+##### 笔记
+
+##### 测验结果
+
+##### 测验错题
 <!-- Content_END -->

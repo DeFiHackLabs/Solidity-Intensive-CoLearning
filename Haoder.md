@@ -160,4 +160,16 @@ LFG～～～～～ 會完成的
 
 [**WTF Solidity 極簡入門：50. 多簽錢包**](<content/Haoder/md/350.md>)
 
+### 2024.10.16
+
+[**WTF Solidity 極簡入門：51. ERC4626 代幣化金庫標準**](<content/Haoder/md/351.md>)
+
+[**WTF Solidity 極簡入門：52. EIP712 類型話數據簽名**](<content/Haoder/md/352.md>)
+
+[**WTF Solidity 極簡入門：53. ERC2616 ERC20 Permit**](<content/Haoder/md/353.md>)
+
+[**WTF Solidity 極簡入門：54. 塊鏈橋**](<content/Haoder/md/354.md>)
+
+[**WTF Solidity 極簡入門：55. 多重調用**](<content/Haoder/md/355.md>)
+
 <!-- Content_END -->

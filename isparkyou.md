@@ -7256,14 +7256,127 @@ SLOAD操作消耗200 Gas
 4. 执行完成后，交易的结果会被记录在区块链上，包括Gas的消耗、交易日志等信息。
 ![image](https://github.com/user-attachments/assets/ca1bea1a-a38f-4311-8ee7-fccac58f3076)
 
+### 2024.10.16
+### Opcodes分类
+堆栈（Stack）指令: 这些指令直接操作EVM堆栈。这包括将元素压入堆栈（如PUSH1）和从堆栈中弹出元素（如POP）。
+算术（Arithmetic）指令: 这些指令用于在EVM中执行基本的数学运算，如加法（ADD）、减法（SUB）、乘法（MUL）和除法（DIV）。
+比较（Comparison）指令: 这些指令用于比较堆栈顶部的两个元素。例如，大于（GT）和小于（LT）。
+位运算（Bitwise）指令: 这些指令用于在位级别上操作数据。例如，按位与（AND）和按位或（OR）。
+内存（Memory）指令: 这些指令用于操作EVM的内存。例如，将内存中的数据读取到堆栈（MLOAD）和将堆栈中的数据存储到内存（MSTORE）。
+存储（Storage）指令: 这些指令用于操作EVM的账户存储。例如，将存储中的数据读取到堆栈（SLOAD）和将堆栈中的数据保存到存储（SSTORE）。这类指令的gas消耗比内存指令要大。
+控制流（Control Flow）指令: 这些指令用于EVM的控制流操作，比如跳转JUMP和跳转目标JUMPDEST。
+上下文（Context）指令: 这些指令用于获取交易和区块的上下文信息。例如，获取msg.sender（CALLER）和当前可用的gas（GAS）。
+#### evm.codes
+1. Opcode列表
+evm.codes提供了完整的Opcodes列表，这对于学习Opcodes非常有用。它包括每个Opcode的编号（例如，ADD的编号是0x01）、名称、gas消耗、堆栈输入和输出以及一个简短的描述。
+![image](https://github.com/user-attachments/assets/f9232e7e-d791-4220-bc84-5357c5d56fc6)
+2. Playground
+evm.codes还提供了一个在线的Opcodesplayground，你可以在这里运行Opcodes代码。Playground分为三部分：左上角的编辑器，右上角的执行界面，以及右下角的状态界面，它们分别显示你的代码、代码的执行过程和执行结果。
+![image](https://github.com/user-attachments/assets/d7fcc168-be70-41ea-9ecd-6687a737c86e)
 
+### 堆栈指令
+#### 程序计数器
+程序计数器（通常缩写为 PC）是一个用于跟踪当前执行指令位置的寄存器。每执行一条指令（opcode），程序计数器的值会自动增加，以指向下一个待执行的指令。但是，这个过程并不总是线性的，在执行跳转指令（JUMP和JUMPI）时，程序计数器会被设置为新的值。
+```
+class EVM:
+    # 初始化
+    def __init__(self, code):
+        self.code = code # 初始化字节码，bytes对象
+        self.pc = 0  # 初始化程序计数器为0
+        self.stack = [] # 堆栈初始为空
 
+    # 获取当前指令
+    def next_instruction(self):
+        op = self.code[self.pc]  # 获取当前指令
+        self.pc += 1  # 递增
+        return op
 
+    def run(self):
+        while self.pc < len(self.code):
+            op = self.next_instruction() # 获取当前指令
 
+code = b"\x01\x02\x03"
+evm = EVM(code)
+evm.run()
+```
+#### PUSH
+PUSH是一系列操作符，共有32个（在以太坊上海升级前），从PUSH1，PUSH2，一直到PUSH32，操作码范围为0x60到0x7F。它们将一个字节大小为1到32字节的值从字节码压入堆栈（堆栈中每个元素的长度为32字节），每种指令的gas消耗都是3。
+以太坊上海升级新加入了PUSH0，操作码为0x5F（即0x60的前一位），用于将0压入堆栈，gas消耗为2，比其他的PUSH指令更省gas。
+```
+PUSH0 = 0x5F
+PUSH1 = 0x60
+PUSH32 = 0x7F
 
+class EVM:
+    def __init__(self, code):
+        self.code = code # 初始化字节码，bytes对象
+        self.pc = 0  # 初始化程序计数器为0
+        self.stack = [] # 堆栈初始为空
 
+    def next_instruction(self):
+        op = self.code[self.pc]  # 获取当前指令
+        self.pc += 1  # 递增
+        return op
 
+    def push(self, size):
+        data = self.code[self.pc:self.pc + size] # 按照size从code中获取数据
+        value = int.from_bytes(data, 'big') # 将bytes转换为int
+        self.stack.append(value) # 压入堆栈
+        self.pc += size # pc增加size单位
 
+    def run(self):
+        while self.pc < len(self.code):
+            op = self.next_instruction()
+
+            if PUSH1 <= op <= PUSH32:
+                size = op - PUSH1 + 1
+                self.push(size)
+            elif op == PUSH0:
+                self.stack.append(0)
+```
+#### POP
+POP指令（操作码0x50，gas消耗2）用于移除栈顶元素；如果当前堆栈为空，就抛出一个异常。
+```
+PUSH0 = 0x5F
+PUSH1 = 0x60
+PUSH32 = 0x7F
+POP = 0x50
+
+class EVM:
+    def __init__(self, code):
+        self.code = code # 初始化字节码，bytes对象
+        self.pc = 0  # 初始化程序计数器为0
+        self.stack = [] # 堆栈初始为空
+
+    def next_instruction(self):
+        op = self.code[self.pc]  # 获取当前指令
+        self.pc += 1  # 递增
+        return op
+
+    def push(self, size):
+        data = self.code[self.pc:self.pc + size] # 按照size从code中获取数据
+        value = int.from_bytes(data, 'big') # 将bytes转换为int
+        self.stack.append(value) # 压入堆栈
+        self.pc += size # pc增加size单位
+
+    def pop(self):
+        if len(self.stack) == 0:
+            raise Exception('Stack underflow')
+        return self.stack.pop() # 弹出堆栈
+
+    def run(self):
+        while self.pc < len(self.code):
+            op = self.next_instruction()
+
+            if PUSH1 <= op <= PUSH32: # 如果为PUSH1-PUSH32
+                size = op - PUSH1 + 1
+                self.push(size)
+            elif op == PUSH0: # 如果为PUSH0
+                self.stack.append(0)
+                self.pc += size
+            elif op == POP: # 如果为POP
+                self.pop()
+```
 
 
 

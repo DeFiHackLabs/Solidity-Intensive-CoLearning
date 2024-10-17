@@ -2172,8 +2172,150 @@ function strong(string memory string1, string memory string2) public pure return
 ```
 ### 2024.10.16
 #### 29_Selector
+# Solidity 函數選擇器(Function Selector)筆記
 
+## 1. 函數選擇器概述
+
+- 函數選擇器是調用智能合約時發送的 calldata 的前 4 個字節
+- 作用是告訴合約要調用哪個函數
+
+## 2. msg.data
+
+- Solidity 中的全局變量
+- 包含完整的 calldata (調用函數時傳入的數據)
+- 結構: [函數選擇器(4 字節)] + [參數(32 字節)]
+
+## 3. 函數簽名與 Method ID
+
+- 函數簽名格式: "函數名(參數類型1,參數類型2,...)"
+  - 例: "mint(address)"
+- Method ID: 函數簽名的 Keccak 哈希後的前 4 個字節
+- 函數選擇器與 Method ID 相匹配時,表示調用該函數
+
+## 4. 計算 Method ID
+
+- 使用 keccak256 哈希函數
+- 語法: `bytes4(keccak256("函數簽名"))`
+
+## 5. 不同參數類型的處理
+
+1. 基礎類型 (uint256, bool, address 等):
+   - 直接使用類型名稱
+
+2. 固定長度類型 (如 uint256[5]):
+   - 包含數組長度
+
+3. 可變長度類型 (uint256[], string 等):
+   - 使用類型名稱,不包含長度
+
+4. 映射類型 (contract, enum, struct):
+   - 需轉換為 ABI 類型
+     - contract → address
+     - enum → uint8
+     - struct → tuple
+
+## 6. 使用 Selector 調用函數
+
+- 使用 `abi.encodeWithSelector` 函數
+- 語法: `abi.encodeWithSelector(函數選擇器, 參數1, 參數2, ...)`
+- 與 `call` 函數配合使用
+
+## 注意事項
+
+- 在函數簽名中, uint 和 int 應寫為 uint256 和 int256
+- 相同合約中,不同函數有不同的函數簽名
+- 計算 Method ID 時需考慮參數類型的正確表示
 
 #### 30_TryCatch
+# Solidity 中的 try-catch 異常處理
+
+## 1. try-catch 概述
+
+- Solidity 0.6 版本引入
+- 用於處理智能合約中的異常
+- 只能用於外部函數調用或合約創建
+
+## 2. 基本語法
+
+```solidity
+try externalContract.f() {
+    // 調用成功時執行的代碼
+} catch {
+    // 調用失敗時執行的代碼
+}
+```
+
+- `externalContract.f()` 是外部合約的函數調用
+- 可以使用 `this.f()` 替代,但不能在構造函數中使用
+
+## 3. 處理返回值
+
+```solidity
+try externalContract.f() returns (returnType val) {
+    // 使用返回值 val
+} catch {
+    // 處理異常
+}
+```
+
+- 必須在 `try` 後聲明 `returns(returnType val)`
+- 返回值可在 `try` 區塊中使用
+
+## 4. 捕獲特定異常
+
+```solidity
+try externalContract.f() {
+    // 成功時的代碼
+} catch Error(string memory reason) {
+    // 處理 revert 和 require 拋出的異常
+} catch Panic(uint errorCode) {
+    // 處理 Panic 類型的錯誤 (如 assert 失敗、溢出、除零等)
+} catch (bytes memory lowLevelData) {
+    // 處理其他類型的 revert
+}
+```
+
+## 5. 實際應用
+
+### 5.1 處理外部函數調用異常
+
+```solidity
+function execute(uint amount) external returns (bool success) {
+    try even.onlyEven(amount) returns (bool _success) {
+        emit SuccessEvent();
+        return _success;
+    } catch Error(string memory reason) {
+        emit CatchEvent(reason);
+    }
+}
+```
+
+### 5.2 處理合約創建異常
+
+```solidity
+function executeNew(uint a) external returns (bool success) {
+    try new OnlyEven(a) returns (OnlyEven _even) {
+        emit SuccessEvent();
+        success = _even.onlyEven(a);
+    } catch Error(string memory reason) {
+        emit CatchEvent(reason);
+    } catch (bytes memory reason) {
+        emit CatchByte(reason);
+    }
+}
+```
+
+## 6. 注意事項
+
+- 僅適用於外部合約調用和合約創建
+- 如果 `try` 執行成功,必須聲明返回變量,且類型需匹配
+- 可以捕獲不同類型的異常: Error, Panic, 和其他類型的 revert
+- 在合約創建時,返回值是新創建的合約變量
+
+## 7. 優點
+
+- 提高合約的健壯性
+- 允許更細緻的錯誤處理
+- 可以區分不同類型的異常,進行針對性處理
 <!-- Content_END -->
 
