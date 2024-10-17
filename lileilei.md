@@ -1110,6 +1110,29 @@ function auctionMint(uint256 quantity) external payable{
     }
     hash签名，还可用web3签名
 
+   ### 2024.10.17
+   学习了nft常用的交易逻辑：挂单list、撤单revoke、修改价格update、购买purchase
+   交易主体就是订单
+   function purchase(address _nftAddr, uint256 _tokenId) payable public {
+        Order storage _order = nftList[_nftAddr][_tokenId]; // 取得Order        
+        require(_order.price > 0, "Invalid Price"); // NFT价格大于0
+        require(msg.value >= _order.price, "Increase price"); // 购买价格大于标价
+        // 声明IERC721接口合约变量
+        IERC721 _nft = IERC721(_nftAddr);
+        require(_nft.ownerOf(_tokenId) == address(this), "Invalid Order"); // NFT在合约中
+
+        // 将NFT转给买家
+        _nft.safeTransferFrom(address(this), msg.sender, _tokenId);
+        // 将ETH转给卖家，多余ETH给买家退款
+        payable(_order.owner).transfer(_order.price);
+        payable(msg.sender).transfer(msg.value-_order.price);
+
+        delete nftList[_nftAddr][_tokenId]; // 删除order
+
+        // 释放Purchase事件
+        emit Purchase(msg.sender, _nftAddr, _tokenId, _order.price);
+    }
+
     
   
 <!-- Content_END -->
