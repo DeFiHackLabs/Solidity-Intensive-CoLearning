@@ -2544,13 +2544,52 @@ contract PairFactory{
 - 100/100
 
 ### 2024.10.17
-#### WTF Academy Solidity 102.25
+#### WTF Academy Solidity 102.25 `Create2`
+##### `CREATE2` 计算合约地址的方式
 
-##### 笔记
+`CREATE2` 用四个参数来生成合约地址：
+
+1. `0xFF`: 常数，用于区分 `CREATE` 和 `CREATE2`。
+2. `CreatorAddress`: 当前创建合约的地址（调用 `CREATE2` 的合约地址）。
+3. `salt`：一个创建者指定的 `bytes32` 类型的值，用于增加地址的可控性。
+4. `initcode`: 新合约的字节码，包含合约的创建代码和构造函数的参数。
+
+生成合约地址的计算公式如下：
+
+```
+新合约地址 = hash("0xFF", 创建者地址, salt, initcode)
+
+```
+
+这意味着合约的地址是确定的，只要指定了相同的 `salt` 和 `initcode`，无论何时何地合约被部署，生成的地址都会保持不变。
+
+##### `CREATE2` 与 `CREATE` 的区别
+
+- **`CREATE`**:
+    - 合约地址由调用者地址和 `nonce` 的哈希计算得出，因此地址随着调用者的 `nonce` 变化而变化，不易预测。
+    - 地址计算公式：`hash(创建者地址, nonce)`。
+- **`CREATE2`**:
+    - 合约地址与未来状态无关，部署之前可以预测。
+    - 地址计算由 `0xFF`、调用者地址、`salt` 和合约的 `initcode` 计算而得。
+    - 地址计算公式：`hash("0xFF", 创建者地址, salt, initcode)`。
+
+##### 使用 `CREATE2` 的语法
+
+`CREATE2` 的使用方式与 `CREATE` 类似，唯一的区别是需要额外提供一个 `salt` 参数：
+
+```solidity
+Contract x = new Contract{salt: _salt, value: _value}(params);
+
+```
+
+- `Contract`: 要创建的合约类型。
+- `x`: 新合约的地址。
+- `_salt`: 32 字节的盐值，用于影响新合约的地址。
+- `_value`: 可选的 `ETH` 发送金额（如果合约的构造函数是 `payable`）。
+- `params`: 新合约构造函数的参数。
 
 ##### 测验结果
-
-##### 测验错题
+- 100/100
 
 
 ### 2024.10.18
@@ -2573,6 +2612,24 @@ contract PairFactory{
 
 ### 2024.10.20
 #### WTF Academy Solidity 102.28
+
+##### 笔记
+
+##### 测验结果
+
+##### 测验错题
+
+### 2024.10.21
+#### WTF Academy Solidity 102.29
+
+##### 笔记
+
+##### 测验结果
+
+##### 测验错题
+
+### 2024.10.22
+#### WTF Academy Solidity 102.30
 
 ##### 笔记
 
