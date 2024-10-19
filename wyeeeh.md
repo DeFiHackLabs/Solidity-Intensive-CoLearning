@@ -2592,7 +2592,88 @@ Contract x = new Contract{salt: _salt, value: _value}(params);
 - 100/100
 
 
-### 2024.10.18
+### 2024.10.18 `SelfDestruct`自毁
+`selfdestruct`是智能合约中的一种操作，用于销毁合约并将合约剩余的`ETH`余额转移到指定地址。这个功能设计的初衷是应对合约发生错误时的极端情况。起初它被命名为`suicide`（自杀），但由于敏感性问题，后来改名为`selfdestruct`。
+坎昆升级后，[EIP-6780](https://eips.ethereum.org/EIPS/eip-6780)对`selfdestruct`进行了功能限制。该提案是为了支持Verkle Tree，而限制`SELFDESTRUCT`操作码的功能，改变后它只能转移ETH，删除合约的功能只有在同一笔交易中创建和销毁合约时才会生效。
+
+以下是基本的`selfdestruct`调用方式：
+
+```solidity
+selfdestruct(_addr);
+```
+
+其中`_addr`为接收合约中剩余ETH的地址，无需该地址包含`receive()`或`fallback()`函数。
+##### 坎昆升级后`SelfDestruct`最新特性
+1. **已经部署的合约无法被完全销毁**：`selfdestruct`不再具有销毁功能，仅能转移合约余额。合约只会转移ETH，合约本身依然存在，且可以继续交互。
+2. **同一交易中合约创建和销毁**：若在同一笔交易中执行合约创建和`selfdestruct`，则删除功能才会生效。
+
+##### 代码示例
+在以下示例中，合约通过`selfdestruct`功能实现了内部ETH的转移：
+
+```solidity
+contract DeleteContract {
+
+    uint public value = 10;
+
+    constructor() payable {}
+
+    receive() external payable {}
+
+    function deleteContract() external {
+        // 通过selfdestruct将合约剩余的ETH转入msg.sender
+        selfdestruct(payable(msg.sender));
+    }
+
+    function getBalance() external view returns(uint balance){
+        balance = address(this).balance;
+    }
+}
+
+```
+
+在合约中：
+
+- `value`是一个状态变量，用来表示一个存储值。
+- `getBalance()`用于查询合约余额。
+- `deleteContract()`用于调用`selfdestruct`，将合约的ETH转移给调用者（发起者）。
+
+通过另一个合约创建并销毁子合约，满足坎昆升级后的限制：
+
+```solidity
+contract DeployContract {
+
+    struct DemoResult {
+        address addr;
+        uint balance;
+        uint value;
+    }
+
+    constructor() payable {}
+
+    function getBalance() external view returns(uint balance){
+        balance = address(this).balance;
+    }
+
+    function demo() public payable returns (DemoResult memory){
+        DeleteContract del = new DeleteContract{value:msg.value}();
+        DemoResult memory res = DemoResult({
+            addr: address(del),
+            balance: del.getBalance(),
+            value: del.value()
+        });
+        del.deleteContract();
+        return res;
+    }
+}
+
+```
+
+- 通过`DeployContract`合约创建`DeleteContract`合约并立即调用`deleteContract`。
+- 这样可以确保在同一笔交易内完成创建和销毁，合约成功删除且余额转移。
+
+##### 测验结果
+- 100/100
+
 #### WTF Academy Solidity 102.26
 
 ##### 笔记
