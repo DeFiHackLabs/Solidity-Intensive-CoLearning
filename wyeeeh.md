@@ -1435,7 +1435,6 @@ contract interactBAYC {
     
         // 其他函数的实现...
     }
-    
     ```
 使用这种方法，开发者不需要重复编写接口部分，只需要关注具体实现。这样代码更加简洁、规范，并且减少了错误的可能。
 ##### 测验结果
@@ -2592,7 +2591,8 @@ Contract x = new Contract{salt: _salt, value: _value}(params);
 - 100/100
 
 
-### 2024.10.18 `SelfDestruct`自毁
+### 2024.10.18 
+#### WTF Academy Solidity 102.26 `SelfDestruct`自毁
 `selfdestruct`是智能合约中的一种操作，用于销毁合约并将合约剩余的`ETH`余额转移到指定地址。这个功能设计的初衷是应对合约发生错误时的极端情况。起初它被命名为`suicide`（自杀），但由于敏感性问题，后来改名为`selfdestruct`。
 坎昆升级后，[EIP-6780](https://eips.ethereum.org/EIPS/eip-6780)对`selfdestruct`进行了功能限制。该提案是为了支持Verkle Tree，而限制`SELFDESTRUCT`操作码的功能，改变后它只能转移ETH，删除合约的功能只有在同一笔交易中创建和销毁合约时才会生效。
 
@@ -2674,47 +2674,343 @@ contract DeployContract {
 ##### 测验结果
 - 100/100
 
-#### WTF Academy Solidity 102.26
+### 2024.10.25
+#### WTF Academy Solidity 102.27 ABI编码解码
+##### ABI编码
+###### `abi.encode`
+`abi.encode`可以对多个不同类型的数据进行编码，将其转换成动态大小的字节数组。编码后的数据包含类型信息，符合以太坊ABI标准中规定的编码规则。
+适合用于复杂参数的数据传输，特别是涉及多个数据类型的情况。比如需要将数据传递给低级`call`函数或者在跨合约调用中传输大量信息时使用。
 
-##### 笔记
+**语法**
+```solidity
+bytes memory encodedData = abi.encode(x1, x2, ..., xn);
+```
+- `x1`, `x2`, ..., `xn`：需要编码的数据，可以是多种类型。
+
+**示例**
+```solidity
+pragma solidity ^0.8.0;
+
+contract EncodeExample {
+    function encodeData(uint256 a, string memory b) public pure returns (bytes memory) {
+        return abi.encode(a, b);
+    }
+}
+```
+其中，`encodeData`将`uint256`和`string`类型的数据编码为字节数组。
+
+###### `abi.encodePacked`
+`abi.encodePacked`会将多个输入紧凑编码成最小字节大小，没有填充或分隔信息，因此比`abi.encode`生成的字节数少。
+适合用于节省空间的编码方式，通常用于哈希计算（例如生成`keccak256`哈希）。由于紧凑编码可能导致哈希碰撞，`abi.encodePacked`不适合对具有可变长度的数据进行编码。
+
+**语法**
+```solidity
+bytes memory packedData = abi.encodePacked(x1, x2, ..., xn);
+
+```
+
+**示例**
+```solidity
+pragma solidity ^0.8.0;
+
+contract PackedExample {
+    function hashData(uint256 a, string memory b) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(a, b));
+    }
+}
+
+```
+在此示例中，`hashData`使用`abi.encodePacked`对数据进行紧凑编码，并计算出一个`keccak256`哈希值。
+
+###### `abi.encodeWithSignature`
+`abi.encodeWithSignature`接受一个函数签名字符串，并使用该签名和参数进行编码。签名包括函数名称和参数类型，生成的数据包含函数选择器。
+适用于动态调用未知合约的函数或通过低级`call`方法直接调用其他合约。
+
+**语法**
+```solidity
+bytes memory encodedWithSig = abi.encodeWithSignature("functionName(type1,type2,...)", x1, x2, ...);
+
+```
+- `functionName`：目标函数的名称。
+- `type1`, `type2`, ...：参数的类型，必须按照目标函数参数顺序书写。
+- `x1`, `x2`, ...：传入的实际参数。
+
+
+**示例**
+
+```solidity
+pragma solidity ^0.8.0;
+
+contract SignatureExample {
+    function callFunctionWithSignature(address target, uint256 a, string memory b) public returns (bytes memory) {
+        (bool success, bytes memory data) = target.call(abi.encodeWithSignature("targetFunction(uint256,string)", a, b));
+        require(success, "Call failed");
+        return data;
+    }
+}
+```
+在此示例中，`callFunctionWithSignature`通过指定的函数签名编码数据，然后使用`call`来调用目标合约的函数。
+
+
+###### `abi.encodeWithSelector`
+
+`abi.encodeWithSelector`接受一个函数选择器和参数列表进行编码。选择器是由函数签名的前四个字节组成。
+适用于在已知选择器情况下的合约调用，例如调用其他合约中的具体函数，适合低级`call`方法。
+
+**语法**
+```solidity
+bytes memory encodedWithSelector = abi.encodeWithSelector(bytes4(keccak256("functionName(type1,type2,...)")), x1, x2, ...);
+
+```
+**示例**
+```solidity
+pragma solidity ^0.8.0;
+
+contract SelectorExample {
+    function callFunctionWithSelector(address target, uint256 a, string memory b) public returns (bytes memory) {
+        (bool success, bytes memory data) = target.call(abi.encodeWithSelector(bytes4(keccak256("targetFunction(uint256,string)")), a, b));
+        require(success, "Call failed");
+        return data;
+    }
+}
+```
+
+这里的`callFunctionWithSelector`通过函数选择器编码函数调用参数并调用目标合约的函数。
+
+##### ABI解码
+###### `abi.decode`
+`abi.decode`用于解码编码数据，将`abi.encode`或`abi.encodePacked`生成的字节数据还原为原始数据类型。由于编码后不包含类型信息，解码时必须提供明确的类型。
+用于接收或处理低级调用时的返回数据，将字节数据还原为具体类型。
+
+**语法**
+
+```solidity
+(T1, T2, ..., Tn) = abi.decode(data, (T1, T2, ..., Tn));
+
+```
+
+- `data`：要解码的字节数据。
+- `(T1, T2, ..., Tn)`：返回的类型。
+
+
+**示例**
+
+```solidity
+pragma solidity ^0.8.0;
+
+contract DecodeExample {
+    function decodeData(bytes memory data) public pure returns (uint256, string memory) {
+        return abi.decode(data, (uint256, string));
+    }
+}
+
+```
+
+在这里，`decodeData`可以解码编码后的`uint256`和`string`数据并将其还原为实际的类型和值。
+
+##### 总结表格
+| 编码函数 | 核心功能 | 主要特点 | 使用场景 |
+| --- | --- | --- | --- |
+| `abi.encode` | 标准编码 | 保持原始数据的完整类型信息 | 复杂的参数传递，跨合约调用 |
+| `abi.encodePacked` | 紧凑编码 | 更少的字节长度，去除填充 | 哈希计算（警惕碰撞风险） |
+| `abi.encodeWithSignature` | 带函数签名的编码 | 包含函数选择器 | 直接调用其他合约的已知函数 |
+| `abi.encodeWithSelector` | 带选择器的编码 | 直接使用选择器 | 在已知选择器的情况下调用函数 |
+| `abi.decode` | 解码 | 将字节数据转换回原始类型 | 解码低级调用返回的数据 |
 
 ##### 测验结果
+- 50/100
+- 100/100
 
 ##### 测验错题
+1. 下列有关ABI编码的函数中，返回值不可能当作调用智能合约的数据的是：
+- `abi.encodePacked`
+`abi.encodePacked`通常用于将数据紧凑编码，以节省字节数，比如用于哈希计算。由于`abi.encodePacked`去除了填充信息，因此在处理变长数据（例如字符串和字节数组）时可能会导致编码结果不唯一。这种不确定性容易引发哈希碰撞，尤其在涉及不同长度的参数时。
+2. 函数foo在智能合约中定义声明为
+    ```solidity 
+    function foo(uint256 a) public view
+    ```
+    而字符串"foo(uint256)"的keccak256哈希值为：
+    ```solidity
+    0x2fbebd3821c4e005fbe0a9002cc1bd25dc266d788dba1dbcb39cc66a07e7b38b
+    ```
+    那么正确且最省gas的一项是：
+    A. `abi.encodeWithSignature("foo(uint256)", a)`
+    B. `abi.encodeWithSelector("foo(uint256)", a)`
+    C. `abi.encodeWithSelector(bytes(keccak256("foo(uint256)")), a)`
+    D. `abi.encodeWithSelector(bytes4(0x2fbebd38), a)`
+- D. `abi.encodeWithSelector(bytes4(0x2fbebd38), a)`
+    1. A. `abi.encodeWithSignature("foo(uint256)", a)` 正确但会计算签名的`keccak256`哈希值，会增加少量的gas消耗，不是最节省的方式。
+    2. B,C语法错误
+    3. 这是最简洁且节省gas的写法，直接使用已知的`keccak256`哈希前4字节（函数选择器），避免了不必要的计算。
 
-### 2024.10.19
-#### WTF Academy Solidity 102.27
+#### WTF Academy Solidity 102.28 `Hash`
+哈希函数（hash function）是一个密码学概念，它可以将任意长度的消息转换为一个固定长度的值，这个值也称作哈希（hash）。哈希函数有很多，其中的重要特性：
+- 单向性：从输入的消息到它的哈希的正向运算简单且唯一确定，而反过来非常难，只能靠暴力枚举。
+- 灵敏性：输入的消息改变一点对它的哈希改变很大。
+- 高效性：从输入的消息到哈希的运算高效。
+- 均一性：每个哈希值被取到的概率应该基本相等。
+- 抗碰撞性：
+  - 弱抗碰撞性：给定一个消息`x`，找到另一个消息`x'`，使得`hash(x) = hash(x')`是困难的。
+  - 强抗碰撞性：找到任意`x`和`x'`，使得`hash(x) = hash(x')`是困难的。
 
-##### 笔记
+##### Keccak256
+
+`Keccak256`函数是`Solidity`中最常用的哈希函数：
+
+```solidity
+哈希 = keccak256(数据);
+```
+**生成数据唯一标识**
+
+可以利用`keccak256`来生成**一些数据**的唯一标识。
+比如我们有几个不同类型的数据：`uint`，`string`，`address`，我们可以先用`abi.encodePacked`方法将他们打包编码，然后再用`keccak256`来生成唯一标识：
+
+```solidity
+function hash(
+    uint _num,
+    string memory _string,
+    address _addr
+    ) public pure returns (bytes32) {
+    return keccak256(abi.encodePacked(_num, _string, _addr));
+}
+```
 
 ##### 测验结果
+- 100/100
 
-##### 测验错题
+#### WTF Academy Solidity 102.29 函数选择器`Selector`
+##### 函数选择器（Selector）
+**函数选择器（Selector）**是一个4字节的哈希值，用于唯一标识合约中的某个函数。它通过对函数签名计算哈希后取前 4 个字节生成。它是 Solidity 中的一种标识方式，用于唯一标识智能合约中的某个函数。
 
-### 2024.10.20
-#### WTF Academy Solidity 102.28
+**语法**
+- 通过`keccak256`哈希算法对函数签名进行哈希计算，然后取前 4 个字节：
+    
+    ```solidity
+    bytes4 selector = bytes4(keccak256("mint(address)"));
+    
+    ```
+##### `msg.data`
+**`msg.data`** 是 Solidity 中的一个全局变量，它表示调用合约时传入的完整 `calldata`。这个数据包含了：
+- **前 4 个字节**：函数选择器，用于告诉 EVM 要调用的目标函数。
+- **后续字节**：编码后的参数数据。
 
-##### 笔记
+假设合约中有一个函数 `mint(address to)`，调用 `mint(0x2c44b726ADF1963cA47Af88B284C06f30380fC78)` 时，生成的`msg.data`为：
+
+```solidity
+0x6a6278420000000000000000000000002c44b726adf1963ca47af88b284c06f30380fc78
+```
+- 前 4 字节 `0x6a627842` 是函数选择器；
+- 后面 32 字节 `0x0000000000000000000000002c44b726adf1963ca47af88b284c06f30380fc78` 是参数地址。
+
+##### 函数签名
+**语法**
+`函数名(参数类型1,参数类型2,...)`（例如 `mint(address)`）。
+
+##### 不同类型参数的函数选择器
+- **基础类型参数**：如`uint256`、`bool`、`address`等。
+    
+    ```solidity
+    function elementaryParamSelector(uint256 param1, bool param2) external returns(bytes4 selectorWithElementaryParam){
+        return bytes4(keccak256("elementaryParamSelector(uint256,bool)"));
+    }
+    ```
+    
+- **固定长度类型参数**：如`uint256[3]`。
+    
+    ```solidity
+    function fixedSizeParamSelector(uint256[3] memory param1) external returns(bytes4 selectorWithFixedSizeParam){
+        return bytes4(keccak256("fixedSizeParamSelector(uint256[3])"));
+    }
+    ```
+    
+- **可变长度类型参数**：如`address[]`、`string`。
+    
+    ```solidity
+    function nonFixedSizeParamSelector(uint256[] memory param1, string memory param2) external returns(bytes4 selectorWithNonFixedSizeParam){
+        return bytes4(keccak256("nonFixedSizeParamSelector(uint256[],string)"));
+    }
+    ```
+    
+- **映射类型参数**：如合约、枚举、结构体等。
+    
+    ```solidity
+    function mappingParamSelector(address demo, (uint256, bytes) memory user, uint256[] memory count, uint8 mySchool) external returns(bytes4 selectorWithMappingParam){
+        return bytes4(keccak256("mappingParamSelector(address,(uint256,bytes),uint256[],uint8)"));
+    }
+    ```
+
+##### 使用函数选择器调用函数
+可以使用 `abi.encodeWithSelector` 或 `abi.encodeWithSignature` 编码函数选择器和参数，然后通过 `call` 执行目标函数。
+
+###### 使用`abi.encodeWithSelector`调用函数
+
+```solidity
+function callWithSelector() external {
+    bytes4 selector = bytes4(keccak256("elementaryParamSelector(uint256,bool)"));
+    (bool success, ) = address(this).call(abi.encodeWithSelector(selector, 1, true));
+    require(success, "Call failed");
+}
+```
+
+###### 使用`abi.encodeWithSignature`调用函数
+
+`abi.encodeWithSignature`可以直接编码函数签名，无需手动生成选择器：
+
+```solidity
+function callWithSignature() external {
+    (bool success, ) = address(this).call(abi.encodeWithSignature("elementaryParamSelector(uint256,bool)", 1, true));
+    require(success, "Call failed");
+}
+```
 
 ##### 测验结果
+- 100/100
 
-##### 测验错题
+### 2024.10.26
+#### WTF Academy Solidity 102.30 Try Catch函数
 
-### 2024.10.21
-#### WTF Academy Solidity 102.29
+`try-catch` 是 `Solidity 0.6` 版本中引入的异常处理机制，允许 **(1)调用外部合约函数** 或 **(2)构造函数** 失败时捕获异常，从而进行错误处理。
 
-##### 笔记
+##### `try-catch`基本语法
+
+```solidity
+try externalContract.f() {
+    // 当调用成功时执行的代码
+} catch {
+    // 当调用失败时执行的代码
+}
+```
+
+有返回值时：
+```solidity
+try externalContract.f() returns (returnType val) {
+    // 当调用成功时执行的代码，并且可以使用返回的变量 val
+} catch {
+    // 当调用失败时执行的代码
+}
+```
+##### 捕获不同类型的异常
+`catch` 可以捕获特定类型的异常，提供不同的处理方式：
+
+1. `Error`：捕获 `require` 或 `revert` 抛出的带有字符串消息的异常。
+2. `Panic`：捕获 `Panic` 异常，通常由 `assert` 失败、溢出、除零等错误引起。
+3. `catch (bytes memory)`：用于捕获其他异常情况。
+
+例如：
+
+```solidity
+try externalContract.f() returns (returnType val) {
+    // 成功调用时执行的代码
+} catch Error(string memory reason) {
+    // 捕获由 `require` 或 `revert("reasonString")` 抛出的异常
+} catch Panic(uint errorCode) {
+    // 捕获由 `Panic` 引起的异常（如 assert 失败，溢出等）
+} catch (bytes memory lowLevelData) {
+    // 捕获所有其他未匹配的异常
+}
+```
 
 ##### 测验结果
+- 100/100
 
-##### 测验错题
-
-### 2024.10.22
-#### WTF Academy Solidity 102.30
-
-##### 笔记
-
-##### 测验结果
-
-##### 测验错题
 <!-- Content_END -->
