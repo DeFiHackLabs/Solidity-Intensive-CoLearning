@@ -2966,21 +2966,51 @@ function callWithSignature() external {
 ##### 测验结果
 - 100/100
 
-### 2024.10.27
-#### WTF Academy Solidity 102.29
+### 2024.10.26
+#### WTF Academy Solidity 102.30 Try Catch函数
 
-##### 笔记
+`try-catch` 是 `Solidity 0.6` 版本中引入的异常处理机制，允许 **(1)调用外部合约函数** 或 **(2)构造函数** 失败时捕获异常，从而进行错误处理。
+
+##### `try-catch`基本语法
+
+```solidity
+try externalContract.f() {
+    // 当调用成功时执行的代码
+} catch {
+    // 当调用失败时执行的代码
+}
+```
+
+有返回值时：
+```solidity
+try externalContract.f() returns (returnType val) {
+    // 当调用成功时执行的代码，并且可以使用返回的变量 val
+} catch {
+    // 当调用失败时执行的代码
+}
+```
+##### 捕获不同类型的异常
+`catch` 可以捕获特定类型的异常，提供不同的处理方式：
+
+1. `Error`：捕获 `require` 或 `revert` 抛出的带有字符串消息的异常。
+2. `Panic`：捕获 `Panic` 异常，通常由 `assert` 失败、溢出、除零等错误引起。
+3. `catch (bytes memory)`：用于捕获其他异常情况。
+
+例如：
+
+```solidity
+try externalContract.f() returns (returnType val) {
+    // 成功调用时执行的代码
+} catch Error(string memory reason) {
+    // 捕获由 `require` 或 `revert("reasonString")` 抛出的异常
+} catch Panic(uint errorCode) {
+    // 捕获由 `Panic` 引起的异常（如 assert 失败，溢出等）
+} catch (bytes memory lowLevelData) {
+    // 捕获所有其他未匹配的异常
+}
+```
 
 ##### 测验结果
+- 100/100
 
-##### 测验错题
-
-### 2024.10.22
-#### WTF Academy Solidity 102.30
-
-##### 笔记
-
-##### 测验结果
-
-##### 测验错题
 <!-- Content_END -->
