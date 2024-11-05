@@ -70,6 +70,20 @@
     <!-- Content_END -->
     ```
     - 日期格式为 `### 2024.07.11`，请不要随意更改
+    
+## Solidity 殘酷共學名次公佈🔥
+
+🥇1.Eric (qiusheng319) 
+
+2.Aris (Aris1024)
+
+3.Jason (jasonj326)
+
+4.LikKee (maplerichie)
+
+5.YuanboXie  (YuanBoXie)
+
+6.CraigC (CraigCi)
 
 ## Solidity 残酷共學打卡记录表
 
